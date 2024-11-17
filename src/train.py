@@ -46,7 +46,7 @@ def train_and_save_k_means_model(data_set: BaseDataset,
     else:
         raise ValueError(f"Feature has to be 'sift' or 'root_sift'. {feature} is not supported.")
     for i, image_data in enumerate(data_set):
-        image_array = image_data.image_array
+        image_array, *rest = image_data
         _, descriptors = feature_extractor(resize(image_array, IMAGE_SIZE))
         sift_vectors_list = np.append(sift_vectors_list, descriptors, axis=0)
         if test and i == 9:
@@ -93,7 +93,7 @@ def train_and_save_gmm_model(data_set: BaseDataset,
     else:
         raise ValueError(f"Feature has to be 'sift' or 'root_sift'. {feature} is not supported.")
     for i, image_data in enumerate(data_set):
-        image_array = image_data.image_array
+        image_array, *rest = image_data
         _, descriptors = feature_extractor(resize(image_array, IMAGE_SIZE))
         sift_vectors_list = np.append(sift_vectors_list, descriptors, axis=0)
         if test and i == 9:
@@ -169,21 +169,21 @@ def main():
     - Features used: SIFT, RootSIFT
     - Number of clusters: 32, 64, 128, 256
     """
-    data_set = ExcavatorDataset(return_type='image', purpose='train')
+    data_set = ExcavatorDataset(return_type='image+mask', purpose='train')
     num_clusters = [32, 64, 128, 256]
     for num_cluster in num_clusters:
         for feature in ['sift', 'root_sift']:
             train_and_save_gmm_model(data_set,
                                      num_cluster,
                                      feature=feature,
-                                     test=True, # Set to False for training on the whole dataset
-                                     model_path=f'models/pickle_model_files/gmm_model_k{num_cluster}_{feature}.pkl')
+                                     test=False, # Set to False for training on the whole dataset
+                                     model_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/models/pickle_model_files/gmm_model_k{num_cluster}_{feature}.pkl')
 
             train_and_save_k_means_model(data_set,
                                          num_cluster,
                                          feature=feature,
-                                         test=True, # Set to False for training on the whole dataset
-                                         model_path=f'models/pickle_model_files/k_means_model_k{num_cluster}_{feature}.pkl')
+                                         test=False, # Set to False for training on the whole dataset
+                                         model_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/models/pickle_model_files/k_means_model_k{num_cluster}_{feature}.pkl')
 
     # Train PCA model
     # TODO: for each model, num_components = length_of_features_vector / 2

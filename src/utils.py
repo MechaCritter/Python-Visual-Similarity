@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Type, Optional
 from PIL import Image
 
+import json
 import joblib
 import numpy as np
 import torch
@@ -131,6 +132,31 @@ def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]
     for cls, color in class_colors.items():
         rgb_mask[:, class_mask == (cls.value if isinstance(cls, Enum) else cls)] = color.view(3, 1)
     return rgb_mask
+
+
+def append_json_list(file_path: str, keyval: dict[str, list[float]]) -> None:
+    """
+    Appends new elements to the existing lists in a JSON file.
+
+    :param file_path: Path to the JSON file
+    :param keyval: Dictionary containing key-value pairs
+
+    :raises NotImplementedError: If the key is not found in the JSON file
+    """
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+
+    for key, val in keyval.items():
+        try:
+            if key in data:
+                data[key].extend(val)
+            else:
+                data[key] = val
+        except KeyError as e:
+            raise NotImplementedError(f"Key {key} not found in the JSON file.") from e
+
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
 
 def multi_class_dice_score(pred_mask: torch.Tensor,

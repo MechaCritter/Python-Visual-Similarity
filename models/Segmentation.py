@@ -1,17 +1,21 @@
 import logging
 import os
 from enum import Enum
+import sys
+import os
+
+# Assuming "src" is in the root of your project directory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(project_root)
 
 from torch.utils.data import DataLoader
-
 import torch
 from segmentation_models_pytorch import Unet, DeepLabV3
 from segmentation_models_pytorch.utils.train import TrainEpoch, ValidEpoch
-from segmentation_models_pytorch.losses import DiceLoss
 from segmentation_models_pytorch.utils.metrics import IoU
 
 from src.datasets import BaseDataset, ExcavatorDataset, Excavators
-from src.utils import mask_to_rgb
+from src.utils import mask_to_rgb, append_json_list
 from src.losses import MultiClassDiceLoss
 
 class UNetModel:
@@ -21,11 +25,10 @@ class UNetModel:
                  optimizer: torch.optim.Optimizer = None,
                  metrics: list = None,
                  activation: str = None,
-                 encoder_name: str = 'resnet34',
+                 encoder_name: str = 'resnet18',
                 encoder_weights: str = 'imagenet',
                  classes: int = 12,
                  lr: float = 1e-3,
-                 momentum: float = 0.9
                  ):
         """
         Class constructor.
@@ -47,7 +50,7 @@ class UNetModel:
         self.lr = lr
 
         if model_path:
-            self.model = torch.load(model_path)
+            self.model.load_state_dict(torch.load(model_path))
             self._logger.info(f"Model loaded from {model_path} with parameters: {self.model}")
         else:
             self.model = Unet(encoder_name=encoder_name,
@@ -65,7 +68,7 @@ class UNetModel:
 
         self.criterion = criterion if criterion else MultiClassDiceLoss(mode='multiclass') # TODO: ignore background`?
         self.metrics = metrics if metrics else [IoU()]
-        self.optimizer = optimizer if optimizer else torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=momentum)
+        self.optimizer = optimizer if optimizer else torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
         # self.model = Unet(encoder_name=encoder_name,
@@ -95,7 +98,10 @@ class UNetModel:
               train_loader: DataLoader,
               val_loader: DataLoader,
               num_epochs: int,
-              model_save_path: str = 'models/torch_model_files/DeepLabV3.pt') -> None:
+              decay_coeff: float = 0.96,
+              log_save_path: str = None,
+              model_save_path: str = 'models/torch_model_files/UNet.pt',
+              ) -> None:
         """
         # TODO: ignore background class
         Train the model with the given data loaders.
@@ -103,11 +109,13 @@ class UNetModel:
         :param train_loader: DataLoader for training data
         :param val_loader: DataLoader for validation data
         :param num_epochs: number of epochs to train
+        :param decay_coeff: learning rate is multiplied with this coeff after each epoch
         :param model_save_path: path to save the model
         """
-        self._logger.info("Training DeepLabV3 model")
+        self._logger.info("Training UNet model")
         if os.path.exists(model_save_path):
             raise FileExistsError(f"Model file already exists at {model_save_path}. Please delete it or specify a new path.")
+
         self._logger.info("""Training parameters:
         - Number of epochs: %s
         - Model save path: %s, 
@@ -121,6 +129,7 @@ class UNetModel:
         - Learning rate: %s
         """, num_epochs, model_save_path, self.device, self.criterion, self.optimizer, self.metrics, self.activation, self.encoder_name, self.classes, self.lr)
         max_score = 0
+
         for epoch in range(num_epochs):
             print('\nEpoch: {}'.format(epoch))
             train_logs = self._train_epoch.run(train_loader)
@@ -131,6 +140,18 @@ class UNetModel:
                 max_score = valid_logs['iou_score']
                 torch.save(self.model.state_dict(), model_save_path)
                 self._logger.info('Model saved at: %s', model_save_path)
+
+                append_json_list(log_save_path, keyval={'train_dice_loss': [float(train_logs['MultiClassDiceLoss'])],
+                                                        'train_iou_score': [float(train_logs['iou_score'])],
+                                                        'valid_dice_loss': [float(valid_logs['MultiClassDiceLoss'])],
+                                                        'valid_iou_score': [float(valid_logs['iou_score'])]})
+
+            # Adjust learning rate
+            if epoch > 0:
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] *= decay_coeff
+            self._logger.info("Current Learning Rate: %s", self.optimizer.param_groups[0]['lr'])
+            self._logger.info("End of epoch %s. Currently, the best model achieves an IoU score and Dice Loss of %s and %s, respectively.", epoch, max_score, valid_logs['MultiClassDiceLoss'])
 
     def predict_single_image(self,
                              image: torch.Tensor,
@@ -208,11 +229,10 @@ class DeepLabV3Model:
                  optimizer: torch.optim.Optimizer = None,
                  metrics: list = None,
                  activation: str = None,
-                 encoder_name: str = 'resnet34',
+                 encoder_name: str = 'resnet18',
                  encoder_weights: str = 'imagenet',
                  classes: int = 12,
                  lr: float = 1e-3,
-                 momentum: float = 0.9
                  ):
         """
         Class constructor.
@@ -234,8 +254,8 @@ class DeepLabV3Model:
         self.lr = lr
 
         if model_path:
-            self.model = torch.load(model_path)
-            self._logger.info(f"Model loaded from {model_path} with parameters: {self.model}")
+            self.model.load_state_dict(torch.load(model_path))
+            #self._logger.info(f"Model loaded from {model_path} with parameters: {self.model}")
         else:
             self.model = DeepLabV3(encoder_name=encoder_name,
                                         encoder_weights=encoder_weights,
@@ -251,11 +271,9 @@ class DeepLabV3Model:
         self.model.to(self.device)
 
         self.criterion = criterion if criterion else MultiClassDiceLoss(mode='multiclass')
-        # This code was needed to avoid an error in the library 'segmentation_models_pytorch'
-        self.criterion.__name__ = 'DiceLoss'
 
         self.metrics = metrics if metrics else [IoU()]
-        self.optimizer = optimizer if optimizer else torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=momentum)
+        self.optimizer = optimizer if optimizer else torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
 
         # self.model = Unet(encoder_name=encoder_name,
@@ -285,6 +303,8 @@ class DeepLabV3Model:
               train_loader: DataLoader,
               val_loader: DataLoader,
               num_epochs: int,
+              decay_coeff: float = 0.96,
+              log_save_path: str = None,
               model_save_path: str = 'models/torch_model_files/DeepLabV3.pt') -> None:
         """
         # TODO: ignore background class
@@ -298,6 +318,7 @@ class DeepLabV3Model:
         self._logger.info("Training DeepLabV3 model")
         if os.path.exists(model_save_path):
             raise FileExistsError(f"Model file already exists at {model_save_path}. Please delete it or specify a new path.")
+
         self._logger.info("""Training parameters:
         - Number of epochs: %s
         - Model save path: %s, 
@@ -311,6 +332,7 @@ class DeepLabV3Model:
         - Learning rate: %s
         """, num_epochs, model_save_path, self.device, self.criterion, self.optimizer, self.metrics, self.activation, self.encoder_name, self.classes, self.lr)
         max_score = 0
+
         for epoch in range(num_epochs):
             print('\nEpoch: {}'.format(epoch))
             train_logs = self._train_epoch.run(train_loader)
@@ -321,6 +343,17 @@ class DeepLabV3Model:
                 max_score = valid_logs['iou_score']
                 torch.save(self.model.state_dict(), model_save_path)
                 self._logger.info('Model saved at: %s', model_save_path)
+
+                append_json_list(log_save_path, keyval={'train_dice_loss': [float(train_logs['MultiClassDiceLoss'])],
+                                                        'train_iou_score': [float(train_logs['iou_score'])],
+                                                        'valid_dice_loss': [float(valid_logs['MultiClassDiceLoss'])],
+                                                        'valid_iou_score': [float(valid_logs['iou_score'])]})
+            # Adjust learning rate
+            if epoch > 0:
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] *= decay_coeff
+            self._logger.info("Current Learning Rate: %s", self.optimizer.param_groups[0]['lr'])
+            self._logger.info("End of epoch %s. Currently, the best model achieves an IoU score and Dice Loss of %s and %s, respectively.", epoch, max_score, valid_logs['MultiClassDiceLoss'])
 
     def predict_single_image(self,
                              image: torch.Tensor,
@@ -389,10 +422,9 @@ class DeepLabV3Model:
 
 if __name__ =="__main__":
     from torchvision import transforms
-    import cv2
+    import matplotlib.pyplot as plt
+    from src.utils import mask_to_rgb
 
-    dlv3 = DeepLabV3Model(model_path='models/torch_model_files/DeepLabV3.pt')
-    unet = UNetModel()
     transformer = transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((640, 640)),
@@ -401,13 +433,26 @@ if __name__ =="__main__":
                                               purpose='train',
                                               return_type='image+mask',
                                               one_hot_encode_mask=True
-                                              ), batch_size=20, shuffle=False) # TODO: setting batch size above 1 won't work?
+                                              ), batch_size=32, shuffle=True) # TODO: setting batch size above 1 won't work?
     validloader = DataLoader(ExcavatorDataset(transform=transformer,
-                                              purpose='validation',
+                                              purpose='test',
                                               return_type='image+mask',
                                                 one_hot_encode_mask=True
-                                              ), batch_size=1, shuffle=False)
-    dlv3.train(trainloader, validloader, 10, model_save_path='models/torch_model_files/DeepLabV3_Huy_lr1e-3_momentum9e-1.pt')
+                                              ), batch_size=167, shuffle=False)
 
-    # #
+    dlv3 = DeepLabV3Model(lr=0.05, activation='softmax2d', criterion=MultiClassDiceLoss(mode='multiclass', from_logits=False))
+    unet = UNetModel(lr=0.05, activation='softmax2d', criterion=MultiClassDiceLoss(mode='multiclass', from_logits=False))
+    dlv3.train(trainloader,
+               validloader,
+               100,
+               decay_coeff=0.96,
+               log_save_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/res/dlv3_with_background.json',
+               model_save_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/models/torch_model_files/DeepLabV3_with_background.pt')
+    unet.train(trainloader,
+               validloader,
+               100,
+               decay_coeff=0.96,
+                log_save_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/res/unet_with_background.json',
+               model_save_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/models/torch_model_files/UNet_with_background.pt')
+
 

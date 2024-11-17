@@ -3,7 +3,7 @@ from typing import Optional
 
 import torch
 import torch.nn.functional as F
-from torch.nn.modules.loss import _Loss
+from torch.nn import Module
 
 __all__ = ["MultiClassDiceLoss"]
 
@@ -24,7 +24,7 @@ def soft_dice_score(
     dice_score = (2.0 * intersection + smooth) / (cardinality + smooth).clamp_min(eps)
     return dice_score
 
-class MultiClassDiceLoss(_Loss):
+class MultiClassDiceLoss(Module):
     __name__ = "MultiClassDiceLoss"
     def __init__(
                 self,
@@ -66,7 +66,7 @@ class MultiClassDiceLoss(_Loss):
                     """)
         if self.from_logits:
             if self.mode == 'multiclass':
-                y_pred = y_pred.log_softmax(dim=1).exp()
+                y_pred = y_pred.log_softmax(dim=1).exp() # TODO: check if exp() is necessary
             elif self.mode == 'binary':
                 y_pred = F.logsigmoid(y_pred).exp()
 
@@ -99,14 +99,20 @@ class MultiClassDiceLoss(_Loss):
 
 if __name__ == "__main__":
     from src.datasets import ExcavatorDataset
+    from src.utils import mask_to_rgb
     from models.Segmentation import DeepLabV3Model
     from torch.utils.data import DataLoader
     from torchvision import transforms
+    import matplotlib.pyplot as plt
 
     transformer = transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((640, 640)),
     ])
+    dataset = ExcavatorDataset(transform=transformer,
+                                              purpose='train',
+                                              return_type='image+mask',
+                                              one_hot_encode_mask=True)
     trainloader = DataLoader(ExcavatorDataset(transform=transformer,
                                               purpose='train',
                                               return_type='image+mask',
@@ -117,8 +123,9 @@ if __name__ == "__main__":
                                               return_type='image+mask',
                                                 one_hot_encode_mask=True
                                               ), batch_size=1, shuffle=False)
-    model = DeepLabV3Model(model_path='models/torch_model_files/DeepLabV3.pt').model
-    criterion = MultiClassDiceLoss(mode='multiclass', ignore_index=0)
+    model = DeepLabV3Model()
+    model.model.load_state_dict(torch.load('home/ais/Bachelorarbeit/similarity_metrics_of_images/models/torch_model_files/deprecated/DeepLabV3_with_background.pt'))
+    criterion = MultiClassDiceLoss(mode='multiclass')
     for i, (images, masks) in enumerate(trainloader):
         images = images.to('cuda')
         masks = masks.to('cuda')
@@ -127,3 +134,7 @@ if __name__ == "__main__":
         print(loss)
         if i == 1:
             break
+        plt.subplot(1, 2, 1)
+        plt.imshow(mask_to_rgb(masks[0].permute(1, 2, 0), class_colors=dataset.class_colors))
+        plt.subplot(1, 2, 2)
+        plt.imshow(mask_to_rgb(output[0].permute(1, 2, 0), class_colors=dataset.class_colors))
