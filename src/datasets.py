@@ -161,10 +161,8 @@ class BaseDataset(Dataset):
 
         :param data_dir: Path to the directory containing the images. Pass the path to the `data/train`and `data/test` directories. The names
         of the subdirectories are used as labels.
-        :type data_dir: str
 
         :return: A list of path to the images and their labels
-        :rtype: list
         """
         for label in os.listdir(data_dir):
             for img_file in os.listdir(os.path.join(data_dir, label)):

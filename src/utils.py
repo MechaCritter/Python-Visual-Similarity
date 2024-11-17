@@ -158,12 +158,39 @@ def append_json_list(file_path: str, keyval: dict[str, list[float]]) -> None:
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
 
+def soft_dice_score(output: torch.Tensor,
+                    target: torch.Tensor,
+                    smooth: float = 0.0,
+                    eps: float = 1e-7,
+                    dims=None) -> torch.Tensor:
+    """
+    Compute the Soft Dice Score for the given output and target.
+
+    :param output: Model output. Shape: (N, C, HxW)
+    :param target: Target mask. Shape: (N, C, HxW)
+    :param smooth: label smoothing value
+    :param eps: epsilon value to avoid division by zero
+    :param dims: dimensions to reduce. Default is None
+
+    :return: soft dice score
+    """
+    assert output.size() == target.size()
+    if dims is not None:
+        intersection = torch.sum(output * target, dim=dims)
+        cardinality = torch.sum(output + target, dim=dims)
+    else:
+        intersection = torch.sum(output * target)
+        cardinality = torch.sum(output + target)
+    dice_score = (2.0 * intersection + smooth) / (cardinality + smooth).clamp_min(eps)
+    return dice_score
+
 
 def multi_class_dice_score(pred_mask: torch.Tensor,
                            true_mask: torch.Tensor,
                            num_classes: int,
                            ignore_channels: list[int] = None) -> torch.Tensor:
     """
+    # TODO: this method is deprecated. Use 'soft_dice_score' instead.
     Compute Dice Similarity Coefficient for the predicted mask and the true mask.
 
     :param pred_mask: predicted mask with shape (H, W)
