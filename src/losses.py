@@ -19,7 +19,6 @@ class MultiClassDiceLoss(_Loss):
                 from_logits: bool = True,
                 smooth: float = 0.0,
                 eps: float = 1e-7,
-                reduce: str = 'mean',
                 ignore_index: Optional[int] = None) -> None:
         """
         Dice loss for image segmentation task.
@@ -32,7 +31,6 @@ class MultiClassDiceLoss(_Loss):
         self.smooth = smooth
         self.eps = eps
         self.log_loss = log_loss
-        self.reduce = reduce
         self.ignore_index = ignore_index
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
@@ -80,11 +78,7 @@ class MultiClassDiceLoss(_Loss):
         if self.classes is not None:
             loss = loss[self.classes]
 
-        if self.reduce == 'mean':
-            return loss.mean()
-        elif self.reduce == 'sum':
-            return loss.sum()
-        return loss
+        return loss.mean()
 
 
 class FocalLoss(_Loss):
@@ -95,7 +89,6 @@ class FocalLoss(_Loss):
                  normalize_weights: bool = True,
                  gamma: float = 2.0,
                  from_logits: bool = True,
-                 reduce: str = 'mean',
                  ignore_index: Optional[int] = None) -> None:
         """
         Focal loss for image segmentation task.
@@ -104,9 +97,7 @@ class FocalLoss(_Loss):
         assert mode in {'binary', 'multiclass'}, f"Unknown mode: {mode}. Supported modes are 'multiclass' and 'binary'."
         self.mode = mode
         self.alpha = alpha
-        self.normalize_weights = normalize_weights
-        self.reduce = reduce
-        if self.alpha is not None and self.normalize_weights:
+        if self.alpha is not None and normalize_weights:
             self.alpha = self.alpha / self.alpha.sum()
 
         self.gamma = gamma
@@ -147,9 +138,7 @@ class FocalLoss(_Loss):
 
             # Handle alpha
             if self.alpha is None:
-                self.alpha = torch.ones(num_classes, device=y_pred.device)
-                if self.normalize_weights:
-                    self.alpha = self.alpha / num_classes
+                self.alpha = torch.ones(num_classes, device=y_pred.device)/num_classes
             if not self.alpha.device == y_pred.device:
                 self.alpha = self.alpha.to(y_pred.device)
             alpha_t = self.alpha[y_true]
@@ -173,38 +162,28 @@ class FocalLoss(_Loss):
         focal_weight = alpha_t * (1 - p_t) ** self.gamma
         loss = focal_weight * (-torch.log(p_t.clamp(min=1e-7)))
 
-        if self.reduce == 'mean':
-            return loss.mean()
-        elif self.reduce == 'sum':
-            return loss.sum()
-        return loss
+        return loss.mean()
 
 class HybridFocalDiceLoss(_Loss):
-    __name__ = "HybridFocalDiceLoss"
     def __init__(self,
                  mode: str,
                  alpha: Optional[torch.Tensor] = None,
                  gamma: float = 2.0,
                  from_logits: bool = True,
-                 normalize_weights: bool = True,
                  ignore_index: Optional[int] = None,
                  dice_weight: float = 1.0,
                  focal_weight: float = 1.0,
                  smooth: float = 1e-5,
-                 reduce: str = 'mean',
                  eps: float = 1e-7) -> None:
         super().__init__()
         self.focal_loss = FocalLoss(mode=mode,
                                     alpha=alpha,
                                     gamma=gamma,
                                     from_logits=from_logits,
-                                    normalize_weights=normalize_weights,
-                                    reduce=reduce,
                                     ignore_index=ignore_index)
         self.dice_loss = MultiClassDiceLoss(mode=mode,
                                             from_logits=from_logits,
                                             smooth=smooth,
-                                            reduce=reduce,
                                             eps=eps)
         if not dice_weight + focal_weight == 1.0:
             raise ValueError(f"Sum of dice_weight and focal_weight must be equal to 1.0, got {dice_weight} + {focal_weight} = {dice_weight + focal_weight}")
@@ -253,3 +232,5 @@ if __name__ == "__main__":
         print(loss)
         if i == 0:
             break
+
+
