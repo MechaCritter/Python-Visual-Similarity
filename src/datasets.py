@@ -1,9 +1,9 @@
 import os
 from enum import Enum
-from tkinter import Image
 from typing import Optional
 from dataclasses import dataclass
 
+import albumentations
 import cv2
 import matplotlib.pyplot as plt
 import torch
@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 from dotenv import load_dotenv
 
 from src.config import *
-from src.utils import rgb_to_mask, mask_to_rgb, plot_image
+from src.utils import rgb_to_mask, plot_image, permute_image_channels
 
 setup_logging()
 load_dotenv()
@@ -196,8 +196,8 @@ class BaseDataset(Dataset):
             raise IndexError(
                 f"Index out of range. Data for {self.purpose} purpose only contains {len(self.images)} images.")
 
-        if not self.return_type in ['image', 'image+mask', 'image+label', 'image+mask+label', 'all']:
-            raise ValueError(f"`return_type` has to be whether 'image', 'image+mask', 'image+label', 'image+mask+label' or 'all'. not {self.return_type}")
+        if not self.return_type in ['image', 'image+mask', 'image+label', 'image+mask+path', 'all']:
+            raise ValueError(f"`return_type` has to be whether 'image', 'image+mask', 'image+label', 'image+mask+path' or 'all'. not {self.return_type}")
 
         image_path = self.images[index]
         label = self.labels[index]
@@ -221,9 +221,15 @@ class BaseDataset(Dataset):
                 """)
 
         if self.transform:
-            image_array = self.transform(image_array)
-            if mask is not None:
-                mask = self.transform(mask)
+            if isinstance(self.transform, transforms.Compose):
+                image_array = self.transform(image_array)
+                if mask is not None:
+                    mask = self.transform(mask)
+            elif isinstance(self.transform, albumentations.core.composition.Compose):
+                transformed = self.transform(image=image_array, mask=mask)
+                image_array = transformed['image']
+                mask = (transformed['mask'] / 255.0).float()
+                mask = permute_image_channels(mask)
             if self._class_colors and mask.shape[0] == 3 and len(mask.shape) == 3:
                 self._logger.info("RGB mask detected with shape: %s. Converting to class mask.", mask.shape)
                 mask = rgb_to_mask(mask, self._class_colors)
@@ -240,8 +246,8 @@ class BaseDataset(Dataset):
                 return image_array, mask
             case 'image+label':
                 return image_array, label
-            case 'image+mask+label':
-                return image_array, mask, label
+            case 'image+mask+path':
+                return image_array, mask, image_path
             case 'all':
                 return ImageData(image_array=image_array, mask_array=mask, label=label, image_path=image_path)
 
@@ -309,24 +315,30 @@ class ExcavatorDataset(BaseDataset):
         }
 
 if __name__ == "__main__":
-    transformer = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((640, 640)),
-    ])
-    # train_data = ExcavatorDataset(transform=transformer, purpose='train', return_type='all')
-    test_data  = ExcavatorDataset(transform=transformer, purpose='test', return_type='all', plot=True)
-    # for i, data in enumerate(train_data):
-    #     print("Image: ", data.image_array.shape)
-    #     print("Mask: ", data.mask_array.shape)
-    #     print("Label: ", data.label)
-    #     print("Path: ", data.image_path)
-    #     if i > 10:
-    #         break
+    import albumentations as A
+    from albumentations.pytorch import ToTensorV2
+    from src.utils import mask_to_rgb
 
-    for i, data in enumerate(test_data):
-        print("Image: ", data.image_array.shape)
-        print("Mask: ", data.mask_array.shape)
-        print("Label: ", data.label)
-        print("Path: ", data.image_path)
-        if i > 100:
-            break
+    # Define transformations
+    transformer = A.Compose([
+        # Transformations applied to both image and mask
+        A.Resize(640, 640),  # Resize both
+        A.Rotate(limit=30, p=0.5),  # Rotate both
+
+        # Transformations applied only to the image
+        A.OneOf([
+            A.RandomBrightnessContrast(p=0.5),  # Random brightness and contrast
+            A.CLAHE(p=0.5),  # Contrast Limited Adaptive Histogram Equalization
+            A.RandomGamma(p=0.5),  # Random gamma adjustments
+        ], p=0.8),  # 80% chance of applying one of the above
+        A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5),
+
+        # Normalize and convert to tensor
+        A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
+        ToTensorV2(),
+    ], additional_targets={'mask': 'mask'})
+    dataset = ExcavatorDataset(transform=transformer,
+                                 purpose='train',
+                               one_hot_encode_mask=True,
+                                 return_type='image+mask')
+    print(dataset[0])

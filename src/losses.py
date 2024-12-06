@@ -19,6 +19,7 @@ class MultiClassDiceLoss(_Loss):
                 from_logits: bool = True,
                 smooth: float = 0.0,
                 eps: float = 1e-7,
+                reduce: str = 'mean',
                 ignore_index: Optional[int] = None) -> None:
         """
         Dice loss for image segmentation task.
@@ -31,6 +32,7 @@ class MultiClassDiceLoss(_Loss):
         self.smooth = smooth
         self.eps = eps
         self.log_loss = log_loss
+        self.reduce = reduce
         self.ignore_index = ignore_index
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
@@ -38,16 +40,15 @@ class MultiClassDiceLoss(_Loss):
         Forward pass.
 
         :param y_pred: (B, C, H, W)
-        :param y_true: (B, H, W)
+        :param y_true: (B, C, H, W)
 
-        :return: Weighted focal loss
+        :return: dice loss
         """
-        assert y_pred.dim() == 4, f"'y_pred' must have 4 dimensions (B, C, H, W), got {y_pred.dim()}"
-        assert y_true.dim() == 3, f"'y_true' must have 3 dimensions (B, H, W), got {y_true.dim()}"
+        assert y_true.dim() == y_pred.dim() == 4, f"Expected 4D input tensors, got {y_pred.dim()} for y_pred and {y_true.dim()} for y_true"
         logging.debug(f"""
                     Batch size: {y_true.size(0)}
-                    Number of classes: {y_pred.size(1)}
-                    Image shape: ({y_true.size(1)} x {y_true.size(2)})
+                    Number of classes: {y_true.size(1)}
+                    Image shape: ({y_true.size(2)} x {y_true.size(3)})
                     """)
         if self.from_logits:
             if self.mode == 'multiclass':
@@ -59,15 +60,12 @@ class MultiClassDiceLoss(_Loss):
         num_classes = y_pred.size(1)
         dims = (0, 2)
 
-        y_true = y_true.view(batch_size, -1)
+        y_true = y_true.view(batch_size, num_classes, -1)
         y_pred = y_pred.view(batch_size, num_classes, -1)
 
         if self.ignore_index is not None:
             mask = y_true != self.ignore_index
             y_pred = y_pred * mask
-            y_true = F.one_hot(y_true * mask, num_classes).permute(0, 2, 1).float()
-        else:
-            y_true = F.one_hot(y_true, num_classes).permute(0, 2, 1).float()
 
         scores = soft_dice_score(y_pred, y_true.type_as(y_pred), smooth=self.smooth, eps=self.eps, dims=dims)
 
@@ -82,7 +80,11 @@ class MultiClassDiceLoss(_Loss):
         if self.classes is not None:
             loss = loss[self.classes]
 
-        return loss.mean()
+        if self.reduce == 'mean':
+            return loss.mean()
+        elif self.reduce == 'sum':
+            return loss.sum()
+        return loss
 
 
 class FocalLoss(_Loss):
@@ -93,6 +95,7 @@ class FocalLoss(_Loss):
                  normalize_weights: bool = True,
                  gamma: float = 2.0,
                  from_logits: bool = True,
+                 reduce: str = 'mean',
                  ignore_index: Optional[int] = None) -> None:
         """
         Focal loss for image segmentation task.
@@ -101,7 +104,9 @@ class FocalLoss(_Loss):
         assert mode in {'binary', 'multiclass'}, f"Unknown mode: {mode}. Supported modes are 'multiclass' and 'binary'."
         self.mode = mode
         self.alpha = alpha
-        if self.alpha is not None and normalize_weights:
+        self.normalize_weights = normalize_weights
+        self.reduce = reduce
+        if self.alpha is not None and self.normalize_weights:
             self.alpha = self.alpha / self.alpha.sum()
 
         self.gamma = gamma
@@ -113,12 +118,12 @@ class FocalLoss(_Loss):
         Forward pass.
 
         :param y_pred: (B, C, H, W)
-        :param y_true: (B, H, W)
+        :param y_true: (B, C, H, W)
 
         :return: Weighted focal loss
         """
-        assert y_pred.dim() == 4, f"'y_pred' must have 4 dimensions (B, C, H, W), got {y_pred.dim()}"
-        assert y_true.dim() == 3, f"'y_true' must have 3 dimensions (B, H, W), got {y_true.dim()}"
+        assert y_pred.dim() == y_pred.dim() == 4, f"Expected 4D input tensors, got {y_pred.dim()} for y_pred and {y_true.dim()} for y_true"
+        y_true = torch.argmax(y_true, dim=1) # Revert one-hot encoding back to (B, H, W) tensor
 
         if self.from_logits:
             if self.mode == 'multiclass':
@@ -141,12 +146,13 @@ class FocalLoss(_Loss):
             p_t = y_pred[torch.arange(y_pred.size(0)), y_true]
 
             # Handle alpha
-            if self.alpha is not None:
-                if self.alpha.device != y_pred.device:
-                    self.alpha = self.alpha.to(y_pred.device)
-                alpha_t = self.alpha[y_true]
-            else:
-                alpha_t = 1.0
+            if self.alpha is None:
+                self.alpha = torch.ones(num_classes, device=y_pred.device)
+                if self.normalize_weights:
+                    self.alpha = self.alpha / num_classes
+            if not self.alpha.device == y_pred.device:
+                self.alpha = self.alpha.to(y_pred.device)
+            alpha_t = self.alpha[y_true]
 
         elif self.mode == 'binary':
             y_pred = y_pred.view(-1)
@@ -167,28 +173,38 @@ class FocalLoss(_Loss):
         focal_weight = alpha_t * (1 - p_t) ** self.gamma
         loss = focal_weight * (-torch.log(p_t.clamp(min=1e-7)))
 
-        return loss.mean()
+        if self.reduce == 'mean':
+            return loss.mean()
+        elif self.reduce == 'sum':
+            return loss.sum()
+        return loss
 
 class HybridFocalDiceLoss(_Loss):
+    __name__ = "HybridFocalDiceLoss"
     def __init__(self,
                  mode: str,
                  alpha: Optional[torch.Tensor] = None,
                  gamma: float = 2.0,
                  from_logits: bool = True,
+                 normalize_weights: bool = True,
                  ignore_index: Optional[int] = None,
                  dice_weight: float = 1.0,
                  focal_weight: float = 1.0,
                  smooth: float = 1e-5,
+                 reduce: str = 'mean',
                  eps: float = 1e-7) -> None:
         super().__init__()
         self.focal_loss = FocalLoss(mode=mode,
                                     alpha=alpha,
                                     gamma=gamma,
                                     from_logits=from_logits,
+                                    normalize_weights=normalize_weights,
+                                    reduce=reduce,
                                     ignore_index=ignore_index)
         self.dice_loss = MultiClassDiceLoss(mode=mode,
                                             from_logits=from_logits,
                                             smooth=smooth,
+                                            reduce=reduce,
                                             eps=eps)
         if not dice_weight + focal_weight == 1.0:
             raise ValueError(f"Sum of dice_weight and focal_weight must be equal to 1.0, got {dice_weight} + {focal_weight} = {dice_weight + focal_weight}")
@@ -219,7 +235,7 @@ if __name__ == "__main__":
     trainloader = DataLoader(ExcavatorDataset(transform=transformer,
                                               purpose='train',
                                               return_type='image+mask',
-                                              one_hot_encode_mask=False
+                                              one_hot_encode_mask=True
                                               ), batch_size=10, shuffle=False) # TODO: setting batch size above 1 won't work?
     validloader = DataLoader(ExcavatorDataset(transform=transformer,
                                               purpose='validation',
@@ -228,7 +244,7 @@ if __name__ == "__main__":
                                               ), batch_size=1, shuffle=False)
     model = DeepLabV3Model()
     model.model.load_state_dict(torch.load('models/torch_model_files/DeepLabV3_with_background.pt'))
-    criterion = HybridFocalDiceLoss(mode='multiclass', dice_weight=0.5, focal_weight=0.5)
+    criterion = FocalLoss(mode='multiclass', from_logits=True)
     for i, (image, mask) in enumerate(trainloader):
         image = image.to('cuda')
         mask = mask.to('cuda')
@@ -237,5 +253,3 @@ if __name__ == "__main__":
         print(loss)
         if i == 0:
             break
-
-

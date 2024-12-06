@@ -1,8 +1,11 @@
 import logging
+import os
+import shutil
 from enum import Enum
-from typing import Type, Optional
-from PIL import Image
+from typing import Type, Optional, Any, Union
 
+import h5py
+from PIL import Image
 import json
 import joblib
 import numpy as np
@@ -10,13 +13,15 @@ import torch
 import torchvision
 import torchvision.transforms.functional as TF
 import io
-import matplotlib.pyplot as plt
 import cv2
+import matplotlib.pyplot as plt
+from piq import ssim, multi_scale_ssim as ms_ssim
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
 import seaborn as sns
 import torch.nn.functional as F
 from segmentation_models_pytorch.utils.metrics import IoU
+from tqdm import tqdm
 
 from src.config import setup_logging
 
@@ -52,10 +57,23 @@ def get_centroids(data: np.ndarray, num_clusters: int):
     :return: Centroids of the clusters, the corresponding labels and the locations of the centroids
     :rtype: tuple(np.ndarray, np.ndarray, np.ndarray)
     """
-    kmeans = KMeans(n_clusters=num_clusters)
+    kmeans = KMeans(n_clusters=num_clusters, random_state=42)
     kmeans.fit(data)
 
     return kmeans.cluster_centers_, kmeans.labels_
+
+
+def cluster_and_return_labels(data: np.ndarray, n_clusters: int) -> np.ndarray:
+    """
+    Cluster the given data using KMeans and return the labels.
+
+    :param data: Data to cluster
+    :param n_clusters: Number of clusters
+
+    :return: Labels of the clusters
+    """
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    return kmeans.fit_predict(data)
 
 
 def create_and_plot_synthetic_data(lower_limit: float,
@@ -134,6 +152,17 @@ def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]
     return rgb_mask
 
 
+def load_json(file_path: str) -> dict:
+    """
+    Load data from a JSON file.
+
+    :param file_path: Path to the JSON file
+
+    :return: Dictionary containing data from the JSON file
+    """
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
 def append_json_list(file_path: str, keyval: dict[str, list[float]]) -> None:
     """
     Appends new elements to the existing lists in a JSON file.
@@ -157,6 +186,88 @@ def append_json_list(file_path: str, keyval: dict[str, list[float]]) -> None:
 
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
+
+
+def save_json(file_path: str, data: dict) -> None:
+    """
+    Save the given data to a JSON file.
+
+    :param file_path: Path to the JSON file
+    :param data: Dictionary containing data to save
+    """
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+
+def save_to_hdf5(file_path: str,
+                 dataset_dict: dict[str, Any]) -> None:
+    """
+    Save data to an HDF5 file using concise match-case type handling.
+
+    :param file_path: Path to the HDF5 file
+    :param dataset_dict: Dictionary containing data to save
+
+    :raises TypeError: If the data type is not supported
+    """
+    with h5py.File(file_path, 'w') as f:
+        for dataset_name, data in dataset_dict.items():
+            match data:
+                case torch.Tensor():
+                    # Convert Torch tensor to NumPy array
+                    data = data.numpy()
+                    f.create_dataset(dataset_name, data=data)
+
+                case np.ndarray():
+                    # Handle strings in NumPy arrays differently
+                    if data.dtype.kind in {'U', 'S'}:  # Unicode or bytes
+                        dt = h5py.string_dtype(encoding='utf-8')
+                        f.create_dataset(dataset_name, data=data.astype(dt))
+                    else:
+                        f.create_dataset(dataset_name, data=data)
+
+                case list():
+                    # Convert lists to NumPy arrays if possible
+                    try:
+                        np_data = np.array(data)
+                        if np_data.dtype.kind in {'U', 'S'}:
+                            dt = h5py.string_dtype(encoding='utf-8')
+                            np_data = np_data.astype(dt)
+                        f.create_dataset(dataset_name, data=np_data)
+                    except ValueError as e:
+                        raise ValueError(f"Cannot convert list to NumPy array for dataset '{dataset_name}': {e}")
+
+                case str() | bytes():
+                    # Handle single strings or bytes
+                    dt = h5py.string_dtype(encoding='utf-8')
+                    f.create_dataset(dataset_name, data=np.array([data], dtype=dt))
+
+                case _:
+                    raise TypeError(f"Unsupported data type for dataset '{dataset_name}': {type(data)}")
+
+def load_hdf5(file_path: str) -> dict[str, np.ndarray]:
+    """
+    Load data from an HDF5 file.
+
+    :param file_path: Path to the HDF5 fileuse
+
+    :return: Dictionary containing data from the HDF5 file
+    """
+    with h5py.File(file_path, 'r') as file:
+        data = {key: val[:] for key, val in file.items()}
+    return data
+
+
+def mean_below_diagonal(matrix: np.ndarray) -> float:
+    """
+    Calculate the mean of elements below the diagonal of a symmetric matrix.
+
+    :param matrix: Symmetric numpy array with 1s on the diagonal.
+    :return: Mean of the elements below the diagonal.
+    """
+    below_diag_elements = matrix[np.tril_indices_from(matrix, k=-1)]
+    mean_value = below_diag_elements.mean()
+    return mean_value
+
 
 def soft_dice_score(output: torch.Tensor,
                     target: torch.Tensor,
@@ -219,7 +330,7 @@ def multi_class_dice_score(pred_mask: torch.Tensor,
     for class_index in range(num_classes):
         if ignore_channels:
             if class_index in ignore_channels:
-                print("Ignoring channel:", class_index)
+                logging.info("Ignoring channel:", class_index)
                 continue
 
         # Get the predicted and true masks for the current class
@@ -276,6 +387,120 @@ def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[En
     cls_name = cls_of_interest.upper()
     return enum_class.__members__.get(cls_name)
 
+def calc_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> list[torch.Tensor]:
+    """
+    Calculate the Structural Similarity Index (SSIM) between two images.
+    :param image_1: First image
+    :param image_2: Second image
+
+    :return: SSIM value
+    """
+    if not isinstance(image_1, torch.Tensor) or not isinstance(image_2, torch.Tensor):
+        raise ValueError(f"Both images must be of type torch.Tensor, but got {type(image_1)} and {type(image_2)} instead.")
+    return ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0)
+
+
+def calc_ms_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> torch.Tensor:
+    """
+    Calculate the Multi-Scale Structural Similarity Index (MS-SSIM) between two images.
+    :param image_1: First image
+    :param image_2: Second image
+
+    :return: MS-SSIM value
+    """
+    if not isinstance(image_1, torch.Tensor) or not isinstance(image_2, torch.Tensor):
+        raise ValueError(f"Both images must be of type torch.Tensor, but got {type(image_1)} and {type(image_2)} instead.")
+    return ms_ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0)
+
+
+def cluster_images_and_save(
+        image_paths: list[str],
+        features: np.ndarray | torch.Tensor,
+        n_clusters: int,
+        output_dir: str,
+        generate_heatmap: bool = True,
+        heatmap_title: str = "Heatmap",
+        rename_images: bool = True,
+        verbose: bool = True) -> None:
+    """
+    Cluster images based on provided features and save them into folders.
+
+    :param image_paths: List of image paths.
+    :param features: Feature matrix of shape (num_images, feature_dimension).
+    :param n_clusters: Number of clusters to form.
+    :param output_dir: Directory to save clustered images and heatmaps.
+    :param generate_heatmap: Whether to generate heatmaps for each cluster.
+    :param heatmap_title: Title for the heatmaps.
+    :param rename_images: Whether to rename images in the cluster folders. The schema is simply `image_{index}.jpg`.
+    :param verbose: Whether to print progress messages.
+    """
+    if verbose:
+        logging.info(f"Clustering {len(image_paths)} images into {n_clusters} clusters...")
+    labels = cluster_and_return_labels(features, n_clusters=n_clusters)
+
+    for cluster_num in tqdm(range(n_clusters), desc="Processing clusters"):
+        cluster_indices = np.where(labels == cluster_num)[0]
+        cluster_image_paths = [image_paths[idx] for idx in cluster_indices]
+
+        # Create cluster directory
+        cluster_dir = os.path.join(output_dir, f"cluster_{cluster_num}")
+        os.makedirs(cluster_dir, exist_ok=True)
+
+        # Copy and optionally rename images
+        cluster_index_list = []
+        for idx, image_path in enumerate(cluster_image_paths, start=1):
+            if rename_images:
+                # Determine file extension
+                _, ext = os.path.splitext(image_path)
+                image_filename = f"image_{idx}{ext}"
+            else:
+                image_filename = os.path.basename(image_path)
+
+            dest_path = os.path.join(cluster_dir, image_filename)
+            shutil.copy(image_path, dest_path)
+            cluster_index_list.append(str(idx))
+
+        if generate_heatmap:
+            if len(cluster_indices) > 1:
+                cluster_features = features[cluster_indices]
+                similarity_matrix = cosine_similarity(cluster_features)
+                try:
+                    plot_and_save_heatmap(
+                        matrix=similarity_matrix,
+                        title=f"{heatmap_title} - Cluster {cluster_num} - {mean_below_diagonal(similarity_matrix):.2f} Avr Similarity",
+                        x_tick_labels=cluster_index_list,
+                        y_tick_labels=cluster_index_list,
+                        cbar_kws={"label": "Cosine Similarity"},
+                        save_fig_path=os.path.join(cluster_dir, f"heatmap_cluster_{cluster_num}.png"),
+                        show=False)
+                except ValueError as e:
+                    logging.warning(f"Error generating heatmap for cluster {cluster_num}: {e}. Probably the heatmap is too large.")
+                save_to_hdf5(file_path=os.path.join(cluster_dir, f"heatmap_cluster_{cluster_num}.h5"),
+                              dataset_dict={"heatmap": similarity_matrix,
+                               "image_paths": [path.replace('/', '|').replace('\\', '|') for path in cluster_image_paths]})
+                save_json(file_path=os.path.join(cluster_dir, f"cluster_{cluster_num}_info.json"),
+                          data={"num_images": len(cluster_indices),
+                                "indices": cluster_index_list,
+                                "average_similarity": mean_below_diagonal(similarity_matrix)})
+            else:
+                if verbose:
+                    logging.info(f"Cluster {cluster_num} contains only one image; skipping heatmap generation.")
+
+    if verbose:
+        logging.info(f"Clustering completed. Results saved in {output_dir}")
+
+
+@check_is_image
+def permute_image_channels(image: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    """
+    Permute image to shape (C, H, W) if the current shape is (H, W, C).
+
+    :param image: Input image
+
+    :return: Permuted image
+    """
+    if image.shape[2] == 3:
+        return np.transpose(image, (2, 0, 1)) if isinstance(image, np.ndarray) else image.permute(2, 0, 1)
 
 @check_is_image
 def get_non_zero_pixel_indices(image: np.ndarray) -> tuple:
@@ -376,36 +601,43 @@ def plot_clusters_on_image(image: np.ndarray,
     plt.grid(False)
     plt.show()
 
-def plot_similarity_heatmap_between_2_vectors(vector1: np.ndarray, vector2: np.ndarray, **kwargs) -> None:
-    """
-    Plot a heatmap showing the similarity between two vectors. Use this method to compare similarity
-    between VLAD/Fisher vectors.
 
-    ***Note***: Make sure both vectors have shape `num_clusters x num_features`.
-
-    :param vector1: First (VLAD/Fisher) vector
-    :type vector1: np.ndarray
-    :param vector2: Second (VLAD/Fisher) vector
-    :type vector2: np.ndarray
-    **kwargs: Additional keyword arguments (currently available: `title`, `xlabel`, `ylabel`)
+def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
+                          x_tick_labels: list[str]=None,
+                          y_tick_labels: list[str]=None,
+                          cbar_kws: dict[str, str]=None,
+                          title: str="Heatmap",
+                          x_label: str="X Axis",
+                          y_label: str="Y Axis",
+                          show: bool=True,
+                          save_fig_path: str=None) -> None:
     """
-    if not vector1.shape[1] == vector2.shape[1]:
-        raise ValueError(
-            f"Both vectors must have the same number of features, but got {vector1.shape[1]} and {vector2.shape[1]} instead.")
-    if not isinstance(vector1, np.ndarray) or not isinstance(vector2, np.ndarray):
-        raise ValueError(
-            f"Expected both vectors to be numpy arrays, but got {type(vector1)} and {type(vector2)} instead.")
-    # Calculate cosine similarity between the two vectors
-    similarity = cosine_similarity(vector1, vector2)
-    plt.figure(figsize=(10, 6))
-    sns.heatmap(similarity, annot=True, fmt=".2f", cmap="viridis",
-                xticklabels=[f"Cluster {i}" for i in range(vector1.shape[0])],
-                yticklabels=[f"Cluster {i}" for i in range(vector2.shape[0])],
-                cbar_kws={"label": "Cosine Similarity"})
-    plt.title("Cosine Similarity Heatmap between Two Vectors") if "title" not in kwargs else plt.title(kwargs["title"])
-    plt.xlabel("Clusters of Image 1") if "xlabel" not in kwargs else plt.xlabel(kwargs["xlabel"])
-    plt.ylabel("Clusters of Image 2") if "ylabel" not in kwargs else plt.ylabel(kwargs["ylabel"])
-    plt.show()
+    Plot a heatmap using the specified matrix.
+
+    :param matrix: matrix
+    :param x_tick_labels: x-axis tick labels
+    :param y_tick_labels: y-axis tick labels
+    :param cbar_kws: colorbar keyword arguments
+    :param title: title of the plot
+    :param x_label: x-axis label
+    :param y_label: y-axis label
+    :param show: whether to display the plot
+    :param save_fig_path: Path to save the figure
+    **kwargs: Additional keyword arguments (currently available: title, xlabel, ylabel)
+    """
+    plt.figure(figsize=(len(matrix) * 0.7, len(matrix) * 0.7))
+    sns.heatmap(matrix, annot=True, fmt=".2f", cmap="viridis",
+                xticklabels=x_tick_labels if x_tick_labels else list(range(matrix.shape[1])),
+                yticklabels=y_tick_labels if y_tick_labels else list(range(matrix.shape[0])),
+                cbar_kws=cbar_kws if cbar_kws else {"label": "value"})
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    if save_fig_path:
+        plt.savefig(save_fig_path)
+    if show:
+        plt.show()
+    plt.close()
 
 
 def is_subset(list1: list, list2: list) -> bool:
@@ -469,6 +701,18 @@ def load_model(file_path: str) -> object:
 
 
 @check_is_image
+def average(matrix: np.ndarray | torch.Tensor) -> float:
+    """
+    Compute the average of the given matrix.
+
+    :param matrix: Input matrix
+
+    :return: Average value
+    """
+    return np.mean(matrix) if isinstance(matrix, np.ndarray) else torch.mean(matrix).item()
+
+
+@check_is_image
 def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=3, sigma: float=1.0) -> np.ndarray | torch.Tensor:
     """
     Apply Gaussian blurring to the given image.
@@ -479,6 +723,12 @@ def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=3, sigma: f
 
     :return: Blurred image
     """
+    min_kernel_size = 2 * int(3 * sigma) + 1
+    max_kernel_size = 2 * int(5 * sigma) + 1
+    if not min_kernel_size <= kernel_size <= max_kernel_size:
+        raise ValueError(f"Kernel radius must be between 2 * 3-5 times the standard deviation plus one. " 
+                         f"In this case, it should be between {min_kernel_size} and {max_kernel_size} "
+                         f"Got kernel size: {kernel_size}")
     if isinstance(image, np.ndarray):
         return cv2.GaussianBlur(image, (kernel_size, kernel_size), sigma)
     elif torch.is_tensor(image):
@@ -550,6 +800,7 @@ def sharpen(image, kernel=np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])):
     Sharpens the given image using the given kernel.
     """
     return cv2.filter2D(image, -1, kernel)
+
 
 @check_is_image
 def plot_image(image: np.ndarray | torch.Tensor, title: str = None) -> None:

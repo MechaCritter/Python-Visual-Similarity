@@ -270,7 +270,6 @@ class SSIM(StructuralSimilarity):
     _ssim: torch.Tensor= field(init=False)
     def __post_init__(self):
         self._ssim = ssim(self.image_1.unsqueeze(0), self.image_2.unsqueeze(0), data_range=self.data_range)
-        print("SSIM:", self._ssim)
 
     @property
     def value(self):
@@ -285,7 +284,6 @@ class MS_SSIM(StructuralSimilarity):
     _ms_ssim: torch.Tensor= field(init=False)
     def __post_init__(self):
         self._ms_ssim = ms_ssim(self.image_1.unsqueeze(0), self.image_2.unsqueeze(0), data_range=self.data_range)
-        print("MS-SSIM:", self._ms_ssim)
 
     @property
     def value(self):
