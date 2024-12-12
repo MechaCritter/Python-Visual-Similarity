@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from piq import ssim, multi_scale_ssim as ms_ssim
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.linear_model import LinearRegression
 import seaborn as sns
 import torch.nn.functional as F
 from segmentation_models_pytorch.utils.metrics import IoU
@@ -270,16 +271,20 @@ def save_to_hdf5(file_path: str,
                 case _:
                     raise TypeError(f"Unsupported data type for dataset '{dataset_name}': {type(data)}")
 
-def load_hdf5(file_path: str) -> dict[str, np.ndarray]:
+def load_hdf5(file_path: str) -> dict[str, np.ndarray | float | int]:
     """
-    Load data from an HDF5 file.
+    Load data from an HDF5 file into a dictionary.
 
-    :param file_path: Path to the HDF5 fileuse
-
-    :return: Dictionary containing data from the HDF5 file
+    :param file_path: Path to the HDF5 file.
+    :return: Dictionary with dataset names as keys and data as NumPy arrays or scalars.
     """
     with h5py.File(file_path, 'r') as file:
-        data = {key: val[:] for key, val in file.items()}
+        data = {}
+        for key, val in file.items():
+            if val.shape == ():
+                data[key] = val[()]
+            else:
+                data[key] = val[:]
     return data
 
 
@@ -375,30 +380,24 @@ def multi_class_dice_score(pred_mask: torch.Tensor,
 
 def multiclass_iou(pred_mask: torch.Tensor,
                    true_mask: torch.Tensor,
-                   num_classes: int,
                    ignore_channels: list = None) -> torch.Tensor:
     """
     Compute Intersection over Union (IoU) for the predicted mask and the true mask.
 
-    :param pred_mask: predicted mask with shape (H, W)
-    :param true_mask: true mask with shape (H, W)
-    :param num_classes: number of classes
+    :param pred_mask: predicted mask with shape (cls, H, W)
+    :param true_mask: true mask with shape (cls, H, W)
     :param ignore_channels: list of channels to ignore (pass 0 to ignore background)
 
     :return: IoU score
 
+    :raises ValueError: If the predicted mask is not a 3D tensor
     :raises ValueError: If the shape of the predicted mask and the true mask is not the same
-    :raises ValueError: If the predicted mask and the true mask are not 2D tensors
     """
-    if not pred_mask.shape == true_mask.shape:
-        raise ValueError("The shape of the predicted mask and the true mask should be the same.")
-    if not len(pred_mask.shape) == 2 or not len(true_mask.shape) == 2:
-        raise ValueError(f"The predicted mask and the true mask should be 2D tensors, got {pred_mask.shape} for prediction and {true_mask.shape} for ground truth.")
+    if not len(pred_mask.shape) == len(true_mask.shape) == 3:
+        raise ValueError("The predicted mask and the true mask should be 3D tensors with the same shape."
+                         f"Got shape: {pred_mask.shape} for prediction and {true_mask.shape} for ground truth.")
 
-    pred_mask_one_hot = F.one_hot(pred_mask, num_classes=num_classes).permute(2, 0, 1).unsqueeze(0).float()
-    true_mask_one_hot = F.one_hot(true_mask, num_classes=num_classes).permute(2, 0, 1).unsqueeze(0).float()
-
-    return IoU(eps=1e-6, threshold=None, ignore_channels=ignore_channels)(pred_mask_one_hot, true_mask_one_hot)
+    return IoU(ignore_channels=None)(pred_mask, true_mask)
 
 
 def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[Enum]:
@@ -413,17 +412,17 @@ def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[En
     cls_name = cls_of_interest.upper()
     return enum_class.__members__.get(cls_name)
 
-def calc_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> list[torch.Tensor]:
+def calc_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> list[torch.Tensor] | torch.Tensor:
     """
     Calculate the Structural Similarity Index (SSIM) between two images.
-    :param image_1: First image
-    :param image_2: Second image
+    :param image_1: First image. Shape: (C, H, W)
+    :param image_2: Second image. Shape: (C, H, W)
 
     :return: SSIM value
     """
     if not isinstance(image_1, torch.Tensor) or not isinstance(image_2, torch.Tensor):
         raise ValueError(f"Both images must be of type torch.Tensor, but got {type(image_1)} and {type(image_2)} instead.")
-    return ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0)
+    return ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0, reduction='none')
 
 
 def calc_ms_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> torch.Tensor:
@@ -436,7 +435,7 @@ def calc_ms_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> torch.Tensor:
     """
     if not isinstance(image_1, torch.Tensor) or not isinstance(image_2, torch.Tensor):
         raise ValueError(f"Both images must be of type torch.Tensor, but got {type(image_1)} and {type(image_2)} instead.")
-    return ms_ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0)
+    return ms_ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0, reduction='none')
 
 
 def cluster_images_and_save(
@@ -665,6 +664,132 @@ def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
         plt.show()
     plt.close()
 
+
+def plot_boxplot_with_regression(x: np.ndarray,
+                                 y: np.ndarray,
+                                 x_lim: tuple=(0, 1),
+                                 y_lim: tuple=(0, 1),
+                                 num_bins=20,
+                                 title="Boxplot with Regression",
+                                 x_label="IoU Difference",
+                                 y_label="Similarity Score",
+                                 save_fig_path=None) -> None:
+    """
+    Plot a boxplot of y values binned by x, and add a regression line over the scatter.
+    """
+    def bin_data(x: np.ndarray, y: np.ndarray, lower: float, upper: float, num_bins: int) -> tuple[np.ndarray, list[list[float]]]:
+        bins = np.linspace(lower, upper, num_bins + 1)
+        bin_indices = np.digitize(x, bins) - 1
+        binned_y = [[] for _ in range(num_bins)]
+        bin_centers = 0.5 * (bins[:-1] + bins[1:])
+        for xi, yi, bi in zip(x, y, bin_indices):
+            if 0 <= bi < num_bins:
+                binned_y[bi].append(yi)
+        return bin_centers, binned_y
+
+    lower, upper = x_lim
+    bin_centers, binned_y = bin_data(x, y, lower, upper, num_bins)
+
+    # Replace empty bins with NaN to stretch the boxplots evenly
+    binned_y = [b if b else [np.nan] for b in binned_y]
+
+    plt.figure(figsize=(10, 6))
+    plt.boxplot(binned_y, positions=bin_centers, widths=(upper - lower) / (num_bins * 2), patch_artist=True)
+
+    # Apply regression if valid data exists
+    valid = ~np.isnan(x) & ~np.isnan(y)
+    x_valid = x[valid]
+    y_valid = y[valid]
+
+    if len(x_valid) > 1:  # Ensure enough data points are available
+        reg = LinearRegression().fit(x_valid.reshape(-1, 1), y_valid)
+        coeff = reg.coef_[0]
+        x_line = np.linspace(lower, upper, 100).reshape(-1, 1)
+        y_line = reg.predict(x_line)
+        plt.plot(x_line, y_line, color='red', linewidth=2, label=f'Regression line, Coefficient: {coeff:.2f}')
+    else:
+        print("Insufficient data points for regression.")
+
+    # Update x-axis ticks to rounded values
+    plt.xticks(bin_centers, [round(center, 2) for center in bin_centers])
+
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.xlim(lower, upper)
+    plt.ylabel(y_label)
+    plt.ylim(*y_lim)
+    plt.legend()
+    if save_fig_path:
+        plt.savefig(save_fig_path)
+    plt.show()
+
+
+def plot_scatter_with_regression(x: np.ndarray,
+                                 y: np.ndarray,
+                                 x_lim: tuple = (0, 1),
+                                 y_lim: tuple = (0, 1),
+                                 title: str = "Scatterplot with Regression",
+                                 x_label: str = "IoU Difference",
+                                 y_label: str = "Similarity Score",
+                                 save_fig_path: str = None) -> None:
+    """
+    Plot a scatterplot of x and y, and add a regression line over the scatter.
+
+    :param x: Independent variable values (numpy array).
+    :param y: Dependent variable values (numpy array).
+    :param x_lim: Limits for the x-axis.
+    :param y_lim: Limits for the y-axis.
+    :param title: Title of the plot.
+    :param x_label: Label for the x-axis.
+    :param y_label: Label for the y-axis.
+    :param save_fig_path: Path to save the figure. If None, the figure is displayed.
+    :returns: None
+    """
+    # valid = ~np.isnan(x) & ~np.isnan(y)
+    # x_valid = x[valid]
+    # y_valid = y[valid]
+    #
+    # plt.figure(figsize=(10, 6))
+    # plt.scatter(x_valid, y_valid, alpha=0.6, label="Data points")
+    #
+    # if len(x_valid) > 1:  # Ensure enough data points are available
+    #     # Center the data for better interpretability
+    #     x_centered = x_valid - np.mean(x_valid)
+    #     reg = LinearRegression().fit(x_centered.reshape(-1, 1), y_valid)
+    #     x_line = np.linspace(x_lim[0], x_lim[1], 100).reshape(-1, 1)
+    #     y_line = reg.predict((x_line - np.mean(x_valid)))
+    #     plt.plot(x_line, y_line, color='red', linewidth=2,
+    #              label=f'Regression line, intercept at mean: {reg.intercept_:.2f}')
+    # else:
+    #     print("Insufficient data points for regression.")
+
+    # Apply regression if valid data exists
+    lower, upper = x_lim
+    valid = ~np.isnan(x) & ~np.isnan(y)
+    x_valid = x[valid]
+    y_valid = y[valid]
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x_valid, y_valid, alpha=0.6, label="Data points")
+
+    if len(x_valid) > 1:  # Ensure enough data points are available
+        reg = LinearRegression().fit(x_valid.reshape(-1, 1), y_valid)
+        coeff = reg.coef_[0]
+        x_line = np.linspace(lower, upper, 100).reshape(-1, 1)
+        y_line = reg.predict(x_line)
+        plt.plot(x_line, y_line, color='red', linewidth=2, label=f'Regression line, Coefficient: {coeff:.2f}')
+    else:
+        print("Insufficient data points for regression.")
+
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.xlim(*x_lim)
+    plt.ylabel(y_label)
+    plt.ylim(*y_lim)
+    plt.legend()
+    if save_fig_path:
+        plt.savefig(save_fig_path)
+    plt.show()
 
 def is_subset(list1: list, list2: list) -> bool:
     """

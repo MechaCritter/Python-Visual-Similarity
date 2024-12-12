@@ -1,5 +1,7 @@
 import logging
 import logging.config
+import pathlib
+import torch
 
 import yaml
 from torchvision import transforms
@@ -18,8 +20,10 @@ TRANSFORMER = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize(IMAGE_SIZE)
 ])
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+ROOT = pathlib.Path(__file__).parent.parent
 
-def setup_logging(default_path=r"res\logging_config.yaml", default_level=logging.INFO):
+def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level=logging.INFO):
     """Setup logging configuration"""
     try:
         with open(default_path, 'rt') as f:
