@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 import torch.nn.functional as F
+from nbformat.v2 import new_output
 from torch.utils.data import DataLoader
 import pandas as pd
 from sklearn.mixture import GaussianMixture
@@ -212,7 +213,7 @@ def compute_per_class_metrics(model: torch.nn.Module,
 def compute_and_save_ssim_matrices(dataset,
                                    output_dir: str,
                                    batch_size: int = 1,
-                                   gaussian_sigma: float = None,
+                                   sigma: float = None,
                                    compression_quality: float = None) -> None:
     """
     Compute and save SSIM and MS-SSIM matrices for the given dataset. Then, save the result as a .pt file.
@@ -226,7 +227,7 @@ def compute_and_save_ssim_matrices(dataset,
     :param dataset: dataset object
     :param output_dir: output directory for the .pt files
     :param batch_size: batch size
-    :param gaussian_sigma: standard deviation for Gaussian blur
+    :param sigma: standard deviation for Gaussian blur
     :param compression_quality: quality for image compression
 
     :raises ValueError: if dataset is not transformed using TRANSFORMER from config.py
@@ -236,17 +237,18 @@ def compute_and_save_ssim_matrices(dataset,
 
     num_imgs = len(dataset)
     kernel_size = None
+
+
+    if sigma:
+        assert sigma > 0, "Sigma must be a positive value."
+        kernel_size = 2 * int(3 * sigma) + 1  # Empirical rule
+        new_transforms = transforms.Compose(dataset.transform.transforms +
+                                            [transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)])
+        dataset.transform = new_transforms
+        print(f"Kernel size used for sigma={sigma}: {kernel_size}")
+
     images = [image_array for image_array, *_ in dataset]
     image_paths = [os.path.basename(path) for *_, path in dataset]
-
-    if gaussian_sigma:
-        kernel_size = 2 * int(3 * gaussian_sigma) + 1  # Empirical rule
-        print(f"Kernel size used for sigma={gaussian_sigma}: {kernel_size}")
-        images = [gaussian_blur(img, sigma=gaussian_sigma, kernel_size=kernel_size) for img in images]
-
-    if compression_quality:
-        images = [compress_image(img, quality=compression_quality) for img in images]
-
     images = torch.stack(images, dim=0).to('cuda')
 
     indices = torch.triu_indices(num_imgs, num_imgs, offset=1, device='cuda')
@@ -269,12 +271,12 @@ def compute_and_save_ssim_matrices(dataset,
     # Make the matrices symmetric
     ssim_result = ssim_result + ssim_result.T + torch.eye(num_imgs, device='cuda')
     ms_ssim_result = ms_ssim_result + ms_ssim_result.T + torch.eye(num_imgs, device='cuda')
-    save_to_hdf5(f'{output_dir}/ssim_sigma{gaussian_sigma}.h5',
+    save_to_hdf5(f'{output_dir}/ssim_sigma{sigma}.h5',
                  {'ssim': ssim_result.cpu().numpy(),
                             'ms_ssim': ms_ssim_result.cpu().numpy(),
                             'image_paths': image_paths})
     print("Saved SSIM and MS-SSIM matrices using: \n"
-          f"sigma={gaussian_sigma}, kernel_size={kernel_size}, compression_quality={compression_quality}")
+          f"sigma={sigma}, kernel_size={kernel_size}, compression_quality={compression_quality}")
 
 
 def compute_and_save_ssim_matrices_train_val(
@@ -286,48 +288,81 @@ def compute_and_save_ssim_matrices_train_val(
 ) -> None:
     """
     Compute SSIM and MS-SSIM matrices for all pairs between val_dataset and train_dataset.
-    The resulting shape will be (len(val_dataset), len(train_dataset)).
-    We will store the flattened arrays and the corresponding pairs of image paths.
 
     :param train_dataset Train dataset
     :param val_dataset: Validation dataset
     :param output_dir: Directory to save the results
     :param sigma: optional Gaussian blur sigma
-    :param compression_quality: optional JPEG compression quality
     :param batch_size: batch size for processing
     """
+    print(f"Computing ssim and ms_ssim with sigma={sigma} for all pairs (val vs train).")
     if not train_dataset.transform == val_dataset.transform:
         raise ValueError("Train and validation datasets must have the same transform.")
     kernel_size = None
     if sigma:
         assert sigma > 0, "Sigma must be a positive value."
         kernel_size = 2 * int(3 * sigma) + 1
-        new_transforms = train_dataset.transform.transforms.copy()
-        new_transforms.append(transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma))
-        train_dataset.transform = transforms.Compose(new_transforms)
-        val_dataset.transform = transforms.Compose(new_transforms)
+        new_transforms = transforms.Compose(train_dataset.transform.transforms +
+                                            [transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)])
+        train_dataset.transform = new_transforms
+        val_dataset.transform = new_transforms
         print(f"Kernel size used for sigma = {sigma}: {kernel_size}")
 
+    num_val = len(val_dataset)
+    num_train = len(train_dataset)
+
+    all_val_paths = [os.path.basename(path) for *_, path in val_dataset]
+    print("All validation paths loaded.")
+    all_train_paths = [os.path.basename(path) for *_, path in train_dataset]
+    print("All training paths loaded.")
+
+    ssim_arr = torch.zeros((num_val, num_train), device=DEVICE)
+    ms_ssim_arr = torch.zeros((num_val, num_train), device=DEVICE)
+
+    hdf5_path = f'{output_dir}/ssim_sigma{sigma}.h5'
+
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
-    results = defaultdict(lambda: {'ssim': None, 'ms_ssim': None})
-    for i_val, (val_img, *_, val_path) in enumerate(tqdm(val_dataset, desc="Computing SSIM/MS-SSIM (val vs train)")):
-        val_img = val_img.unsqueeze(0).to(DEVICE)  # (1, C, H, W)
+
+    for i_val in tqdm(range(num_val), desc="Computing SSIM/MS-SSIM (val vs train)"):
+        val_img, *_, val_path = val_dataset[i_val]
+        val_img = val_img.unsqueeze(0).to(DEVICE).clip(0, 1)  # (1, C, H, W)
+        current_train_idx = 0
+
         for train_batch, *_, train_paths in train_loader:
-            train_batch = train_batch.to(DEVICE).clip(0, 1)  # (batch_size, C, H, W)
-            val_batch = val_img.repeat(train_batch.size(0), 1, 1, 1).to(DEVICE).clip(0, 1)  # (batch_size, C, H, W)
+            train_batch = train_batch.to(DEVICE).clip(0, 1)
+            val_batch = val_img.repeat(train_batch.size(0), 1, 1, 1).to(DEVICE).clip(0, 1)
 
-            ssim_batch = ssim(val_batch, train_batch, data_range=1.0, reduction='none')  # (batch_size,)
-            ms_ssim_batch = ms_ssim(val_batch, train_batch, data_range=1.0, reduction='none')  # (batch_size,)
+            ssim_batch = ssim(val_batch, train_batch, data_range=1.0, reduction='none')
+            ms_ssim_batch = ms_ssim(val_batch, train_batch, data_range=1.0, reduction='none')
+            batch_size_actual = ssim_batch.size(0)
+            ssim_arr[i_val, current_train_idx:current_train_idx + batch_size_actual] = ssim_batch
+            ms_ssim_arr[i_val, current_train_idx:current_train_idx + batch_size_actual] = ms_ssim_batch
 
-            for i_train, ssim_scores, ms_ssim_scores, train_path in zip(
-                range(len(train_batch)), ssim_batch, ms_ssim_batch, train_paths
-            ):
-                results[f"{os.path.basename(val_path)}-{os.path.basename(train_path)}"] = {
-                    'ssim': ssim_scores.cpu().numpy(),
-                    'ms_ssim': ms_ssim_scores.cpu().numpy()
-                }
-    save_to_hdf5(f'{output_dir}/ssim_train_val_sigma{sigma}.h5', results)
+            current_train_idx += batch_size_actual
+
+    save_to_hdf5(hdf5_path, {'val_paths': all_val_paths,
+                                'train_paths': all_train_paths,
+                                'ssim': ssim_arr.cpu().numpy(),
+                                'ms_ssim': ms_ssim_arr.cpu().numpy()})
     print(f"Saved train-val SSIM and MS-SSIM matrices at {output_dir} with sigma={sigma}, kernel_size={kernel_size}.")
+    # with h5py.File(hdf5_path, 'w') as f:
+    #     for i_val, (val_img, *_, val_path) in enumerate(tqdm(val_dataset, desc="Computing SSIM/MS-SSIM (val vs train)")):
+    #         val_img = val_img.unsqueeze(0).to(DEVICE)  # (1, C, H, W)
+    #         for train_batch, *_, train_paths in train_loader:
+    #             train_batch = train_batch.to(DEVICE).clip(0, 1)  # (batch_size, C, H, W)
+    #             val_batch = val_img.repeat(train_batch.size(0), 1, 1, 1).to(DEVICE).clip(0, 1)  # (batch_size, C, H, W)
+    #
+    #             ssim_batch = ssim(val_batch, train_batch, data_range=1.0, reduction='none')  # (batch_size,)
+    #             ms_ssim_batch = ms_ssim(val_batch, train_batch, data_range=1.0, reduction='none')  # (batch_size,)
+    #
+    #             for i_train, ssim_scores, ms_ssim_scores, train_path in zip(
+    #                 range(len(train_batch)), ssim_batch, ms_ssim_batch, train_paths
+    #             ):
+    #                 key = f"{os.path.basename(val_path)}@@{os.path.basename(train_path)}"
+    #                 grp = f.create_group(key)
+    #                 grp.create_dataset('ssim', data=ssim_scores.cpu().numpy())
+    #                 grp.create_dataset('ms_ssim', data=ms_ssim_scores.cpu().numpy())
+    # print(f"Saved train-val SSIM and MS-SSIM matrices at {output_dir} with sigma={sigma}, kernel_size={kernel_size}.")
 
 
 if __name__ == "__main__":

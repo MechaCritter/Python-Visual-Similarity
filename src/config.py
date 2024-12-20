@@ -1,27 +1,28 @@
 import logging
 import logging.config
 import pathlib
-import torch
 
 import yaml
 from torchvision import transforms
+import torch
 
-# -Paths for the dataset- #
-TRAIN_IMG_DATA_PATH_EXCAVATOR= r"D:\bachelor_thesis\excavator_dataset_w_masks\train" #TODO: change to relative paths
-TRAIN_MASK_DATA_PATH_EXCAVATOR = r"D:\bachelor_thesis\excavator_dataset_w_masks\train_annot"
-TEST_IMG_DATA_PATH_EXCAVATOR= r"D:\bachelor_thesis\excavator_dataset_w_masks\test"
-TEST_MASK_DATA_PATH_EXCAVATOR = r"D:\bachelor_thesis\excavator_dataset_w_masks\test_annot"
-VALID_IMG_DATA_PATH_EXCAVATOR= r"D:\bachelor_thesis\excavator_dataset_w_masks\validation"
-VALID_MASK_DATA_PATH_EXCAVATOR = r"D:\bachelor_thesis\excavator_dataset_w_masks\validation_annot"
 
 # -Config for the dataset- #
+ROOT = pathlib.Path(__file__).parent.parent
 IMAGE_SIZE = (640, 640)
 TRANSFORMER = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize(IMAGE_SIZE)
 ])
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-ROOT = pathlib.Path(__file__).parent.parent
+
+# -Paths for the dataset- #
+TRAIN_IMG_DATA_PATH_EXCAVATOR= rf"{ROOT}/excavator_dataset_w_masks/train"
+TRAIN_MASK_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/train_annot"
+TEST_IMG_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/test"
+TEST_MASK_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/test_annot"
+VALID_IMG_DATA_PATH_EXCAVATOR = None
+VALID_MASK_DATA_PATH_EXCAVATOR = None
 
 def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level=logging.INFO):
     """Setup logging configuration"""

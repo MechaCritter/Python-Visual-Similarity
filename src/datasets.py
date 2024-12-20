@@ -10,13 +10,11 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
-from dotenv import load_dotenv
 
 from src.config import *
 from src.utils import rgb_to_mask, plot_image, permute_image_channels
 
 setup_logging()
-load_dotenv()
 
 __all__ = ['ExcavatorDataset', 'Excavators', 'BaseDataset']
 
@@ -113,9 +111,6 @@ class BaseDataset(Dataset):
 
         if not os.path.exists(train_img_data_dir):
             raise FileNotFoundError(f"Directory {train_img_data_dir} does not exist.")
-
-        if not os.path.exists(test_img_data_dir):
-            raise FileNotFoundError(f"Directory {test_img_data_dir} does not exist.")
 
         self.train_img_data_dir = train_img_data_dir
         self.validation_img_data_dir = validation_img_data_dir

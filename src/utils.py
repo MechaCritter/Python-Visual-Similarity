@@ -1,8 +1,9 @@
 import logging
 import os
+import math
 import shutil
 from enum import Enum
-from typing import Type, Optional, Any, Union
+from typing import Type, Optional, Any, Union, Sequence
 
 import h5py
 from PIL import Image
@@ -16,8 +17,10 @@ import io
 import cv2
 import matplotlib.pyplot as plt
 from piq import ssim, multi_scale_ssim as ms_ssim
+from scipy.spatial import distance_matrix
 from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
+from sklearn.metrics import silhouette_score
 from sklearn.linear_model import LinearRegression
 import seaborn as sns
 import torch.nn.functional as F
@@ -77,10 +80,34 @@ def cluster_and_return_labels(data: np.ndarray, n_clusters: int) -> np.ndarray:
     return kmeans.fit_predict(data)
 
 
+def elbow_point(x: Sequence[float], y: Sequence[float]) -> np.ndarray:
+    """
+    Detect the elbow point using the maximum distance from a straight line
+    connecting the first and last points.
+
+    :param x: Range of cluster numbers.
+    :param y: WCSS values for each cluster number.
+    :return: The x-value corresponding to the elbow point.
+    """
+    x = np.array(x)
+    y = np.array(y)
+    if len(x.shape) != 1 or len(y.shape) != 1:
+        raise ValueError(f"x and y should be 1D arrays. Got {x.shape} for x and {y.shape} for y.")
+
+    if len(x) != len(y):
+        raise ValueError(f"Length of x and y should be equal. Got {len(x)} for x and {len(y)} for y.")
+
+    points = np.column_stack((x, y))
+    p1 = points[0]
+    p2 = points[-1]
+    distances = np.array([np.linalg.norm(np.cross(p2 - p1, p - p1)) / np.linalg.norm(p2 - p1) for p in points])
+
+    return x[np.argmax(distances)]
+
 def create_and_plot_synthetic_data(lower_limit: float,
                                    upper_limit: float,
                                    num_samples: int,
-                                   plot_type: str = 'scatter'):
+                                   plot_type: str = 'scatter') -> tuple[np.ndarray, np.ndarray]:
     """
     Generates synthetic data and plots it.
 
@@ -113,6 +140,117 @@ def create_and_plot_synthetic_data(lower_limit: float,
     plt.show()
 
     return x, y
+
+
+def compute_optimal_clusters_silhoutte_score(features: np.ndarray,
+                                             max_clusters: int = 10,
+                                             min_clusters: int = 4,
+                                             plot: bool=False,
+                                             save_path: Optional[str] = None) -> int:
+    """
+    Find the optimal number of clusters using Silhouette Score
+
+    :param features: Feature matrix for clustering.
+    :param max_clusters: Maximum number of clusters to evaluate.
+    :param min_clusters: Minimum number of clusters to evaluate.
+    :param plot: If True, plots Silhouette Score vs Number of Clusters.
+    :param save_path: Path to save the plot.
+
+    :return: Optimal number of clusters based on the silhouette score.
+    """
+    best_score = -1
+    best_k = min_clusters
+    scores = []
+    for k in range(2, max_clusters+1):
+        kmeans = KMeans(n_clusters=k, random_state=0).fit(features)
+        labels = kmeans.labels_
+        score = silhouette_score(features, labels)
+        print(f"For k={k}, Silhouette Score = {score}")
+        if score > best_score:
+            best_score = score
+            best_k = k
+        scores.append(score)
+    if plot:
+        plot_and_save_lineplot(y=scores,
+                               title='Silhouette Score vs Number of Clusters',
+                               xlabel='Number of Clusters',
+                               ylabel='Silhouette Score',
+                               save_path=save_path)
+    print(f"Best number of clusters: {best_k} with silhouette score {best_score}")
+    return best_k
+
+
+def compute_optimal_clusters_wcss(features: np.ndarray,
+                                  max_clusters: int = 10,
+                                  min_clusters: int = 2,
+                                  plot: bool = False,
+                                  save_path: str = None) -> int:
+    """
+    Find the optimal number of clusters using the Elbow Method on WCSS.
+
+    :param features: Feature matrix for clustering.
+    :param max_clusters: Maximum number of clusters to evaluate.
+    :param min_clusters: Minimum number of clusters to evaluate.
+    :param plot: If True, plots WCSS vs Number of Clusters.
+
+    :return: Optimal number of clusters based on the elbow point.
+    """
+    wcss = []  # List to store WCSS for each number of clusters
+    for k in range(min_clusters, max_clusters + 1):
+        kmeans = KMeans(n_clusters=k, random_state=0).fit(features)
+        wcss.append(kmeans.inertia_)  # Inertia is the WCSS
+
+        print(f"For k={k}, WCSS = {kmeans.inertia_}")
+
+    if plot:
+        plot_and_save_lineplot(y=wcss,
+                                 title='Within-Cluster Sum of Squares vs Number of Clusters',
+                                 xlabel='Number of Clusters',
+                                 ylabel='WCSS',
+                                 save_path=save_path)
+
+    optimal_k = elbow_point(range(min_clusters, max_clusters + 1), wcss)
+
+    print(f"Optimal number of clusters based on elbow method: {optimal_k}")
+    return optimal_k
+
+
+def find_common_divisor(n1: int, n2: int, desired_divisor: int) -> int:
+    """
+    Find the largest divisor of both n1 and n2 that is <= desired_divisor.
+    If none found, default to 1.
+
+    :param n1: length of dataset 1
+    :param n2: length of dataset 2
+    :param desired_divisor: desired divisor
+
+    :returns: batch_size that divides both n1 and n2
+    """
+
+    # Find all divisors of n1 and n2
+    def divisors(x):
+        divs = []
+        for i in range(1, int(math.sqrt(x)) + 1):
+            if x % i == 0:
+                divs.append(i)
+                if i != x // i:
+                    divs.append(x // i)
+        return sorted(divs)
+
+    d1 = set(divisors(n1))
+    d2 = set(divisors(n2))
+    common = sorted(d1.intersection(d2))
+    # Find largest common divisor <= desired_bs
+    candidates = [d for d in common if d <= desired_divisor]
+    if not candidates:
+        # No divisor found <= desired_bs
+        # fallback to smallest common divisor (which should be 1)
+        candidates = common
+    chosen = candidates[-1]
+    if chosen != desired_divisor:
+        logging.warning(
+            f"Warning: desired batch size {desired_divisor} is not a common divisor of {n1} and {n2}. Using {chosen} instead.")
+    return chosen
 
 
 def rgb_to_mask(rgb_mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -> torch.Tensor:
@@ -237,55 +375,78 @@ def save_to_hdf5(file_path: str,
     :raises TypeError: If the data type is not supported
     """
     with h5py.File(file_path, 'w') as f:
-        for dataset_name, data in dataset_dict.items():
-            match data:
-                case torch.Tensor():
-                    # Convert Torch tensor to NumPy array
-                    data = data.numpy()
-                    f.create_dataset(dataset_name, data=data)
-
-                case np.ndarray():
-                    # Handle strings in NumPy arrays differently
-                    if data.dtype.kind in {'U', 'S'}:  # Unicode or bytes
-                        dt = h5py.string_dtype(encoding='utf-8')
-                        f.create_dataset(dataset_name, data=data.astype(dt))
-                    else:
+        def save_to_hdf5_helper(dataset_dict: dict[str, Any], f: h5py.File):
+            for dataset_name, data in dataset_dict.items():
+                match data:
+                    case int() | float():
                         f.create_dataset(dataset_name, data=data)
 
-                case list():
-                    # Convert lists to NumPy arrays if possible
-                    try:
-                        np_data = np.array(data)
-                        if np_data.dtype.kind in {'U', 'S'}:
+                    case torch.Tensor():
+                        # Convert Torch tensor to NumPy array
+                        data = data.numpy()
+                        f.create_dataset(dataset_name, data=data)
+
+                    case np.ndarray():
+                        # Handle strings in NumPy arrays differently
+                        if data.dtype.kind in {'U', 'S'}:  # Unicode or bytes
                             dt = h5py.string_dtype(encoding='utf-8')
-                            np_data = np_data.astype(dt)
-                        f.create_dataset(dataset_name, data=np_data)
-                    except ValueError as e:
-                        raise ValueError(f"Cannot convert list to NumPy array for dataset '{dataset_name}': {e}")
+                            f.create_dataset(dataset_name, data=data.astype(dt))
+                        else:
+                            f.create_dataset(dataset_name, data=data)
 
-                case str() | bytes():
-                    # Handle single strings or bytes
-                    dt = h5py.string_dtype(encoding='utf-8')
-                    f.create_dataset(dataset_name, data=np.array([data], dtype=dt))
+                    case list():
+                        # Convert lists to NumPy arrays if possible
+                        try:
+                            np_data = np.array(data)
+                            if np_data.dtype.kind in {'U', 'S'}:
+                                dt = h5py.string_dtype(encoding='utf-8')
+                                np_data = np_data.astype(dt)
+                            f.create_dataset(dataset_name, data=np_data)
+                        except ValueError as e:
+                            raise ValueError(f"Cannot convert list to NumPy array for dataset '{dataset_name}': {e}")
 
-                case _:
-                    raise TypeError(f"Unsupported data type for dataset '{dataset_name}': {type(data)}")
+                    case str() | bytes():
+                        # Handle single strings or bytes
+                        dt = h5py.string_dtype(encoding='utf-8')
+                        f.create_dataset(dataset_name, data=np.array([data], dtype=dt))
 
-def load_hdf5(file_path: str) -> dict[str, np.ndarray | float | int]:
+                    case dict():
+                        # Recursively save nested dictionaries
+                        group = f.create_group(dataset_name)
+                        save_to_hdf5_helper(data, group)
+                    case _:
+                        raise TypeError(f"Unsupported data type for dataset '{dataset_name}': {type(data)}")
+
+        save_to_hdf5_helper(dataset_dict, f)
+
+def load_hdf5(file_path: str) -> dict[str, any]:
     """
-    Load data from an HDF5 file into a dictionary.
+    Load data from an HDF5 file into a dictionary with proper type handling.
 
     :param file_path: Path to the HDF5 file.
-    :return: Dictionary with dataset names as keys and data as NumPy arrays or scalars.
+    :return: Dictionary with dataset names as keys and data with proper types.
     """
     with h5py.File(file_path, 'r') as file:
-        data = {}
-        for key, val in file.items():
-            if val.shape == ():
-                data[key] = val[()]
-            else:
-                data[key] = val[:]
-    return data
+        def load_hdf5_helper(file: h5py.File) -> dict[str, any]:
+            data = {}
+            for key, val in file.items():
+                if isinstance(val, h5py.Group):
+                    # Recursively load groups as nested dictionaries
+                    data[key] = load_hdf5_helper(val)
+                elif isinstance(val, h5py.Dataset):
+                    # Check the dtype of the dataset
+                    if val.dtype.kind in {'U', 'S'}:  # String or bytes
+                        data[key] = val.asstr()[...]
+                    elif val.shape == ():  # Scalar
+                        data[key] = val[()]
+                    else:
+                        data[key] = val[...]
+            # Add attributes as additional keys
+            for attr_key, attr_val in file.attrs.items():
+                data[attr_key] = attr_val
+            return data
+
+        return load_hdf5_helper(file)
 
 
 def mean_below_diagonal(matrix: np.ndarray) -> float:
@@ -297,7 +458,7 @@ def mean_below_diagonal(matrix: np.ndarray) -> float:
     """
     below_diag_elements = matrix[np.tril_indices_from(matrix, k=-1)]
     mean_value = below_diag_elements.mean()
-    return mean_value
+    return float(mean_value)
 
 
 def soft_dice_score(output: torch.Tensor,
@@ -412,31 +573,6 @@ def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[En
     cls_name = cls_of_interest.upper()
     return enum_class.__members__.get(cls_name)
 
-def calc_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> list[torch.Tensor] | torch.Tensor:
-    """
-    Calculate the Structural Similarity Index (SSIM) between two images.
-    :param image_1: First image. Shape: (C, H, W)
-    :param image_2: Second image. Shape: (C, H, W)
-
-    :return: SSIM value
-    """
-    if not isinstance(image_1, torch.Tensor) or not isinstance(image_2, torch.Tensor):
-        raise ValueError(f"Both images must be of type torch.Tensor, but got {type(image_1)} and {type(image_2)} instead.")
-    return ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0, reduction='none')
-
-
-def calc_ms_ssim(image_1: torch.Tensor, image_2: torch.Tensor) -> torch.Tensor:
-    """
-    Calculate the Multi-Scale Structural Similarity Index (MS-SSIM) between two images.
-    :param image_1: First image
-    :param image_2: Second image
-
-    :return: MS-SSIM value
-    """
-    if not isinstance(image_1, torch.Tensor) or not isinstance(image_2, torch.Tensor):
-        raise ValueError(f"Both images must be of type torch.Tensor, but got {type(image_1)} and {type(image_2)} instead.")
-    return ms_ssim(image_1.unsqueeze(0), image_2.unsqueeze(0), data_range=1.0, reduction='none')
-
 
 def cluster_images_and_save(
         image_paths: list[str],
@@ -489,6 +625,8 @@ def cluster_images_and_save(
             if len(cluster_indices) > 1:
                 cluster_features = features[cluster_indices]
                 similarity_matrix = cosine_similarity(cluster_features)
+                euclidean_distance_matrix = euclidean_distances(cluster_features)
+                euclidean_similarity_matrix = 1 / (1 + euclidean_distance_matrix)
                 try:
                     plot_and_save_heatmap(
                         matrix=similarity_matrix,
@@ -498,15 +636,25 @@ def cluster_images_and_save(
                         cbar_kws={"label": "Cosine Similarity"},
                         save_fig_path=os.path.join(cluster_dir, f"heatmap_cluster_{cluster_num}.png"),
                         show=False)
+                    plot_and_save_heatmap(
+                        matrix=euclidean_similarity_matrix,
+                        title=f"{heatmap_title} - Cluster {cluster_num} - {mean_below_diagonal(euclidean_similarity_matrix):.2f} Avr Euclidean Similarity",
+                        x_tick_labels=cluster_index_list,
+                        y_tick_labels=cluster_index_list,
+                        cbar_kws={"label": "Euclidean Similarity"},
+                        save_fig_path=os.path.join(cluster_dir, f"euclidean_similarity_cluster_{cluster_num}.png"),
+                        show=False)
                 except ValueError as e:
                     logging.warning(f"Error generating heatmap for cluster {cluster_num}: {e}. Probably the heatmap is too large.")
                 save_to_hdf5(file_path=os.path.join(cluster_dir, f"heatmap_cluster_{cluster_num}.h5"),
-                              dataset_dict={"heatmap": similarity_matrix,
-                               "image_paths": [path.replace('/', '|').replace('\\', '|') for path in cluster_image_paths]})
+                              dataset_dict={"similarity_heatmap:": similarity_matrix,
+                                            "euclidean_similarity_heatmap": euclidean_similarity_matrix,
+                               "image_paths": [os.path.basename(image_path) for image_path in cluster_image_paths]})
                 save_json(file_path=os.path.join(cluster_dir, f"cluster_{cluster_num}_info.json"),
                           data={"num_images": len(cluster_indices),
                                 "indices": cluster_index_list,
-                                "average_similarity": mean_below_diagonal(similarity_matrix)})
+                                "average_similarity": mean_below_diagonal(similarity_matrix),
+                                "average_euclidean_similarity": mean_below_diagonal(euclidean_similarity_matrix)})
             else:
                 if verbose:
                     logging.info(f"Cluster {cluster_num} contains only one image; skipping heatmap generation.")
@@ -664,6 +812,60 @@ def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
         plt.show()
     plt.close()
 
+
+def plot_and_save_lineplot(y: np.ndarray,
+                           x: np.ndarray = None,
+                           y_lim: tuple = None,
+                           x_lim: tuple = None,
+                           save_path: str = None,
+                           sort_y: bool = False,
+                           title: str = "Lineplot",
+                           xlabel: str = "x-axis",
+                           ylabel: str = "y-axis") -> None:
+    """
+    Plot and save a lineplot, limiting x-ticks to at most 20 evenly distributed values.
+
+    :param y: Array of y-values.
+    :param x: Array of x-values. If None, indices of y will be used.
+    :param y_lim: Tuple for y-axis limits (min, max). Optional.
+    :param x_lim: Tuple for x-axis limits (min, max). Optional.
+    :param save_path: Path to save the plot image. If None, plot is not saved.
+    :param sort_y: Whether to sort y-values before plotting.
+    :param title: Title of the plot.
+    :param xlabel: Label for the x-axis.
+    :param ylabel: Label for the y-axis.
+    :returns: None
+    """
+    if x is None:
+        x = np.arange(len(y))
+
+    if sort_y:
+        y = np.sort(y)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(x, y, marker='o', linestyle='-', color='b')
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.grid(True)
+
+    if len(x) > 20:
+        tick_indices = np.linspace(0, len(x) - 1, 20, dtype=int)
+        tick_labels = [x[i] for i in tick_indices]
+        plt.xticks(tick_indices, tick_labels, rotation=90)
+
+    if y_lim:
+        plt.ylim(y_lim)
+    if x_lim:
+        plt.xlim(x_lim)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path)
+
+    plt.show()
+    plt.close()
 
 def plot_boxplot_with_regression(x: np.ndarray,
                                  y: np.ndarray,

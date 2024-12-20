@@ -146,9 +146,12 @@ class BaseSegmentationModel:
     def predict_single_image(self,
                              image: torch.Tensor,
                              gt_mask: torch.Tensor,
-                             *cls_of_interest: int,
+                             cls_of_interest: list[int] = None,
                              raw_output: bool = True,
-                             mean: bool = True) -> tuple[torch.Tensor, torch.Tensor]:
+                             mean: bool = True,
+                             return_raw_prob_vector: bool = False,
+                             ignore_background: bool = False
+                             ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Predict the prediction score and the mask of the given image.
 
@@ -157,19 +160,18 @@ class BaseSegmentationModel:
         :param cls_of_interest: index of classes of interest.
         :param raw_output: if False, one-hot encode the output mask
         :param mean: if False, return the confidence of each class
-
-        :return: confidences of the class of interest and the predicted mask
+        :param return_raw_prob_vector: if True, returns a raw probability vector for all classes (or all but background).
+                                       In this case, cls_of_interest and mean are ignored.
+        :param ignore_background: if True and return_raw_prob_vector=True, background class is omitted from the returned vector.
+        :return: (confidence, pred_mask):
+            - If return_raw_prob_vector=True:
+                confidence is a vector of shape (num_classes,) or (num_classes-1) if ignore_background=True.
+            - Else:
+                confidence is either a single mean confidence value or a vector of confidences depending on `mean` and `cls_of_interest`.
+            pred_mask is either the raw probability mask or the argmax mask depending on `raw_output`.
 
         :raises ValueError: if cls_of_interest is not an integer
         """
-        if cls_of_interest is not None:
-            if not all(isinstance(cls, int) for cls in cls_of_interest):
-                raise ValueError(f"cls_of_interest must be an integer, "
-                    f"got {type(cls_of_interest)} instead.")
-            if len(cls_of_interest) > self.classes:
-                raise ValueError(f"Number of classes of interest must be less than or equal to the number of classes in the model. "
-                                 f"Got {len(cls_of_interest)} classes of interest for a model with {self.classes} classes.")
-
         if gt_mask.shape != image.shape[-2:]:
             raise ValueError(f"Ground truth mask shape must be the same as the image shape. "
                              "Also, mask has to be a single channel grayscale image. "
@@ -181,15 +183,35 @@ class BaseSegmentationModel:
 
         with torch.no_grad():
             pred_mask = self.model(image)
-            if cls_of_interest:
-                confidence = torch.tensor(len(cls_of_interest), device=self.device, dtype=torch.float32)
-                num_cls = len(cls_of_interest)
+            if return_raw_prob_vector:
+                probs = pred_mask.squeeze(0) # (C, H, W)
+                if ignore_background:
+                    class_indices = torch.arange(1, self.classes, device=self.device)
+                else:
+                    class_indices = torch.arange(self.classes, device=self.device)
+
+                cls_probs = torch.tensor([probs[c, :, :].mean().item() for c in class_indices], device=self.device, dtype=torch.float32)
+
+                if not raw_output:
+                    _, pred_mask = torch.max(pred_mask, 1)
+                    return cls_probs, pred_mask.cpu().squeeze(0)
+
+                return cls_probs, pred_mask.cpu().squeeze(0)
+
+            if cls_of_interest is not None:
+                if not all(isinstance(cls, int) for cls in cls_of_interest):
+                    raise ValueError(f"cls_of_interest must be an integer, "
+                                     f"got {type(cls_of_interest)} instead.")
+                if len(cls_of_interest) > self.classes:
+                    raise ValueError(
+                        f"Number of classes of interest must be less than or equal to the number of classes in the model. "
+                        f"Got {len(cls_of_interest)} classes of interest for a model with {self.classes} classes.")
+                unique_cls = torch.tensor(cls_of_interest, device=self.device)
             else:
                 unique_cls = torch.unique(gt_mask)
-                confidence = torch.zeros(len(unique_cls), device=self.device, dtype=torch.float32)
-                num_cls = len(unique_cls)
 
-            for c in range(num_cls):
+            confidence = torch.zeros(len(unique_cls), device=self.device, dtype=torch.float32)
+            for i, c in enumerate(unique_cls):
                 mask_idx = (gt_mask.squeeze(0) == unique_cls[c])
                 class_probs = pred_mask[0, unique_cls[c], :, :]
                 total_confidence = class_probs[mask_idx].sum().item()
