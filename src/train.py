@@ -13,11 +13,6 @@ from src.metrics import VLAD, FisherVector
 from utils import sift, resize, root_sift, standardize_data, save_model
 from src.datasets import *
 
-# TODO: Marius fragen, ob:
-# 1. Similarity-Clustering für jede Metrik getrennt gemacht werden soll
-# 2. Wie viele clusters sind nötig
-# 3. Was machen mit diesen CLusters?
-
 # --k_means-- #
 def train_and_save_k_means_model(data_set: BaseDataset,
                                  num_clusters: int,
@@ -120,7 +115,6 @@ def train_and_save_pca_model(data_set: BaseDataset,
                              test = False,
                              model_path: str='models/pickle_model_files/pca_model.pkl') -> None:
         """
-        TODO: specify number of input and output features in the name of the model file.
         Trains the PCA model on the given features matrix and saves it as a .pkl file.
 
         **Note**: train the k-means or gmm model, then use these models to get the features matrix.

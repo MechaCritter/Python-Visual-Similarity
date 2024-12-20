@@ -205,7 +205,6 @@ def compute_per_class_metrics(model: torch.nn.Module,
 
     create_heatmaps(metrics['training'], metrics['validation'], cls_indices)
 
-    # Save metrics to a JSON file
     save_json(output_path, metrics)
 
     return metrics
@@ -237,7 +236,6 @@ def compute_and_save_ssim_matrices(dataset,
 
     num_imgs = len(dataset)
     kernel_size = None
-
 
     if sigma:
         assert sigma > 0, "Sigma must be a positive value."
@@ -337,8 +335,20 @@ def compute_and_save_ssim_matrices_train_val(
             batch_size_actual = ssim_batch.size(0)
             ssim_arr[i_val, current_train_idx:current_train_idx + batch_size_actual] = ssim_batch
             ms_ssim_arr[i_val, current_train_idx:current_train_idx + batch_size_actual] = ms_ssim_batch
-
+            #### DEBUG####
+            ssim_arr_np = ssim_arr.cpu().numpy()
+            ms_ssim_arr_np = ms_ssim_arr.cpu().numpy()
+            #### DEBUG####
             current_train_idx += batch_size_actual
+
+        #### DEBUG####
+        # if i_val == 10: # Break to check if hdf5 file is created properly
+        #     break
+        #### DEBUG####
+    #### DEBUG####
+    ssim_arr_np = ssim_arr.cpu().numpy()
+    ms_ssim_arr_np = ms_ssim_arr.cpu().numpy()
+    #### DEBUG####
 
     save_to_hdf5(hdf5_path, {'val_paths': all_val_paths,
                                 'train_paths': all_train_paths,
@@ -367,34 +377,28 @@ def compute_and_save_ssim_matrices_train_val(
 
 if __name__ == "__main__":
     from src.datasets import ExcavatorDataset
-    from src.config import TRANSFORMER
-    from models.Segmentation import UNetModel, DeepLabV3Model, DeepLabV3PlusModel, PyramidAttentionNetworkModel
+    from src.config import TRANSFORMER, ROOT
 
     # Load the datasets
-    train_dataset = ExcavatorDataset(return_type='image+mask', purpose='train', transform=TRANSFORMER)
-    val_dataset = ExcavatorDataset(return_type='image+mask', purpose='validation', transform=TRANSFORMER)
+    train_dataset = ExcavatorDataset(return_type='image+mask+path', purpose='train', transform=TRANSFORMER)
+    test_dataset = ExcavatorDataset(return_type='image+mask+path', purpose='test', transform=TRANSFORMER)
     class_colors = train_dataset.class_colors
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Compute and save SSIM matrices between train and validation datasets
+    output_dir = f'{ROOT}/res/ssim/train_vs_val'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
 
-    u_net = UNetModel().model
-    u_net.to(device)
-    u_net.load_state_dict(torch.load('models/torch_model_files/UNet_HybridFocalDiceLoss.pt'))
+    batch_size = 20
+    gaussian_sigmas = [i for i in range(0, 12, 2)]  # [0, 2, 4, 6, 8, 10]
+    for sigma in gaussian_sigmas:
+        compute_and_save_ssim_matrices_train_val(train_dataset=train_dataset,
+                                                 # TODO: Fix this method (it currently creates too large files)
+                                                 val_dataset=test_dataset,
+                                                 output_dir=output_dir,
+                                                 batch_size=batch_size,
+                                                 sigma=sigma)
 
-    # deeplabv3 = DeepLabV3Model().model
-    # deeplabv3.to(device)
-    # deeplabv3.load_state_dict(torch.load('models/torch_model_files/DeepLabV3_HybridFocalDiceLoss.pt'))
-    #
-    # deeplabv3plus = DeepLabV3PlusModel().model
-    # deeplabv3plus.to(device)
-    # deeplabv3plus.load_state_dict(torch.load('models/torch_model_files/DeepLabV3Plus_HybridFocalDiceLoss.pt'))
-    #
-    # panmodel = PyramidAttentionNetworkModel().model
-    # panmodel.to(device)
-    # panmodel.load_state_dict(torch.load('models/torch_model_files/PyramidAttentionNetwork_HybridFocalDiceLoss.pt'))
-
-    for model in [u_net]:
-        compute_per_class_metrics(model, train_dataset, val_dataset, class_colors, device, f'res/{model.__class__.__name__}_metrics.json')
 
 
 

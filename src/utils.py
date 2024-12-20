@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from piq import ssim, multi_scale_ssim as ms_ssim
 from scipy.spatial import distance_matrix
 from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
+from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity as cs
 from sklearn.metrics import silhouette_score
 from sklearn.linear_model import LinearRegression
 import seaborn as sns
@@ -33,18 +33,35 @@ setup_logging()
 
 
 # Decorators
-def check_is_image(func: callable):
+def check_is_image(func: callable) -> callable:
+    """
+    Decorator to check if the input is an image. If it's a mask (2D tensor), no checking is made.
+
+    - If numpy image: Check if the shape is (H, W, C) and values are in the range [0, 255].
+    - If torch tensor: Check if the shape is (C, H, W) and values are in the range [0, 1].
+
+    :param func: callable
+    :return:
+    """
     def wrapper(image, *args, **kwargs):
         if isinstance(image, np.ndarray):
-            if not len(image.shape) == 3:
-                raise ValueError(f"Image must have shape (H, W, C) for numpy arrays or (C, H, W) for tensors. Got {image.shape}.")
+            if len(image.shape) != 3 or image.shape[2] != 3:
+                    raise ValueError(f"Image must have shape (H, W, C) for numpy arrays. Got {image.shape}.")
             if image.min() < 0 or image.max() > 255:
                 raise ValueError(f"Image values must be in the range [0, 255]. Got min={image.min()} and max={image.max()}.")
+
         elif torch.is_tensor(image):
-            if image.min().item() < 0.0 or image.max().item() > 1.0:
-                raise ValueError(f"Image values must be in the range [0, 1] for tensors. Got min={image.min().item()} and max={image.max().item()}.")
+            if len(image.shape) == 2:
+                if not torch.all(image == image.to(torch.int)): # Masks: omly integer values
+                    raise ValueError(f"Mask values must be integers. Got min={image.min().item()} and max={image.max().item()}.")
+            elif len(image.shape) == 3:
+                if image.shape[0] != 3:
+                    raise ValueError(f"Image must have shape (C, H, W) for tensors. Got {image.shape}.")
+                if image.min().item() < 0.0 or image.max().item() > 1.0:
+                    raise ValueError(f"Image values must be in the range [0, 1] for tensors. Got min={image.min().item()} and max={image.max().item()}.")
         else:
             raise ValueError(f"Input must be a numpy array or a tensor, not {type(image)}.")
+
         return func(image, *args, **kwargs)
     return wrapper
 
@@ -165,7 +182,7 @@ def compute_optimal_clusters_silhoutte_score(features: np.ndarray,
         kmeans = KMeans(n_clusters=k, random_state=0).fit(features)
         labels = kmeans.labels_
         score = silhouette_score(features, labels)
-        print(f"For k={k}, Silhouette Score = {score}")
+        logging.info(f"For k={k}, Silhouette Score = {score}")
         if score > best_score:
             best_score = score
             best_k = k
@@ -176,7 +193,6 @@ def compute_optimal_clusters_silhoutte_score(features: np.ndarray,
                                xlabel='Number of Clusters',
                                ylabel='Silhouette Score',
                                save_path=save_path)
-    print(f"Best number of clusters: {best_k} with silhouette score {best_score}")
     return best_k
 
 
@@ -200,7 +216,7 @@ def compute_optimal_clusters_wcss(features: np.ndarray,
         kmeans = KMeans(n_clusters=k, random_state=0).fit(features)
         wcss.append(kmeans.inertia_)  # Inertia is the WCSS
 
-        print(f"For k={k}, WCSS = {kmeans.inertia_}")
+        logging.info(f"For k={k}, WCSS = {kmeans.inertia_}")
 
     if plot:
         plot_and_save_lineplot(y=wcss,
@@ -211,7 +227,7 @@ def compute_optimal_clusters_wcss(features: np.ndarray,
 
     optimal_k = elbow_point(range(min_clusters, max_clusters + 1), wcss)
 
-    print(f"Optimal number of clusters based on elbow method: {optimal_k}")
+    logging.info(f"Optimal number of clusters based on elbow method: {optimal_k}")
     return optimal_k
 
 
@@ -253,6 +269,7 @@ def find_common_divisor(n1: int, n2: int, desired_divisor: int) -> int:
     return chosen
 
 
+@check_is_image
 def rgb_to_mask(rgb_mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -> torch.Tensor:
     """
     Converts RGB mask image to class index mask image.
@@ -273,6 +290,7 @@ def rgb_to_mask(rgb_mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -
     return mask.to(torch.int64)
 
 
+@check_is_image
 def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]) -> torch.Tensor:
     """
     Converts class index mask image to RGB mask image.
@@ -289,6 +307,24 @@ def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]
     for cls, color in class_colors.items():
         rgb_mask[:, class_mask == (cls.value if isinstance(cls, Enum) else cls)] = color.view(3, 1)
     return rgb_mask
+
+
+@check_is_image
+def get_class_idx(mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -> list[int]:
+    """
+    Extracts all unique classes from the given mask by matching pixel colors to the known class colors.
+
+    :param mask: Image mask. Shape: (3, H, W) for torch.Tensor, (H, W, 3) for np.ndarray.
+    :param class_colors: A dictionary mapping each class index to its RGB color.
+
+    :return: A list of class indices present in the mask.
+    """
+    if isinstance(mask, np.ndarray):
+        mask = torch.from_numpy(mask).permute(2, 0, 1)
+
+    unique_colors = rgb_to_mask(mask, class_colors).unique() if len(mask.shape) == 3 else mask.unique()
+
+    return unique_colors.tolist()
 
 
 def load_json(file_path: str) -> dict:
@@ -573,6 +609,23 @@ def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[En
     cls_name = cls_of_interest.upper()
     return enum_class.__members__.get(cls_name)
 
+def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """
+    Compute the cosine similarity between two matrices.
+
+    :param x: First matrix
+    :param y: Second matrix
+
+    :return: Cosine similarity matrix
+    """
+    if isinstance(x, torch.Tensor):
+        x = x.cpu().numpy()
+    if isinstance(y, torch.Tensor):
+        y = y.cpu().numpy()
+    if x.shape[-1] <= 1 or y.shape[-1] <= 1:
+        raise ValueError(f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y.")
+
+    return cs(x, y)
 
 def cluster_images_and_save(
         image_paths: list[str],

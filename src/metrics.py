@@ -291,7 +291,7 @@ class MS_SSIM(StructuralSimilarity):
 
 
 if __name__ == "__main__":
-    from sklearn.metrics.pairwise import cosine_similarity
+    from src.utils import cosine_similarity
     from src.datasets import *
     data = ExcavatorDataset(plot=True)
     image1 = data[1].image_array

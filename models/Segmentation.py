@@ -153,7 +153,8 @@ class BaseSegmentationModel:
                              ignore_background: bool = False
                              ) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Predict the prediction score and the mask of the given image.
+        Predict the prediction score and the mask of the given image. This method assumes that
+        '0' is the background class.
 
         :param image: input image as a tensor. Shape. [1, C, H, W]
         :param gt_mask: ground truth mask as a tensor. Shape: [1, H, W]
@@ -185,10 +186,13 @@ class BaseSegmentationModel:
             pred_mask = self.model(image)
             if return_raw_prob_vector:
                 probs = pred_mask.squeeze(0) # (C, H, W)
-                if ignore_background:
-                    class_indices = torch.arange(1, self.classes, device=self.device)
+                if cls_of_interest is not None and len(cls_of_interest) > 0:
+                    class_indices = torch.tensor(cls_of_interest, device=self.device)
                 else:
-                    class_indices = torch.arange(self.classes, device=self.device)
+                    if ignore_background:
+                        class_indices = torch.arange(1, self.classes, device=self.device)
+                    else:
+                        class_indices = torch.arange(self.classes, device=self.device)
 
                 cls_probs = torch.tensor([probs[c, :, :].mean().item() for c in class_indices], device=self.device, dtype=torch.float32)
 
@@ -256,7 +260,7 @@ if __name__ =="__main__":
     from src.datasets import ExcavatorDataset
     import matplotlib.pyplot as plt
     from src.config import TRANSFORMER, ROOT
-    from src.utils import mask_to_rgb, rgb_to_mask
+    from src.utils import mask_to_rgb, get_class_idx
 
     def plot_image_and_mask(image: torch.Tensor, gt_mask: torch.Tensor, pred_mask: torch.Tensor=None):
         plt.figure(figsize=(10, 10))
@@ -285,13 +289,24 @@ if __name__ =="__main__":
         plt.title('Predicted Mask')
         plt.show()
 
-    dataset = ExcavatorDataset(plot=True, purpose='validation', return_type='image+mask', transform=TRANSFORMER)
+    dataset = ExcavatorDataset(plot=True, purpose='train', return_type='image+mask', transform=TRANSFORMER)
+    test_dataset = ExcavatorDataset(plot=True, purpose='test', return_type='image+mask', transform=TRANSFORMER)
     img, mask = dataset[40]
+    test_img, test_mask = test_dataset[40]
+    classes = get_class_idx(mask, class_colors=dataset.class_colors)
+    classes_test = get_class_idx(test_mask, class_colors=dataset.class_colors)
+    print("Unique classes in training image:", classes)
+    print("Unique classes in test image:", classes_test)
     dlv3 = DeepLabV3Model(model_path=f'{ROOT}/models/torch_model_files/DeepLabV3_HybridFocalDiceLoss.pt')
 
-    confidence, pred_mask = dlv3.predict_single_image(img, mask, raw_output=False, mean=True)
+    confidence, pred_mask = dlv3.predict_single_image(img, mask, return_raw_prob_vector=True, cls_of_interest=classes, raw_output=False)
+    confidence_test, pred_mask_test = dlv3.predict_single_image(test_img, test_mask, return_raw_prob_vector=True, cls_of_interest=classes, raw_output=False)
     pred_mask = mask_to_rgb(pred_mask, class_colors=dataset.class_colors)
-    print("Confidence:", confidence)
+    pred_mask_test = mask_to_rgb(pred_mask_test, class_colors=dataset.class_colors)
+    print("Confidence in training image:", confidence)
+    print("Confidence in test image:", confidence_test)
     rgb_mask = mask_to_rgb(mask, class_colors=dataset.class_colors)
+    rgb_mask_test = mask_to_rgb(test_mask, class_colors=dataset.class_colors)
 
     plot_image_and_mask(img, rgb_mask, pred_mask)
+    plot_image_and_mask(test_img, rgb_mask_test, pred_mask_test)
