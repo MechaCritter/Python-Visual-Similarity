@@ -11,9 +11,8 @@ from src.datasets import ExcavatorDataset
 from src.utils import append_json_list
 from src.losses import MultiClassDiceLoss
 
-__all__ = ['UNetModel', 'DeepLabV3Model', 'UNetPlusPlusModel', 'DeepLabV3PlusModel', 'PSPNetModel', 'PyramidAttentionNetworkModel']
 
-class BaseSegmentationModel:
+class _BaseSegmentationModel:
     def __init__(self,
                  model_class: torch.nn.Module,
                  model_path: str = None,
@@ -231,27 +230,27 @@ class BaseSegmentationModel:
 
             return confidence, pred_mask.cpu().squeeze(0)
 
-class UNetModel(BaseSegmentationModel):
+class UNetModel(_BaseSegmentationModel):
     def __init__(self, **kwargs):
         super().__init__(model_class=Unet, logger_name='UNet', **kwargs)
 
-class DeepLabV3Model(BaseSegmentationModel):
+class DeepLabV3Model(_BaseSegmentationModel):
     def __init__(self, **kwargs):
         super().__init__(model_class=DeepLabV3, logger_name='DeepLabV3', **kwargs)
 
-class UNetPlusPlusModel(BaseSegmentationModel):
+class UNetPlusPlusModel(_BaseSegmentationModel):
     def __init__(self, **kwargs):
         super().__init__(model_class=UnetPlusPlus, logger_name='UNetPlusPlus', **kwargs)
 
-class DeepLabV3PlusModel(BaseSegmentationModel):
+class DeepLabV3PlusModel(_BaseSegmentationModel):
     def __init__(self, **kwargs):
         super().__init__(model_class=DeepLabV3Plus, logger_name='DeepLabV3Plus', **kwargs)
 
-class PSPNetModel(BaseSegmentationModel):
+class PSPNetModel(_BaseSegmentationModel):
     def __init__(self, **kwargs):
         super().__init__(model_class=PSPNet, logger_name='PSPNet', **kwargs)
 
-class PyramidAttentionNetworkModel(BaseSegmentationModel):
+class PyramidAttentionNetworkModel(_BaseSegmentationModel):
     def __init__(self, **kwargs):
         super().__init__(model_class=PAN, logger_name='PyramidAttentionNetwork', **kwargs)
 

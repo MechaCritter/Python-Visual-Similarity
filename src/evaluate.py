@@ -1,3 +1,4 @@
+import os.path
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -16,7 +17,9 @@ from tqdm import tqdm
 from src.losses import MultiClassDiceLoss
 from src.metrics import *
 from src.utils import *
+from src.datasets import ExcavatorDataset
 from src.config import DEVICE, TRANSFORMER
+from models.Segmentation import _BaseSegmentationModel
 
 def compute_and_print_class_ratios(train_dataset: Dataset,
                                    val_dataset: Dataset,
@@ -373,6 +376,77 @@ def compute_and_save_ssim_matrices_train_val(
     #                 grp.create_dataset('ssim', data=ssim_scores.cpu().numpy())
     #                 grp.create_dataset('ms_ssim', data=ms_ssim_scores.cpu().numpy())
     # print(f"Saved train-val SSIM and MS-SSIM matrices at {output_dir} with sigma={sigma}, kernel_size={kernel_size}.")
+
+
+def compute_and_save_confidence_vectors(model: _BaseSegmentationModel,
+                                        dataset: ExcavatorDataset,
+                                        only_classes_in_gt_mask=False,
+                                        ignore_background=False,
+                                        output_dir: str = None) -> None:
+    """
+    Compute and save prediction probability vectors for the dataset.
+
+    **Note**: Use on the train dataset only! (Corrent stand of the project: 20.12.2024)
+
+    If `only_classes_in_gt_mask` is True, the data will be saved liek this:
+
+    ```
+    {
+        'image1.jpg': {
+            'classes': [0, 1, 2, 3, 4],
+            'confidence': [0.1, 0.2, 0.3, 0.4, 0.5]
+        },
+        'image2.jpg': {
+            'classes': [0, 1, 2, 3, 4],
+            'confidence': [0.1, 0.2, 0.3, 0.4, 0.5]
+        },
+        ...
+    }
+    ```
+
+    If `only_classes_in_train_set` is False, the data will be saved like this:
+
+    ```
+    {
+        'image1.jpg': [0.1, 0.2, 0.3, 0.4, 0.5],
+        'image2.jpg': [0.1, 0.2, 0.3, 0.4, 0.5],
+        ...
+    }
+
+    :param model: Segmentation model
+    :param dataset: Dataset
+    :param only_classes_in_gt_mask: If True, only classes in the train set will be considered
+    :param ignore_background: If True, the background class will be ignored
+    :param output_dir: Output directory
+    """
+    model_name = model.model.__class__.__name__
+
+    class_colors = dataset.class_colors
+
+    if only_classes_in_gt_mask:
+        print("Only classes in the ground truth mask will be considered.")
+        train_results = defaultdict(lambda: {'classes': [], 'confidence': []})
+        for img, mask, path in tqdm(dataset, desc=f"Computing confidence vectors in Dataset for {model_name}"):
+            conf_with_bg, _ = model.predict_single_image(img,
+                                                         mask,
+                                                         return_raw_prob_vector=True,
+                                                         ignore_background=ignore_background)
+            train_results[os.path.basename(path)]['classes'] = get_class_idx(mask, class_colors=class_colors)
+            train_results[os.path.basename(path)]['confidence'] = conf_with_bg.cpu().numpy().tolist()
+    else:
+        print("All classes in the dataset will be considered.")
+        train_results = {}
+        for img, mask, path in tqdm(dataset, desc=f"Computing confidence vectors in Dataset for {model_name}"):
+            classes_of_interest = get_class_idx(mask, class_colors=class_colors) if only_classes_in_gt_mask else []
+            conf_with_bg, _ = model.predict_single_image(img,
+                                                         mask,
+                                                         return_raw_prob_vector=True,
+                                                         cls_of_interest=classes_of_interest,
+                                                         ignore_background=ignore_background)
+            train_results[os.path.basename(path)] = conf_with_bg.cpu().numpy()
+
+    save_to_hdf5(output_dir, train_results)
+
 
 
 if __name__ == "__main__":

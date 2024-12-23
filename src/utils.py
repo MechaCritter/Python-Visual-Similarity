@@ -33,7 +33,7 @@ setup_logging()
 
 
 # Decorators
-def check_is_image(func: callable) -> callable:
+def check_is_image(func: callable, tol=1e-5):
     """
     Decorator to check if the input is an image. If it's a mask (2D tensor), no checking is made.
 
@@ -41,6 +41,7 @@ def check_is_image(func: callable) -> callable:
     - If torch tensor: Check if the shape is (C, H, W) and values are in the range [0, 1].
 
     :param func: callable
+    :param tol: tolerance value for float comparisons
     :return:
     """
     def wrapper(image, *args, **kwargs):
@@ -57,7 +58,7 @@ def check_is_image(func: callable) -> callable:
             elif len(image.shape) == 3:
                 if image.shape[0] != 3:
                     raise ValueError(f"Image must have shape (C, H, W) for tensors. Got {image.shape}.")
-                if image.min().item() < 0.0 or image.max().item() > 1.0:
+                if image.min().item() < 0.0 - tol or image.max().item() > 1.0 + tol:
                     raise ValueError(f"Image values must be in the range [0, 1] for tensors. Got min={image.min().item()} and max={image.max().item()}.")
         else:
             raise ValueError(f"Input must be a numpy array or a tensor, not {type(image)}.")
@@ -677,7 +678,7 @@ def cluster_images_and_save(
         if generate_heatmap:
             if len(cluster_indices) > 1:
                 cluster_features = features[cluster_indices]
-                similarity_matrix = cosine_similarity(cluster_features)
+                similarity_matrix = cosine_similarity(cluster_features, cluster_features)
                 euclidean_distance_matrix = euclidean_distances(cluster_features)
                 euclidean_similarity_matrix = 1 / (1 + euclidean_distance_matrix)
                 try:
