@@ -211,16 +211,16 @@ class _BaseSegmentationModel:
                         f"Got {len(cls_of_interest)} classes of interest for a model with {self.classes} classes.")
                 unique_cls = torch.tensor(cls_of_interest, device=self.device)
             else:
-                unique_cls = torch.unique(gt_mask)
+                unique_cls = torch.unique(gt_mask) # (num_classes,)
 
             confidence = torch.zeros(len(unique_cls), device=self.device, dtype=torch.float32)
             for i, c in enumerate(unique_cls):
-                mask_idx = (gt_mask.squeeze(0) == unique_cls[c])
-                class_probs = pred_mask[0, unique_cls[c], :, :]
+                mask_idx = (gt_mask.squeeze(0) == c) # (1, H, W)
+                class_probs = pred_mask[0, c, :, :] # (H, W)
                 total_confidence = class_probs[mask_idx].sum().item()
                 num_pixels = mask_idx.sum().item()
                 avr_confidence = total_confidence / num_pixels if num_pixels > 0 else 0
-                confidence[c] = avr_confidence
+                confidence[i] = avr_confidence
 
             if mean:
                 confidence = confidence.mean()
@@ -257,9 +257,10 @@ class PyramidAttentionNetworkModel(_BaseSegmentationModel):
 
 if __name__ =="__main__":
     from src.datasets import ExcavatorDataset
+    import numpy as np
     import matplotlib.pyplot as plt
     from src.config import TRANSFORMER, ROOT
-    from src.utils import mask_to_rgb, get_class_idx
+    from src.utils import mask_to_rgb, get_class_idx, multiclass_iou
 
     def plot_image_and_mask(image: torch.Tensor, gt_mask: torch.Tensor, pred_mask: torch.Tensor=None):
         plt.figure(figsize=(10, 10))
@@ -288,24 +289,29 @@ if __name__ =="__main__":
         plt.title('Predicted Mask')
         plt.show()
 
-    dataset = ExcavatorDataset(plot=True, purpose='train', return_type='image+mask', transform=TRANSFORMER)
-    test_dataset = ExcavatorDataset(plot=True, purpose='test', return_type='image+mask', transform=TRANSFORMER)
-    img, mask = dataset[40]
-    test_img, test_mask = test_dataset[40]
-    classes = get_class_idx(mask, class_colors=dataset.class_colors)
-    classes_test = get_class_idx(test_mask, class_colors=dataset.class_colors)
-    print("Unique classes in training image:", classes)
-    print("Unique classes in test image:", classes_test)
+    dataset = ExcavatorDataset(plot=True, purpose='train', return_type='image+mask+path', transform=TRANSFORMER)
+    #idx = np.random.randint(0, len(dataset) - 1)
+    idx = 503
+    img, mask, path = dataset[idx]
+    print("Index chosen:", idx)
+    print("Path:", os.path.basename(path))
     dlv3 = DeepLabV3Model(model_path=f'{ROOT}/models/torch_model_files/DeepLabV3_HybridFocalDiceLoss.pt')
+    dlv3p = DeepLabV3PlusModel(model_path=f'{ROOT}/models/torch_model_files/DeepLabV3Plus_HybridFocalDiceLoss.pt')
+    unet = UNetModel(model_path=f'{ROOT}/models/torch_model_files/UNet_HybridFocalDiceLoss.pt')
+    pan = PyramidAttentionNetworkModel(model_path=f'{ROOT}/models/torch_model_files/PyramidAttentionNetwork_HybridFocalDiceLoss.pt')
 
-    confidence, pred_mask = dlv3.predict_single_image(img, mask, return_raw_prob_vector=True, cls_of_interest=classes, raw_output=False)
-    confidence_test, pred_mask_test = dlv3.predict_single_image(test_img, test_mask, return_raw_prob_vector=True, cls_of_interest=classes, raw_output=False)
-    pred_mask = mask_to_rgb(pred_mask, class_colors=dataset.class_colors)
-    pred_mask_test = mask_to_rgb(pred_mask_test, class_colors=dataset.class_colors)
+    model = np.random.choice([dlv3])
+    print("Chosen model:", model.model.__class__.__name__)
+
+    confidence, pred_mask = model.predict_single_image(img, mask, raw_output=True, mean=False)
+
     print("Confidence in training image:", confidence)
-    print("Confidence in test image:", confidence_test)
-    rgb_mask = mask_to_rgb(mask, class_colors=dataset.class_colors)
-    rgb_mask_test = mask_to_rgb(test_mask, class_colors=dataset.class_colors)
-
-    plot_image_and_mask(img, rgb_mask, pred_mask)
-    plot_image_and_mask(test_img, rgb_mask_test, pred_mask_test)
+    mask = torch.nn.functional.one_hot(mask.long(), num_classes=12).permute(2, 0, 1)
+    print("IoU in training image:", multiclass_iou(pred_mask, mask))
+    # pred_mask = mask_to_rgb(pred_mask, class_colors=dataset.class_colors)
+    # pred_mask_test = mask_to_rgb(pred_mask_test, class_colors=dataset.class_colors)
+    # rgb_mask = mask_to_rgb(mask, class_colors=dataset.class_colors)
+    # rgb_mask_test = mask_to_rgb(test_mask, class_colors=dataset.class_colors)
+    #
+    # plot_image_and_mask(img, rgb_mask, pred_mask)
+    # plot_image_and_mask(test_img, rgb_mask_test, pred_mask_test)

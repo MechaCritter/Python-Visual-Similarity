@@ -1,30 +1,30 @@
+import io
+import json
 import logging
-import os
 import math
+import os
 import shutil
+from dataclasses import dataclass
 from enum import Enum
 from typing import Type, Optional, Any, Union, Sequence
 
+import cv2
 import h5py
-from PIL import Image
-import json
 import joblib
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import torch
+import torch.nn.functional as F
 import torchvision
 import torchvision.transforms.functional as TF
-import io
-import cv2
-import matplotlib.pyplot as plt
-from piq import ssim, multi_scale_ssim as ms_ssim
-from scipy.spatial import distance_matrix
-from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity as cs
-from sklearn.metrics import silhouette_score
-from sklearn.linear_model import LinearRegression
-import seaborn as sns
-import torch.nn.functional as F
+from PIL import Image
+from scipy.stats import pearsonr, spearmanr
 from segmentation_models_pytorch.utils.metrics import IoU
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import silhouette_score, mean_squared_error
+from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity as cs
 from tqdm import tqdm
 
 from src.config import setup_logging
@@ -45,9 +45,14 @@ def check_is_image(func: callable, tol=1e-5):
     :return:
     """
     def wrapper(image, *args, **kwargs):
+        if not np.all(np.isin([len(image.shape), len(image.shape)], [2, 3])):
+            raise ValueError(f"Image must be a 2D or 3D tensor. Got shape {image.shape}.")
         if isinstance(image, np.ndarray):
-            if len(image.shape) != 3 or image.shape[2] != 3:
-                    raise ValueError(f"Image must have shape (H, W, C) for numpy arrays. Got {image.shape}.")
+            if not np.all(image == image.astype(np.int64)):
+                raise ValueError(f"Mask values must be integers. Got min={image.min()} and max={image.max()}.")
+            if len(image.shape) == 3:
+                    if image.shape[2] != 3:
+                        raise ValueError(f"Image must have shape (H, W, C) for numpy arrays. Got {image.shape}.")
             if image.min() < 0 or image.max() > 255:
                 raise ValueError(f"Image values must be in the range [0, 255]. Got min={image.min()} and max={image.max()}.")
 
@@ -158,6 +163,18 @@ def create_and_plot_synthetic_data(lower_limit: float,
     plt.show()
 
     return x, y
+
+
+@check_is_image
+def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
+    """Simply olots the image."""
+    plt.figure(figsize=(10, 10))
+    if isinstance(image, torch.Tensor):
+        image = image.permute(1, 2, 0)
+    plt.imshow(image)
+    plt.axis('off')
+    plt.title(title)
+    plt.show()
 
 
 def compute_optimal_clusters_silhoutte_score(features: np.ndarray,
@@ -284,12 +301,17 @@ def rgb_to_mask(rgb_mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -
     if not rgb_mask.shape[0] == 3:
         raise ValueError(
             f"RGB mask image has to have shape (3, H, W). Got shape: {rgb_mask.shape} Use `torch.permute` to change the shape.")
+    if isinstance((colors:=list(class_colors.values()))[0], np.ndarray):
+        colors = [torch.from_numpy(color) for color in colors]
+    colors = torch.stack(colors)
+    rgb_mask_colors = rgb_mask.view(3, -1).t()
+    if not torch.isin(rgb_mask_colors, colors, assume_unique=False).all(dim=1).all():
+        raise ValueError("RGB mask image contains colors not present in the class colors dictionary.")
 
     mask = torch.zeros((rgb_mask.shape[-2], rgb_mask.shape[-1]), dtype=torch.float32)
     for cls, color in class_colors.items():
         mask[torch.all(rgb_mask == color.view(3, 1, 1), axis=0)] = cls.value if isinstance(cls, Enum) else cls
     return mask.to(torch.int64)
-
 
 @check_is_image
 def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]) -> torch.Tensor:
@@ -303,6 +325,14 @@ def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]
     """
     if len(class_mask.shape) != 2:
         raise ValueError(f"Class mask image has to have shape (H, W). Got shape: {class_mask.shape}")
+
+    if isinstance(class_mask, np.ndarray):
+        class_mask = torch.from_numpy(class_mask)
+
+    classes = [cls.value if isinstance(cls, Enum) else cls for cls in class_colors.keys()]
+    classes = torch.tensor(classes, dtype=torch.int64)
+    if not torch.isin(class_mask, classes, assume_unique=False).all():
+        raise ValueError("Class mask image contains classes not present in the class colors dictionary.")
 
     rgb_mask = torch.zeros((3, class_mask.shape[0], class_mask.shape[1]), dtype=torch.float32)
     for cls, color in class_colors.items():
@@ -576,8 +606,8 @@ def multi_class_dice_score(pred_mask: torch.Tensor,
     return torch.mean(torch.tensor(dice_scores))
 
 
-def multiclass_iou(pred_mask: torch.Tensor,
-                   true_mask: torch.Tensor,
+def multiclass_iou(*, pred_mask: torch.Tensor=None, # Enforce keyword arguments because one can swap pred_mask and true_mask mistakenly
+                   true_mask: torch.Tensor=None,
                    ignore_channels: list = None) -> torch.Tensor:
     """
     Compute Intersection over Union (IoU) for the predicted mask and the true mask.
@@ -595,7 +625,7 @@ def multiclass_iou(pred_mask: torch.Tensor,
         raise ValueError("The predicted mask and the true mask should be 3D tensors with the same shape."
                          f"Got shape: {pred_mask.shape} for prediction and {true_mask.shape} for ground truth.")
 
-    return IoU(ignore_channels=None)(pred_mask, true_mask)
+    return IoU(ignore_channels=ignore_channels)(pred_mask, true_mask)
 
 
 def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[Enum]:
@@ -623,6 +653,8 @@ def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
         x = x.cpu().numpy()
     if isinstance(y, torch.Tensor):
         y = y.cpu().numpy()
+    x = x.reshape(1, -1) if len(x.shape) == 1 else x
+    y = y.reshape(1, -1) if len(y.shape) == 1 else y
     if x.shape[-1] <= 1 or y.shape[-1] <= 1:
         raise ValueError(f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y.")
 
@@ -736,9 +768,7 @@ def get_non_zero_pixel_indices(image: np.ndarray) -> tuple:
     Use this method to find coordinates of non-black pixels in an image.
 
     :param image: Input image
-    :type image: np.ndarray
     :return: Indices of non-zero pixels in a tuple
-    :rtype: tuple
     """
     return tuple(np.argwhere(np.any(image != 0, axis=-1)))
 
@@ -754,13 +784,9 @@ def plot_clusters_on_image(image: np.ndarray,
     - The second plot display more rich information about the keypoints (e.g. size, orientation, etc.).
 
     :param image: Image to display as the background
-    :type image: bp.ndarray
     :param data: 2D numpy array of data points (n_samples, n_features)
-    :type data: np.ndarray
     :param labels: 1D numpy array of cluster labels for each data point
-    :type labels: np.ndarray
     :param keypoints: List of cv2.KeyPoint objects
-    :type keypoints: list[cv2.KeyPoint]
     """
 
     # Convert image to rgb format
@@ -907,33 +933,131 @@ def plot_and_save_lineplot(y: np.ndarray,
         tick_indices = np.linspace(0, len(x) - 1, 20, dtype=int)
         tick_labels = [x[i] for i in tick_indices]
         plt.xticks(tick_indices, tick_labels, rotation=90)
-
     if y_lim:
         plt.ylim(y_lim)
     if x_lim:
         plt.xlim(x_lim)
-
     plt.tight_layout()
-
     if save_path:
         plt.savefig(save_path)
-
     plt.show()
     plt.close()
 
+
+def plot_and_save_histogram(data: np.ndarray,
+                            num_bins: int = 10,
+                            title: str = "Histogram",
+                            x_label: str = "Value",
+                            y_label: str = "Frequency",
+                            save_path: str = None,
+                            x_lim: tuple = (0, 1),
+                            show: bool = True) -> None:
+    """
+    Plot and save a histogram, allowing the user to choose the number of bins.
+
+    :param data: Array of data to plot.
+    :param num_bins: Number of bins for the histogram.
+    :param title: Title of the plot.
+    :param x_label: Label for the x-axis.
+    :param y_label: Label for the y-axis.
+    :param save_path: Path to save the plot image. If None, plot is not saved.
+    :param x_lim: Tuple for x-axis limits (min, max). Optional.
+    :param show: Whether to display the plot.
+    """
+    plt.figure(figsize=(10, 6))
+    plt.hist(data, bins=num_bins, color='blue', edgecolor='black', alpha=0.7)
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.grid(axis='y', linestyle='--', alpha=0.6)
+    if x_lim:
+        plt.xlim(*x_lim)
+    if save_path:
+        plt.savefig(save_path)
+    if show:
+        plt.show()
+    plt.close()
+
+
+def fit_regression_line(x: np.ndarray, y: np.ndarray, poly_degree: int) -> object:
+    """
+    Fit a polynomial regression line to the given data.
+
+    :param x: Independent variable values (numpy array).
+    :param y: Dependent variable values (numpy array).
+    :param poly_degree: Degree of the polynomial regression.
+    :return: RegressionResult containing predictions, coefficients, and intercept. Attributes: predictions, coefficients, intercept.
+    """
+    @dataclass
+    class RegressionResult:
+        predictions: np.ndarray
+        coefficients: np.ndarray
+        intercept: float
+        mse: float
+
+    poly_features = np.vander(x, N=poly_degree + 1, increasing=True)
+    reg = LinearRegression().fit(poly_features, y)
+    predictions = reg.predict(poly_features)
+    mse = mean_squared_error(y, predictions)
+    return RegressionResult(predictions, reg.coef_, reg.intercept_, mse)
+
+
+def get_statistics(x: np.ndarray, y: np.ndarray) -> object:
+    """
+    Calculate statistics such as Pearson and Spearman correlations, standard deviation,
+    mean, median, and number of data points for the given data.
+
+    :param x: Independent variable values (numpy array).
+    :param y: Dependent variable values (numpy array).
+    :return: Statistics containing computed statistical metrics. Attributes: pearson, spearman, std, mean, median, n_points.
+    """
+    @dataclass
+    class Statistics:
+        pearson: float
+        spearman: float
+        std: float
+        mean: float
+        median: float
+        n_points: int
+
+    pearson, _ = pearsonr(x, y)
+    spearman, _ = spearmanr(x, y)
+    std, mean, median, n_points = np.std(y), np.mean(y), np.median(y), len(y)
+    return Statistics(pearson, spearman, std, mean, median, n_points)
+
+
 def plot_boxplot_with_regression(x: np.ndarray,
                                  y: np.ndarray,
-                                 x_lim: tuple=(0, 1),
-                                 y_lim: tuple=(0, 1),
-                                 num_bins=20,
-                                 title="Boxplot with Regression",
-                                 x_label="IoU Difference",
-                                 y_label="Similarity Score",
-                                 save_fig_path=None) -> None:
+                                 poly_degree: int = 1,
+                                 x_lim: tuple = (0, 1),
+                                 y_lim: tuple = (0, 1),
+                                 num_bins: int = 20,
+                                 title: str = "Boxplot with Regression",
+                                 x_label: str = "IoU Difference",
+                                 y_label: str = "Similarity Score",
+                                 save_fig_path: str = None,
+                                 plot_bin_regression: bool = False,
+                                 verbose: bool = False,
+                                 return_results: bool = False):
     """
-    Plot a boxplot of y values binned by x, and add a regression line over the scatter.
+    Plot a boxplot of y values binned by x, and add a polynomial regression line over the scatter.
+
+    :param x: Array of x values.
+    :param y: Array of y values.
+    :param poly_degree: The degree of the polynomial for regression.
+    :param x_lim: Tuple of (min, max) x-axis limits.
+    :param y_lim: Tuple of (min, max) y-axis limits.
+    :param num_bins: Number of bins for the boxplot.
+    :param title: Plot title.
+    :param x_label: Label for the x-axis.
+    :param y_label: Label for the y-axis.
+    :param save_fig_path: Optional path to save the plot.
+    :param plot_bin_regression: If True, plots regression lines within each bin and prints coefficients.
+    :param verbose: If True, prints additional information.
+    :param return_results: If True, returns the overall statistics and per-bin statistics.
     """
-    def bin_data(x: np.ndarray, y: np.ndarray, lower: float, upper: float, num_bins: int) -> tuple[np.ndarray, list[list[float]]]:
+
+    def bin_data(x: np.ndarray, y: np.ndarray, lower: float, upper: float, num_bins: int):
         bins = np.linspace(lower, upper, num_bins + 1)
         bin_indices = np.digitize(x, bins) - 1
         binned_y = [[] for _ in range(num_bins)]
@@ -949,7 +1073,7 @@ def plot_boxplot_with_regression(x: np.ndarray,
     # Replace empty bins with NaN to stretch the boxplots evenly
     binned_y = [b if b else [np.nan] for b in binned_y]
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
     plt.boxplot(binned_y, positions=bin_centers, widths=(upper - lower) / (num_bins * 2), patch_artist=True)
 
     # Apply regression if valid data exists
@@ -957,18 +1081,77 @@ def plot_boxplot_with_regression(x: np.ndarray,
     x_valid = x[valid]
     y_valid = y[valid]
 
-    if len(x_valid) > 1:  # Ensure enough data points are available
-        reg = LinearRegression().fit(x_valid.reshape(-1, 1), y_valid)
-        coeff = reg.coef_[0]
-        x_line = np.linspace(lower, upper, 100).reshape(-1, 1)
-        y_line = reg.predict(x_line)
-        plt.plot(x_line, y_line, color='red', linewidth=2, label=f'Regression line, Coefficient: {coeff:.2f}')
-    else:
-        print("Insufficient data points for regression.")
+    if not len(x_valid) > 1:  # Ensure enough data points are available
+        raise ValueError("Less than two data points are valid. Data is invalid for plotting.")
 
-    # Update x-axis ticks to rounded values
+    regression_result = fit_regression_line(x_valid, y_valid, poly_degree)
+
+    # Regression line
+    x_line = np.linspace(lower, upper, 100)
+    y_line = np.polyval(regression_result.coefficients[::-1], x_line) + regression_result.intercept
+    plt.plot(x_line, y_line, color='red', linewidth=2, label=f'Regression line (Degree {poly_degree})')
+
+    # Overall statistics
+    overall_stats = get_statistics(x_valid, y_valid)
+
+    # Display stats
+    plt.text(0.05, 0.95, f"Pearson Correlation: {overall_stats.pearson:.2f}", transform=plt.gca().transAxes,
+             fontsize=12, verticalalignment='top', bbox=dict(boxstyle="round", alpha=0.5))
+    plt.text(0.05, 0.90, f"MSE: {regression_result.mse:.4f}", transform=plt.gca().transAxes, fontsize=12,
+             verticalalignment='top', bbox=dict(boxstyle="round", alpha=0.5))
+    if poly_degree == 1:
+        plt.text(0.05, 0.85, f"Regression Coefficients: {regression_result.coefficients[1]:.2f}",
+                 transform=plt.gca().transAxes, fontsize=12, verticalalignment='top',
+                 bbox=dict(boxstyle="round", alpha=0.5))
+
+    # Per-bin regression and statistics
+    per_bin_stats = []
+    if plot_bin_regression or return_results:
+        for i, bin_y in enumerate(binned_y):
+            bin_mask = (x_valid > bin_centers[i] - (upper - lower) / (2 * num_bins)) & (
+                    x_valid <= bin_centers[i] + (upper - lower) / (2 * num_bins))
+            bin_x = x_valid[bin_mask]
+            bin_y = y_valid[bin_mask]
+
+            if len(bin_x) > 1:  # Perform regression only if bin has enough data
+                bin_regression_result = fit_regression_line(bin_x, bin_y, poly_degree=1)
+                bin_stats = get_statistics(bin_x, bin_y)
+                per_bin_stats.append({
+                    "bin_index": i + 1,
+                    "bin_center": bin_centers[i],
+                    "bin_stats": bin_stats,
+                    "regression": bin_regression_result
+                })
+
+                if plot_bin_regression:
+                    plt.plot(bin_x, bin_regression_result.predictions.reshape(-1, 1),
+                             label=f"Bin {i + 1} coeff: {bin_regression_result.coefficients[1]:.2f}")
+
+                if verbose:
+                    print(f"""
+                    Statistics of bin {i + 1}:
+                      Pearson Correlation: {bin_stats.pearson:.2f}
+                      Spearman Correlation: {bin_stats.spearman:.2f}
+                      Standard Deviation: {bin_stats.std:.2f}
+                      Mean: {bin_stats.mean:.2f}
+                      Median: {bin_stats.median:.2f}
+                      Number of Data Points: {bin_stats.n_points}
+                      Regression Coefficients: {bin_regression_result.coefficients[1]:.2f}
+                      MSE: {bin_regression_result.mse:.4f}
+                    """)
+
+    if verbose:
+        print(f"""
+        Overall Statistics:
+          Pearson Correlation: {overall_stats.pearson:.2f}
+          Spearman Correlation: {overall_stats.spearman:.2f}
+          Standard Deviation: {overall_stats.std:.2f}
+          Mean: {overall_stats.mean:.2f}
+          Median: {overall_stats.median:.2f}
+          Regression Coefficients: {[round(coeff, 2) for coeff in regression_result.coefficients]}
+        """)
+
     plt.xticks(bin_centers, [round(center, 2) for center in bin_centers])
-
     plt.title(title)
     plt.xlabel(x_label)
     plt.xlim(lower, upper)
@@ -978,6 +1161,14 @@ def plot_boxplot_with_regression(x: np.ndarray,
     if save_fig_path:
         plt.savefig(save_fig_path)
     plt.show()
+
+    if return_results:
+        return {
+            "overall_statistics": overall_stats,
+            "regression_result": regression_result,
+            "per_bin_statistics": per_bin_stats
+        }
+
 
 
 def plot_scatter_with_regression(x: np.ndarray,
@@ -1001,25 +1192,6 @@ def plot_scatter_with_regression(x: np.ndarray,
     :param save_fig_path: Path to save the figure. If None, the figure is displayed.
     :returns: None
     """
-    # valid = ~np.isnan(x) & ~np.isnan(y)
-    # x_valid = x[valid]
-    # y_valid = y[valid]
-    #
-    # plt.figure(figsize=(10, 6))
-    # plt.scatter(x_valid, y_valid, alpha=0.6, label="Data points")
-    #
-    # if len(x_valid) > 1:  # Ensure enough data points are available
-    #     # Center the data for better interpretability
-    #     x_centered = x_valid - np.mean(x_valid)
-    #     reg = LinearRegression().fit(x_centered.reshape(-1, 1), y_valid)
-    #     x_line = np.linspace(x_lim[0], x_lim[1], 100).reshape(-1, 1)
-    #     y_line = reg.predict((x_line - np.mean(x_valid)))
-    #     plt.plot(x_line, y_line, color='red', linewidth=2,
-    #              label=f'Regression line, intercept at mean: {reg.intercept_:.2f}')
-    # else:
-    #     print("Insufficient data points for regression.")
-
-    # Apply regression if valid data exists
     lower, upper = x_lim
     valid = ~np.isnan(x) & ~np.isnan(y)
     x_valid = x[valid]
@@ -1060,6 +1232,21 @@ def is_subset(list1: list, list2: list) -> bool:
         raise ValueError("List1 must be have smaller or equal length than list2")
     return set(list1).issubset(list2)
 
+def list_is_unique(lst: list) -> bool:
+    """
+    Check if all elements in a list are unique.
+
+    :param lst: List to check
+
+    :return: True if all elements are unique, False otherwise
+    """
+    if len(lst) <= 1:
+        return True
+    for i in range(len(lst)):
+        for j in range(i + 1, len(lst)):
+            if lst[i] == lst[j]:
+                return False
+    return True
 
 def convert_to_integers(list_of_tuples: list[tuple[float, float]]) -> list[tuple[int, int]]:
     """
@@ -1081,7 +1268,7 @@ def standardize_data(data: np.ndarray, axis: int) -> np.ndarray:
 
     :return: Standardized data
     """
-    return (data - np.mean(data, axis=axis)) / np.std(data, axis=0)
+    return (data - np.mean(data, axis=axis, keepdims=True)) / np.std(data, axis=axis, keepdims=True)
 
 
 def save_model(model, file_path: str) -> None:
@@ -1106,6 +1293,25 @@ def load_model(file_path: str) -> object:
     with open(file_path, 'rb') as file:
         return joblib.load(file)
 
+
+def copy_or_move_images(image_paths: list[str], directory: str, operation: str="copy") -> None:
+    """
+    Move or copy images to the specified directory.
+
+    :param image_paths: List of image paths
+    :param directory: Directory to move or copy the images
+    :param operation: Operation to perform. Choose from ['copy', 'cut']. Default is 'copy'.
+    """
+    assert operation in ['copy', 'cut'], "Invalid operation. Choose from ['copy', 'cut']"
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    for image in image_paths:
+        if operation == "copy":
+            shutil.copy(image, directory)
+        elif operation == "cut":
+            shutil.move(image, directory)
 
 @check_is_image
 def average(matrix: np.ndarray | torch.Tensor) -> float:
@@ -1139,7 +1345,7 @@ def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=3, sigma: f
     if isinstance(image, np.ndarray):
         return cv2.GaussianBlur(image, (kernel_size, kernel_size), sigma)
     elif torch.is_tensor(image):
-        return TF.gaussian_blur(image, [kernel_size, kernel_size], [sigma, sigma]).clamp(0.0, 1.0)
+        return TF.gaussian_blur(image, kernel_size, sigma).clip(0.0, 1.0)
 
 
 @check_is_image

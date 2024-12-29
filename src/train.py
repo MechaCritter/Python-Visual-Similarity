@@ -8,16 +8,19 @@ from sklearn.mixture import GaussianMixture
 from torch.utils.data import Dataset
 
 from src.utils import load_model
-from src.config import IMAGE_SIZE
+from src.config import IMAGE_SIZE, ROOT
 from src.metrics import VLAD, FisherVector
 from utils import sift, resize, root_sift, standardize_data, save_model
 from src.datasets import *
+
+SIFT_VECTOR_LENGTH = 128
 
 # --k_means-- #
 def train_and_save_k_means_model(data_set: BaseDataset,
                                  num_clusters: int,
                                  feature: str='sift',
                                  test = False,
+                                 use_pca: bool=False,
                                  model_path: str='models/pickle_model_files/k_means_model.pkl') -> None:
     """
     Trains the k-means model on the image features and saves it as a .pkl file.
@@ -28,12 +31,13 @@ def train_and_save_k_means_model(data_set: BaseDataset,
     :param num_clusters: number of clusters
     :param feature: 'sift' or 'root_sift'
     :param test: if True, only 10 images are used for training
+    :param use_pca: if True, PCA is applied to the features matrix
     :param model_path: path to save the model
 
     :raises ValueError: If the length of the descriptor vector is not 128
     :raises ValueError: If the feature is not 'sift' or 'root_sift'
     """
-    sift_vectors_list = np.empty((0, 128))
+    sift_vectors_list = np.empty((0, SIFT_VECTOR_LENGTH))
     if feature == 'sift':
         feature_extractor = sift
     elif feature == 'root_sift':
@@ -47,6 +51,13 @@ def train_and_save_k_means_model(data_set: BaseDataset,
         if test and i == 9:
             print("Done loading test images.")
             break
+
+    if use_pca:
+        pca = PCA(n_components=SIFT_VECTOR_LENGTH // 2)
+        standarized_features = standardize_data(sift_vectors_list, axis=0)
+        pca.fit(standarized_features)
+        sift_vectors_list = pca.transform(standarized_features)
+        print(f"PCA applied to the features matrix. New shape: {sift_vectors_list.shape}")
 
     k_means_model = KMeans(n_clusters=num_clusters, random_state=42)
     print(f"""
@@ -65,6 +76,7 @@ def train_and_save_gmm_model(data_set: BaseDataset,
                              num_clusters: int,
                              feature: str='sift',
                              test = False,
+                             use_pca: bool=False,
                              model_path: str='models/pickle_model_files/gmm_model.pkl') -> None:
     """
     Trains the gmm model on the image features and saves it as a .pkl file.
@@ -75,6 +87,7 @@ def train_and_save_gmm_model(data_set: BaseDataset,
     :param feature: 'sift' or 'root_sift'
     :param model_path: path to save the model
     :param num_clusters: number of clusters
+    :param use_pca: if True, PCA is applied to the features matrix
     :param test: if True, only 10 images are used for training
 
     :raises ValueError: If the length of the descriptor vector is not 128
@@ -94,6 +107,13 @@ def train_and_save_gmm_model(data_set: BaseDataset,
         if test and i == 9:
             print("Done loading test images.")
             break
+
+    if use_pca:
+        pca = PCA(n_components=SIFT_VECTOR_LENGTH // 2)
+        standarized_features = standardize_data(sift_vectors_list, axis=0)
+        pca.fit(standarized_features)
+        sift_vectors_list = pca.transform(standarized_features)
+        print(f"PCA applied to the features matrix. New shape: {sift_vectors_list.shape}")
 
     gmm_model = GaussianMixture(n_components=num_clusters, random_state=42, covariance_type='diag')
     print(f"""
@@ -164,27 +184,24 @@ def main():
     - Number of clusters: 32, 64, 128, 256
     """
     data_set = ExcavatorDataset(return_type='image+mask', purpose='train')
-    num_clusters = [32, 64, 128, 256]
+    num_clusters = [256]
     for num_cluster in num_clusters:
-        for feature in ['sift', 'root_sift']:
+        for feature in ['root_sift']:
             train_and_save_gmm_model(data_set,
                                      num_cluster,
                                      feature=feature,
+                                     use_pca=True,
                                      test=False, # Set to False for training on the whole dataset
-                                     model_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/models/pickle_model_files/gmm_model_k{num_cluster}_{feature}.pkl')
+                                     model_path=f'{ROOT}/models/pickle_model_files/gmm_model_k{num_cluster}_{feature}_pca64.pkl')
 
             train_and_save_k_means_model(data_set,
                                          num_cluster,
                                          feature=feature,
+                                            use_pca=True,
                                          test=False, # Set to False for training on the whole dataset
-                                         model_path=f'/home/ais/Bachelorarbeit/similarity_metrics_of_images/models/pickle_model_files/k_means_model_k{num_cluster}_{feature}.pkl')
-
-    # Train PCA model
-    # TODO: for each model, num_components = length_of_features_vector / 2
+                                         model_path=f'{ROOT}/models/pickle_model_files/k_means_model_k{num_cluster}_{feature}_pca64.pkl')
 
 
-
-    # Train PCA model
 
 if __name__ == '__main__':
     start = time.time()

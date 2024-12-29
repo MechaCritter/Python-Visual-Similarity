@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 import torch.nn.functional as F
-from nbformat.v2 import new_output
 from torch.utils.data import DataLoader
 import pandas as pd
 from sklearn.mixture import GaussianMixture
@@ -215,6 +214,7 @@ def compute_per_class_metrics(model: torch.nn.Module,
 def compute_and_save_ssim_matrices(dataset,
                                    output_dir: str,
                                    batch_size: int = 1,
+                                      grayscale: bool = False,
                                    sigma: float = None,
                                    compression_quality: float = None) -> None:
     """
@@ -243,8 +243,9 @@ def compute_and_save_ssim_matrices(dataset,
     if sigma:
         assert sigma > 0, "Sigma must be a positive value."
         kernel_size = 2 * int(3 * sigma) + 1  # Empirical rule
-        new_transforms = transforms.Compose(dataset.transform.transforms +
-                                            [transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)])
+        extra_transforms = [transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)] if not grayscale \
+                        else [transforms.Grayscale(num_output_channels=1), transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)]
+        new_transforms = transforms.Compose(dataset.transform.transforms + extra_transforms)
         dataset.transform = new_transforms
         print(f"Kernel size used for sigma={sigma}: {kernel_size}")
 
@@ -284,6 +285,7 @@ def compute_and_save_ssim_matrices_train_val(
     train_dataset: Dataset,
     val_dataset: Dataset,
     output_dir: str,
+    grayscale: bool = False,
     sigma: float = None,
     batch_size: int = 1
 ) -> None:
@@ -303,8 +305,9 @@ def compute_and_save_ssim_matrices_train_val(
     if sigma:
         assert sigma > 0, "Sigma must be a positive value."
         kernel_size = 2 * int(3 * sigma) + 1
-        new_transforms = transforms.Compose(train_dataset.transform.transforms +
-                                            [transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)])
+        extra_transforms = [transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)] if not grayscale \
+                        else [transforms.Grayscale(num_output_channels=1), transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)]
+        new_transforms = transforms.Compose(train_dataset.transform.transforms + extra_transforms)
         train_dataset.transform = new_transforms
         val_dataset.transform = new_transforms
         print(f"Kernel size used for sigma = {sigma}: {kernel_size}")
@@ -446,46 +449,3 @@ def compute_and_save_confidence_vectors(model: _BaseSegmentationModel,
             train_results[os.path.basename(path)] = conf_with_bg.cpu().numpy()
 
     save_to_hdf5(output_dir, train_results)
-
-
-
-if __name__ == "__main__":
-    from src.datasets import ExcavatorDataset
-    from src.config import TRANSFORMER, ROOT
-
-    # Load the datasets
-    train_dataset = ExcavatorDataset(return_type='image+mask+path', purpose='train', transform=TRANSFORMER)
-    test_dataset = ExcavatorDataset(return_type='image+mask+path', purpose='test', transform=TRANSFORMER)
-    class_colors = train_dataset.class_colors
-
-    # Compute and save SSIM matrices between train and validation datasets
-    output_dir = f'{ROOT}/res/ssim/train_vs_val'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-
-    batch_size = 20
-    gaussian_sigmas = [i for i in range(0, 12, 2)]  # [0, 2, 4, 6, 8, 10]
-    for sigma in gaussian_sigmas:
-        compute_and_save_ssim_matrices_train_val(train_dataset=train_dataset,
-                                                 # TODO: Fix this method (it currently creates too large files)
-                                                 val_dataset=test_dataset,
-                                                 output_dir=output_dir,
-                                                 batch_size=batch_size,
-                                                 sigma=sigma)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

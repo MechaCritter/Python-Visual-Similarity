@@ -155,9 +155,10 @@ dmypy.json
 cython_debug/
 
 # Folders specific to this project
+excavator_dataset_w_masks/
 data/
 logs/
-notebooks/
+test_notebooks/
 src/(deprecated)/
 src/one_time_use.py
 models/torch_model_files/
