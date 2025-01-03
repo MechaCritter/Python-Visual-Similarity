@@ -59,12 +59,9 @@ class ClusteringBasedMetric:
     verbose: bool = False
     feature: str = "sift"
 
-    keypoints: List[cv2.KeyPoint] = field(init=False, repr=False)
     descriptors: np.ndarray = field(init=False)
     descriptor_centroids: np.ndarray = field(init=False)
     descriptor_labels: np.ndarray = field(init=False)
-    keypoints_2d_coords: np.ndarray = field(init=False)
-    keypoints_labels: np.ndarray = field(init=False)
 
     def __post_init__(self):
         if not isinstance(self.image, np.ndarray):
@@ -72,24 +69,17 @@ class ClusteringBasedMetric:
         if self.power_norm_weight < 0 or self.power_norm_weight > 1:
             raise ValueError("Power norm weight must be between 0 and 1.")
         self.get_sift()
-        self.get_keypoint_coords()
 
     def get_sift(self):
         """
         Get the SIFT features for the image. This includes the keypoints (with all their attributes like angle, label, ...) and descriptors (128-dimensional vectors).
         """
         if self.feature == "sift":
-            self.keypoints, self.descriptors = sift(self.image)
+            _, self.descriptors = sift(self.image)
         elif self.feature == "root_sift":
-            self.keypoints, self.descriptors = root_sift(self.image)
+            _, self.descriptors = root_sift(self.image)
         else:
             raise ValueError("Feature must be 'sift' or 'root_sift', not {self.feature}")
-
-    def get_keypoint_coords(self):
-        """
-        Get the 2D coordinates of the keypoints.
-        """
-        self.keypoints_2d_coords = np.array([kp.pt for kp in self.keypoints])
 
 @dataclass
 class VLAD(ClusteringBasedMetric):
@@ -116,14 +106,6 @@ class VLAD(ClusteringBasedMetric):
             print(
                 "====================================\n"
                 "Vector Type: ", self.__class__.__name__, "\n"
-                "Keypoints data:\n"
-                "Number of keypoints: \n", len(self.keypoints), "\n"
-                "Keypoint angles: \n", [kp.angle for kp in self.keypoints], "\n"
-                "Keypoint sizes: \n", [kp.size for kp in self.keypoints], "\n"
-                "Keypoint responses: \n", [kp.response for kp in self.keypoints], "\n"
-                "Keypoint octaves: \n", [kp.octave for kp in self.keypoints], "\n"
-                "Keypoint class IDs: \n", [kp.class_id for kp in self.keypoints], "\n"
-                "====================================\n"
                 "Descriptor centroids: \n", self.descriptor_centroids, "\n"
                 "====================================\n"
                 "Descriptor vectors: \n", self.descriptors, "\n"
@@ -198,14 +180,6 @@ class FisherVector(ClusteringBasedMetric):
             print(
                 "====================================\n"
                 "Vector Type: ", self.__class__.__name__, "\n"
-                "Keypoints data:\n"
-                "Number of keypoints: \n", len(self.keypoints), "\n"
-                "Keypoint angles: \n", [kp.angle for kp in self.keypoints], "\n"
-                "Keypoint sizes: \n", [kp.size for kp in self.keypoints], "\n"
-                "Keypoint responses: \n", [kp.response for kp in self.keypoints], "\n"
-                "Keypoint octaves: \n", [kp.octave for kp in self.keypoints], "\n"
-                "Keypoint class IDs: \n", [kp.class_id for kp in self.keypoints], "\n"
-                "====================================\n"
                 "Descriptor centroids: \n", self.descriptor_centroids, "\n"
                 "====================================\n"
                 "Descriptor vectors: \n", self.descriptors, "\n"
@@ -227,7 +201,7 @@ class FisherVector(ClusteringBasedMetric):
         Fisher Vector algorithm from the scikit-image library.
         """
         # Extract the Fisher Vector
-        self._vector = np.array([fisher_vector(self.descriptors, self.gmm, alpha=self.power_norm_weight)])
+        self._vector = np.array([fisher_vector(self.descriptors, self.gmm)])
 
         _logger_fv.debug("Fisher vector before normalization: %s", self._vector)
 

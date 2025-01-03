@@ -25,7 +25,7 @@ class _BaseSegmentationModel:
                  encoder_weights: str = 'imagenet',
                  classes: int = 12,
                  lr: float = 1e-3,
-                 logger_name: str = 'SegmentationModel'):
+                 logger_name: str = 'Segmentation_Model'):
         """
         Base class constructor for segmentation models.
 

@@ -1,20 +1,12 @@
 import os.path
 from collections import defaultdict
-from dataclasses import dataclass
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import pandas as pd
-from sklearn.mixture import GaussianMixture
 from torch.utils.data import Dataset
 from torchvision import transforms
-from tqdm import tqdm
 
 from src.losses import MultiClassDiceLoss
-from src.metrics import *
 from src.utils import *
 from src.datasets import ExcavatorDataset
 from src.config import DEVICE, TRANSFORMER
@@ -395,11 +387,11 @@ def compute_and_save_confidence_vectors(model: _BaseSegmentationModel,
 
     ```
     {
-        'image1.jpg': {
+        'image1.images': {
             'classes': [0, 1, 2, 3, 4],
             'confidence': [0.1, 0.2, 0.3, 0.4, 0.5]
         },
-        'image2.jpg': {
+        'image2.images': {
             'classes': [0, 1, 2, 3, 4],
             'confidence': [0.1, 0.2, 0.3, 0.4, 0.5]
         },
@@ -411,8 +403,8 @@ def compute_and_save_confidence_vectors(model: _BaseSegmentationModel,
 
     ```
     {
-        'image1.jpg': [0.1, 0.2, 0.3, 0.4, 0.5],
-        'image2.jpg': [0.1, 0.2, 0.3, 0.4, 0.5],
+        'image1.images': [0.1, 0.2, 0.3, 0.4, 0.5],
+        'image2.images': [0.1, 0.2, 0.3, 0.4, 0.5],
         ...
     }
 

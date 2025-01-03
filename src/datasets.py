@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import albumentations
 import cv2
 import matplotlib.pyplot as plt
+import scipy
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -27,18 +28,18 @@ class BaseDataset(Dataset):
     ```
     data
     ├── train
-    │   ├── image1.jpg
-    │   ├── image2.jpg
+    │   ├── image1.images
+    │   ├── image2.images
     │   └── ...
-    │   ├── image1.jpg
-    │   ├── image2.jpg
+    │   ├── image1.images
+    │   ├── image2.images
     │   └── ...
     ├── test
-    │   │── image1.jpg
-    │   │── image2.jpg
+    │   │── image1.images
+    │   │── image2.images
     │   │── ...
-    │   │── image1.jpg
-    │   │── image2.jpg
+    │   │── image1.images
+    │   │── image2.images
     │   │── ...
 
     ```
@@ -151,12 +152,12 @@ class BaseDataset(Dataset):
         if not image_files:
             raise FileNotFoundError(f"Directory {data_dir} is empty.")
         for img_file in image_files:
-            if not img_file.endswith(".jpg"):
-                self._logger.warning(f"Skipping file/folder {img_file}. Only .jpg files are supported.")
+            if not img_file.endswith(".images"):
+                self._logger.warning(f"Skipping file/folder {img_file}. Only .images files are supported.")
             image_path = os.path.join(data_dir, img_file)
             self.images.append(image_path)
             if annot_data_dir:
-                mask_file = img_file.replace(".jpg", f"{self.mask_suffix}.png")
+                mask_file = img_file.replace(".images", f"{self.mask_suffix}.png")
                 if not os.path.exists(mask_path:=os.path.join(annot_data_dir, mask_file)):
                     raise FileNotFoundError(f"Mask file not found for image {image_path}. Expected path: {mask_path}")
                 self.masks.append(mask_path)
@@ -305,31 +306,154 @@ class ExcavatorDataset(BaseDataset):
             for key, value in self._class_colors.items()
         }
 
+class OxfordFlowerDataset(Dataset):
+    """
+    Oxford Flower Dataset.
+
+    Organize the data like this:
+
+    ```
+    oxford_flower_dataset/
+    ├── images
+    │   ├── image_00001.jpg
+    │   ├── image_00002.jpg
+    │   └── ...
+    │   ├── image_08189.jpg
+    ├── imagelabels.mat
+    └── setid.mat
+    ```
+    In the original dataset, number of train images ('trnid') is 1020,
+    number of validation images ('valid') is 1020, and number of test images ('tstid') is 6149. Since
+    it makes more sense to have more images for training for this project, the train and test
+    splits have been swapped.
+
+    Attributes:
+        image_dir (str): Path to the directory containing images.
+        labels (List[int]): List of labels for the images.
+        image_paths (List[str]): List of image file paths.
+        transform (transforms.Compose): Transformations to apply to the images.
+    """
+    def __init__(self,
+                 image_dir: str = IMG_DATA_PATH_FLOWER,
+                 image_labels_file: str = LABELS_PATH_FLOWER,
+                 set_id_file: str = SETID_PATH_FLOWER,
+                 transform: Optional[transforms.Compose] = None,
+                 purpose: str = 'train') -> None:
+        """
+        Initializes the dataset with image directory, labels file, and transformations.
+
+        :param image_dir: Directory containing image files.
+        :param image_labels_file: Path to the file containing image labels.
+        :param set_id_file: Path to the file containing set IDs (train/test/val splits).
+        :param transform: Transformations to apply to the images.
+        :param purpose: Purpose of the dataset ('train', 'test', 'validation').
+        """
+        self.image_dir = image_dir
+        self.transform = transform
+        self.purpose = purpose
+        self.labels = self._load_labels(image_labels_file)
+        self.image_paths = self._load_image_paths()
+        self.train_ids, self.val_ids, self.test_ids = self._load_set_ids(set_id_file)
+        self.image_paths, self.labels = self._filter_by_purpose()
+
+    def _load_labels(self, labels_file: str) -> list[int]:
+        """
+        Load image labels from the given .mat file.
+
+        :param labels_file: Path to the .mat file with labels.
+        :return: List of labels.
+        """
+        mat_data = scipy.io.loadmat(labels_file)
+        return mat_data['labels'].squeeze().tolist()
+
+    def _load_image_paths(self) -> list[str]:
+        """
+        Get sorted paths to all images in the directory.
+
+        :return: List of sorted image file paths.
+        """
+        images = sorted(
+            [f for f in os.listdir(self.image_dir) if f.endswith('.jpg')]
+        )
+        return [os.path.join(self.image_dir, img) for img in images]
+
+    def _load_set_ids(self, set_id_file: str) -> tuple[list[int], list[int], list[int]]:
+        """
+        Load train, validation, and test IDs from the setid.mat file.
+
+        :param set_id_file: Path to the .mat file with set IDs.
+        :return: Tuple of train, validation, and test IDs.
+        """
+        mat_data = scipy.io.loadmat(set_id_file)
+        train_ids = mat_data['tstid'].squeeze().tolist()
+        val_ids = mat_data['valid'].squeeze().tolist()
+        test_ids = mat_data['trnid'].squeeze().tolist()
+        return train_ids, val_ids, test_ids
+
+    def _filter_by_purpose(self) -> tuple[list[str], list[int]]:
+        """
+        Filter images and labels based on the dataset purpose.
+
+        :return: Filtered image paths and labels.
+        """
+        if self.purpose == 'train':
+            indices = self.train_ids
+        elif self.purpose == 'validation':
+            indices = self.val_ids
+        elif self.purpose == 'test':
+            indices = self.test_ids
+        else:
+            raise ValueError("Purpose must be 'train', 'validation', or 'test'.")
+
+        filtered_paths = [self.image_paths[i - 1] for i in indices]  # Adjust for 1-based indexing
+        filtered_labels = [self.labels[i - 1] for i in indices] if self.labels else []
+
+        return filtered_paths, filtered_labels
+
+    def __len__(self) -> int:
+        """
+        Get the total number of images in the dataset.
+
+        :return: Length of the dataset.
+        """
+        return len(self.image_paths)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, str]:
+        """
+        Get an image and its corresponding label.
+
+        :param idx: Index of the image.
+        :return: Tuple of transformed image, label, and image path.
+        """
+        img_path = self.image_paths[idx]
+        label = self.labels[idx] if self.labels else -1
+
+        image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label, img_path
+
+# Example Usage
 if __name__ == "__main__":
-    import albumentations as A
-    from albumentations.pytorch import ToTensorV2
-    from src.utils import mask_to_rgb
+    from torch.utils.data import DataLoader
+    for purpose in ['train', 'validation', 'test']:
 
-    # Define transformations
-    transformer = A.Compose([
-        # Transformations applied to both image and mask
-        A.Resize(640, 640),  # Resize both
-        A.Rotate(limit=30, p=0.5),  # Rotate both
+        dataset = OxfordFlowerDataset(
+            transform=TRANSFORMER,
+            purpose=purpose
+        )
 
-        # Transformations applied only to the image
-        A.OneOf([
-            A.RandomBrightnessContrast(p=0.5),  # Random brightness and contrast
-            A.CLAHE(p=0.5),  # Contrast Limited Adaptive Histogram Equalization
-            A.RandomGamma(p=0.5),  # Random gamma adjustments
-        ], p=0.8),  # 80% chance of applying one of the above
-        A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5),
+        # print(f"Dataset size: {len(dataset)}")
+        # image, label = dataset[0]
+        # print(f"Image shape: {image.shape}, Label: {label}")
+        # plot_image(image, title=f"Label: {label}")
 
-        # Normalize and convert to tensor
-        A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
-        ToTensorV2(),
-    ], additional_targets={'mask': 'mask'})
-    dataset = ExcavatorDataset(transform=transformer,
-                                 purpose='train',
-                               one_hot_encode_mask=True,
-                                 return_type='image+mask')
-    print(dataset[0])
+        lbls_count = {label: 0 for label in range(1, 103)}
+        for labels in dataset:
+                lbls_count[labels] += 1
+
+        print(f"Labels count: {lbls_count}")
+        print("All labels are present: ", all([count > 0 for count in lbls_count.values()]))
+        print(f"Min in {purpose} set: {min(lbls_count.values())}, Max: {max(lbls_count.values())}")

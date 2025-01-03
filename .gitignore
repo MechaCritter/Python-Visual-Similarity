@@ -163,3 +163,7 @@ src/(deprecated)/
 src/one_time_use.py
 models/torch_model_files/
 models/pickle_model_files/
+doc/
+res/
+!res/logging_config.yaml
+

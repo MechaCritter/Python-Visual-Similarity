@@ -177,8 +177,8 @@ def convert_all_masks_to_rgb(min_size: int = 100) -> None:
 #             mask_folder = os.path.join(root_dir, mask_folder_name)
 #             output_image_dir = os.path.join(root_dir, output_image_folder_name)
 #             output_mask_dir = os.path.join(root_dir, output_mask_folder_name)
-#             # List only .jpg files in the image folder
-#             image_files = [f for f in os.listdir(image_folder) if f.lower().endswith('.jpg')]
+#             # List only .images files in the image folder
+#             image_files = [f for f in os.listdir(image_folder) if f.lower().endswith('.images')]
 #             for image_file in image_files:
 #                 base_name = os.path.splitext(image_file)[0]
 #                 image_path = os.path.join(image_folder, image_file)

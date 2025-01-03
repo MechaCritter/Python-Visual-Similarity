@@ -5,12 +5,10 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
-from torch.utils.data import Dataset
 
-from src.utils import load_model
 from src.config import IMAGE_SIZE, ROOT
-from src.metrics import VLAD, FisherVector
-from utils import sift, resize, root_sift, standardize_data, save_model
+from src.metrics.metrics import VLAD, FisherVector
+from src.utils import sift, resize, root_sift, standardize_data, save_model
 from src.datasets import *
 
 SIFT_VECTOR_LENGTH = 128

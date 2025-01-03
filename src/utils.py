@@ -678,7 +678,7 @@ def cluster_images_and_save(
     :param output_dir: Directory to save clustered images and heatmaps.
     :param generate_heatmap: Whether to generate heatmaps for each cluster.
     :param heatmap_title: Title for the heatmaps.
-    :param rename_images: Whether to rename images in the cluster folders. The schema is simply `image_{index}.jpg`.
+    :param rename_images: Whether to rename images in the cluster folders. The schema is simply `image_{index}.images`.
     :param verbose: Whether to print progress messages.
     """
     if verbose:
@@ -1326,7 +1326,7 @@ def average(matrix: np.ndarray | torch.Tensor) -> float:
 
 
 @check_is_image
-def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=3, sigma: float=1.0) -> np.ndarray | torch.Tensor:
+def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=None, sigma: float=1.0) -> np.ndarray | torch.Tensor:
     """
     Apply Gaussian blurring to the given image.
 
@@ -1336,6 +1336,8 @@ def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=3, sigma: f
 
     :return: Blurred image
     """
+    if not kernel_size:
+        kernel_size = 2 * int(3 * sigma) + 1
     min_kernel_size = 2 * int(3 * sigma) + 1
     max_kernel_size = 2 * int(5 * sigma) + 1
     if not min_kernel_size <= kernel_size <= max_kernel_size:
@@ -1455,7 +1457,7 @@ def root_sift(image: np.ndarray,
     :param image: Input image
     :param epsilon: Small value to avoid division by zero
     """
-    sift = cv2.SIFT_create()
+    sift = cv2.SIFT.create()
     keypoints, descriptors = sift.detectAndCompute(image, None)
     descriptors /= (descriptors.sum(axis=1, keepdims=True) + epsilon)
     descriptors = np.sqrt(descriptors)

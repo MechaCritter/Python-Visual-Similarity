@@ -3,9 +3,10 @@ import logging.config
 import pathlib
 
 import yaml
+from pywin.scintilla.scintillacon import SCE_ERR_TIDY
 from torchvision import transforms
 import torch
-
+from winioctlcon import SERIAL_IOC_FCR_DMA_MODE
 
 # -Config for the dataset- #
 ROOT = pathlib.Path(__file__).parent.parent
@@ -30,13 +31,18 @@ def get_device():
 DEVICE = get_device()
 print(f"Device used: {DEVICE}")
 
-# -Paths for the dataset- #
+# -Paths for the excavator dataset- #
 TRAIN_IMG_DATA_PATH_EXCAVATOR= rf"{ROOT}/excavator_dataset_w_masks/train"
 TRAIN_MASK_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/train_annot"
 TEST_IMG_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/test"
 TEST_MASK_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/test_annot"
 VALID_IMG_DATA_PATH_EXCAVATOR = None
 VALID_MASK_DATA_PATH_EXCAVATOR = None
+
+# -Paths for the Flower dataset- #
+IMG_DATA_PATH_FLOWER = rf"{ROOT}/oxford_flower_dataset/images"
+LABELS_PATH_FLOWER = rf"{ROOT}/oxford_flower_dataset/imagelabels.mat"
+SETID_PATH_FLOWER = rf"{ROOT}/oxford_flower_dataset/setid.mat"
 
 # - Logging - #
 def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level=logging.INFO):
