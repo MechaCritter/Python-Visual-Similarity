@@ -6,7 +6,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from enum import Enum
-from typing import Type, Optional, Any, Union, Sequence
+from typing import Type, Optional, Any, Union, Sequence, Literal
 
 import cv2
 import h5py
@@ -21,7 +21,8 @@ import torchvision.transforms.functional as TF
 from PIL import Image
 from scipy.stats import pearsonr, spearmanr
 from segmentation_models_pytorch.utils.metrics import IoU
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN, SpectralClustering
+from sklearn.metrics import adjusted_rand_score, adjusted_mutual_info_score
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import silhouette_score, mean_squared_error
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity as cs
@@ -90,17 +91,41 @@ def get_centroids(data: np.ndarray, num_clusters: int):
     return kmeans.cluster_centers_, kmeans.labels_
 
 
-def cluster_and_return_labels(data: np.ndarray, n_clusters: int) -> np.ndarray:
+def cluster_and_return_labels(data: np.ndarray,
+                              method: Literal['kmeans', 'dbscan', 'spectral'] = 'kmeans',
+                              n_clusters: Optional[int] = None,
+                              **kwargs) -> np.ndarray:
     """
-    Cluster the given data using KMeans and return the labels.
+    Clusters 'data' using the specified method.
 
-    :param data: Data to cluster
-    :param n_clusters: Number of clusters
-
-    :return: Labels of the clusters
+    :param data: A 2D NumPy array of shape (N, D)
+    :param method: 'kmeans', 'dbscan', or 'spectral'
+    :param n_clusters: Number of clusters (if applicable)
+    :param kwargs: Additional arguments to pass to the clustering constructor
+    :return: 1D NumPy array of cluster labels (shape: (N,))
     """
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    return kmeans.fit_predict(data)
+    if method == 'kmeans':
+        if n_clusters is None:
+            raise ValueError("n_clusters must be specified for KMeans.")
+        model = KMeans(n_clusters=n_clusters, random_state=42, **kwargs)
+        labels = model.fit_predict(data)
+        return labels
+
+    elif method == 'dbscan':
+        # DBSCAN doesn't need n_clusters (but can accept eps, min_samples)
+        model = DBSCAN(**kwargs)
+        labels = model.fit_predict(data)
+        return labels
+
+    elif method == 'spectral':
+        if n_clusters is None:
+            raise ValueError("n_clusters must be specified for Spectral Clustering.")
+        model = SpectralClustering(n_clusters=n_clusters, affinity='nearest_neighbors', random_state=42, **kwargs)
+        labels = model.fit_predict(data)
+        return labels
+
+    else:
+        raise ValueError(f"Unknown method: {method}")
 
 
 def elbow_point(x: Sequence[float], y: Sequence[float]) -> np.ndarray:
@@ -660,6 +685,7 @@ def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
     return cs(x, y)
 
+
 def cluster_images_and_save(
         image_paths: list[str],
         features: np.ndarray | torch.Tensor,
@@ -683,7 +709,7 @@ def cluster_images_and_save(
     """
     if verbose:
         logging.info(f"Clustering {len(image_paths)} images into {n_clusters} clusters...")
-    labels = cluster_and_return_labels(features, n_clusters=n_clusters)
+    labels = cluster_and_return_labels(features, n_clusters=n_clusters, method='kmeans')
 
     for cluster_num in tqdm(range(n_clusters), desc="Processing clusters"):
         cluster_indices = np.where(labels == cluster_num)[0]
@@ -747,6 +773,36 @@ def cluster_images_and_save(
 
     if verbose:
         logging.info(f"Clustering completed. Results saved in {output_dir}")
+
+
+def cluster_images_and_generate_statistics(
+    features: np.ndarray,
+    true_labels: np.ndarray,
+    n_clusters: int,
+    method: str = 'kmeans',
+    **kwargs
+) -> dict[str, float]:
+    """
+    Clusters the given features and computes ARI, NMI.
+
+    :param features: (N, D) array of feature vectors
+    :param true_labels: (N,) array of ground truth class labels
+    :param n_clusters: Number of clusters to find
+    :param method: 'kmeans', 'dbscan', or 'spectral'
+    :param kwargs: Additional parameters for the clustering method
+    :return: Dictionary of statistics {'ari': ..., 'nmi': ...}
+    """
+    cluster_labels = cluster_and_return_labels(
+        data=features,
+        method=method,
+        n_clusters=n_clusters if method != 'dbscan' else None,
+        **kwargs
+    )
+
+    return {
+        "ari": adjusted_rand_score(true_labels, cluster_labels),
+        "nmi": adjusted_mutual_info_score(true_labels, cluster_labels)
+    }
 
 
 @check_is_image

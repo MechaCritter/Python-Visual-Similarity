@@ -3,23 +3,22 @@ Implementation of the VLAD similarity metric using a user-supplied feature extra
 and a pretrained K-Means model.
 """
 
-import numpy as np
 from typing import Callable
 
+import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-from sklearn.mixture import GaussianMixture
-import torch
 
-from src.metrics.base_metrics import DescriptorBasedMetrics
 from src.features._features import FeatureExtractorBase
+from src.metrics.base_metrics import DescriptorBasedMetrics
+from src.utils import check_is_image
 
 
-class VLAD(DescriptorBasedMetrics):
+class VLADEncoder(DescriptorBasedMetrics):
     """
-    This class computes the VLAD descriptor for each image
+    This class encodes images into VLAD descriptor vectors
     using a chosen feature extractor and a pretrained K-Means model,
-    then compares two VLAD descriptors with a user-specified
+    then compares two VLAD descriptor vectors with a user-specified
     or default (cosine) similarity function.
 
     You can use euclidean distance, manhattan distance, etc. as the similarity function.
@@ -31,18 +30,19 @@ class VLAD(DescriptorBasedMetrics):
     :param epsilon: Small constant to avoid division by zero
     :param flatten: Whether to flatten the final VLAD vector
     :param similarity_func: A function(vec1, vec2) -> float for computing similarity
+    :param pca: PCA transformer for optional dimensionality reduction of descriptors (highly recommended, since
+    feature vectors are usually high-dimensional but sparse)
     """
-
     def __init__(
-        self,
-        feature_extractor: FeatureExtractorBase,
-        kmeans_model: KMeans,
-        power_norm_weight: float = 0.5,
-        norm_order: int = 2,
-        epsilon: float = 1e-9,
-        flatten: bool = True,
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = None,
-        pca: PCA = None
+            self,
+            feature_extractor: FeatureExtractorBase,
+            kmeans_model: KMeans,
+            power_norm_weight: float = 0.5,
+            norm_order: int = 2,
+            epsilon: float = 1e-9,
+            flatten: bool = True,
+            similarity_func: Callable[[np.ndarray, np.ndarray], float] = None,
+            pca: PCA = None
     ):
         if not isinstance(kmeans_model, KMeans):
             raise ValueError(f"The clustering model must be an instance of KMeans, not {type(kmeans_model)}")
@@ -55,8 +55,9 @@ class VLAD(DescriptorBasedMetrics):
                          similarity_func,
                          pca)
 
+    @check_is_image
     def compute_vector(self, image: np.ndarray) -> np.ndarray:
-        descriptors = self.feature_extractor()(image)
+        descriptors = self.feature_extractor(image)
         if self.pca:
             descriptors = self.pca.transform(descriptors.reshape(1, -1)).flatten()
 
@@ -82,8 +83,3 @@ class VLAD(DescriptorBasedMetrics):
             descriptor_vector = descriptor_vector.flatten()
 
         return descriptor_vector
-
-
-
-
-

@@ -3,19 +3,23 @@ Implementation of the Fisher Vector similarity metric using a user-supplied feat
 and a pretrained Gaussian Mixture Model (GMM).
 """
 
-import numpy as np
 from typing import Callable
 
+import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
-from src.metrics.base_metrics import DescriptorBasedMetrics
 from src.features._features import FeatureExtractorBase
+from src.metrics.base_metrics import DescriptorBasedMetrics
+from src.utils import check_is_image
 
-class FisherVector(DescriptorBasedMetrics):
+
+class FisherVectorEncoder(DescriptorBasedMetrics):
     """
     This class computes the Fisher Vector representation of input images
     using a specified feature extractor and a pretrained Gaussian Mixture Model (GMM).
+    
+    It serves as an encoder that transforms input images into Fisher Vector descriptors.
 
     The Fisher Vector representation is based on the gradients of the GMM parameters
     (weights, means, and covariances) with respect to the feature descriptors extracted
@@ -55,6 +59,7 @@ class FisherVector(DescriptorBasedMetrics):
                          similarity_func,
                          pca)
 
+    @check_is_image
     def compute_vector(self, image: np.ndarray) -> np.ndarray:
         descriptors = self.feature_extractor()(image)
         if self.pca:
