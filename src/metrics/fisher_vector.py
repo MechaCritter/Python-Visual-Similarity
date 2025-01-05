@@ -11,7 +11,7 @@ from sklearn.mixture import GaussianMixture
 
 from src.features._features import FeatureExtractorBase
 from src.metrics.base_metrics import DescriptorBasedMetrics
-from src.utils import check_is_image
+from src.utils import cosine_similarity
 
 
 class FisherVectorEncoder(DescriptorBasedMetrics):
@@ -46,7 +46,7 @@ class FisherVectorEncoder(DescriptorBasedMetrics):
                  norm_order: int = 2,
                  epsilon: float = 1e-9,
                  flatten: bool = True,
-                 similarity_func: Callable[[np.ndarray, np.ndarray], float] = None,
+                 similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
                  pca: PCA = None):
         if not isinstance(gmm_model, GaussianMixture):
             raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(gmm_model)}")
@@ -59,11 +59,10 @@ class FisherVectorEncoder(DescriptorBasedMetrics):
                          similarity_func,
                          pca)
 
-    @check_is_image
     def compute_vector(self, image: np.ndarray) -> np.ndarray:
-        descriptors = self.feature_extractor()(image)
+        descriptors = self.feature_extractor(image)
         if self.pca:
-            descriptors = self.pca.transform(descriptors.reshape(1, -1)).flatten()
+            descriptors = self.pca.transform(descriptors.astype(np.float32))
         num_descriptors = len(descriptors)
 
         mixture_weights = self.clustering_model.weights_

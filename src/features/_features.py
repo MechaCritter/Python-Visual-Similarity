@@ -4,8 +4,9 @@ Defines an abstract base class for feature extractors, and a concrete
 """
 
 import abc
+from functools import wraps
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import cv2
 import numpy as np
@@ -15,6 +16,33 @@ from src.config import setup_logging
 
 setup_logging()
 
+
+def _check_output_shape(func) -> Callable:
+    """
+    Ensures the feature extractor output is a 2D NumPy array of shape
+    (num_vectors, self.output_dim).
+    """
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs) -> np.ndarray:
+        descriptors = func(*args, **kwargs)
+        if descriptors is None:
+            print("No descriptors found. Returning empty array.")
+            return np.zeros((0, self.output_dim), dtype=np.float32)
+
+        if not isinstance(descriptors, np.ndarray):
+            raise ValueError(f"Expected output to be a NumPy array, got {type(descriptors)} instead.")
+
+        if descriptors.ndim != 2:
+            raise ValueError(f"Feature extractor output must be 2D. Got shape {descriptors.shape}.")
+
+        if descriptors.shape[1] != self.output_dim:
+            raise ValueError(f"Expected descriptors.shape[1] == {self.output_dim}, "
+                             f"but got {descriptors.shape[1]}.")
+
+        return descriptors
+
+    return wrapper
 
 class FeatureExtractorBase(abc.ABC):
     """
@@ -35,13 +63,26 @@ class FeatureExtractorBase(abc.ABC):
         :param image: Input image (NumPy array).
         :return: Feature descriptors (NumPy array).
         """
-        pass
+        raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def output_dim(self) -> int:
+        """
+        The dimensionality (D) of each feature vector, i.e., shape[1] of the output.
+        """
+        raise NotImplementedError
 
 class SIFT(FeatureExtractorBase):
     def __init__(self):
         super().__init__()
+        self._output_dim = 128
 
+    @property
+    def output_dim(self) -> int:
+        return self._output_dim
+
+    @_check_output_shape
     def __call__(self, image: np.ndarray) -> np.ndarray:
         """
         Extracts SIFT features from an image.
@@ -52,10 +93,17 @@ class SIFT(FeatureExtractorBase):
         _, descriptors = sift.detectAndCompute(image, None)
         return descriptors
 
+
 class RootSIFT(FeatureExtractorBase):
     def __init__(self):
         super().__init__()
+        self._output_dim = 128
 
+    @property
+    def output_dim(self) -> int:
+        return self._output_dim
+
+    @_check_output_shape
     def __call__(self, image: np.ndarray) -> np.ndarray:
         """
         Extracts RootSIFT features from an image.
@@ -69,16 +117,23 @@ class RootSIFT(FeatureExtractorBase):
         return descriptors
 
 class Lambda(FeatureExtractorBase):
-    def __init__(self, func: Any):
+    def __init__(self, func: Callable, output_dim: int):
+        """
+        Initializes the Lambda feature extractor.
+        :param func:
+        :param output_dim:
+        """
         super().__init__()
         if not callable(func):
             raise ValueError(f"Argument func must be a callable object, got {type(func)} instead")
-        
-        # self.signature = inspect.signature(func)
-        # self.name = func.__name__ if hasattr(func, "__name__") else str(func)
-        # functools.wraps(func)(self)
+        self._output_dim = output_dim
         self.func = func
 
+    @property
+    def output_dim(self) -> int:
+        return self._output_dim
+
+    @_check_output_shape
     def __call__(self, img: np.ndarray) -> np.ndarray:
         return self.func(img)
 
@@ -94,21 +149,18 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
     :param append_spatial_coords: If True, appends (x/W, y/H) to each descriptor.
     :param device: 'cpu' or 'cuda'. Where to run the model.
     """
-
     def __init__(
         self,
         model: torch.nn.Module,
         layer_index: int = -1,
         append_spatial_coords: bool = True,
-        device: str = "cpu"
+        device: str = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ):
         super().__init__()
         self.model = model
         self.layer_index = layer_index
         self.append_spatial_coords = append_spatial_coords
         self.device = device
-
-        self._logger.info(f"Device used: {self.device}")
 
         self.conv_layers = self.list_conv_layers(self.model)
         if not self.conv_layers:
@@ -166,8 +218,9 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
         #    We'll assume image is in [H,W,C], scale [0,255], in RGB or BGR
         #    The user is responsible for pre-processing if needed (mean/std).
         if isinstance(image, np.ndarray):
-            image = torch.from_numpy(image.transpose(2, 0, 1)).float().unsqueeze(0).to(self.device)
+            image = torch.from_numpy(image.transpose(2, 0, 1)).float().unsqueeze(0)
 
+        image = image.to(self.device)
         self.model.eval()
         self.model.to(self.device)
         _ = self.model(image.unsqueeze(0))  # we only care about the hook's output

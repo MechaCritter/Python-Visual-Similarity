@@ -22,7 +22,7 @@ from PIL import Image
 from scipy.stats import pearsonr, spearmanr
 from segmentation_models_pytorch.utils.metrics import IoU
 from sklearn.cluster import KMeans, DBSCAN, SpectralClustering
-from sklearn.metrics import adjusted_rand_score, adjusted_mutual_info_score
+from sklearn.metrics import adjusted_rand_score, adjusted_mutual_info_score, rand_score
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import silhouette_score, mean_squared_error
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity as cs
@@ -800,6 +800,7 @@ def cluster_images_and_generate_statistics(
     )
 
     return {
+        "ri": rand_score(true_labels, cluster_labels),
         "ari": adjusted_rand_score(true_labels, cluster_labels),
         "nmi": adjusted_mutual_info_score(true_labels, cluster_labels)
     }
@@ -1226,7 +1227,6 @@ def plot_boxplot_with_regression(x: np.ndarray,
         }
 
 
-
 def plot_scatter_with_regression(x: np.ndarray,
                                  y: np.ndarray,
                                  x_lim: tuple = (0, 1),
@@ -1338,16 +1338,20 @@ def save_model(model, file_path: str) -> None:
         joblib.dump(model, file)
 
 
-def load_model(file_path: str) -> object:
+def load_model(file_path: str) -> object | None:
     """
     Load a pre-trained model from a file.
 
     :param file_path: Path from which to load the trained model
 
-    :return: Trained model
+    :return: Trained model, or None if the file is not found
     """
-    with open(file_path, 'rb') as file:
-        return joblib.load(file)
+    try:
+        with open(file_path, 'rb') as file:
+            return joblib.load(file)
+    except FileNotFoundError:
+        logging.error(f"Model file not found at {file_path}.")
+        return None
 
 
 def copy_or_move_images(image_paths: list[str], directory: str, operation: str="copy") -> None:

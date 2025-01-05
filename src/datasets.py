@@ -451,7 +451,7 @@ if __name__ == "__main__":
         # plot_image(image, title=f"Label: {label}")
 
         lbls_count = {label: 0 for label in range(1, 103)}
-        for labels in dataset:
+        for *_, labels in dataset:
                 lbls_count[labels] += 1
 
         print(f"Labels count: {lbls_count}")
