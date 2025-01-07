@@ -11,6 +11,7 @@ from typing import Any, Callable
 import cv2
 import numpy as np
 import torch
+from torchvision import transforms
 
 from src.config import setup_logging
 
@@ -22,10 +23,9 @@ def _check_output_shape(func) -> Callable:
     Ensures the feature extractor output is a 2D NumPy array of shape
     (num_vectors, self.output_dim).
     """
-
     @wraps(func)
     def wrapper(self, *args, **kwargs) -> np.ndarray:
-        descriptors = func(*args, **kwargs)
+        descriptors = func(self, *args, **kwargs)
         if descriptors is None:
             print("No descriptors found. Returning empty array.")
             return np.zeros((0, self.output_dim), dtype=np.float32)
@@ -137,7 +137,7 @@ class Lambda(FeatureExtractorBase):
     def __call__(self, img: np.ndarray) -> np.ndarray:
         return self.func(img)
 
-class DeepConvFeatureExtractor(FeatureExtractorBase):
+class DeepConvFeature(FeatureExtractorBase):
     """
     Extracts convolutional feature maps from a chosen conv layer of a torchvision model.
     It flattens the feature maps into feature descriptors. Optionally appends
@@ -146,33 +146,57 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
     :param model_name: Name of the torchvision model (string), e.g. 'vgg16'
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`
                        to see the ordering or use -1 for the last conv layer.
-    :param append_spatial_coords: If True, appends (x/W, y/H) to each descriptor.
+    :param spatial_encoding: If True, appends (x/W, y/H) to each descriptor.
     :param device: 'cpu' or 'cuda'. Where to run the model.
+    :param transform: Optional torchvision.transforms.Compose. Default includes `to_tensor`, `resize(224, 224)`,
+                        and normalization with ImageNet stats.
     """
     def __init__(
         self,
         model: torch.nn.Module,
         layer_index: int = -1,
-        append_spatial_coords: bool = True,
-        device: str = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        spatial_encoding: bool = True,
+        device: str = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        transform: transforms.Compose = None
     ):
         super().__init__()
-        self.model = model
+        self._model = None
         self.layer_index = layer_index
-        self.append_spatial_coords = append_spatial_coords
+        self.spatial_encoding = spatial_encoding
         self.device = device
+        self.transform = transform
+        if self.transform is None:
+            self.transform = transforms.Compose([transforms.ToTensor(),
+                                            transforms.Resize((224, 224)),
+                                            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
-        self.conv_layers = self.list_conv_layers(self.model)
-        if not self.conv_layers:
+        self.model = model # Trigger setter
+        self._conv_layers = self.list_conv_layers(self.model)
+        if not self._conv_layers:
             raise ValueError(f"No convolutional layers found in model {self.model._get_name()}.")
 
         self.buffer = None  # will store the activation
         try:
-            _, self.selected_layer_name, self.selected_layer_module = self.conv_layers[self.layer_index]
+            _, self.selected_layer_name, self.selected_layer_module = self._conv_layers[self.layer_index]
             self._logger.info(f"Selected layer: {self.selected_layer_name}, {self.selected_layer_module}")
         except IndexError:
-            raise IndexError(f"Model {self.model._get_name()} has only {len(self.conv_layers)} convolutional layers. Got layer_index={self.layer_index}.")
+            raise IndexError(f"Model {self.model._get_name()} has only {len(self._conv_layers)} convolutional layers. Got layer_index={self.layer_index}.")
+        self._output_dim = self.selected_layer_module.out_channels + 2 if self.spatial_encoding else self.selected_layer_module.out_channels
         self._register_hook()
+
+    @property
+    def output_dim(self) -> int:
+        return self._output_dim
+
+    @property
+    def model(self) -> torch.nn.Module:
+        return self._model
+
+    @model.setter
+    def model(self, model: torch.nn.Module):
+        if not isinstance(model, torch.nn.Module):
+            raise TypeError(f"Currently, only torch.nn.Module is supported. Got {type(model)} instead.")
+        self._model = model
 
     def list_conv_layers(self, model: torch.nn.Module) -> list[tuple[int, str, torch.nn.Module]]:
         """
@@ -182,8 +206,6 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
         :param model: A PyTorch model (e.g., torchvision.models.vgg16).
         :return: List of (layer_index, layer_module) for each convolutional layer.
         """
-        if not isinstance(model, torch.nn.Module):
-            raise TypeError(f"Currently, only torch.nn.Module is supported. Got {type(model)} instead.")
         conv_layers = []
         idx = 0
         for name, module in model.named_modules():
@@ -203,7 +225,8 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
 
         self.hook = self.selected_layer_module.register_forward_hook(hook_fn)
 
-    def __call__(self, image: torch.Tensor) -> np.ndarray:
+    @_check_output_shape
+    def __call__(self, image: np.ndarray) -> np.ndarray:
         """
         #TODO: first, check if image is tensor and has range [0,1]. If numpy and has range [0,255], normalize and convert to tensor. If numpy and has range [0,1], convert to tensor. Else, raise error.
         Processes a single image through the chosen conv layer and
@@ -214,16 +237,11 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
                  D = number_of_channels (+ 2 if spatial coords are appended).
         """
-        # 1. Convert to torch tensor, add batch dimension, move to device
-        #    We'll assume image is in [H,W,C], scale [0,255], in RGB or BGR
-        #    The user is responsible for pre-processing if needed (mean/std).
-        if isinstance(image, np.ndarray):
-            image = torch.from_numpy(image.transpose(2, 0, 1)).float().unsqueeze(0)
+        image = self.transform(image).unsqueeze(0).to(self.device)
 
-        image = image.to(self.device)
         self.model.eval()
         self.model.to(self.device)
-        _ = self.model(image.unsqueeze(0))  # we only care about the hook's output
+        _ = self.model(image)  # we only care about the hook's output
         if self.buffer is None:
             raise RuntimeError("Forward hook did not capture any features.")
 
@@ -234,7 +252,7 @@ class DeepConvFeatureExtractor(FeatureExtractorBase):
         C, Hf, Wf = feature_map.shape
         feature_map = feature_map.reshape(C, -1).T  # shape: (Hf*Wf, C)
 
-        if self.append_spatial_coords:
+        if self.spatial_encoding:
             coords = []
             for y in range(Hf):
                 for x in range(Wf):

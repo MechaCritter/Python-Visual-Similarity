@@ -3,10 +3,8 @@ import logging.config
 import pathlib
 
 import yaml
-from pywin.scintilla.scintillacon import SCE_ERR_TIDY
 from torchvision import transforms
 import torch
-from winioctlcon import SERIAL_IOC_FCR_DMA_MODE
 
 # -Config for the dataset- #
 ROOT = pathlib.Path(__file__).parent.parent
@@ -43,6 +41,7 @@ VALID_MASK_DATA_PATH_EXCAVATOR = None
 IMG_DATA_PATH_FLOWER = rf"{ROOT}/oxford_flower_dataset/images"
 LABELS_PATH_FLOWER = rf"{ROOT}/oxford_flower_dataset/imagelabels.mat"
 SETID_PATH_FLOWER = rf"{ROOT}/oxford_flower_dataset/setid.mat"
+
 
 # - Logging - #
 def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level=logging.INFO):

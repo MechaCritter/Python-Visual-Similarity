@@ -1,3 +1,8 @@
+"""
+TODO: This module was made to compute loss of segmentation models.
+TODO: For the future, implement loss for retrieval (e.g. triplet loss, contrastive loss, "similarity loss" etc.)
+"""
+
 import logging
 from typing import Optional
 

@@ -29,49 +29,68 @@ from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity as c
 from tqdm import tqdm
 
 from src.config import setup_logging
+from src.errors import InvalidImageError
 
 setup_logging()
 
 
 # Decorators
-def check_is_image(func: callable, tol=1e-5):
+def check_is_image(arg_positions: tuple=None, kwarg_positions: tuple=None, tol=1e-5):
     """
-    Decorator to check if the input is an image. If it's a mask (2D tensor), no checking is made.
+    Decorator to check if one or more arguments are valid images. Default is the first positional
+    argument.
 
-    - If numpy image: Check if the shape is (H, W, C) and values are in the range [0, 255].
-    - If torch tensor: Check if the shape is (C, H, W) and values are in the range [0, 1].
+    **Note**: both 'arg_positions' abd 'kwarg_positions' are zero-based!
 
-    :param func: callable
-    :param tol: tolerance value for float comparisons
-    :return:
+    :param arg_positions: A tuple of positions (integers) in *args
+                          that correspond to the position of the images / masks.
+    :param kwarg_positions: A tuple of positions (integers) in **kwargs
+                            that correspond to the position of the images / masks.
+    :param tol: tolerance for float comparison for Torch images.
     """
-    def wrapper(image, *args, **kwargs):
-        if not np.all(np.isin([len(image.shape), len(image.shape)], [2, 3])):
-            raise ValueError(f"Image must be a 2D or 3D tensor. Got shape {image.shape}.")
-        if isinstance(image, np.ndarray):
-            if not np.all(image == image.astype(np.int64)):
-                raise ValueError(f"Mask values must be integers. Got min={image.min()} and max={image.max()}.")
-            if len(image.shape) == 3:
-                    if image.shape[2] != 3:
-                        raise ValueError(f"Image must have shape (H, W, C) for numpy arrays. Got {image.shape}.")
-            if image.min() < 0 or image.max() > 255:
-                raise ValueError(f"Image values must be in the range [0, 255]. Got min={image.min()} and max={image.max()}.")
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            def generator(*gen_args, **gen_kwargs):
+                if arg_positions:
+                    for pos in arg_positions:
+                        yield gen_args[pos]
+                if kwarg_positions:
+                    kw_vals = (val for i, val in enumerate(gen_kwargs.values()) if i in kwarg_positions)
+                    for kw_val in kw_vals:
+                        yield kw_val
+                if not arg_positions and not kwarg_positions:
+                    yield gen_args[0]
+            for pos, image in enumerate(generator(*args, **kwargs)):
+                if not hasattr(image, 'shape'):
+                    raise InvalidImageError(f"Argument at position {pos} of type {type(image)} does not have attribute 'shape'. So it is neither a numpy array nor a torch tensor.")
+                if not (2 <= len(image.shape) <= 3):
+                    raise InvalidImageError(f"Image must be 2D or 3D. Got shape {image.shape} for position {pos}")
 
-        elif torch.is_tensor(image):
-            if len(image.shape) == 2:
-                if not torch.all(image == image.to(torch.int)): # Masks: omly integer values
-                    raise ValueError(f"Mask values must be integers. Got min={image.min().item()} and max={image.max().item()}.")
-            elif len(image.shape) == 3:
-                if image.shape[0] != 3:
-                    raise ValueError(f"Image must have shape (C, H, W) for tensors. Got {image.shape}.")
-                if image.min().item() < 0.0 - tol or image.max().item() > 1.0 + tol:
-                    raise ValueError(f"Image values must be in the range [0, 1] for tensors. Got min={image.min().item()} and max={image.max().item()}.")
-        else:
-            raise ValueError(f"Input must be a numpy array or a tensor, not {type(image)}.")
+                if isinstance(image, np.ndarray):
+                    if len(image.shape) == 2:
+                        if not np.all(image == image.astype(np.int64)):
+                            raise InvalidImageError(f"Mask values must be integers. Got min={image.min()} and max={image.max()}.")
+                    else:
+                        if image.shape[2] != 3:
+                            raise InvalidImageError(f"NumPy 3D images must have shape (H, W, 3). Got {image.shape}.")
+                        if image.min() < 0 or image.max() > 255:
+                            raise InvalidImageError(f"Image values must be in the range [0, 255]. Got min={image.min()} and max={image.max()} for position {pos}")
 
-        return func(image, *args, **kwargs)
-    return wrapper
+                elif torch.is_tensor(image):
+                    if len(image.shape) == 2:
+                        if not torch.all(image == image.to(torch.int)):
+                            raise InvalidImageError(f"Mask values must be integers. Got min={image.min().item()} and max={image.max().item()} for position {pos}")
+                    else:
+                        if image.shape[0] != 3:
+                            raise InvalidImageError(f"Torch 3D images must have shape (3, H, W). Got {image.shape}.")
+                        if image.min().item() < 0.0 - tol or image.max().item() > 1.0 + tol:
+                            raise InvalidImageError(f"Image values must be in the range [0, 1]. Got min={image.min().item()} and max={image.max().item()} for position {pos}")
+                else:
+                    raise InvalidImageError(f"Input must be a numpy array or a torch tensor, not {type(image)}.")
 
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 def get_centroids(data: np.ndarray, num_clusters: int):
     """
@@ -128,7 +147,7 @@ def cluster_and_return_labels(data: np.ndarray,
         raise ValueError(f"Unknown method: {method}")
 
 
-def elbow_point(x: Sequence[float], y: Sequence[float]) -> np.ndarray:
+def elbow_point(x: Sequence[float], y: Sequence[float]) -> int:
     """
     Detect the elbow point using the maximum distance from a straight line
     connecting the first and last points.
@@ -150,7 +169,7 @@ def elbow_point(x: Sequence[float], y: Sequence[float]) -> np.ndarray:
     p2 = points[-1]
     distances = np.array([np.linalg.norm(np.cross(p2 - p1, p - p1)) / np.linalg.norm(p2 - p1) for p in points])
 
-    return x[np.argmax(distances)]
+    return int(x[np.argmax(distances)])
 
 def create_and_plot_synthetic_data(lower_limit: float,
                                    upper_limit: float,
@@ -190,7 +209,7 @@ def create_and_plot_synthetic_data(lower_limit: float,
     return x, y
 
 
-@check_is_image
+@check_is_image()
 def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
     """Simply olots the image."""
     plt.figure(figsize=(10, 10))
@@ -312,7 +331,7 @@ def find_common_divisor(n1: int, n2: int, desired_divisor: int) -> int:
     return chosen
 
 
-@check_is_image
+@check_is_image()
 def rgb_to_mask(rgb_mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -> torch.Tensor:
     """
     Converts RGB mask image to class index mask image.
@@ -338,7 +357,7 @@ def rgb_to_mask(rgb_mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -
         mask[torch.all(rgb_mask == color.view(3, 1, 1), axis=0)] = cls.value if isinstance(cls, Enum) else cls
     return mask.to(torch.int64)
 
-@check_is_image
+@check_is_image()
 def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]) -> torch.Tensor:
     """
     Converts class index mask image to RGB mask image.
@@ -365,7 +384,7 @@ def mask_to_rgb(class_mask: torch.Tensor , class_colors: dict[int, torch.Tensor]
     return rgb_mask
 
 
-@check_is_image
+@check_is_image()
 def get_class_idx(mask: torch.Tensor, class_colors: dict[int, torch.Tensor]) -> list[int]:
     """
     Extracts all unique classes from the given mask by matching pixel colors to the known class colors.
@@ -579,58 +598,7 @@ def soft_dice_score(output: torch.Tensor,
     dice_score = (2.0 * intersection + smooth) / (cardinality + smooth).clamp_min(eps)
     return dice_score
 
-
-def multi_class_dice_score(pred_mask: torch.Tensor,
-                           true_mask: torch.Tensor,
-                           num_classes: int,
-                           ignore_channels: list[int] = None) -> torch.Tensor:
-    """
-    # TODO: this method is deprecated. Use 'soft_dice_score' instead.
-    Compute Dice Similarity Coefficient for the predicted mask and the true mask.
-
-    :param pred_mask: predicted mask with shape (H, W)
-    :param true_mask: true mask with shape (H, W)
-    :param num_classes: number of classes
-    :param ignore_channels: list of classes to ignore while calculating the Dice score (pass 0 to ignore the background class)
-
-    :return: Dice score
-
-    :raises ValueError: If the shape of the predicted mask and the true mask is not the same
-    :raises ValueError: If the predicted mask and the true mask are not 2D tensors
-    """
-    if not pred_mask.shape == true_mask.shape:
-        raise ValueError("The shape of the predicted mask and the true mask should be the same.")
-    if not len(pred_mask.shape) == 2 or not len(true_mask.shape) == 2:
-        raise ValueError(
-            f"The predicted mask and the true mask should be 2D tensors, got {pred_mask.shape} for prediction and {true_mask.shape} for ground truth.")
-
-    # Convert pred and true masks to one-hot encoded format
-    pred_mask_one_hot = F.one_hot(pred_mask, num_classes=num_classes).permute(2, 0, 1).float()
-    true_mask_one_hot = F.one_hot(true_mask, num_classes=num_classes).permute(2, 0, 1).float()
-    # Initialize a list to store Dice scores for each class
-    dice_scores = []
-
-    # Calculate Dice score for each class, ignoring the specified ignore_channels
-    for class_index in range(num_classes):
-        if ignore_channels:
-            if class_index in ignore_channels:
-                logging.info("Ignoring channel:", class_index)
-                continue
-
-        # Get the predicted and true masks for the current class
-        pred_class, true_class = pred_mask_one_hot[class_index], true_mask_one_hot[class_index]
-
-        # Calculate intersection and union
-        intersection = torch.sum(pred_class * true_class)
-        pred_sum, true_sum = torch.sum(pred_class), torch.sum(true_class)
-
-        # Compute Dice coefficient for this class
-        dice_score = (2.0 * intersection) / (pred_sum + true_sum + 1e-8)  # Small epsilon to avoid division by zero
-        dice_scores.append(dice_score)
-
-    return torch.mean(torch.tensor(dice_scores))
-
-
+@check_is_image(kwarg_positions=(0, 1))
 def multiclass_iou(*, pred_mask: torch.Tensor=None, # Enforce keyword arguments because one can swap pred_mask and true_mask mistakenly
                    true_mask: torch.Tensor=None,
                    ignore_channels: list = None) -> torch.Tensor:
@@ -806,7 +774,7 @@ def cluster_images_and_generate_statistics(
     }
 
 
-@check_is_image
+@check_is_image()
 def permute_image_channels(image: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
     """
     Permute image to shape (C, H, W) if the current shape is (H, W, C).
@@ -818,7 +786,7 @@ def permute_image_channels(image: np.ndarray | torch.Tensor) -> np.ndarray | tor
     if image.shape[2] == 3:
         return np.transpose(image, (2, 0, 1)) if isinstance(image, np.ndarray) else image.permute(2, 0, 1)
 
-@check_is_image
+@check_is_image()
 def get_non_zero_pixel_indices(image: np.ndarray) -> tuple:
     """
     Get the indices of pixels that have at least one non-zero channel.
@@ -830,7 +798,7 @@ def get_non_zero_pixel_indices(image: np.ndarray) -> tuple:
     return tuple(np.argwhere(np.any(image != 0, axis=-1)))
 
 
-@check_is_image
+@check_is_image()
 def plot_clusters_on_image(image: np.ndarray,
                            data: np.ndarray,
                            labels: np.ndarray,
@@ -913,6 +881,7 @@ def plot_clusters_on_image(image: np.ndarray,
 
 
 def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
+                          figsize: tuple[int, int]=None,
                           x_tick_labels: list[str]=None,
                           y_tick_labels: list[str]=None,
                           cbar_kws: dict[str, str]=None,
@@ -925,6 +894,7 @@ def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
     Plot a heatmap using the specified matrix.
 
     :param matrix: matrix
+    :param figsize: figure size
     :param x_tick_labels: x-axis tick labels
     :param y_tick_labels: y-axis tick labels
     :param cbar_kws: colorbar keyword arguments
@@ -935,7 +905,8 @@ def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
     :param save_fig_path: Path to save the figure
     **kwargs: Additional keyword arguments (currently available: title, xlabel, ylabel)
     """
-    plt.figure(figsize=(len(matrix) * 0.7, len(matrix) * 0.7))
+    figsize = (len(matrix) * 0.7, len(matrix) * 0.7) if figsize is None else figsize
+    plt.figure(figsize=figsize)
     sns.heatmap(matrix, annot=True, fmt=".2f", cmap="viridis",
                 xticklabels=x_tick_labels if x_tick_labels else list(range(matrix.shape[1])),
                 yticklabels=y_tick_labels if y_tick_labels else list(range(matrix.shape[0])),
@@ -1066,7 +1037,7 @@ def get_statistics(x: np.ndarray, y: np.ndarray) -> object:
 
     :param x: Independent variable values (numpy array).
     :param y: Dependent variable values (numpy array).
-    :return: Statistics containing computed statistical metrics. Attributes: pearson, spearman, std, mean, median, n_points.
+    :return: Statistics containing computed statistical encoders. Attributes: pearson, spearman, std, mean, median, n_points.
     """
     @dataclass
     class Statistics:
@@ -1338,20 +1309,16 @@ def save_model(model, file_path: str) -> None:
         joblib.dump(model, file)
 
 
-def load_model(file_path: str) -> object | None:
+def load_model(file_path: str) -> object:
     """
     Load a pre-trained model from a file.
 
     :param file_path: Path from which to load the trained model
 
-    :return: Trained model, or None if the file is not found
+    :return: Trained model
     """
-    try:
-        with open(file_path, 'rb') as file:
-            return joblib.load(file)
-    except FileNotFoundError:
-        logging.error(f"Model file not found at {file_path}.")
-        return None
+    with open(file_path, 'rb') as file:
+        return joblib.load(file)
 
 
 def copy_or_move_images(image_paths: list[str], directory: str, operation: str="copy") -> None:
@@ -1373,7 +1340,6 @@ def copy_or_move_images(image_paths: list[str], directory: str, operation: str="
         elif operation == "cut":
             shutil.move(image, directory)
 
-@check_is_image
 def average(matrix: np.ndarray | torch.Tensor) -> float:
     """
     Compute the average of the given matrix.
@@ -1385,7 +1351,7 @@ def average(matrix: np.ndarray | torch.Tensor) -> float:
     return np.mean(matrix) if isinstance(matrix, np.ndarray) else torch.mean(matrix).item()
 
 
-@check_is_image
+@check_is_image()
 def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=None, sigma: float=1.0) -> np.ndarray | torch.Tensor:
     """
     Apply Gaussian blurring to the given image.
@@ -1410,7 +1376,7 @@ def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=None, sigma
         return TF.gaussian_blur(image, kernel_size, sigma).clip(0.0, 1.0)
 
 
-@check_is_image
+@check_is_image()
 def compress_image(image: np.ndarray | torch.Tensor, quality: int) -> np.ndarray | torch.Tensor:
     """
     Compress the image using JPEG compression at the specified quality.
@@ -1447,7 +1413,7 @@ def compress_image(image: np.ndarray | torch.Tensor, quality: int) -> np.ndarray
         return compressed_image
 
 
-@check_is_image
+@check_is_image()
 def thresholding(image, threshold_value=None, max_value=255, threshold_types: tuple = (cv2.THRESH_BINARY,)):
     """
     Currently only works for gray images.
@@ -1457,7 +1423,7 @@ def thresholding(image, threshold_value=None, max_value=255, threshold_types: tu
     logging.debug(f"Threshold value used: {threshold_value}")
     return thresholded_image
 
-@check_is_image
+@check_is_image()
 def resize(image, dimensions, interpolation=cv2.INTER_LINEAR):
     """
     Resizes the given image to the given dimensions. If a single integer is passed,
@@ -1469,7 +1435,7 @@ def resize(image, dimensions, interpolation=cv2.INTER_LINEAR):
     return cv2.resize(image, dimensions, interpolation=interpolation)
 
 
-@check_is_image
+@check_is_image()
 def sharpen(image, kernel=np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])):
     """
     Sharpens the given image using the given kernel.
@@ -1477,7 +1443,7 @@ def sharpen(image, kernel=np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])):
     return cv2.filter2D(image, -1, kernel)
 
 
-@check_is_image
+@check_is_image()
 def plot_image(image: np.ndarray | torch.Tensor, title: str = None) -> None:
     """
     Plot the image with its file path and label.
@@ -1491,7 +1457,7 @@ def plot_image(image: np.ndarray | torch.Tensor, title: str = None) -> None:
     plt.show()
 
 
-@check_is_image
+@check_is_image()
 def sift(image) -> [cv2.KeyPoint, np.ndarray]:
     """
     Extracts SIFT features from the given image.
@@ -1507,7 +1473,7 @@ def sift(image) -> [cv2.KeyPoint, np.ndarray]:
     return keypoints, descriptors
 
 
-@check_is_image
+@check_is_image()
 def root_sift(image: np.ndarray,
               epsilon: float = 1e-7) -> tuple[cv2.KeyPoint, np.ndarray]:
     """
@@ -1524,7 +1490,7 @@ def root_sift(image: np.ndarray,
     return keypoints, descriptors
 
 
-@check_is_image
+@check_is_image()
 def surf(image: np.ndarray) -> tuple[cv2.KeyPoint, np.ndarray]:
     """
     Extracts SURF features from the given image.
@@ -1534,7 +1500,7 @@ def surf(image: np.ndarray) -> tuple[cv2.KeyPoint, np.ndarray]:
     return keypoints, descriptors
 
 
-@check_is_image
+@check_is_image()
 def difference_of_gaussian(image: np.ndarray,
                            num_intervals: int,
                            num_octaves: int = 1,
@@ -1598,7 +1564,7 @@ def difference_of_gaussian(image: np.ndarray,
     return octave_images
 
 
-@check_is_image
+@check_is_image()
 def denoise_mask(mask: np.ndarray, min_size: int) -> np.ndarray:
     """
     Denoises the input binary mask image by removing components smaller than the specified minimum size.

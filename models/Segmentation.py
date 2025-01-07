@@ -7,9 +7,8 @@ from segmentation_models_pytorch import Unet, DeepLabV3, DeepLabV3Plus, UnetPlus
 from segmentation_models_pytorch.utils.train import TrainEpoch, ValidEpoch
 from segmentation_models_pytorch.utils.metrics import IoU
 
-from src.datasets import ExcavatorDataset
 from src.utils import append_json_list
-from src.losses import MultiClassDiceLoss
+from src.losses.losses import MultiClassDiceLoss
 
 
 class _BaseSegmentationModel:
@@ -260,7 +259,7 @@ if __name__ =="__main__":
     import numpy as np
     import matplotlib.pyplot as plt
     from src.config import TRANSFORMER, ROOT
-    from src.utils import mask_to_rgb, get_class_idx, multiclass_iou
+    from src.utils import multiclass_iou
 
     def plot_image_and_mask(image: torch.Tensor, gt_mask: torch.Tensor, pred_mask: torch.Tensor=None):
         plt.figure(figsize=(10, 10))
