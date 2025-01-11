@@ -1,5 +1,5 @@
 """
-This module provides functionalities to train models using K-Means clustering,
+This module provides functionalities to train model_files using K-Means clustering,
 Gaussian Mixture Models (GMM), and Principal Component Analysis (PCA) on given input features.
 """
 

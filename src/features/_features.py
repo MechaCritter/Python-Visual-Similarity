@@ -149,7 +149,7 @@ class DeepConvFeature(FeatureExtractorBase):
     presented in [1], where VLAD encodings were computed from deep convolutional features and input into
     a metric learning algorithm in order to distinguish between different people.
 
-    :param model: A PyTorch model instance from torchvision.models. Default is VGG16. In the paper [1], a VGG-Face model trained on Idmb-Wiki
+    :param model: A PyTorch model instance from torchvision.model_files. Default is VGG16. In the paper [1], a VGG-Face model trained on Idmb-Wiki
     dataset was used with VLAD encoding for younger faces verification.
     :param target_submodule: Optional submodule name to hook into. If None, the whole model is used.
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`

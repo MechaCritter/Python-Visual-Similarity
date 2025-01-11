@@ -102,7 +102,7 @@ class Pipeline(SimilarityMetric):
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
     #     """
-    #     Trains any clustering models used by the encoders in this pipeline, if they have a fit method.
+    #     Trains any clustering model_files used by the encoders in this pipeline, if they have a fit method.
     #
     #     :param images: Iterable of images (NumPy arrays) used for fitting the pipeline's encoders.
     #     :param reduce_dimension: Whether to apply dimension reduction (e.g., PCA) if supported.

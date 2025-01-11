@@ -156,13 +156,12 @@ cython_debug/
 
 # Folders specific to this project
 excavator_dataset_w_masks/
+oxford_flower_dataset/
 data/
 logs/
 test_notebooks/
 src/(deprecated)/
 src/one_time_use.py
-models/torch_model_files/
-models/pickle_model_files/
 doc/
 res/
 !res/logging_config.yaml

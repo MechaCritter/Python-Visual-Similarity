@@ -1,5 +1,5 @@
 """
-TODO: This module was made to compute loss of segmentation models.
+TODO: This module was made to compute loss of segmentation model_files.
 TODO: For the future, implement loss for retrieval (e.g. triplet loss, contrastive loss, "similarity loss" etc.)
 """
 
