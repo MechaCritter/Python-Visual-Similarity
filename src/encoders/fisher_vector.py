@@ -1,17 +1,12 @@
-"""
-Implementation of the Fisher Vector similarity metric using a user-supplied feature extractor
-and a pretrained Gaussian Mixture Model (GMM).
-"""
-
 from typing import Callable, Iterable
 
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
-from src.features._features import FeatureExtractorBase
-from src.encoders._base_encoder import ImageEncoderBase
-from src.utils import cosine_similarity
+from ..features._features import FeatureExtractorBase
+from ..encoders._base_encoder import ImageEncoderBase
+from ..utils import cosine_similarity
 
 
 class FisherVectorEncoder(ImageEncoderBase):
@@ -24,15 +19,21 @@ class FisherVectorEncoder(ImageEncoderBase):
 
     The output when calling `compute_vector` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
-    :param feature_extractor: An instance of FeatureExtractorBase to extract features from images.
-    :param gmm_model: Pretrained Gaussian Mixture Model (GMM) for Fisher Vector computation.
-                      Must be an instance of sklearn.mixture.GaussianMixture.
-    :param power_norm_weight: Exponent for power normalization (default 0.5).
-    :param norm_order: Norm order for final normalization (default 2 -> L2).
+    :param feature_extractor: Feature extractor instance (should implement __call__).
+    :param gmm_model: Gaussian Mixture Model instance from scikit-learn.
+    :param power_norm_weight: Exponent for power normalization
+    :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the final Fisher Vector.
-    :param similarity_func: A callable function(vec1, vec2) -> float to compute similarity.
-    :param pca: PCA transformer for optional dimensionality reduction of descriptors.
+    :param flatten: Whether to flatten the computed encoding vector (default: True).
+    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
+    matrix with size (batch_1_size, batch_2_size).
+    :param pca: PCA model for dimensionality reduction (optional).
+    :param delete_pca_when_incompatible: When set to True, if the new clustering model has a different input size
+                                        than the PCA model's output size, the PCA model will be reset to None.
+
+    References:
+    ==========
+    [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
     def __init__(self,
                  feature_extractor: FeatureExtractorBase,
@@ -42,7 +43,8 @@ class FisherVectorEncoder(ImageEncoderBase):
                  epsilon: float = 1e-9,
                  flatten: bool = True,
                  similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
-                 pca: PCA = None):
+                 pca: PCA = None,
+                 delete_pca_when_incompatible: bool = False):
         if not isinstance(gmm_model, GaussianMixture):
             raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(gmm_model)}")
         super().__init__(feature_extractor,
@@ -52,7 +54,8 @@ class FisherVectorEncoder(ImageEncoderBase):
                          norm_order,
                          epsilon,
                          flatten,
-                         pca)
+                         pca,
+                        delete_pca_when_incompatible)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []

@@ -1,22 +1,16 @@
-"""
-Implementation of the VLAD similarity metric using a user-supplied feature extractor
-and a pretrained K-Means model.
-"""
-
 from typing import Callable, Iterable
 
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
-from src.features._features import FeatureExtractorBase
-from src.encoders._base_encoder import ImageEncoderBase
-from src.utils import cosine_similarity
+from ..features._features import FeatureExtractorBase
+from ..encoders._base_encoder import ImageEncoderBase
+from ..utils import cosine_similarity
 
 
 class VLADEncoder(ImageEncoderBase):
     """
-    # TODO: cite paper from Jégou et al. (2010)
     This class encodes images into VLAD descriptor vectors
     using a chosen feature extractor and a pretrained K-Means model,
     then compares two VLAD descriptor vectors with a user-specified
@@ -26,19 +20,24 @@ class VLADEncoder(ImageEncoderBase):
 
     You can use euclidean distance, manhattan distance, etc. as the similarity function.
 
-    :param feature_extractor: An instance of FeatureExtractorBase
-    :param kmeans_model: Pretrained K-Means model (with `.predict` and `.cluster_centers_`)
-    :param power_norm_weight: Exponent for power normalization (default 0.5)
-    :param norm_order: Norm order for final normalization (default 2 -> L2)
-    :param epsilon: Small constant to avoid division by zero
-    :param flatten: Whether to flatten the final VLAD vector
-    :param similarity_func: A function(vec1, vec2) -> float for computing similarity
-    :param pca: PCA transformer for optional dimensionality reduction of descriptors (highly recommended, since
-    feature vectors are usually high-dimensional but sparse)
+    The encoding can be used for indexing, retrieval, clustering or classification tasks.
+    :param feature_extractor: Feature extractor instance (should implement __call__).
+    :param kmeans_model: KMeans model instance from scikit-learn.
+    :param power_norm_weight: Exponent for power normalization
+    :param norm_order: Norm order for normalization (default: 2).
+    :param epsilon: Small constant to avoid division by zero.
+    :param flatten: Whether to flatten the computed descriptor vector (default: True).
+    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
+    matrix with size (batch_1_size, batch_2_size).
+    :param pca: PCA model for dimensionality reduction (optional).
+    :param delete_pca_when_incompatible: When set to True, if the new clustering model has a different input size
+                                        than the PCA model's output size, the PCA model will be reset to None.
 
     References:
     ==========
-
+    [1] Relja Arandjelović and Andrew Zisserman, 'All About VLAD', Department of Engineering Science, University of Oxford.
+    [2] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of Engineering Science, University of Oxford.
+    [3] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
     def __init__(
             self,
@@ -49,8 +48,8 @@ class VLADEncoder(ImageEncoderBase):
             epsilon: float = 1e-9,
             flatten: bool = True,
             similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
-            pca: PCA = None
-    ):
+            pca: PCA = None,
+            delete_pca_when_incompatible: bool = False) -> None:
         if not isinstance(kmeans_model, KMeans):
             raise ValueError(f"The clustering model must be an instance of KMeans, not {type(kmeans_model)}")
         super().__init__(feature_extractor,
@@ -60,7 +59,8 @@ class VLADEncoder(ImageEncoderBase):
                          norm_order,
                          epsilon,
                          flatten,
-                         pca)
+                         pca,
+                        delete_pca_when_incompatible)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []

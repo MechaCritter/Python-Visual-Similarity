@@ -1,7 +1,3 @@
-"""
-Defines the abstract base class for similarity encoders.
-"""
-
 import abc
 import logging
 import warnings
@@ -11,14 +7,12 @@ import cv2
 import numpy as np
 from sklearn.decomposition import PCA
 
-from src.config import setup_logging
-from src.features._features import FeatureExtractorBase
-from src.base_classes import SimilarityMetric
+from ..config import setup_logging
+from ..features._features import FeatureExtractorBase
+from .._base_classes import SimilarityMetric
 
 setup_logging()
 
-
-_logger_check = logging.getLogger("Runtime_Checks")
 
 def check_desired_output(
     similarity_func: Callable[[np.ndarray, np.ndarray], Any],
@@ -46,11 +40,11 @@ def check_desired_output(
     try:
         out = similarity_func(vecs1, vecs2)
     except Exception as e:
-        _logger_check.warning(f"Similarity function threw an error: {e}. Falling back to row-wise loop.")
+        warnings.warn(f"Similarity function threw an error: {e}. Falling back to row-wise loop.")
         return _make_fallback_func(similarity_func)
 
     if not isinstance(out, np.ndarray):
-        _logger_check.warning(f"Expected a NumPy array, got {type(out)}. Using fallback method.")
+        warnings.warn(f"Expected a NumPy array, got {type(out)}. Using fallback method.")
         return _make_fallback_func(similarity_func)
 
     # Check shape
@@ -64,7 +58,7 @@ def check_desired_output(
         shape_ok = False
 
     if not shape_ok:
-        _logger_check.warning(f"Output shape {out.shape} is not the expected (N, M). Expected output shape to be "
+        warnings.warn(f"Output shape {out.shape} is not the expected (N, M). Expected output shape to be "
                                 f"({vecs1.shape[0]}, {vecs2.shape[0]}). Using fallback.")
         return _make_fallback_func(similarity_func)
 
@@ -102,6 +96,17 @@ class ImageEncoderBase(SimilarityMetric):
     the similarity between two images.
 
     The encoding can be used for indexing, retrieval, clustering or classification tasks.
+    :param feature_extractor: Feature extractor instance (should implement __call__).
+    :param clustering_model: Clustering model used for generating descriptors.
+    :param power_norm_weight: Exponent for power normalization
+    :param norm_order: Norm order for normalization (default: 2).
+    :param epsilon: Small constant to avoid division by zero.
+    :param flatten: Whether to flatten the computed descriptor vector (default: True).
+    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
+    matrix with size (batch_1_size, batch_2_size).
+    :param pca: PCA model for dimensionality reduction (optional).
+    :param delete_pca_when_incompatible: When set to True, if the new clustering model has a different input size
+                                        than the PCA model's output size, the PCA model will be reset to None.
     """
     def __init__(
             self,
@@ -115,18 +120,6 @@ class ImageEncoderBase(SimilarityMetric):
             pca: Optional[PCA] = None,
             delete_pca_when_incompatible: bool = True
     ):
-        """
-        :param feature_extractor: Feature extractor instance (should implement __call__).
-        :param clustering_model: Clustering model used for generating descriptors.
-        :param power_norm_weight: Exponent for power normalization
-        :param norm_order: Norm order for normalization (default: 2).
-        :param epsilon: Small constant to avoid division by zero.
-        :param flatten: Whether to flatten the computed descriptor vector (default: True).
-        :param similarity_func: Function for computing similarity.
-        :param pca: PCA model for dimensionality reduction (optional).
-        :param delete_pca_when_incompatible: When set to True, if the new clustering model has a different input size
-                                            than the PCA model's output size, the PCA model will be reset to None.
-        """
         # Set important attributes via setters to trigger error handling
         self._feature_extractor = None
         self._clustering_model = None

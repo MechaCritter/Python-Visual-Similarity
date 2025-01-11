@@ -3,16 +3,11 @@ import logging.config
 import pathlib
 
 import yaml
-from torchvision import transforms
 import torch
 
 # -Config for the dataset- #
 ROOT = pathlib.Path(__file__).parent.parent
-IMAGE_SIZE = (640, 640)
-TRANSFORMER = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Resize(IMAGE_SIZE)
-])
+LOG_FILE_PATH = ROOT / "res/logs/log_msgs.log"
 
 # - Device - #
 ENFORCE_CUDA = True
@@ -29,7 +24,7 @@ def get_device():
 DEVICE = get_device()
 print(f"Device used: {DEVICE}")
 
-# -Paths for the excavator dataset- #
+# -Paths for the Excavator dataset- #
 TRAIN_IMG_DATA_PATH_EXCAVATOR= rf"{ROOT}/excavator_dataset_w_masks/train"
 TRAIN_MASK_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/train_annot"
 TEST_IMG_DATA_PATH_EXCAVATOR = rf"{ROOT}/excavator_dataset_w_masks/test"
@@ -49,6 +44,10 @@ def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level
     try:
         with open(default_path, 'rt') as f:
             config = yaml.safe_load(f.read())
+        try:
+            config["handlers"]["file_handler"]["filename"] = str(LOG_FILE_PATH)
+        except Exception as e:
+            print(f"Error in Logging Configuration: {e}. Cannot set output path for log file.")
         logging.config.dictConfig(config)
     except Exception as e:
         print(f"Error in Logging Configuration: {e}")

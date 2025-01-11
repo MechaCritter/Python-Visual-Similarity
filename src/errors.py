@@ -1,6 +1,7 @@
 """
 Includes exceptions for the package.
 """
+
 class InvalidImageError(Exception):
     """
     Raised when an image is not provided.

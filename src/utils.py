@@ -97,9 +97,7 @@ def get_centroids(data: np.ndarray, num_clusters: int):
     Get the centroids of the clusters using KMeans. `data`should best be a numpy array.
 
     :param data: Data to cluster
-    :type data: np.ndarray
     :param num_clusters: Number of clusters
-    :type num_clusters: int
 
     :return: Centroids of the clusters, the corresponding labels and the locations of the centroids
     :rtype: tuple(np.ndarray, np.ndarray, np.ndarray)
@@ -179,16 +177,11 @@ def create_and_plot_synthetic_data(lower_limit: float,
     Generates synthetic data and plots it.
 
     :param lower_limit: Lower limit for the data
-    :type lower_limit: float
     :param upper_limit: Upper limit for the data
-    :type upper_limit: float
     :param num_samples: Number of samples to generate
-    :type num_samples: int
     :param plot_type: Type of plot ('scatter' or 'linear')
-    :type plot_type: str
 
     :return: x and y values
-    :rtype: tuple(np.ndarray, np.ndarray)
     """
     x = np.linspace(lower_limit, upper_limit, num_samples)
     y = np.random.uniform(lower_limit, upper_limit, num_samples)
@@ -270,6 +263,7 @@ def compute_optimal_clusters_wcss(features: np.ndarray,
     :param max_clusters: Maximum number of clusters to evaluate.
     :param min_clusters: Minimum number of clusters to evaluate.
     :param plot: If True, plots WCSS vs Number of Clusters.
+    :param save_path: Path to save the plot.
 
     :return: Optimal number of clusters based on the elbow point.
     """
@@ -436,32 +430,6 @@ def append_json_list(file_path: str, keyval: dict[str, list[float]]) -> None:
 
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
-
-def soft_dice_score(output: torch.Tensor,
-                    target: torch.Tensor,
-                    smooth: float = 0.0,
-                    eps: float = 1e-7,
-                    dims=None) -> torch.Tensor:
-    """
-    Compute the Soft Dice Score for the given output and target.
-
-    :param output: Model output. Shape: (N, C, HxW)
-    :param target: Target mask. Shape: (N, C, HxW)
-    :param smooth: label smoothing value
-    :param eps: epsilon value to avoid division by zero
-    :param dims: dimensions to reduce. Default is None
-
-    :return: soft dice score
-    """
-    assert output.size() == target.size()
-    if dims is not None:
-        intersection = torch.sum(output * target, dim=dims)
-        cardinality = torch.sum(output + target, dim=dims)
-    else:
-        intersection = torch.sum(output * target)
-        cardinality = torch.sum(output + target)
-    dice_score = (2.0 * intersection + smooth) / (cardinality + smooth).clamp_min(eps)
-    return dice_score
 
 
 def save_json(file_path: str, data: dict) -> None:
@@ -920,6 +888,54 @@ def plot_and_save_heatmap(matrix: Union[list, np.ndarray, torch.Tensor],
         plt.show()
     plt.close()
 
+def plot_and_save_barplot(data: dict[str, list[float]],
+                            bar_labels: list[str],
+                            title: str = "Barplot",
+                            xlabel: str = "X-axis",
+                            ylabel: str = "Y-axis",
+                            save_path: str = None,
+                            show: bool = True) -> None:
+    """
+    Plot and save a barplot.
+    :param data: Dictionary containing data to plot.
+    :param bar_labels: Labels that will be displayed in the legend.
+    :param title: Title of the plot.
+    :param xlabel: Label for the x-axis.
+    :param ylabel: Label for the y-axis.
+    :param save_path: Path to save the plot image. If None, plot is not saved.
+    :param show: Whether to display the plot.
+    """
+    x_labels = list(data.keys())
+    values = list(data.values())
+    num_groups = len(values[0])
+
+    if not all(len(v) == num_groups for v in values):
+        raise ValueError("All lists in data must have the same length as the number of bar labels.")
+
+    x = np.arange(len(x_labels))  # the label locations
+    width = 0.8 / num_groups      # width of each bar
+
+    plt.figure(figsize=(10, 6))
+
+    for i in range(num_groups):
+        heights = [v[i] for v in values]
+        plt.bar(x + i * width, heights, width, label=bar_labels[i])
+
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.xticks(x + width * (num_groups - 1) / 2, x_labels)  # Center the tick labels
+    plt.legend()
+    plt.grid(axis='y', linestyle='--', alpha=0.6)
+
+    if save_path:
+        plt.savefig(save_path)
+
+    if show:
+        plt.show()
+
+    plt.close()
+
 
 def plot_and_save_lineplot(y: np.ndarray,
                            x: np.ndarray = None,
@@ -1286,7 +1302,7 @@ def convert_to_integers(list_of_tuples: list[tuple[float, float]]) -> list[tuple
     return [(int(x), int(y)) for x, y in list_of_tuples]
 
 
-def standardize_data(data: np.ndarray, axis: int) -> np.ndarray:
+def standardize_data(data: np.ndarray, axis: int=0) -> np.ndarray:
     """
     Standardize the given data using the formula: (x - mean) / std.
 
@@ -1377,73 +1393,6 @@ def gaussian_blur(image: np.ndarray | torch.Tensor, kernel_size: int=None, sigma
 
 
 @check_is_image()
-def compress_image(image: np.ndarray | torch.Tensor, quality: int) -> np.ndarray | torch.Tensor:
-    """
-    Compress the image using JPEG compression at the specified quality.
-
-    :param image: Input image
-    :param quality: Quality for JPEG compression (0 to 100).
-    :return: Compressed image
-    """
-    # Ensure quality is within the valid range
-    quality = max(0, min(quality, 100))
-    if isinstance(image, np.ndarray):
-        # Convert numpy array to PIL Image
-        img = Image.fromarray(image.astype(np.uint8))
-        # Compress image using BytesIO
-        buffer = io.BytesIO()
-        img.save(buffer, format='JPEG', quality=quality)
-        buffer.seek(0)
-        # Read image back from buffer
-        compressed_img = Image.open(buffer)
-        compressed_image = np.array(compressed_img)
-        return compressed_image
-    elif torch.is_tensor(image):
-        if image.shape[0] not in (1, 3):
-            image = image.permute(2, 0, 1)
-
-        # Convert to unit8 tensor
-        image_unit8 = (image * 255).clamp(0, 255).to(torch.uint8)
-        # Conpress image
-        encoded_jpeg = torchvision.io.encode_jpeg(image_unit8, quality=quality)
-        # Decode image
-        compressed_image = torchvision.io.decode_jpeg(encoded_jpeg).float() / 255
-        # Ensure the output has the same device and dtype as input
-        compressed_image = compressed_image.to(image.dtype).to(image.device).clamp(0.0, 1.0)
-        return compressed_image
-
-
-@check_is_image()
-def thresholding(image, threshold_value=None, max_value=255, threshold_types: tuple = (cv2.THRESH_BINARY,)):
-    """
-    Currently only works for gray images.
-    """
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    ret, thresholded_image = cv2.threshold(gray_image, threshold_value, max_value, np.sum(threshold_types))
-    logging.debug(f"Threshold value used: {threshold_value}")
-    return thresholded_image
-
-@check_is_image()
-def resize(image, dimensions, interpolation=cv2.INTER_LINEAR):
-    """
-    Resizes the given image to the given dimensions. If a single integer is passed,
-    both the width and height will be resized to that integer. If a tuple is passed,
-    then it works like the normal cv2.resize function.
-    """
-    if isinstance(dimensions, int):
-        dimensions = (dimensions, dimensions)
-    return cv2.resize(image, dimensions, interpolation=interpolation)
-
-
-@check_is_image()
-def sharpen(image, kernel=np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])):
-    """
-    Sharpens the given image using the given kernel.
-    """
-    return cv2.filter2D(image, -1, kernel)
-
-
-@check_is_image()
 def plot_image(image: np.ndarray | torch.Tensor, title: str = None) -> None:
     """
     Plot the image with its file path and label.
@@ -1455,113 +1404,6 @@ def plot_image(image: np.ndarray | torch.Tensor, title: str = None) -> None:
     plt.title(title)
     plt.axis('off')
     plt.show()
-
-
-@check_is_image()
-def sift(image) -> [cv2.KeyPoint, np.ndarray]:
-    """
-    Extracts SIFT features from the given image.
-
-    :param image: Input image
-    :type image: np.ndarray
-
-    :return: keypoints as a list of cv2.KeyPoint objects and descriptors as a numpy array
-    :rtype: tuple
-    """
-    sift = cv2.SIFT.create()
-    keypoints, descriptors = sift.detectAndCompute(image, None)
-    return keypoints, descriptors
-
-
-@check_is_image()
-def root_sift(image: np.ndarray,
-              epsilon: float = 1e-7) -> tuple[cv2.KeyPoint, np.ndarray]:
-    """
-    Extracts RootSIFT features from the given image. The only difference to SIFT is that
-    L1 normalization and square root are applied to the descriptors before any further processing.
-
-    :param image: Input image
-    :param epsilon: Small value to avoid division by zero
-    """
-    sift = cv2.SIFT.create()
-    keypoints, descriptors = sift.detectAndCompute(image, None)
-    descriptors /= (descriptors.sum(axis=1, keepdims=True) + epsilon)
-    descriptors = np.sqrt(descriptors)
-    return keypoints, descriptors
-
-
-@check_is_image()
-def surf(image: np.ndarray) -> tuple[cv2.KeyPoint, np.ndarray]:
-    """
-    Extracts SURF features from the given image.
-    """
-    surf = cv2.SURF_create()
-    keypoints, descriptors = surf.detectAndCompute(image, None)
-    return keypoints, descriptors
-
-
-@check_is_image()
-def difference_of_gaussian(image: np.ndarray,
-                           num_intervals: int,
-                           num_octaves: int = 1,
-                           sigma: float = 1.6,
-                           plot: bool = False) -> list:
-    """
-    Calculates DoG for the given image.
-
-    :param image: Input image
-    :type image: np.ndarray
-    :param num_intervals: Number of intervals (normally written as `s`) in each octave
-    :type num_intervals: int
-    :param num_octaves: Number of octaves
-    :type num_octaves: int
-    :return: List of octave images (the difference of gaussian images within each octave)
-    :rtype: list
-    """
-    k = 2 ** (1.0 / num_intervals)  # Scale factor
-    octave_images = []
-    octave_range = num_intervals + 3
-
-    # Generate blurred images
-    for octave in range(num_octaves):
-        gaussian_images = []
-        current_sigma = sigma
-        logging.info(f"""
-        Calculating DoG for octave {octave} with {num_intervals} intervals and sigma={sigma}:
-        
-        =====================================================================================\n
-        """)
-
-        for _ in range(octave_range):
-            gaussian_images.append(gaussian_blur(image, sigma=current_sigma))
-            logging.debug(f"Sigma value used: {current_sigma}")
-            current_sigma *= k
-
-        # Calculate DoG and append to the octave images
-        for i in range(1, len(gaussian_images)):
-            dog = gaussian_images[i] - gaussian_images[i - 1]
-            octave_images.append(dog)
-
-        # Downsample the image by factor of 2 for the next octave
-        logging.debug(f"Current image shape: {image.shape}")
-        image = resize(image, (image.shape[1] // 2, image.shape[0] // 2))
-
-    logging.debug("Total number of octave images: %s", len(octave_images))
-    if plot:
-        plt.figure(figsize=(25, 10))
-        for i in range(num_octaves):
-            for j in range(num_intervals + 2):
-                plt.subplot(num_octaves, num_intervals + 2, i * (num_intervals + 2) + j + 1)
-                plt.title(f"Octave: {i}, Interval: {j}")
-                plt.imshow(cv2.cvtColor(octave_images[i * (num_intervals + 2) + j], cv2.COLOR_BGR2RGB))
-
-        plt.suptitle(f"""
-            "Difference of Gaussian calculation with initial_sigma=1.6\n"
-            "Number of intervals: {num_intervals}, Number of octaves: {num_octaves}",
-            fontsize=20
-            """)
-        plt.show()
-    return octave_images
 
 
 @check_is_image()
@@ -1592,13 +1434,3 @@ def denoise_mask(mask: np.ndarray, min_size: int) -> np.ndarray:
     logging.debug("List of classes after being filtered: %s", np.unique(filtered_mask))
     return filtered_mask
 
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from datasets import BaseDataset
-
-    flower_data = BaseDataset('data/raw/train')
-    image = flower_data[20][0]
-    octave_images = difference_of_gaussian(image,
-                                           num_intervals=5,
-                                           num_octaves=2,
-                                           plot=True)

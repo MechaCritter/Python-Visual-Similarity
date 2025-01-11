@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/similarity_metrics_of_images.iml" filepath="$PROJECT_DIR$/.idea/similarity_metrics_of_images.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/python-image-similarity.iml" filepath="$PROJECT_DIR$/.idea/python-image-similarity.iml" />
     </modules>
   </component>
 </project>

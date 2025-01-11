@@ -1,20 +1,14 @@
-"""
-File: similarity_pipeline.py
-============================
-
-Defines a pipeline that composes multiple similarity encoders
-and compares two images, returning a vector of results.
-"""
-
 from collections.abc import Iterator
 import logging
 from typing import Iterable, Callable
 
 import numpy as np
+import torch
 import cv2
 
-from src.encoders._base_encoder import ImageEncoderBase, SimilarityMetric
-from src.utils import cosine_similarity, check_is_image
+from ..encoders._base_encoder import ImageEncoderBase, SimilarityMetric
+from ..utils import cosine_similarity
+from ._base_encoder import check_desired_output
 
 
 class Pipeline(SimilarityMetric):
@@ -27,7 +21,8 @@ class Pipeline(SimilarityMetric):
     have different output sizes.
 
     :param encoders: A list of ImageEncoderBase instances.
-    :param similarity_func: A function(vec1, vec2) -> np.array to compute similarity.
+    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
+    matrix with size (batch_1_size, batch_2_size).
     """
     _logger = logging.getLogger("Pipeline")
     def __init__(
@@ -35,8 +30,18 @@ class Pipeline(SimilarityMetric):
             encoders: list[ImageEncoderBase],
             similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
     ):
+        self._check_valid_encoders(encoders)
         self.encoders = encoders
         self._similarity_func = similarity_func
+
+    def _check_valid_encoders(self, encoders: list[ImageEncoderBase]) -> None:
+        """
+        Checks if all encoders in the pipeline are instances of ImageEncoderBase.
+        :param encoders: list of encoders to check.
+        """
+        for encoder in encoders:
+            if not isinstance(encoder, ImageEncoderBase):
+                raise ValueError(f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}")
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         """
@@ -46,7 +51,7 @@ class Pipeline(SimilarityMetric):
         :return: encoded images using the combined encoders.
         """
         all_encodings = []
-        if isinstance(images, np.ndarray) and images.ndim == 3:
+        if (isinstance(images, np.ndarray) or isinstance(images, torch.Tensor)) and images.ndim == 3:
             images = [images] # Handle single image case
         if isinstance(images, Iterator) and len(self.encoders) > 1:
             images = list(images) # Prevent the case where images is a generator and the pipeline has multiple encoders
@@ -79,13 +84,8 @@ class Pipeline(SimilarityMetric):
 
     @similarity_func.setter
     def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], float]):
-        dummy1, dummy2 = np.random.rand(10), np.random.rand(10)
-        test_val = np.asarray(func(dummy1, dummy2))
-        # We want either a single scalar or something that can be squeezed to a scalar
-        if test_val.size != 1:
-            raise ValueError("The provided similarity function must return a single numeric value.")
-        self._logger.info(f"Similarity function {func.__name__} is valid.")
-        self._similarity_func = func
+        dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
+        self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
     def similarity_score(self, images1: Iterable[np.ndarray] | np.ndarray, images2: Iterable[np.ndarray] | np.ndarray) -> float:
         """

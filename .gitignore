@@ -166,4 +166,6 @@ models/pickle_model_files/
 doc/
 res/
 !res/logging_config.yaml
+!res/logs/
+!res/images/
 
