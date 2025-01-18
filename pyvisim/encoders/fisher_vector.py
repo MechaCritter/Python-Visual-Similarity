@@ -51,6 +51,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         if gmm_model is not None:
             if not isinstance(gmm_model, GaussianMixture):
                 raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(gmm_model)}")
+            gmm_model.covariance_type = 'diag' # Otherwise, training will take forever
         if weights is not None:
             if (weights_class:=weights.__class__.__name__) != 'GMMWeights':
                 raise ValueError(f"You can only pass an instance of GMMWeights, not {weights_class}")
@@ -64,6 +65,17 @@ class FisherVectorEncoder(ImageEncoderBase):
                          flatten,
                          pca,
                          raise_error_when_pca_incompatible)
+
+    @property
+    def clustering_model(self):
+        return ImageEncoderBase.clustering_model.fget(self)
+
+    @clustering_model.setter
+    def clustering_model(self, model):
+        if not isinstance(model, GaussianMixture):
+            raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(model)}")
+        model.covariance_type = 'diag'
+        ImageEncoderBase.clustering_model.fset(self, model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []

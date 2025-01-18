@@ -154,6 +154,13 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# PyCharm stuff
+.idea/
+*.iml
+*.iws
+*.ipr
+.cadence
+
 # Folders specific to this project
 excavator_dataset_w_masks/
 oxford_flower_dataset/

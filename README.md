@@ -5,38 +5,65 @@
 
 <!-- Added badges to convey project readiness/branding (example placeholders) -->
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.1rc-blue)
 ![Status](https://img.shields.io/badge/status-pre--release-orange)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen)
 ![Contributions](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
 # Welcome to `pyvisim`!
 
-`pyvisim` is a Python library for computing image similarities using encoding methods such as Fisher Vectors, VLAD
-and Siamese Networks. 
-
-This project was made by me in cooperation with the __Lehrstuhl für Automatisierung und Informationssysteme__ 
-at the Technical University of Munich.
+`pyvisim` is a Python library for computing image similarities using the encoders Fisher Vectors, VLAD
+and the Siamese Neural Networks.
 
 ## Table of Contents
 
 1. [Why **pyvisim**](#why-pyvisim)
 2. [Installation](#installation)
-3. [Contributing](#contributing)
-4. [Get in Touch](#get-in-touch)
-5. [TODO](#todo)
-6. [License](#license)
-7. [Acknowledgements](#acknowledgements)
+3. [Pretrained Models](#pretrained-models)
+4. [Contributing](#contributing)
+5. [Get in Touch](#get-in-touch)
+6. [TODO](#todo)
+7. [License](#license)
 8. [References](#references)
 
 ## Why `pyvisim`?
 
-`pyvisim` is designed to provide a simple and efficient way to compare images. The use-cases include:
+`pyvisim` is designed to provide a simple and efficient way to compare images. 
+
+### Quick Start
+
+With just a few lines of code, you can compute the similarity score between two images using the VLAD encoder:
+
+#### Example: Compute Similarity Score Using VLAD
+
+```python
+from pyvisim.encoders import VLADEncoder, KMeansWeights
+from pyvisim.datasets import OxfordFlowerDataset
+
+# Load images from the Oxford Flower Dataset. Has to be NumPy Images!
+dataset = OxfordFlowerDataset()
+image1, *_  = dataset[0]
+image2, *_ = dataset[1]
+
+# Initialize the VLAD encoder with SIFT features and pretrained KMeans weights
+encoder = VLADEncoder(
+    weights=KMeansWeights.OXFORD102_K256_ROOTSIFT
+)
+
+# Compute the similarity score. By default, cosine similarity is used.
+similarity_score = encoder.similarity_score(image1, image2)
+
+print(f"Similarity Score: {similarity_score}")
+```
+You can also visit the [introduction notebook](examples/getting_started.ipynb) for more examples.
+
+I also provided various notebooks for different use-cases. Feel free to check them out, and let me know if you
+have any suggestions or questions!
 
 1. **Image Retrieval**  
    Retrieve the top-k most similar images from a dataset.  
    - Use encoding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
-   [this juptyer notebook](examples/introduction.ipynb) for an example.
+   [this juptyer notebook](examples/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
    - Example use: Building a fast image search engine for photo management software.
 
 2. **Deep Learning Embeddings**  
@@ -58,14 +85,19 @@ at the Technical University of Munich.
    
 ## Installation
 
-Currently, the package still needs to be tested and validated before being uploaded to PyPI. To use the library, you can
-clone the repository and install the package locally:
+To use the library, you can simply install it via pip:
 
 ```bash
-git clone # TODO: Add the link to the repository
-cd similarity_metrics_of_images
-pip install .
+pip install pyvisim
 ```
+or clone the repository and install it locally:
+
+```bash
+git clone https://github.com/MechaCritter/Python-Visual-Similarity.git
+cd Python-Visual-Similarity
+pip install .
+``` 
+Note that the *notebooks are only available if you clone the repository.*
 
 All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</ref>, for which I 
 have created a custom dataset class. To use this class, import it as follows:
@@ -73,8 +105,51 @@ have created a custom dataset class. To use this class, import it as follows:
 ```python
 from pyvisim.datasets import OxfordFlowerDataset
 ```
-In order to replicate the experiments done in this project, follow the preprocessing steps in
-the [datasets README](pyvisim/datasets/README.md).
+For more details on the dataset, please refer to the [documentation](pyvisim/datasets/README.md).
+
+## Pretrained Models
+
+The following pretrained models are provided for clustering and dimensionality reduction. All clustering 
+models were trained with `k=256`. models were trained with `k=256`. The choice of `k` was made arbitrarily 
+based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on. 
+Since higher values would take too long, I chose `k=256` as a balance between performance and computational cost.
+
+### KMeans Models
+
+You can access these weights by importing `KMWeights` from the `pyvisim.encoders` module.
+
+| Model Name                             | Features Extracted From | PCA Applied | Feature Dimensions |
+|----------------------------------------|-------------------------|-------------|--------------------|
+| `OXFORD102_K256_VGG16_PCA`             | Last Conv Layer (VGG16) | Yes         | 257                |
+| `OXFORD102_K256_VGG16`                 | Last Conv Layer (VGG16) | No          | 514                |
+| `OXFORD102_K256_ROOTSIFT_PCA`          | RootSIFT features       | Yes         | 64                 |
+| `OXFORD102_K256_ROOTSIFT`              | RootSIFT features       | No          | 128                |
+| `OXFORD102_K256_SIFT_PCA`              | SIFT features           | Yes         | 64                 |
+| `OXFORD102_K256_SIFT`                  | SIFT features           | No          | 128                |
+
+### Gaussian Mixture Models (GMMWeights)
+
+You can access these weights by importing `GMMWeights` from the `pyvisim.encoders` module.
+
+| Model Name                             | Features Extracted From    | PCA Applied | Feature Dimensions |
+|----------------------------------------|----------------------------|-------------|--------------------|
+| `OXFORD102_K256_VGG16_PCA`             | Last Conv Layer (VGG16)    | Yes         | 257                |
+| `OXFORD102_K256_VGG16`                 | Last Conv Layer (VGG16)    | No          | 514                |
+| `OXFORD102_K256_ROOTSIFT_PCA`          | RootSIFT features          | Yes         | 64                 |
+| `OXFORD102_K256_ROOTSIFT`              | RootSIFT features          | No          | 128                |
+| `OXFORD102_K256_SIFT_PCA`              | SIFT features              | Yes         | 64                 |
+| `OXFORD102_K256_SIFT`                  | SIFT features              | No          | 128                |
+
+### Notes
+1. **Feature Extraction**:
+   - **Deep Features (VGG16)**: Feature maps from the last convolutional layer of VGG16. At each spatial location,
+   the relative x and y coordinates are concatenated to the feature vector, resulting in `512 + 2 = 514` dimensions <sup>[6](#references)</sup>.
+   - **SIFT**: Scale-Invariant Feature Transform descriptors, which was the original feature used for VLAD and
+    Fisher Vector encoding <sup>[5](#references)</sup>.
+   - **RootSIFT**: A variant of SIFT with `Hellinger kernel normalization`<sup>[4](#references)</sup>.
+2. **Dimensionality Reduction**:
+   - Models with `_PCA` in their names apply PCA to reduce the feature dimensions to by half.
+   - The clustering models will learn from the transformed features after PCA is applied.
 
 ## Contributing
 
@@ -97,7 +172,6 @@ If you have any questions or just want to say hi, feel free to:
 
 The features below are planned for future releases:
 
-- Implement proper **unit tests** to validate the functionality of the package before uploading to PyPI.
 - Implement the **siamese network**.
 - Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
 paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>
@@ -107,13 +181,6 @@ You are welcome to implement any of these features or suggest new ones!
 
 ## License
 This project is licensed under the terms of the MIT license.
-
-## Acknowledgements
-
-I would like to thank the __Lehrstuhl für Automatisierung und Informationssysteme__ at the Technical University of Munich
-for their support, guidance and provision of computational resources for this project, without which this project would
-not have been possible. I would also like to thank my supervisor, <add name>, for his guidance, as well as Dr. <add name>
-for her valuable feedback and suggestions.
 
 ## References
 

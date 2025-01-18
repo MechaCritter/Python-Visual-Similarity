@@ -29,8 +29,8 @@ def _check_output_shape(func) -> Callable:
     @wraps(func)
     def wrapper(self, *args, **kwargs) -> np.ndarray:
         image = args[0]
-        if not isinstance(image, np.ndarray):
-            raise TypeError(f"Currently, only NumPy Images are supported. Got {type(image)} instead.")
+        if isinstance(image, torch.Tensor):
+            raise TypeError(f"Currently, only Torch images are not supported yet. Please convert to NumPy.")
         feat_vecs = func(self, *args, **kwargs)
         if feat_vecs is None:
             print("No feature vectors found. Returning empty array.")
@@ -74,6 +74,7 @@ class SIFT(FeatureExtractorBase):
         :param image:
         :return:
         """
+        super().__call__(image)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
         return descriptors
@@ -104,10 +105,12 @@ class RootSIFT(FeatureExtractorBase):
         :param image:
         :return:
         """
+        super().__call__(image)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
-        descriptors /= (descriptors.sum(axis=1, keepdims=True) + 1e-7)
-        descriptors = np.sqrt(descriptors)
+        if descriptors is not None:
+            descriptors /= (descriptors.sum(axis=1, keepdims=True) + 1e-7)
+            descriptors = np.sqrt(descriptors)
         return descriptors
 
     def __repr__(self):
@@ -140,6 +143,7 @@ class Lambda(FeatureExtractorBase):
 
     @_check_output_shape
     def __call__(self, image: np.ndarray, /) -> np.ndarray:
+        super().__call__(image)
         return self.func(image)
 
 
@@ -267,6 +271,7 @@ class DeepConvFeature(FeatureExtractorBase):
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
                  D = number_of_channels (+ 2 if spatial coords are appended).
         """
+        super().__call__(image)
         image = self.transform(image).unsqueeze(0).to(self.device)
 
         self.model.eval()

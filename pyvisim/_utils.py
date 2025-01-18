@@ -32,18 +32,61 @@ setup_logging()
 
 
 # Decorators
-def check_is_image(arg_positions: tuple=None, kwarg_positions: tuple=None, tol=1e-5):
+def is_numpy_image(image: np.ndarray, pos: int) -> None:
+    """
+    Check if a numpy array is a valid image.
+
+    :param image: The numpy array to validate.
+    :param pos: Position of the image in the argument list (for error messages).
+    :raises InvalidImageError: If the image is invalid.
+    """
+    if len(image.shape) == 2:
+        if not np.all(image == image.astype(np.int64)):
+            raise InvalidImageError(
+                f"Mask values must be integers. Got min={image.min()} and max={image.max()}."
+            )
+    else:
+        if image.shape[2] != 3:
+            raise InvalidImageError(f"NumPy 3D images must have shape (H, W, 3). Got {image.shape}.")
+        if image.min() < 0 or image.max() > 255:
+            raise InvalidImageError(
+                f"Image values must be in the range [0, 255]. Got min={image.min()} and max={image.max()} for position {pos}."
+            )
+
+def is_torch_image(image: torch.Tensor, pos: int, tol: float) -> None:
+    """
+    Check if a PyTorch tensor is a valid image.
+
+    :param image: The PyTorch tensor to validate.
+    :param pos: Position of the image in the argument list (for error messages).
+    :param tol: Tolerance for float comparison.
+    :raises InvalidImageError: If the image is invalid.
+    """
+    if len(image.shape) == 2:
+        if not torch.all(image == image.to(torch.int)):
+            raise InvalidImageError(
+                f"Mask values must be integers. Got min={image.min().item()} and max={image.max().item()} for position {pos}."
+            )
+    else:
+        if image.shape[0] != 3:
+            raise InvalidImageError(f"Torch 3D images must have shape (3, H, W). Got {image.shape}.")
+        if image.min().item() < 0.0 - tol or image.max().item() > 1.0 + tol:
+            raise InvalidImageError(
+                f"Image values must be in the range [0, 1]. Got min={image.min().item()} and max={image.max().item()} for position {pos}."
+            )
+
+def check_is_image(arg_positions: tuple = None, kwarg_positions: tuple = None, tol=1e-5):
     """
     Decorator to check if one or more arguments are valid images. Default is the first positional
     argument.
 
-    **Note**: both 'arg_positions' abd 'kwarg_positions' are zero-based!
+    **Note**: both 'arg_positions' and 'kwarg_positions' are zero-based!
 
     :param arg_positions: A tuple of positions (integers) in *args
                           that correspond to the position of the images / masks.
     :param kwarg_positions: A tuple of positions (integers) in **kwargs
                             that correspond to the position of the images / masks.
-    :param tol: tolerance for float comparison for Torch images.
+    :param tol: Tolerance for float comparison for Torch images.
     """
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -57,35 +100,28 @@ def check_is_image(arg_positions: tuple=None, kwarg_positions: tuple=None, tol=1
                         yield kw_val
                 if not arg_positions and not kwarg_positions:
                     yield gen_args[0]
+
             for pos, image in enumerate(generator(*args, **kwargs)):
                 if not hasattr(image, 'shape'):
-                    raise InvalidImageError(f"Argument at position {pos} of type {type(image)} does not have attribute 'shape'. So it is neither a numpy array nor a torch tensor.")
+                    raise InvalidImageError(
+                        f"Argument at position {pos} of type {type(image)} does not have attribute 'shape'. So it is neither a numpy array nor a torch tensor."
+                    )
                 if not (2 <= len(image.shape) <= 3):
-                    raise InvalidImageError(f"Image must be 2D or 3D. Got shape {image.shape} for position {pos}")
+                    raise InvalidImageError(
+                        f"Image must be 2D or 3D. Got shape {image.shape} for position {pos}."
+                    )
 
                 if isinstance(image, np.ndarray):
-                    if len(image.shape) == 2:
-                        if not np.all(image == image.astype(np.int64)):
-                            raise InvalidImageError(f"Mask values must be integers. Got min={image.min()} and max={image.max()}.")
-                    else:
-                        if image.shape[2] != 3:
-                            raise InvalidImageError(f"NumPy 3D images must have shape (H, W, 3). Got {image.shape}.")
-                        if image.min() < 0 or image.max() > 255:
-                            raise InvalidImageError(f"Image values must be in the range [0, 255]. Got min={image.min()} and max={image.max()} for position {pos}")
-
+                    is_numpy_image(image, pos)
                 elif torch.is_tensor(image):
-                    if len(image.shape) == 2:
-                        if not torch.all(image == image.to(torch.int)):
-                            raise InvalidImageError(f"Mask values must be integers. Got min={image.min().item()} and max={image.max().item()} for position {pos}")
-                    else:
-                        if image.shape[0] != 3:
-                            raise InvalidImageError(f"Torch 3D images must have shape (3, H, W). Got {image.shape}.")
-                        if image.min().item() < 0.0 - tol or image.max().item() > 1.0 + tol:
-                            raise InvalidImageError(f"Image values must be in the range [0, 1]. Got min={image.min().item()} and max={image.max().item()} for position {pos}")
+                    is_torch_image(image, pos, tol)
                 else:
-                    raise InvalidImageError(f"Input must be a numpy array or a torch tensor, not {type(image)}.")
+                    raise InvalidImageError(
+                        f"Input must be a numpy array or a torch tensor, not {type(image)}."
+                    )
 
             return func(*args, **kwargs)
+
         return wrapper
     return decorator
 

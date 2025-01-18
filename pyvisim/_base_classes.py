@@ -3,6 +3,8 @@ import logging
 
 import numpy as np
 
+from ._utils import is_numpy_image
+
 class SimilarityMetric(abc.ABC):
     """
     Abstract base for all similarity encoders.
@@ -19,6 +21,8 @@ class SimilarityMetric(abc.ABC):
         :param image2: Second image
         :return: A similarity score
         """
+        is_numpy_image(image1, 0)
+        is_numpy_image(image2, 1)
         pass
 
 class FeatureExtractorBase(abc.ABC):
@@ -40,7 +44,8 @@ class FeatureExtractorBase(abc.ABC):
         :param image: Input image (NumPy array).
         :return: Feature descriptors (NumPy array).
         """
-        raise NotImplementedError
+        is_numpy_image(image, 0)
+        pass
 
     @property
     @abc.abstractmethod
@@ -48,4 +53,4 @@ class FeatureExtractorBase(abc.ABC):
         """
         The dimensionality (D) of each feature vector, i.e., shape[1] of the output.
         """
-        raise NotImplementedError
+        pass

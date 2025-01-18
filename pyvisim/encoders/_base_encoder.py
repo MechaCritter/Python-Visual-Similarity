@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
 import joblib
 
 from .._config import setup_logging, PICKLE_MODEL_FILES_PATH
@@ -99,7 +100,6 @@ def _tupleize_first_arg(func: Callable) -> Callable:
         return func(self, image_paths, *args, **kwargs)
     return wrapper
 
-# TODO: add weights for SIFT and ROOTSIFT also
 class _PretrainedModels(Enum):
     def load(self) -> object:
         """Loads the model from the file path"""
@@ -110,20 +110,31 @@ class _PretrainedModels(Enum):
 class KMeansWeights(_PretrainedModels):
     OXFORD102_K256_VGG16_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_pca.pkl"
     OXFORD102_K256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_no_pca.pkl"
+    OXFORD102_K256_ROOTSIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_pca.pkl"
+    OXFORD102_K256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_no_pca.pkl"
+    OXFORD102_K256_SIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_sift_pca.pkl"
+    OXFORD102_K256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_sift_no_pca.pkl"
 
-class _KMeansPCA(_PretrainedModels):
-    OXFORD102_PCA256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/pca_kmeans_k256_deep_features_vgg16_f2.pkl"
+class _PCA(_PretrainedModels):
+    OXFORD102_PCA256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_deep_features_vgg16_f2.pkl"
+    OXFORD102_PCA256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_root_sift_f2.pkl"
+    OXFORD102_PCA256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_sift_f2.pkl"
 
 class GMMWeights(_PretrainedModels):
     OXFORD102_K256_VGG16_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_pca.pkl"
     OXFORD102_K256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_no_pca.pkl"
-
-class _GMMPCA(_PretrainedModels):
-    OXFORD102_PCA256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/pca_gmm_k256_deep_features_vgg16_f2.pkl"
+    OXFORD102_K256_ROOTSIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_pca.pkl"
+    OXFORD102_K256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_no_pca.pkl"
+    OXFORD102_K256_SIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_sift_pca.pkl"
+    OXFORD102_K256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_sift_no_pca.pkl"
 
 _CLUSTERING_TO_PCA_MAPPING = {
-    KMeansWeights.OXFORD102_K256_VGG16_PCA: _KMeansPCA.OXFORD102_PCA256_VGG16,
-    GMMWeights.OXFORD102_K256_VGG16_PCA: _GMMPCA.OXFORD102_PCA256_VGG16
+    KMeansWeights.OXFORD102_K256_VGG16_PCA: _PCA.OXFORD102_PCA256_VGG16,
+    KMeansWeights.OXFORD102_K256_ROOTSIFT_PCA: _PCA.OXFORD102_PCA256_ROOTSIFT,
+    KMeansWeights.OXFORD102_K256_SIFT_PCA: _PCA.OXFORD102_PCA256_SIFT,
+    GMMWeights.OXFORD102_K256_VGG16_PCA: _PCA.OXFORD102_PCA256_VGG16,
+    GMMWeights.OXFORD102_K256_ROOTSIFT_PCA: _PCA.OXFORD102_PCA256_ROOTSIFT,
+    GMMWeights.OXFORD102_K256_SIFT_PCA: _PCA.OXFORD102_PCA256_SIFT
 }
 
 class ImageEncoderBase(SimilarityMetric):
@@ -174,14 +185,14 @@ class ImageEncoderBase(SimilarityMetric):
         self.feature_extractor = feature_extractor
 
         if weights is not None:
-            self.clustering_model = weights.load()
             if 'PCA' in weights.name:
                 self.pca = _CLUSTERING_TO_PCA_MAPPING[weights].load()
+            self.clustering_model = weights.load()
         else:
-            if clustering_model is not None:
-                self.clustering_model = clustering_model
             if pca is not None:
                 self.pca = pca
+            if clustering_model is not None:
+                self.clustering_model = clustering_model
 
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
@@ -218,24 +229,29 @@ class ImageEncoderBase(SimilarityMetric):
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
     @property
-    def clustering_model(self):
+    def clustering_model(self) -> KMeans | GaussianMixture:
         return self._clustering_model
 
     @clustering_model.setter
     def clustering_model(self, clustering_model):
         if self._pca:
-            if self._pca.n_components != self._clustering_model.n_features_in_:
+            if self._pca.n_components != clustering_model.n_features_in_:
                 if self.raise_error_when_pca_incompatible:
                     raise RuntimeError(f"PCA is incompatible with the new clustering model. "
                                     f"PCA input size: {self._pca.n_components}, "
-                                    f"New clustering model input size: {self._clustering_model.n_features_in_}. "
+                                    f"New clustering model input size: {clustering_model.n_features_in_}. "
                                     f"If you want the PCA to be reset to None instead, set raise_error_when_pca_incompatible=False.")
                 warnings.warn(f"PCA is incompatible with the new clustering model. "
                               f"PCA input size: {self._pca.n_components}, "
-                              f"New clustering model input size: {self._clustering_model.n_features_in_}. "
+                              f"New clustering model input size: {clustering_model.n_features_in_}. "
                               "PCA will be reset to None to avoid errors."
                               "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=False.")
                 self._pca = None
+        else:
+            if self._feature_extractor.output_dim != clustering_model.n_features_in_:
+                raise RuntimeError("Feature extractor output size has to match the clustering model input size. "
+                                f"Feature extractor has output size {self._feature_extractor.output_dim}, "
+                                f"while clustering model has input size {clustering_model.n_features_in_}")
         self._clustering_model = clustering_model
 
     @property
@@ -244,31 +260,29 @@ class ImageEncoderBase(SimilarityMetric):
 
     @pca.setter
     def pca(self, pca: PCA):
-        if not self._clustering_model:
-            raise ValueError("PCA cannot be set without an existing clustering model.")
-
         if pca.n_features_in_ != self._feature_extractor.output_dim:
-            raise ValueError("PCA input size has to match the feature extractor output size."
+            raise ValueError("PCA input size has to match the feature extractor output size. "
                              f"PCA model has input size {pca.n_features_in_}, "
                              f"while feature extractor has output size {self._feature_extractor.output_dim}")
 
-        if pca.n_components != self._clustering_model.n_features_in_:
-            raise ValueError("PCA input size has to match the clustering model input size."
-                             f"PCA model has input size {pca.n_components}, "
-                             f"while clustering model has input size {self._clustering_model.n_features_in_}")
+        if self._clustering_model is not None:
+            if pca.n_components != self._clustering_model.n_features_in_:
+                raise ValueError("PCA input size has to match the clustering model input size."
+                                 f"PCA model has input size {pca.n_components}, "
+                                 f"while clustering model has input size {self._clustering_model.n_features_in_}")
 
         self._pca = pca
 
     def learn(self, images: Iterable[np.ndarray], /, *, n_clusters: int, dim_reduction_factor: int=None, **kwargs) -> None:
         """
-        Learns the visual vocabulary from a collection of images.
+        Learns the visual vocabulary from the given images.
 
-        :param images: An iterable of images. First argument of the iterable is expected to be the image itself.
+        :param images: An iterable of images.
         :param n_clusters: Number of clusters to use for the clustering model
         :param dim_reduction_factor: If a value is provided, PCA will be used to reduce the dimensionality of the feature space
         :param kwargs: Additional arguments for the clustering model
         """
-        features = np.vstack([self.feature_extractor(image) for image, *_ in images])
+        features = np.vstack([self.feature_extractor(image) for image in images])
         print("[INFO] Learning the visual vocabulary with the following parameters:")
         print("   - Number of clusters:", n_clusters)
         print("   - Feature Extractor used:", self.feature_extractor.__class__.__name__)
@@ -278,7 +292,12 @@ class ImageEncoderBase(SimilarityMetric):
             self._pca = PCA(n_components=new_dim)
             self._pca.fit(features)
             features = self._pca.transform(features)
-        clustering_model = KMeans(n_clusters=n_clusters, **kwargs)
+        if self.__class__.__name__ == 'VLADEncoder':
+            clustering_model = KMeans(n_clusters=n_clusters, **kwargs)
+        elif self.__class__.__name__ == 'FisherVectorEncoder':
+            clustering_model = GaussianMixture(n_components=n_clusters, **kwargs, covariance_type='diag')
+        else:
+            raise ValueError("Unknown encoder class.")
         clustering_model.fit(features)
         self.clustering_model = clustering_model
 
@@ -317,6 +336,7 @@ class ImageEncoderBase(SimilarityMetric):
         :param images2: Second (batch of) image(s)
         :return: Similarity score. If image iterables are provided, a similarity matrix between two image batches is returned.
         """
+        super().similarity_score(images1, images2)
         vector1 = self.encode(images1)
         vector2 = self.encode(images2)
         result = self.similarity_func(vector1, vector2)

@@ -56,8 +56,8 @@ class Pipeline(SimilarityMetric):
             raise RuntimeError("Torch images are not supported yet.")
         if isinstance(images, np.ndarray) and images.ndim == 3:
             images = [images] # Handle single image case
-        images = tee(images, len(self.encoders))
-        for metric in self.encoders:
+        images_gen = tee(images, len(self.encoders))
+        for metric, images in zip(self.encoders, images_gen):
             a = metric.flatten # each encoder has to be flattened to be usable here. Saving the original state temporarily
             metric.flatten = True
             encodings = metric.encode(images) # Each of size (num_imgs, feature_dim)

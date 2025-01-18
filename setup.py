@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyvisim",
-    version="0.1.1rc",
+    version="0.1.2rc",
     author="Nhat Huy Vu",
     author_email="vunhathuy234@gmail.com",
     description="A Python library for image similarity analysis using Image Encoders and Neural Networks",
@@ -11,12 +11,18 @@ setup(
     url="https://github.com/MechaCritter/Python-Visual-Similarity",
     license="MIT",
     packages=find_packages(include=["pyvisim", "pyvisim.*"]),
+    include_package_data=True,  # Ensure package data is included
+    package_data={
+        "pyvisim": ["res/model_files/*.pkl", 'res/logging_config.yaml'],  # Include only these files
+    },
     python_requires=">=3.10",
     install_requires=[
-        "opencv-python",
         "h5py",
+        "joblib",
+        "matplotlib",
         "numpy",
         "opencv-python",
+        "pandas",
         "pyaml",
         "PyYAML",
         "scikit-learn",
@@ -24,7 +30,8 @@ setup(
         "seaborn",
         "torch",
         "torchvision",
-        "torchaudio"
+        "torchaudio",
+        "tqdm",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

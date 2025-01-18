@@ -25,6 +25,11 @@ _DATASET_ROOT = os.path.join(user_cache_dir("pyvisim"), "oxford_flower_dataset")
 _IMAGE_DIR = os.path.join(_DATASET_ROOT, "images/jpg")
 _IMAGE_LABEL_FILE = os.path.join(_DATASET_ROOT, "labels.mat")
 _SETID_FILE = os.path.join(_DATASET_ROOT, "setid.mat")
+_FILES_FLOWER_DATA = {
+    "images": "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/102flowers.tgz",
+    "labels": "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/imagelabels.mat",
+    "setid": "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/setid.mat"
+}
 OXFORD_NUM_IMAGES = 8189
 NUM_TEST_IMG = 6149
 NUM_TRAIN_IMG = 1020
@@ -147,7 +152,7 @@ def _check_data_integrity() -> bool:
         return False
     return True
 
-def download_oxford_flowers_data(destination: str=_DATASET_ROOT):
+def download_oxford_flowers_data():
     """
     Downloads the 102 flowers dataset and organizes it into the desired structure,
     under `destination/oxford_flower_dataset/`.
@@ -155,14 +160,8 @@ def download_oxford_flowers_data(destination: str=_DATASET_ROOT):
     logger.info("Starting download process for Oxford Flowers.")
     os.makedirs(_DATASET_ROOT, exist_ok=True)
 
-    files_to_download = {
-        "images": "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/102flowers.tgz",
-        "labels": "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/imagelabels.mat",
-        "setid": "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/setid.mat"
-    }
-
     processes = []
-    for name, url in files_to_download.items():
+    for name, url in _FILES_FLOWER_DATA.items():
         file_path = os.path.join(_DATASET_ROOT, f"{name}{os.path.splitext(url)[-1]}")
         p = Process(target=_download_and_process_file, args=(url, file_path, _DATASET_ROOT))
         processes.append(p)
@@ -190,6 +189,8 @@ class OxfordFlowerDataset(Dataset):
     def __init__(self,
                  transform: Optional[transforms.Compose] = None,
                  purpose: str | list[str] = 'train') -> None:
+        if transform is not None:
+            raise NotImplementedError("Transformations are not yet supported.")
         self.transform = transform
         self.purpose = [purpose] if isinstance(purpose, str) else purpose
         if len(set(self.purpose)) < len(self.purpose):

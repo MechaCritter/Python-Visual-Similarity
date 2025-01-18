@@ -69,6 +69,16 @@ class VLADEncoder(ImageEncoderBase):
                          pca,
                          raise_error_when_pca_incompatible)
 
+    @property
+    def clustering_model(self):
+        return ImageEncoderBase.clustering_model.fget(self)
+
+    @clustering_model.setter
+    def clustering_model(self, model):
+        if not isinstance(model, KMeans):
+            raise ValueError(f"The clustering model must be an instance of KMeans, not {type(model)}")
+        ImageEncoderBase.clustering_model.fset(self, model)
+
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []
         if isinstance(images, torch.Tensor):
