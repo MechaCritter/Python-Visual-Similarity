@@ -1,3 +1,0 @@
-# TODO:
-
-Implement Siamese Network.

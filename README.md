@@ -36,7 +36,7 @@ at the Technical University of Munich.
 1. **Image Retrieval**  
    Retrieve the top-k most similar images from a dataset.  
    - Use encoding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
-   [this juptyer notebook](examples/vlad_fisher_with_vgg16_embeddings_image_retrieval.ipynb) for an example.
+   [this juptyer notebook](examples/introduction.ipynb) for an example.
    - Example use: Building a fast image search engine for photo management software.
 
 2. **Deep Learning Embeddings**  
@@ -71,10 +71,10 @@ All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</
 have created a custom dataset class. To use this class, import it as follows:
 
 ```python
-from image_similarity.datasets import OxfordFlowerDataset
+from pyvisim.datasets import OxfordFlowerDataset
 ```
 In order to replicate the experiments done in this project, follow the preprocessing steps in
-the [datasets README](src/datasets/README.md).
+the [datasets README](pyvisim/datasets/README.md).
 
 ## Contributing
 

@@ -160,10 +160,12 @@ oxford_flower_dataset/
 data/
 logs/
 test_notebooks/
-src/(deprecated)/
-src/one_time_use.py
+pyvisim/(deprecated)/
+pyvisim/one_time_use.py
 doc/
 res/
+
+# Files to keep in the ignored folders
 !res/logging_config.yaml
 !res/logs/
 !res/images/

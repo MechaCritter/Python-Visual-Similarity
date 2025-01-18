@@ -1,2 +1,2 @@
-from src import encoders, utils
-from src.datasets import OxfordFlowerDataset
+from pyvisim import encoders, _utils
+from pyvisim.datasets import OxfordFlowerDataset
