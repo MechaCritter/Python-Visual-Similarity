@@ -7,7 +7,7 @@ import yaml
 # -Config for the dataset- #
 ROOT = pathlib.Path(__file__).parent.parent
 LOG_FILE_PATH = ROOT / "res/logs/log_msgs.log"
-PICKLE_MODEL_FILES_PATH = ROOT / "res/model_files/pickle_model_files"
+PICKLE_MODEL_FILES_PATH = ROOT / "pyvisim/res/model_files"
 
 # - Logging - #
 def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level=logging.INFO):
