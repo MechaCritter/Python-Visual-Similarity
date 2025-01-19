@@ -110,7 +110,7 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 ## Pretrained Models
 
 The following pretrained models are provided for clustering and dimensionality reduction. All clustering 
-models were trained with `k=256`. models were trained with `k=256`. The choice of `k` was made arbitrarily 
+models were trained with `k=256`. The choice of `k` was made arbitrarily 
 based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on. 
 Since higher values would take too long, I chose `k=256` as a balance between performance and computational cost.
 

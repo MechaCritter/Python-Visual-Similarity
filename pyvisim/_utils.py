@@ -17,7 +17,6 @@ import seaborn as sns
 import torch
 import torchvision.transforms.functional as TF
 from scipy.stats import pearsonr, spearmanr
-from segmentation_models_pytorch.utils.metrics import IoU
 from sklearn.cluster import KMeans, DBSCAN, SpectralClustering
 from sklearn.metrics import adjusted_rand_score, adjusted_mutual_info_score, rand_score
 from sklearn.linear_model import LinearRegression
@@ -309,40 +308,6 @@ def soft_dice_score(output: torch.Tensor,
     dice_score = (2.0 * intersection + smooth) / (cardinality + smooth).clamp_min(eps)
     return dice_score
 
-@check_is_image(kwarg_positions=(0, 1))
-def multiclass_iou(*, pred_mask: torch.Tensor=None, # Enforce keyword arguments because one can swap pred_mask and true_mask mistakenly
-                   true_mask: torch.Tensor=None,
-                   ignore_channels: list = None) -> torch.Tensor:
-    """
-    Compute Intersection over Union (IoU) for the predicted mask and the true mask.
-
-    :param pred_mask: predicted mask with shape (cls, H, W)
-    :param true_mask: true mask with shape (cls, H, W)
-    :param ignore_channels: list of channels to ignore (pass 0 to ignore background)
-
-    :return: IoU score
-
-    :raises ValueError: If the predicted mask is not a 3D tensor
-    :raises ValueError: If the shape of the predicted mask and the true mask is not the same
-    """
-    if not len(pred_mask.shape) == len(true_mask.shape) == 3:
-        raise ValueError("The predicted mask and the true mask should be 3D tensors with the same shape."
-                         f"Got shape: {pred_mask.shape} for prediction and {true_mask.shape} for ground truth.")
-
-    return IoU(ignore_channels=ignore_channels)(pred_mask, true_mask)
-
-
-def get_enum_member(cls_of_interest: str, enum_class: Type[Enum]) -> Optional[Enum]:
-    """
-    Retrieve an enum member by its name (case-insensitive) from a given enum class.
-
-    :param cls_of_interest: The name of the enum member to look up.
-    :param enum_class: The enum class to search within.
-
-    :returns: The corresponding enum member if found, otherwise None.
-    """
-    cls_name = cls_of_interest.upper()
-    return enum_class.__members__.get(cls_name)
 
 def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
@@ -953,32 +918,4 @@ def plot_image(image: np.ndarray | torch.Tensor, title: str = None) -> None:
     plt.axis('off')
     plt.show()
 
-
-@check_is_image()
-def denoise_mask(mask: np.ndarray, min_size: int) -> np.ndarray:
-    """
-    Denoises the input binary mask image by removing components smaller than the specified minimum size.
-
-    :param mask: Input binary mask (HxW)
-    :param min_size: Minimum pixel size for components to retain
-
-    :returns: Processed mask with only components of size >= min_size, retaining original class values.
-    """
-    filtered_mask = np.zeros_like(mask, dtype=np.uint8)
-
-    for class_value in np.unique(mask):
-        logging.debug("List of classes before being filtered: %s", class_value)
-        if class_value == 0:  # Skip the background class
-            continue
-
-        class_mask = np.where(mask == class_value, 255, 0).astype(
-            np.uint8)  # Classes of question are set to 255. The rest is 0.
-        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(class_mask, connectivity=4)
-        for i in range(1, num_labels):
-            component_size = stats[i, cv2.CC_STAT_AREA]
-            if component_size >= min_size:
-                filtered_mask[labels == i] = class_value
-
-    logging.debug("List of classes after being filtered: %s", np.unique(filtered_mask))
-    return filtered_mask
 

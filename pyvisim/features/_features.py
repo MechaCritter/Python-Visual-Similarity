@@ -30,7 +30,7 @@ def _check_output_shape(func) -> Callable:
     def wrapper(self, *args, **kwargs) -> np.ndarray:
         image = args[0]
         if isinstance(image, torch.Tensor):
-            raise TypeError(f"Currently, only Torch images are not supported yet. Please convert to NumPy.")
+            raise TypeError("Currently, only Torch images are not supported yet. Please convert to NumPy.")
         feat_vecs = func(self, *args, **kwargs)
         if feat_vecs is None:
             print("No feature vectors found. Returning empty array.")
@@ -82,6 +82,7 @@ class SIFT(FeatureExtractorBase):
     def __repr__(self):
         return f"SIFT(output_dim={self.output_dim})"
 
+
 class RootSIFT(FeatureExtractorBase):
     """
     Scale-Invariant Feature Transform with Hellinger kernel (RootSIFT) normalizer.
@@ -99,7 +100,7 @@ class RootSIFT(FeatureExtractorBase):
         return self._output_dim
 
     @_check_output_shape
-    def __call__(self, image: np.ndarray,/) -> np.ndarray:
+    def __call__(self, image: np.ndarray, /) -> np.ndarray:
         """
         Extracts RootSIFT features from an image.
         :param image:

@@ -1,5 +1,6 @@
 import abc
 import logging
+from typing import Iterable
 
 import numpy as np
 
@@ -13,7 +14,7 @@ class SimilarityMetric(abc.ABC):
     """
     _logger = logging.getLogger('Similarity_Metrics')
     @abc.abstractmethod
-    def similarity_score(self, image1: np.ndarray, image2: np.ndarray) -> float:
+    def similarity_score(self, image1: Iterable[np.ndarray], image2: Iterable[np.ndarray]):
         """
         Compute a similarity score between two images.
 
@@ -21,8 +22,6 @@ class SimilarityMetric(abc.ABC):
         :param image2: Second image
         :return: A similarity score
         """
-        is_numpy_image(image1, 0)
-        is_numpy_image(image2, 1)
         pass
 
 class FeatureExtractorBase(abc.ABC):
@@ -37,7 +36,7 @@ class FeatureExtractorBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __call__(self, image: np.ndarray) -> np.ndarray:
+    def __call__(self, image: np.ndarray):
         """
         Extracts features from an image.
 

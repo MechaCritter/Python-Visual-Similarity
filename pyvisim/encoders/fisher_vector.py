@@ -1,4 +1,5 @@
 from typing import Callable, Iterable
+import warnings
 
 import numpy as np
 import torch
@@ -29,7 +30,7 @@ class FisherVectorEncoder(ImageEncoderBase):
     :param flatten: Whether to flatten the computed encoding vector (default: True).
     :param similarity_func: A function that takes two batches of vectors and returns a similarity score
     matrix with size (batch_1_size, batch_2_size).
-    :param pca: PCA model for dimensionality reduction (optional).
+    :param pca: PCA model from scikit-learn for dimensionality reduction (optional).
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
@@ -67,14 +68,16 @@ class FisherVectorEncoder(ImageEncoderBase):
                          raise_error_when_pca_incompatible)
 
     @property
-    def clustering_model(self):
+    def clustering_model(self) -> GaussianMixture:
         return ImageEncoderBase.clustering_model.fget(self)
 
     @clustering_model.setter
-    def clustering_model(self, model):
+    def clustering_model(self, model: GaussianMixture):
         if not isinstance(model, GaussianMixture):
             raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(model)}")
-        model.covariance_type = 'diag'
+        if model.covariance_type != 'diag':
+            warnings.warn("Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise.")
+            model.covariance_type = 'diag'
         ImageEncoderBase.clustering_model.fset(self, model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:

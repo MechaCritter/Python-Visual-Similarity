@@ -30,7 +30,7 @@ class VLADEncoder(ImageEncoderBase):
     :param flatten: Whether to flatten the computed descriptor vector (default: True).
     :param similarity_func: A function that takes two batches of vectors and returns a similarity score
     matrix with size (batch_1_size, batch_2_size).
-    :param pca: PCA model for dimensionality reduction (optional).
+    :param pca: PCA model from scikit-learn for dimensionality reduction (optional).
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
@@ -70,11 +70,11 @@ class VLADEncoder(ImageEncoderBase):
                          raise_error_when_pca_incompatible)
 
     @property
-    def clustering_model(self):
+    def clustering_model(self) -> KMeans:
         return ImageEncoderBase.clustering_model.fget(self)
 
     @clustering_model.setter
-    def clustering_model(self, model):
+    def clustering_model(self, model: KMeans):
         if not isinstance(model, KMeans):
             raise ValueError(f"The clustering model must be an instance of KMeans, not {type(model)}")
         ImageEncoderBase.clustering_model.fset(self, model)
