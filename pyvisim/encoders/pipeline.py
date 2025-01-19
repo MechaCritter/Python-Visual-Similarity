@@ -100,7 +100,7 @@ class Pipeline(SimilarityMetric):
         vector1 = self.encode(images1)
         vector2 = self.encode(images2)
         result = self.similarity_func(vector1, vector2)
-        return np.float_(result)
+        return np.float32(result)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
     #     """

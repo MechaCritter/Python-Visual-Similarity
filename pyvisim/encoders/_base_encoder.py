@@ -382,7 +382,7 @@ class ImageEncoderBase(SimilarityMetric):
         vector1 = self.encode(images1)
         vector2 = self.encode(images2)
         result = self.similarity_func(vector1, vector2)
-        return np.float_(result)
+        return np.float32(result)
 
     def __repr__(self) -> str:
         n_clusters = None

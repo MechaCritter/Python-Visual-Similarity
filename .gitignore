@@ -173,8 +173,5 @@ doc/
 res/
 
 # Files to keep in the ignored folders
-!res/logging_config.yaml
-!res/logs/
 !res/images/
 !pyvisim/res/
-

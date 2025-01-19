@@ -4,6 +4,25 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/logs" />
+      <excludeFolder url="file://$MODULE_DIR$/.cadence" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/.cadence" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea/dictionaries" />
+      <excludeFolder url="file://$MODULE_DIR$/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/build" />
+      <excludeFolder url="file://$MODULE_DIR$/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/doc" />
+      <excludeFolder url="file://$MODULE_DIR$/excavator_dataset_w_masks" />
+      <excludeFolder url="file://$MODULE_DIR$/pyvisim.egg-info" />
+      <excludeFolder url="file://$MODULE_DIR$/pyvisim/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/res/PyPi" />
+      <excludeFolder url="file://$MODULE_DIR$/res/confidence_vectors" />
+      <excludeFolder url="file://$MODULE_DIR$/res/fisher" />
+      <excludeFolder url="file://$MODULE_DIR$/res/model_files" />
+      <excludeFolder url="file://$MODULE_DIR$/res/model_performance" />
+      <excludeFolder url="file://$MODULE_DIR$/res/plots" />
+      <excludeFolder url="file://$MODULE_DIR$/res/similarity_matrix" />
+      <excludeFolder url="file://$MODULE_DIR$/res/ssim" />
+      <excludeFolder url="file://$MODULE_DIR$/res/vlad" />
       <excludePattern pattern=".venv" />
     </content>
     <orderEntry type="jdk" jdkName="conda_env" jdkType="Python SDK" />

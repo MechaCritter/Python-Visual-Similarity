@@ -1,16 +1,22 @@
 import logging
 import logging.config
 import pathlib
+import os
 
 import yaml
 
 # -Config for the dataset- #
 ROOT = pathlib.Path(__file__).parent.parent
-LOG_FILE_PATH = ROOT / "res/logs/log_msgs.log"
-PICKLE_MODEL_FILES_PATH = ROOT / "pyvisim/res/model_files"
+LOG_FOLDER = ROOT / "res/logs"
+os.makedirs(LOG_FOLDER, exist_ok=True)
+LOG_FILE_PATH = LOG_FOLDER / "log_msgs.log"
+
+RES_FOLDER  = ROOT / "pyvisim/res"
+PICKLE_MODEL_FILES_PATH = RES_FOLDER / "model_files"
+LOGGER_FILE = RES_FOLDER / "logging_config.yaml"
 
 # - Logging - #
-def setup_logging(default_path=rf"{ROOT}/res/logging_config.yaml", default_level=logging.INFO):
+def setup_logging(default_path=LOGGER_FILE, default_level=logging.WARNING):
     """Setup logging configuration"""
     try:
         with open(default_path, 'rt') as f:
