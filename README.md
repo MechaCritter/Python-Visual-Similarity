@@ -5,7 +5,7 @@
 
 <!-- Added badges to convey project readiness/branding (example placeholders) -->
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
-![Version](https://img.shields.io/badge/version-0.1.1rc-blue)
+![Version](https://img.shields.io/badge/version-0.1.2rc-blue)
 ![Status](https://img.shields.io/badge/status-pre--release-orange)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen)
 ![Contributions](https://img.shields.io/badge/contributions-welcome-brightgreen)
