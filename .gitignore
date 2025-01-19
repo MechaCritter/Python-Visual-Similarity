@@ -176,4 +176,5 @@ res/
 !res/logging_config.yaml
 !res/logs/
 !res/images/
+!pyvisim/res/
 
