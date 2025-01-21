@@ -1,0 +1,63 @@
+# logging_config.yaml
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  simple:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: simple
+    level: DEBUG
+    stream: ext://sys.stdout
+
+  file_handler:
+    class: logging.handlers.RotatingFileHandler
+    formatter: simple
+    level: INFO
+    filename: "%(LOG_FILE_PATH)s"
+    maxBytes: 256000 # 256KB
+    backupCount: 3
+
+loggers:
+  Data_Set:
+    level: WARNING
+    handlers: [console, file_handler]
+    propagate: no
+
+  VLAD_Vector:
+    level: WARNING
+    handlers: [console, file_handler]
+    propagate: no
+
+  Fisher_Vector:
+    level: WARNING
+    handlers: [console, file_handler]
+    propagate: no
+
+  UNet:
+    level: WARNING
+    handlers: [ console, file_handler]
+    propagate: no
+
+  DeepLabV3:
+    level: WARNING
+    handlers: [ console, file_handler]
+    propagate: no
+
+  Image_Feature_Extractor:
+    level: WARNING
+    handlers: [ console, file_handler]
+    propagate: no
+
+  Image_Processor:
+    level: WARNING
+    handlers: [ console, file_handler]
+    propagate: no
+
+
+root:
+  level: INFO
+  handlers: [console]
