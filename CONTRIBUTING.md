@@ -48,7 +48,7 @@ git switch -c my-branch
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.
-- Use `rST` docstrings and remember to annotate parameters and return values. An example:
+- Use `reST` docstrings and remember to annotate parameters and return values. An example:
 
 ```python
 def add(a: int, b: int) -> int:
