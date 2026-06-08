@@ -1,7 +1,6 @@
 """
 This module contains functions to evaluate the performance of a retrieval system.
 """
-from itertools import islice
 from typing import Iterable
 
 import numpy as np
