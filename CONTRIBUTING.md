@@ -22,8 +22,7 @@ Open an issue on [GitHub](https://github.com/MechaCritter/Python-Visual-Similari
 
 ## Set up developer environment
 
-This project uses [uv](https://github.com/astral-sh/uv) instead of `pip` for managing dependencies and virtual environments. For an installation guide, please check
-out  [Astral's official documentation](https://docs.astral.sh/uv/getting-started/installation/).
+This project uses [uv](https://github.com/astral-sh/uv) instead of `pip` for managing dependencies and virtual environments. For an installation guide, please check out [Astral's official documentation](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Prerequisites
 
