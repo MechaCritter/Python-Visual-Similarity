@@ -161,6 +161,9 @@ cython_debug/
 *.ipr
 .cadence
 
+# uv stuff
+uv.lock
+
 # Folders specific to this project
 excavator_dataset_w_masks/
 oxford_flower_dataset/
