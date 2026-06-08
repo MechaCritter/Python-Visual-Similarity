@@ -4,8 +4,7 @@ Thank you for your interest! Contributions of all kinds are welcome.
 
 ## Using AI to contribute
 
-I know, we all use Claude/Codex/OpenClaw and co. to help us write code faster. I am no exception. Just make 
-sure that you review the generated code carefully before you make your PR.
+I know, we all use Claude/Codex/OpenClaw and co. to help us write code faster. I am no exception. Just make sure that you review the generated code carefully before you make your PR.
 
 > [!IMPORTANT]
 > It is not difficult to detect an AI-generated PR that was not reviewed at all, and I will have to reject such PRs immediately because it shows you did not take time checking what the AI wrote 🙂.
