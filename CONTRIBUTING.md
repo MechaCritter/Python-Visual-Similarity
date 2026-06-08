@@ -2,6 +2,16 @@
 
 Thank you for your interest! Contributions of all kinds are welcome.
 
+
+## PR TODO list - your first PR
+
+Use this checklist to stay on track for your first code PR:
+
+- **Clone this repository**: see [Set up developer environment](#set-up-developer-environment) section.
+- **Check out the coding style**: see [Code style](#code-style) section.
+- **Run tests**: run `make test-types` before you make a PR.
+- **Open a PR** on GitHub.
+
 ## Using AI to contribute
 
 I know, we all use Claude/Codex/OpenClaw and co. to help us write code faster. I am no exception. Just make sure that you review the generated code carefully before you make your PR.
