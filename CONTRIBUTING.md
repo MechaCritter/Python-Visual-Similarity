@@ -9,7 +9,7 @@ Use this checklist to stay on track for your first code PR:
 
 - **Clone this repository**: see [Set up developer environment](#set-up-developer-environment) section.
 - **Check out the coding style**: see [Code style](#code-style) section.
-- **Run tests**: run `make test-types` before you make a PR.
+- **Run tests**: run `make test-types` and `make fmt` before you make a PR.
 - **Open a PR** on GitHub.
 
 ## Using AI to contribute
@@ -49,7 +49,11 @@ cd Python-Visual-Similarity
 uv venv .venv
 uv pip install -e .
 
-# 3. Check out your feature/bugfix branch
+# 3. Set up pre-commit hooks
+uv pip install pre-commit
+pre-commit install
+
+# 4. Check out your feature/bugfix branch
 git switch -c my-branch
 ```
 
