@@ -1,20 +1,20 @@
 import abc
-from collections.abc import Iterator, Iterable, MutableSequence
-from enum import Enum
-from functools import lru_cache, wraps
 import warnings
-from typing import Callable, Optional, Any, Union
+from collections.abc import Callable, Iterable, Iterator, MutableSequence
+from enum import Enum
+from functools import wraps
+from typing import Any
 
 import cv2
-import numpy as np
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-from sklearn.mixture import GaussianMixture
 import joblib
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.mixture import GaussianMixture
 
-from .._config import setup_logging, PICKLE_MODEL_FILES_PATH
-from ..features._features import FeatureExtractorBase
 from .._base_classes import SimilarityMetric
+from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
+from ..features._features import FeatureExtractorBase
 
 setup_logging()
 
@@ -44,11 +44,15 @@ def check_desired_output(
     try:
         out = similarity_func(vecs1, vecs2)
     except Exception as e:
-        warnings.warn(f"Similarity function threw an error: {e}. Falling back to row-wise loop.")
+        warnings.warn(
+            f"Similarity function threw an error: {e}. Falling back to row-wise loop."
+        )
         return _make_fallback_func(similarity_func)
 
     if not isinstance(out, np.ndarray):
-        warnings.warn(f"Expected a NumPy array, got {type(out)}. Using fallback method.")
+        warnings.warn(
+            f"Expected a NumPy array, got {type(out)}. Using fallback method."
+        )
         return _make_fallback_func(similarity_func)
 
     # Check shape
@@ -72,7 +76,7 @@ def check_desired_output(
 
 
 def _make_fallback_func(
-    sim_func: Callable[[np.ndarray, np.ndarray], Any]
+    sim_func: Callable[[np.ndarray, np.ndarray], Any],
 ) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
     """
     Returns a new function that loops row-by-row if the original
@@ -122,24 +126,40 @@ class _PretrainedModels(Enum):
 
 
 class KMeansWeights(_PretrainedModels):
-    OXFORD102_K256_VGG16_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_pca.pkl"
-    OXFORD102_K256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_no_pca.pkl"
-    OXFORD102_K256_ROOTSIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_pca.pkl"
-    OXFORD102_K256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_no_pca.pkl"
+    OXFORD102_K256_VGG16_PCA = (
+        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_pca.pkl"
+    )
+    OXFORD102_K256_VGG16 = (
+        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_no_pca.pkl"
+    )
+    OXFORD102_K256_ROOTSIFT_PCA = (
+        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_pca.pkl"
+    )
+    OXFORD102_K256_ROOTSIFT = (
+        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_no_pca.pkl"
+    )
     OXFORD102_K256_SIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_sift_pca.pkl"
     OXFORD102_K256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_sift_no_pca.pkl"
 
 
 class _PCA(_PretrainedModels):
-    OXFORD102_PCA256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_deep_features_vgg16_f2.pkl"
+    OXFORD102_PCA256_VGG16 = (
+        f"{PICKLE_MODEL_FILES_PATH}/pca_k256_deep_features_vgg16_f2.pkl"
+    )
     OXFORD102_PCA256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_root_sift_f2.pkl"
     OXFORD102_PCA256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_sift_f2.pkl"
 
 
 class GMMWeights(_PretrainedModels):
-    OXFORD102_K256_VGG16_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_pca.pkl"
-    OXFORD102_K256_VGG16 = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_no_pca.pkl"
-    OXFORD102_K256_ROOTSIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_pca.pkl"
+    OXFORD102_K256_VGG16_PCA = (
+        f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_pca.pkl"
+    )
+    OXFORD102_K256_VGG16 = (
+        f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_no_pca.pkl"
+    )
+    OXFORD102_K256_ROOTSIFT_PCA = (
+        f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_pca.pkl"
+    )
     OXFORD102_K256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_no_pca.pkl"
     OXFORD102_K256_SIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_sift_pca.pkl"
     OXFORD102_K256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_sift_no_pca.pkl"
@@ -184,14 +204,14 @@ class ImageEncoderBase(SimilarityMetric):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase = None,
-        weights: Union[KMeansWeights, GMMWeights] = None,
+        weights: KMeansWeights | GMMWeights = None,
         clustering_model=None,
         similarity_func: Callable[[np.ndarray, np.ndarray], float] = None,
         power_norm_weight: float = 1,
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        pca: Optional[PCA] = None,
+        pca: PCA | None = None,
         raise_error_when_pca_incompatible: bool = True,
     ):
         # Set important attributes via setters to trigger error handling
@@ -237,7 +257,10 @@ class ImageEncoderBase(SimilarityMetric):
                 )
         else:
             if self._clustering_model is not None:
-                if feature_extractor.output_dim != self._clustering_model.n_features_in_:
+                if (
+                    feature_extractor.output_dim
+                    != self._clustering_model.n_features_in_
+                ):
                     raise RuntimeError(
                         f"Feature Extractor outputs shape {feature_extractor.output_dim}, "
                         f"But clustering model accepts input dim {self._clustering_model.n_features_in_}"
@@ -308,7 +331,15 @@ class ImageEncoderBase(SimilarityMetric):
 
         self._pca = pca
 
-    def learn(self, images: Iterable[np.ndarray], /, *, n_clusters: int, dim_reduction_factor: int = None, **kwargs) -> None:
+    def learn(
+        self,
+        images: Iterable[np.ndarray],
+        /,
+        *,
+        n_clusters: int,
+        dim_reduction_factor: int = None,
+        **kwargs,
+    ) -> None:
         """
         Learns the visual vocabulary from the given images.
 
@@ -343,7 +374,9 @@ class ImageEncoderBase(SimilarityMetric):
 
     @_tupleize_first_arg
     # @lru_cache(maxsize=4)
-    def generate_encoding_map(self, image_paths: Iterable[str], /) -> dict[str, np.ndarray]:
+    def generate_encoding_map(
+        self, image_paths: Iterable[str], /
+    ) -> dict[str, np.ndarray]:
         """
         Converts a collection of image file paths into a dictionary of
         ``{image_path: encoded_vector}``.
@@ -355,7 +388,9 @@ class ImageEncoderBase(SimilarityMetric):
         :return: a dictionary where keys are image paths and values are descriptor vectors of the
                 corresponding images
         """
-        images = (cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths)
+        images = (
+            cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
+        )
         return dict(zip(image_paths, self.encode(images)))
 
     @abc.abstractmethod
@@ -369,7 +404,9 @@ class ImageEncoderBase(SimilarityMetric):
         raise NotImplementedError
 
     def similarity_score(
-        self, images1: Iterable[np.ndarray] | np.ndarray, images2: Iterable[np.ndarray] | np.ndarray
+        self,
+        images1: Iterable[np.ndarray] | np.ndarray,
+        images2: Iterable[np.ndarray] | np.ndarray,
     ) -> float:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
