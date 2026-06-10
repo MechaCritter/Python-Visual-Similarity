@@ -29,7 +29,9 @@ def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     x = x.reshape(1, -1) if len(x.shape) == 1 else x
     y = y.reshape(1, -1) if len(y.shape) == 1 else y
     if x.shape[-1] <= 1 or y.shape[-1] <= 1:
-        raise ValueError(f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y.")
+        raise ValueError(
+            f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y."
+        )
 
     return cs(x, y)
 
@@ -83,7 +85,10 @@ def cluster_and_return_labels(
         if n_clusters is None:
             raise ValueError("n_clusters must be specified for Spectral Clustering.")
         model = SpectralClustering(
-            n_clusters=n_clusters, affinity="nearest_neighbors", random_state=42, **kwargs
+            n_clusters=n_clusters,
+            affinity="nearest_neighbors",
+            random_state=42,
+            **kwargs,
         )
         return model.fit_predict(data)
 
@@ -153,9 +158,13 @@ def plot_and_save_heatmap(
         matrix = matrix.detach().cpu().numpy()
 
     figsize = (
-        matrix.shape[1] * 0.7,
-        matrix.shape[0] * 0.7,
-    ) if figsize is None else figsize
+        (
+            matrix.shape[1] * 0.7,
+            matrix.shape[0] * 0.7,
+        )
+        if figsize is None
+        else figsize
+    )
     plt.figure(figsize=figsize)
     sns.heatmap(
         matrix,
