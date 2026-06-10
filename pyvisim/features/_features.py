@@ -195,7 +195,7 @@ class DeepConvFeature(FeatureExtractorBase):
         target_submodule: str = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
-        device: str = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
         transform: transforms.Compose = None,
     ):
         super().__init__()
