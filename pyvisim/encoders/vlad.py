@@ -90,7 +90,7 @@ class VLADEncoder(ImageEncoderBase):
                 descriptors = self.pca.transform(descriptors.astype(np.float32))
 
             if descriptors is None or descriptors.shape[0] == 0:
-                return np.zeros(len(self.clustering_model.cluster_centers_) * descriptors.shape[1], dtype=np.float32)
+                raise ValueError("No descriptors found in the image. Cannot compute VLAD encoding.")
 
             labels = self.clustering_model.predict(descriptors.astype(np.float32))
             centroids = self.clustering_model.cluster_centers_
