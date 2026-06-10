@@ -5,7 +5,6 @@ from collections.abc import Iterable
 import numpy as np
 
 
-
 class SimilarityMetric(abc.ABC):
     """
     Abstract base for all similarity encoders.
