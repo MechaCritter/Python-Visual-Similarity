@@ -147,7 +147,15 @@ def plot_and_save_heatmap(
     :param show: whether to display the plot
     :param save_fig_path: Path to save the figure
     """
-    figsize = (len(matrix) * 0.7, len(matrix) * 0.7) if figsize is None else figsize
+    if isinstance(matrix, list):
+        matrix = np.array(matrix)
+    elif isinstance(matrix, torch.Tensor):
+        matrix = matrix.detach().cpu().numpy()
+
+    figsize = (
+        matrix.shape[1] * 0.7,
+        matrix.shape[0] * 0.7,
+    ) if figsize is None else figsize
     plt.figure(figsize=figsize)
     sns.heatmap(
         matrix,
