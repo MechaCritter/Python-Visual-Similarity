@@ -28,7 +28,7 @@ and the Siamese Neural Networks.
 
 ## Why `pyvisim`?
 
-`pyvisim` is designed to provide a simple and efficient way to compare images. 
+`pyvisim` is designed to provide a simple and efficient way to compare images.
 
 ### Quick Start
 
@@ -82,7 +82,7 @@ have any suggestions or questions!
 5. **Siamese Network (Coming Soon!)**  
    - Train a neural network to learn a similarity function directly from pairs/triples of images.  
    - Possible use cases include face recognition, signature verification, or any image-based identity matching.
-   
+
 ## Installation
 
 To use the library, you can simply install it via pip:
@@ -96,10 +96,10 @@ or clone the repository and install it locally:
 git clone https://github.com/MechaCritter/Python-Visual-Similarity.git
 cd Python-Visual-Similarity
 pip install .
-``` 
+```
 Note that the *notebooks are only available if you clone the repository.*
 
-All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</ref>, for which I 
+All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</ref>, for which I
 have created a custom dataset class. To use this class, import it as follows:
 
 ```python
@@ -109,9 +109,9 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 
 ## Pretrained Models
 
-The following pretrained models are provided for clustering and dimensionality reduction. All clustering 
-models were trained with `k=256`. The choice of `k` was made arbitrarily 
-based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on. 
+The following pretrained models are provided for clustering and dimensionality reduction. All clustering
+models were trained with `k=256`. The choice of `k` was made arbitrarily
+based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on.
 Since higher values would take too long, I chose `k=256` as a balance between performance and computational cost.
 
 ### KMeans Models
@@ -153,7 +153,7 @@ You can access these weights by importing `GMMWeights` from the `pyvisim.encoder
 
 ## Contributing
 
-We love contributions of all kinds—whether it’s suggesting new features, fixing bugs, or writing docs! Here’s how you 
+We love contributions of all kinds—whether it’s suggesting new features, fixing bugs, or writing docs! Here’s how you
 can get involved:
 
 1. **Fork** this repository.  
@@ -184,17 +184,16 @@ This project is licensed under the terms of the MIT license.
 
 ## References
 
-[1] Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng, "Refining Deep Convolutional Features for 
+[1] Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng, "Refining Deep Convolutional Features for
 Improving Fine-Grained Image Recognition," EURASIP Journal on Image and Video Processing, 2017. \
 [2] Relja Arandjelović and Andrew Zisserman, 'All About VLAD', Department of Engineering Science, University of Oxford. \
-[3] E. Spyromitros-Xioufis, S. Papadopoulos, I. Kompatsiaris, G. Tsoumakas, and I. Vlahavas, "An Empirical Study on the 
-Combination of SURF Features with VLAD Vectors for Image Search," Informatics and Telematics Institute, Center for Research and 
+[3] E. Spyromitros-Xioufis, S. Papadopoulos, I. Kompatsiaris, G. Tsoumakas, and I. Vlahavas, "An Empirical Study on the
+Combination of SURF Features with VLAD Vectors for Image Search," Informatics and Telematics Institute, Center for Research and
 Technology Hellas, Thessaloniki, Greece; Department of Informatics, Aristotle University of Thessaloniki, Greece. \
-[4] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of   
+[4] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of  
 Engineering Science, University of Oxford. \
-[5] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local 
+[5] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local
 Image Descriptors into Compact Codes," IEEE. \
-[6] Liangliang Wang and Deepu Rajan, "An Image Similarity Descriptor for Classification Tasks," J. Vis. Commun. 
+[6] Liangliang Wang and Deepu Rajan, "An Image Similarity Descriptor for Classification Tasks," J. Vis. Commun.
 Image R., vol. 71, pp. 102847, 2020. \
 [7] [Oxford Flower Dataset](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/).
-

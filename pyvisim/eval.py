@@ -1,19 +1,18 @@
 """
 This module contains functions to evaluate the performance of a retrieval system.
 """
-from typing import Iterable
+
+from collections.abc import Iterable
 
 import numpy as np
 
-from ._utils import *
+from ._utils import cosine_similarity
 
-__all__ = ['retrieve_top_k_similar', 'top_k_map', 'top_k_accuracy']
+__all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
+
 
 def retrieve_top_k_similar(
-    uploaded_image: np.ndarray,
-    dataset: dict[str, np.ndarray],
-    encoder,
-    k: int = 5
+    uploaded_image: np.ndarray, dataset: dict[str, np.ndarray], encoder, k: int = 5
 ) -> list[tuple[str, float]]:
     """
     Returns the top-k most similar images from 'dataset' to the 'uploaded_image'.
@@ -33,7 +32,7 @@ def retrieve_top_k_similar(
     if query_vector.ndim == 1:
         query_vector = query_vector.reshape(1, -1)
 
-    scores = cosine_similarity(query_vector, all_vectors)   # (1, N)
+    scores = cosine_similarity(query_vector, all_vectors)  # (1, N)
     scores = scores[0]
 
     sorted_indices = np.argsort(-scores)  # highest scores first
@@ -45,12 +44,14 @@ def retrieve_top_k_similar(
     return results
 
 
-def top_k_map(images: Iterable[np.ndarray],
-              image_labels: Iterable[int],
-              encoding_map: dict[str, np.ndarray],
-              path_labels_dict: dict[str, int],
-              encoder,
-              k: int=None) -> float:
+def top_k_map(
+    images: Iterable[np.ndarray],
+    image_labels: Iterable[int],
+    encoding_map: dict[str, np.ndarray],
+    path_labels_dict: dict[str, int],
+    encoder,
+    k: int = None,
+) -> float:
     """
     Computes mean Average Precision over the queries,
     based on whether retrieved images have matching labels.
@@ -63,7 +64,10 @@ def top_k_map(images: Iterable[np.ndarray],
     :param k: Number of top results to consider.
     :return: mAP
     """
-    all_vectors, all_paths = np.array(list(encoding_map.values())), list(encoding_map.keys())
+    all_vectors, all_paths = (
+        np.array(list(encoding_map.values())),
+        list(encoding_map.keys()),
+    )
 
     APs = []
     for query_img, true_label in zip(images, image_labels):
@@ -87,7 +91,7 @@ def top_k_map(images: Iterable[np.ndarray],
         for rank, path in enumerate(sorted_paths, start=1):
             if path_labels_dict[path] == true_label:
                 relevant_count += 1
-                precision_sum += (relevant_count / rank)
+                precision_sum += relevant_count / rank
 
         # If there are R relevant images in the entire dataset
         # average precision = sum(precision_at_i for each relevant i) / R
@@ -98,13 +102,14 @@ def top_k_map(images: Iterable[np.ndarray],
 
     return float(np.mean(APs))
 
+
 def top_k_accuracy(
     images: Iterable[np.ndarray],
     image_labels: Iterable[int],
     encoding_map: dict[str, np.ndarray],
     path_labels_dict: dict[str, int],
     encoder,
-    k: int
+    k: int,
 ) -> float:
     """
     Computes top-k accuracy. For each query, we look at the top-k
@@ -119,7 +124,10 @@ def top_k_accuracy(
     :param k: Number of top results to check for a correct match.
     :return: Top-k accuracy (float) in the range [0, 1].
     """
-    all_paths, all_vectors = list(encoding_map.keys()), np.array(list(encoding_map.values()))
+    all_paths, all_vectors = (
+        list(encoding_map.keys()),
+        np.array(list(encoding_map.values())),
+    )
     correct_count = 0
 
     for query_img, true_label in zip(images, image_labels):
@@ -128,7 +136,7 @@ def top_k_accuracy(
             q_vec = q_vec.reshape(1, -1)
 
         sims = cosine_similarity(q_vec, all_vectors)[0]
-        sorted_idx = np.argsort(-sims)[:k]               # top-k
+        sorted_idx = np.argsort(-sims)[:k]  # top-k
 
         # Check if any of the top-k share the query's label
         found_match = False
