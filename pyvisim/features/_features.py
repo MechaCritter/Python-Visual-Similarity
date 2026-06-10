@@ -225,7 +225,7 @@ class DeepConvFeature(FeatureExtractorBase):
             self._logger.info(
                 f"Selected layer: {self.selected_layer_name}, {self.selected_layer_module}"
             )
-        except IndexError:
+        except IndexError as e:
             info = (
                 ""
                 if target_submodule is None
@@ -234,7 +234,7 @@ class DeepConvFeature(FeatureExtractorBase):
             raise IndexError(
                 f"Model {self.model._get_name()} has only {len(self._conv_layers)} convolutional layers {info}"
                 f". Got layer_index={self.layer_index}."
-            )
+            ) from e
         self._output_dim = (
             self.selected_layer_module.out_channels + 2
             if self.spatial_encoding

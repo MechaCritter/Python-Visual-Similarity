@@ -101,7 +101,7 @@ def _make_fallback_func(
         raise RuntimeError(
             f"Row-wise operation was not possible with the given similarity function: {e}"
             "Your function is invalid."
-        )
+        ) from e
 
 
 def _tupleize_first_arg(func: Callable) -> Callable:
