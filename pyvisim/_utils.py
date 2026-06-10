@@ -43,7 +43,10 @@ def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
     """
     plt.figure(figsize=(10, 10))
     if isinstance(image, torch.Tensor):
-        image = image.permute(1, 2, 0)
+        image = image.detach().cpu()
+        if image.ndim == 3:
+            image = image.permute(1, 2, 0)
+        image = image.numpy()
     plt.imshow(image)
     plt.axis("off")
     plt.title(title)
