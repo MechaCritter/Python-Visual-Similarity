@@ -191,7 +191,7 @@ class DeepConvFeature(FeatureExtractorBase):
 
     def __init__(
         self,
-        model: torch.nn.Module = vgg16(weights=VGG16_Weights.DEFAULT),
+        model: torch.nn.Module | None = None,
         target_submodule: str = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
@@ -199,6 +199,8 @@ class DeepConvFeature(FeatureExtractorBase):
         transform: transforms.Compose = None,
     ):
         super().__init__()
+        if model is None:
+            model = vgg16(weights=VGG16_Weights.DEFAULT)
         self._model = None
         self.layer_index = layer_index
         self.spatial_encoding = spatial_encoding

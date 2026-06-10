@@ -41,7 +41,7 @@ class FisherVectorEncoder(ImageEncoderBase):
 
     def __init__(
         self,
-        feature_extractor: FeatureExtractorBase = RootSIFT(),
+        feature_extractor: FeatureExtractorBase | None = None,
         weights=None,
         gmm_model: GaussianMixture = None,
         power_norm_weight: float = 0.5,
@@ -52,6 +52,8 @@ class FisherVectorEncoder(ImageEncoderBase):
         pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ):
+        if feature_extractor is None:
+            feature_extractor = RootSIFT()
         if gmm_model is not None:
             if not isinstance(gmm_model, GaussianMixture):
                 raise ValueError(
