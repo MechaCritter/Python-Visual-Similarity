@@ -38,9 +38,6 @@ class FeatureExtractorBase(abc.ABC):
 
     _logger = logging.getLogger("Feature_Extractor")
 
-    def __init__(self):
-        pass
-
     @abc.abstractmethod
     def __call__(self, image: np.ndarray):
         """
