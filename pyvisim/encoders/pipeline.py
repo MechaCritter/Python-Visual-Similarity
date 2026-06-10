@@ -1,14 +1,13 @@
-from collections.abc import Iterator
 import logging
+from collections.abc import Callable, Iterable
 from itertools import tee
-from typing import Iterable, Callable
 
+import cv2
 import numpy as np
 import torch
-import cv2
 
-from ..encoders._base_encoder import ImageEncoderBase, SimilarityMetric
 from .._utils import cosine_similarity
+from ..encoders._base_encoder import ImageEncoderBase, SimilarityMetric
 from ._base_encoder import check_desired_output
 
 
@@ -25,11 +24,13 @@ class Pipeline(SimilarityMetric):
     :param similarity_func: A function that takes two batches of vectors and returns a similarity score
     matrix with size (batch_1_size, batch_2_size).
     """
+
     _logger = logging.getLogger("Pipeline")
+
     def __init__(
-            self,
-            encoders: list[ImageEncoderBase],
-            similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        self,
+        encoders: list[ImageEncoderBase],
+        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
@@ -42,7 +43,9 @@ class Pipeline(SimilarityMetric):
         """
         for encoder in encoders:
             if not isinstance(encoder, ImageEncoderBase):
-                raise ValueError(f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}")
+                raise ValueError(
+                    f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}"
+                )
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         """
@@ -55,17 +58,19 @@ class Pipeline(SimilarityMetric):
         if isinstance(images, torch.Tensor):
             raise RuntimeError("Torch images are not supported yet.")
         if isinstance(images, np.ndarray) and images.ndim == 3:
-            images = [images] # Handle single image case
+            images = [images]  # Handle single image case
         images_gen = tee(images, len(self.encoders))
         for metric, images in zip(self.encoders, images_gen):
-            a = metric.flatten # each encoder has to be flattened to be usable here. Saving the original state temporarily
+            a = metric.flatten  # each encoder has to be flattened to be usable here. Saving the original state temporarily
             metric.flatten = True
-            encodings = metric.encode(images) # Each of size (num_imgs, feature_dim)
+            encodings = metric.encode(images)  # Each of size (num_imgs, feature_dim)
             all_encodings.append(encodings)
             metric.flatten = a
         return np.hstack(all_encodings)
 
-    def generate_encoding_map(self, image_paths: Iterable[str]) -> dict[str, np.ndarray]:
+    def generate_encoding_map(
+        self, image_paths: Iterable[str]
+    ) -> dict[str, np.ndarray]:
         """
         Converts a collection of image file paths into a dictionary of
         ``{image_path: encoded_vector}``.
@@ -77,7 +82,9 @@ class Pipeline(SimilarityMetric):
         :return: a dictionary where keys are image paths and values are descriptor vectors of the
                 corresponding images
         """
-        images = (cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths)
+        images = (
+            cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
+        )
         return dict(zip(image_paths, self.encode(images)))
 
     @property
@@ -89,7 +96,11 @@ class Pipeline(SimilarityMetric):
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
-    def similarity_score(self, images1: Iterable[np.ndarray] | np.ndarray, images2: Iterable[np.ndarray] | np.ndarray) -> float:
+    def similarity_score(
+        self,
+        images1: Iterable[np.ndarray] | np.ndarray,
+        images2: Iterable[np.ndarray] | np.ndarray,
+    ) -> float:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 
@@ -123,6 +134,8 @@ class Pipeline(SimilarityMetric):
         of the encoders and the similarity function used.
         """
         encoders_str = "\n".join([str(encoder) for encoder in self.encoders])
-        return (f"Pipeline(\n"
-                f"encoders=[{encoders_str}],\n"
-                f"similarity_func={self._similarity_func.__name__ if hasattr(self._similarity_func, '__name__') else str(self._similarity_func)})")
+        return (
+            f"Pipeline(\n"
+            f"encoders=[{encoders_str}],\n"
+            f"similarity_func={self._similarity_func.__name__ if hasattr(self._similarity_func, '__name__') else str(self._similarity_func)})"
+        )

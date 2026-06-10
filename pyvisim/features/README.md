@@ -15,5 +15,4 @@ classification, clustering, retrieval or similarity comparison.
 
 ## Pipeline
 
-Input Image -> Feature Extraction Class / Method -> Embeddings 
-
+Input Image -> Feature Extraction Class / Method -> Embeddings
