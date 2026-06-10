@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from ._utils import *
+from ._utils import cosine_similarity
 
 __all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
 
