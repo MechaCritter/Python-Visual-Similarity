@@ -41,7 +41,7 @@ class FisherVectorEncoder(ImageEncoderBase):
 
     def __init__(
         self,
-        feature_extractor: FeatureExtractorBase = RootSIFT(),
+        feature_extractor: FeatureExtractorBase | None = None,
         weights=None,
         gmm_model: GaussianMixture = None,
         power_norm_weight: float = 0.5,
@@ -52,6 +52,8 @@ class FisherVectorEncoder(ImageEncoderBase):
         pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ):
+        if feature_extractor is None:
+            feature_extractor = RootSIFT()
         if gmm_model is not None:
             if not isinstance(gmm_model, GaussianMixture):
                 raise ValueError(
@@ -88,7 +90,8 @@ class FisherVectorEncoder(ImageEncoderBase):
             )
         if model.covariance_type != "diag":
             warnings.warn(
-                "Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise."
+                "Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise.",
+                stacklevel=2,
             )
             model.covariance_type = "diag"
         ImageEncoderBase.clustering_model.fset(self, model)

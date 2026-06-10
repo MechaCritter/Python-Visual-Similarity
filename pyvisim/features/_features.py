@@ -191,7 +191,7 @@ class DeepConvFeature(FeatureExtractorBase):
 
     def __init__(
         self,
-        model: torch.nn.Module = vgg16(weights=VGG16_Weights.DEFAULT),
+        model: torch.nn.Module | None = None,
         target_submodule: str = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
@@ -199,6 +199,8 @@ class DeepConvFeature(FeatureExtractorBase):
         transform: transforms.Compose = None,
     ):
         super().__init__()
+        if model is None:
+            model = vgg16(weights=VGG16_Weights.DEFAULT)
         self._model = None
         self.layer_index = layer_index
         self.spatial_encoding = spatial_encoding
@@ -225,7 +227,7 @@ class DeepConvFeature(FeatureExtractorBase):
             self._logger.info(
                 f"Selected layer: {self.selected_layer_name}, {self.selected_layer_module}"
             )
-        except IndexError:
+        except IndexError as e:
             info = (
                 ""
                 if target_submodule is None
@@ -234,7 +236,7 @@ class DeepConvFeature(FeatureExtractorBase):
             raise IndexError(
                 f"Model {self.model._get_name()} has only {len(self._conv_layers)} convolutional layers {info}"
                 f". Got layer_index={self.layer_index}."
-            )
+            ) from e
         self._output_dim = (
             self.selected_layer_module.out_channels + 2
             if self.spatial_encoding
