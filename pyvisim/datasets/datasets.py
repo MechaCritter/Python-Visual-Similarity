@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
 
-from pyvisim._config import *
+from pyvisim._config import setup_logging
 
 setup_logging()
 
