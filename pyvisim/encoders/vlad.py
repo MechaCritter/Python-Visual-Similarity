@@ -43,7 +43,7 @@ class VLADEncoder(ImageEncoderBase):
 
     def __init__(
         self,
-        feature_extractor: FeatureExtractorBase = RootSIFT(),
+        feature_extractor: FeatureExtractorBase | None = None,
         weights=None,
         kmeans_model: KMeans = None,
         power_norm_weight: float = 1,  # no paper found where power norm weight is used for VLAD
@@ -54,6 +54,8 @@ class VLADEncoder(ImageEncoderBase):
         pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ) -> None:
+        if feature_extractor is None:
+            feature_extractor = RootSIFT()
         if kmeans_model is not None:
             if not isinstance(kmeans_model, KMeans):
                 raise ValueError(
@@ -101,7 +103,9 @@ class VLADEncoder(ImageEncoderBase):
                 descriptors = self.pca.transform(descriptors.astype(np.float32))
 
             if descriptors is None or descriptors.shape[0] == 0:
-                raise ValueError("No descriptors found in the image. Cannot compute VLAD encoding.")
+                raise ValueError(
+                    "No descriptors found in the image. Cannot compute VLAD encoding."
+                )
 
             labels = self.clustering_model.predict(descriptors.astype(np.float32))
             centroids = self.clustering_model.cluster_centers_

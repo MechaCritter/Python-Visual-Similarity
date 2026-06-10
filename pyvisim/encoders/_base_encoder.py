@@ -45,13 +45,15 @@ def check_desired_output(
         out = similarity_func(vecs1, vecs2)
     except Exception as e:
         warnings.warn(
-            f"Similarity function threw an error: {e}. Falling back to row-wise loop."
+            f"Similarity function threw an error: {e}. Falling back to row-wise loop.",
+            stacklevel=2,
         )
         return _make_fallback_func(similarity_func)
 
     if not isinstance(out, np.ndarray):
         warnings.warn(
-            f"Expected a NumPy array, got {type(out)}. Using fallback method."
+            f"Expected a NumPy array, got {type(out)}. Using fallback method.",
+            stacklevel=2,
         )
         return _make_fallback_func(similarity_func)
 
@@ -68,7 +70,8 @@ def check_desired_output(
     if not shape_ok:
         warnings.warn(
             f"Output shape {out.shape} is not the expected (N, M). Expected output shape to be "
-            f"({vecs1.shape[0]}, {vecs2.shape[0]}). Using fallback."
+            f"({vecs1.shape[0]}, {vecs2.shape[0]}). Using fallback.",
+            stacklevel=2,
         )
         return _make_fallback_func(similarity_func)
 
@@ -98,7 +101,7 @@ def _make_fallback_func(
         raise RuntimeError(
             f"Row-wise operation was not possible with the given similarity function: {e}"
             "Your function is invalid."
-        )
+        ) from e
 
 
 def _tupleize_first_arg(func: Callable) -> Callable:
@@ -296,7 +299,8 @@ class ImageEncoderBase(SimilarityMetric):
                     f"PCA input size: {self._pca.n_components}, "
                     f"New clustering model input size: {clustering_model.n_features_in_}. "
                     "PCA will be reset to None to avoid errors."
-                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=False."
+                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=False.",
+                    stacklevel=2,
                 )
                 self._pca = None
         else:
@@ -391,7 +395,7 @@ class ImageEncoderBase(SimilarityMetric):
         images = (
             cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
         )
-        return dict(zip(image_paths, self.encode(images)))
+        return dict(zip(image_paths, self.encode(images), strict=True))
 
     @abc.abstractmethod
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
