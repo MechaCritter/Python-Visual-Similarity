@@ -395,7 +395,7 @@ class ImageEncoderBase(SimilarityMetric):
         images = (
             cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
         )
-        return dict(zip(image_paths, self.encode(images)))
+        return dict(zip(image_paths, self.encode(images), strict=True))
 
     @abc.abstractmethod
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
