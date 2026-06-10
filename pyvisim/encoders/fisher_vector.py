@@ -88,7 +88,8 @@ class FisherVectorEncoder(ImageEncoderBase):
             )
         if model.covariance_type != "diag":
             warnings.warn(
-                "Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise."
+                "Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise.",
+                stacklevel=2,
             )
             model.covariance_type = "diag"
         ImageEncoderBase.clustering_model.fset(self, model)
