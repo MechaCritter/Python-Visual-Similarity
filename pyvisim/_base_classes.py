@@ -4,7 +4,6 @@ from typing import Iterable
 
 import numpy as np
 
-from ._utils import is_numpy_image
 
 class SimilarityMetric(abc.ABC):
     """
@@ -43,7 +42,6 @@ class FeatureExtractorBase(abc.ABC):
         :param image: Input image (NumPy array).
         :return: Feature descriptors (NumPy array).
         """
-        is_numpy_image(image, 0)
         pass
 
     @property
