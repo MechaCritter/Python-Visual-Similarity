@@ -1,15 +1,15 @@
-from typing import Callable, Iterable
 import warnings
+from collections.abc import Callable, Iterable
 
 import numpy as np
 import torch
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
+from .._utils import cosine_similarity
+from ..encoders._base_encoder import ImageEncoderBase
 from ..features import RootSIFT
 from ..features._features import FeatureExtractorBase
-from ..encoders._base_encoder import ImageEncoderBase
-from .._utils import cosine_similarity
 
 
 class FisherVectorEncoder(ImageEncoderBase):
@@ -38,34 +38,43 @@ class FisherVectorEncoder(ImageEncoderBase):
     ==========
     [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
-    def __init__(self,
-                 feature_extractor: FeatureExtractorBase=RootSIFT(),
-                    weights=None,
-                 gmm_model: GaussianMixture=None,
-                 power_norm_weight: float = 0.5,
-                 norm_order: int = 2,
-                 epsilon: float = 1e-9,
-                 flatten: bool = True,
-                 similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
-                 pca: PCA = None,
-                 raise_error_when_pca_incompatible: bool = False):
+
+    def __init__(
+        self,
+        feature_extractor: FeatureExtractorBase = RootSIFT(),
+        weights=None,
+        gmm_model: GaussianMixture = None,
+        power_norm_weight: float = 0.5,
+        norm_order: int = 2,
+        epsilon: float = 1e-9,
+        flatten: bool = True,
+        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        pca: PCA = None,
+        raise_error_when_pca_incompatible: bool = False,
+    ):
         if gmm_model is not None:
             if not isinstance(gmm_model, GaussianMixture):
-                raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(gmm_model)}")
-            gmm_model.covariance_type = 'diag' # Otherwise, training will take forever
+                raise ValueError(
+                    f"The clustering model must be an instance of GaussianMixture, not {type(gmm_model)}"
+                )
+            gmm_model.covariance_type = "diag"  # Otherwise, training will take forever
         if weights is not None:
-            if (weights_class:=weights.__class__.__name__) != 'GMMWeights':
-                raise ValueError(f"You can only pass an instance of GMMWeights, not {weights_class}")
-        super().__init__(feature_extractor,
-                            weights,
-                         gmm_model,
-                         similarity_func,
-                         power_norm_weight,
-                         norm_order,
-                         epsilon,
-                         flatten,
-                         pca,
-                         raise_error_when_pca_incompatible)
+            if (weights_class := weights.__class__.__name__) != "GMMWeights":
+                raise ValueError(
+                    f"You can only pass an instance of GMMWeights, not {weights_class}"
+                )
+        super().__init__(
+            feature_extractor,
+            weights,
+            gmm_model,
+            similarity_func,
+            power_norm_weight,
+            norm_order,
+            epsilon,
+            flatten,
+            pca,
+            raise_error_when_pca_incompatible,
+        )
 
     @property
     def clustering_model(self) -> GaussianMixture:
@@ -74,10 +83,14 @@ class FisherVectorEncoder(ImageEncoderBase):
     @clustering_model.setter
     def clustering_model(self, model: GaussianMixture):
         if not isinstance(model, GaussianMixture):
-            raise ValueError(f"The clustering model must be an instance of GaussianMixture, not {type(model)}")
-        if model.covariance_type != 'diag':
-            warnings.warn("Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise.")
-            model.covariance_type = 'diag'
+            raise ValueError(
+                f"The clustering model must be an instance of GaussianMixture, not {type(model)}"
+            )
+        if model.covariance_type != "diag":
+            warnings.warn(
+                "Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise."
+            )
+            model.covariance_type = "diag"
         ImageEncoderBase.clustering_model.fset(self, model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
@@ -85,7 +98,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         if isinstance(images, torch.Tensor):
             raise RuntimeError("Torch images are not supported yet.")
         if isinstance(images, np.ndarray) and images.ndim == 3:
-            images = [images] # Handle single image case
+            images = [images]  # Handle single image case
         for image in images:
             descriptors = self.feature_extractor(image)
             if self.pca:
@@ -101,7 +114,10 @@ class FisherVectorEncoder(ImageEncoderBase):
             # Statistics necessary to compute GMM gradients wrt its parameters
             pp_sum = posterior_probabilities.mean(axis=0, keepdims=True).T
             pp_x = posterior_probabilities.T.dot(descriptors) / num_descriptors
-            pp_x_2 = posterior_probabilities.T.dot(np.power(descriptors, 2)) / num_descriptors
+            pp_x_2 = (
+                posterior_probabilities.T.dot(np.power(descriptors, 2))
+                / num_descriptors
+            )
 
             # Compute GMM gradients wrt its parameters
             d_pi = pp_sum.squeeze() - mixture_weights
@@ -124,8 +140,15 @@ class FisherVectorEncoder(ImageEncoderBase):
             descriptor_vector = descriptor_vector.reshape(1, -1)
 
             # Power normalization and L2 normalization
-            descriptor_vector = np.sign(descriptor_vector) * np.power(np.abs(descriptor_vector), self.power_norm_weight)
-            norm = np.linalg.norm(descriptor_vector, axis=1, ord=self.norm_order, keepdims=True) + self.epsilon
+            descriptor_vector = np.sign(descriptor_vector) * np.power(
+                np.abs(descriptor_vector), self.power_norm_weight
+            )
+            norm = (
+                np.linalg.norm(
+                    descriptor_vector, axis=1, ord=self.norm_order, keepdims=True
+                )
+                + self.epsilon
+            )
             descriptor_vector = descriptor_vector / norm
 
             if self.flatten:

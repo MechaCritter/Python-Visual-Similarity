@@ -1,13 +1,14 @@
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
 import numpy as np
 import torch
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
-from ..features._features import FeatureExtractorBase, RootSIFT
-from ..encoders._base_encoder import ImageEncoderBase
 from .._utils import cosine_similarity
+from ..encoders._base_encoder import ImageEncoderBase
+from ..features._features import FeatureExtractorBase, RootSIFT
+
 
 class VLADEncoder(ImageEncoderBase):
     """
@@ -39,34 +40,42 @@ class VLADEncoder(ImageEncoderBase):
     [2] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of Engineering Science, University of Oxford.
     [3] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
+
     def __init__(
-            self,
-            feature_extractor: FeatureExtractorBase=RootSIFT(),
-            weights=None,
-            kmeans_model: KMeans=None,
-            power_norm_weight: float = 1, # no paper found where power norm weight is used for VLAD
-            norm_order: int = 2,
-            epsilon: float = 1e-9,
-            flatten: bool = True,
-            similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
-            pca: PCA = None,
-            raise_error_when_pca_incompatible: bool = False) -> None:
+        self,
+        feature_extractor: FeatureExtractorBase = RootSIFT(),
+        weights=None,
+        kmeans_model: KMeans = None,
+        power_norm_weight: float = 1,  # no paper found where power norm weight is used for VLAD
+        norm_order: int = 2,
+        epsilon: float = 1e-9,
+        flatten: bool = True,
+        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        pca: PCA = None,
+        raise_error_when_pca_incompatible: bool = False,
+    ) -> None:
         if kmeans_model is not None:
             if not isinstance(kmeans_model, KMeans):
-                raise ValueError(f"The clustering model must be an instance of KMeans, not {type(kmeans_model)}")
+                raise ValueError(
+                    f"The clustering model must be an instance of KMeans, not {type(kmeans_model)}"
+                )
         if weights is not None:
-            if (weights_class:=weights.__class__.__name__) != 'KMeansWeights':
-                raise ValueError(f"You can only pass an instance of KMeansWeights, not {weights_class}")
-        super().__init__(feature_extractor,
-                         weights,
-                         kmeans_model,
-                         similarity_func,
-                         power_norm_weight,
-                         norm_order,
-                         epsilon,
-                         flatten,
-                         pca,
-                         raise_error_when_pca_incompatible)
+            if (weights_class := weights.__class__.__name__) != "KMeansWeights":
+                raise ValueError(
+                    f"You can only pass an instance of KMeansWeights, not {weights_class}"
+                )
+        super().__init__(
+            feature_extractor,
+            weights,
+            kmeans_model,
+            similarity_func,
+            power_norm_weight,
+            norm_order,
+            epsilon,
+            flatten,
+            pca,
+            raise_error_when_pca_incompatible,
+        )
 
     @property
     def clustering_model(self) -> KMeans:
@@ -75,7 +84,9 @@ class VLADEncoder(ImageEncoderBase):
     @clustering_model.setter
     def clustering_model(self, model: KMeans):
         if not isinstance(model, KMeans):
-            raise ValueError(f"The clustering model must be an instance of KMeans, not {type(model)}")
+            raise ValueError(
+                f"The clustering model must be an instance of KMeans, not {type(model)}"
+            )
         ImageEncoderBase.clustering_model.fset(self, model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
@@ -83,7 +94,7 @@ class VLADEncoder(ImageEncoderBase):
         if isinstance(images, torch.Tensor):
             raise RuntimeError("Torch images are not supported yet.")
         if isinstance(images, np.ndarray) and images.ndim == 3:
-            images = [images] # Handle single image case
+            images = [images]  # Handle single image case
         for image in images:
             descriptors = self.feature_extractor(image)
             if self.pca:
@@ -101,10 +112,18 @@ class VLADEncoder(ImageEncoderBase):
 
             for i, desc in enumerate(descriptors):
                 cluster_id = labels[i]
-                descriptor_vector[cluster_id] += (desc - centroids[cluster_id])
+                descriptor_vector[cluster_id] += desc - centroids[cluster_id]
 
-            descriptor_vector = np.sign(descriptor_vector) * np.abs(descriptor_vector) ** self.power_norm_weight
-            norms = np.linalg.norm(descriptor_vector, axis=1, ord=self.norm_order, keepdims=True) + self.epsilon
+            descriptor_vector = (
+                np.sign(descriptor_vector)
+                * np.abs(descriptor_vector) ** self.power_norm_weight
+            )
+            norms = (
+                np.linalg.norm(
+                    descriptor_vector, axis=1, ord=self.norm_order, keepdims=True
+                )
+                + self.epsilon
+            )
             descriptor_vector = descriptor_vector / norms
 
             if self.flatten:
