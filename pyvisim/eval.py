@@ -70,7 +70,7 @@ def top_k_map(
     )
 
     APs = []
-    for query_img, true_label in zip(images, image_labels):
+    for query_img, true_label in zip(images, image_labels, strict=True):
         query_vec = encoder.encode(query_img)
         if query_vec.ndim == 1:
             query_vec = query_vec.reshape(1, -1)
@@ -130,7 +130,7 @@ def top_k_accuracy(
     )
     correct_count = 0
 
-    for query_img, true_label in zip(images, image_labels):
+    for query_img, true_label in zip(images, image_labels, strict=True):
         q_vec = encoder.encode(query_img)
         if q_vec.ndim == 1:
             q_vec = q_vec.reshape(1, -1)

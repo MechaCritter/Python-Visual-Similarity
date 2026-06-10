@@ -60,7 +60,7 @@ class Pipeline(SimilarityMetric):
         if isinstance(images, np.ndarray) and images.ndim == 3:
             images = [images]  # Handle single image case
         images_gen = tee(images, len(self.encoders))
-        for metric, images in zip(self.encoders, images_gen):
+        for metric, images in zip(self.encoders, images_gen, strict=True):
             a = metric.flatten  # each encoder has to be flattened to be usable here. Saving the original state temporarily
             metric.flatten = True
             encodings = metric.encode(images)  # Each of size (num_imgs, feature_dim)
@@ -85,7 +85,7 @@ class Pipeline(SimilarityMetric):
         images = (
             cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
         )
-        return dict(zip(image_paths, self.encode(images)))
+        return dict(zip(image_paths, self.encode(images), strict=True))
 
     @property
     def similarity_func(self):
