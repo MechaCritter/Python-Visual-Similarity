@@ -207,7 +207,7 @@ def download_oxford_flowers_data() -> None:
     logger.info("Oxford Flowers dataset downloaded and processed successfully.")
 
 
-class OxfordFlowerDataset(Dataset):
+class OxfordFlowerDataset(Dataset[tuple[np.ndarray, int, str]]):
     """
     Oxford Flower Dataset. It can be found at: https://www.robots.ox.ac.uk/~vgg/data/flowers/102/index.html.
 

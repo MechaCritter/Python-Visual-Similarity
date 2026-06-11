@@ -142,7 +142,7 @@ def cluster_images_and_generate_statistics(
 
 
 def plot_and_save_heatmap(
-    matrix: list | np.ndarray | torch.Tensor,
+    matrix: list[Any] | np.ndarray | torch.Tensor,
     figsize: tuple[int, int] | None = None,
     x_tick_labels: list[str] | None = None,
     y_tick_labels: list[str] | None = None,
