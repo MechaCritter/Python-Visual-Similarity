@@ -282,6 +282,14 @@ class ImageEncoderBase(SimilarityMetric):
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
+    @property
+    def clustering_model(self) -> KMeans | GaussianMixture | None:
+        return self._clustering_model
+
+    @clustering_model.setter
+    def clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
+        self._set_clustering_model(clustering_model)
+
     def _set_clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
         """
         Validates the given clustering model against the current PCA or
