@@ -5,9 +5,10 @@ import torch
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
+from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
-from ..encoders._base_encoder import ImageEncoderBase
-from ..features._features import FeatureExtractorBase, RootSIFT
+from ..encoders._base_encoder import ImageEncoderBase, KMeansWeights
+from ..features._features import RootSIFT
 
 
 class VLADEncoder(ImageEncoderBase):
@@ -17,7 +18,7 @@ class VLADEncoder(ImageEncoderBase):
     then compares two VLAD descriptor vectors with a user-specified
     or default (cosine) similarity function.
 
-    The output when calling `compute_vector` has shape (num_clusters * feature_dim,).
+    The output when calling `encode` has shape (num_clusters * feature_dim,).
 
     You can use euclidean distance, manhattan distance, etc. as the similarity function.
 
@@ -44,13 +45,15 @@ class VLADEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights=None,
+        weights: KMeansWeights | None = None,
         kmeans_model: KMeans = None,
         power_norm_weight: float = 1,  # no paper found where power norm weight is used for VLAD
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
         pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ) -> None:
@@ -81,15 +84,15 @@ class VLADEncoder(ImageEncoderBase):
 
     @property
     def clustering_model(self) -> KMeans:
-        return ImageEncoderBase.clustering_model.fget(self)
+        return self._clustering_model
 
     @clustering_model.setter
-    def clustering_model(self, model: KMeans):
+    def clustering_model(self, model: KMeans) -> None:
         if not isinstance(model, KMeans):
             raise ValueError(
                 f"The clustering model must be an instance of KMeans, not {type(model)}"
             )
-        ImageEncoderBase.clustering_model.fset(self, model)
+        self._set_clustering_model(model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []
@@ -112,7 +115,7 @@ class VLADEncoder(ImageEncoderBase):
 
             k = len(centroids)
             dim = descriptors.shape[1]
-            descriptor_vector = np.zeros((k, dim), dtype=np.float32)
+            descriptor_vector: np.ndarray = np.zeros((k, dim), dtype=np.float32)
 
             for i, desc in enumerate(descriptors):
                 cluster_id = labels[i]

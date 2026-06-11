@@ -6,10 +6,10 @@ import torch
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
+from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
-from ..encoders._base_encoder import ImageEncoderBase
+from ..encoders._base_encoder import GMMWeights, ImageEncoderBase
 from ..features import RootSIFT
-from ..features._features import FeatureExtractorBase
 
 
 class FisherVectorEncoder(ImageEncoderBase):
@@ -20,7 +20,7 @@ class FisherVectorEncoder(ImageEncoderBase):
     (weights, means, and covariances) with respect to the feature descriptors extracted
     from the images. The representation is optionally power-normalized and L2-normalized.
 
-    The output when calling `compute_vector` has shape (2 * num_clusters * feature_dim + num_clusters,).
+    The output when calling `encode` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
     :param gmm_model: Gaussian Mixture Model instance from scikit-learn.
@@ -42,13 +42,15 @@ class FisherVectorEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights=None,
+        weights: GMMWeights | None = None,
         gmm_model: GaussianMixture = None,
         power_norm_weight: float = 0.5,
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
         pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ):
@@ -80,10 +82,10 @@ class FisherVectorEncoder(ImageEncoderBase):
 
     @property
     def clustering_model(self) -> GaussianMixture:
-        return ImageEncoderBase.clustering_model.fget(self)
+        return self._clustering_model
 
     @clustering_model.setter
-    def clustering_model(self, model: GaussianMixture):
+    def clustering_model(self, model: GaussianMixture) -> None:
         if not isinstance(model, GaussianMixture):
             raise ValueError(
                 f"The clustering model must be an instance of GaussianMixture, not {type(model)}"
@@ -94,7 +96,7 @@ class FisherVectorEncoder(ImageEncoderBase):
                 stacklevel=2,
             )
             model.covariance_type = "diag"
-        ImageEncoderBase.clustering_model.fset(self, model)
+        self._set_clustering_model(model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []
