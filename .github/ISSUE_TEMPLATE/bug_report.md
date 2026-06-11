@@ -27,6 +27,7 @@ If applicable, add screenshots to help explain your problem.
 - pyvisim version:
  - torch version (please also state with/without CUDA):
  - scikit-learn version:
+ - OpenCV version:
 
 **Additional context**
 Add any other context about the problem here.
