@@ -3,7 +3,7 @@ import warnings
 from collections.abc import Callable, Iterable, Iterator, MutableSequence
 from enum import Enum
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 import joblib
 import numpy as np
@@ -103,7 +103,7 @@ def _make_fallback_func(
         ) from e
 
 
-def _tupleize_first_arg(func: Callable) -> Callable:
+def _tupleize_first_arg[MethodT: Callable[..., Any]](func: MethodT) -> MethodT:
     """
     # TODO: currently, the param 'image_paths' param is hardcoded. This should be more general
     # to be able to handle any variable name
@@ -112,12 +112,12 @@ def _tupleize_first_arg(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(self, image_paths: Any, /, *args, **kwargs):
+    def wrapper(self: Any, image_paths: Any, /, *args: Any, **kwargs: Any) -> Any:
         if isinstance(image_paths, (Iterator, MutableSequence)):
             image_paths = tuple(image_paths)
         return func(self, image_paths, *args, **kwargs)
 
-    return wrapper
+    return cast(MethodT, wrapper)
 
 
 class _PretrainedModels(Enum):
@@ -207,7 +207,7 @@ class ImageEncoderBase(SimilarityMetric):
         self,
         feature_extractor: FeatureExtractorBase,
         weights: KMeansWeights | GMMWeights | None = None,
-        clustering_model=None,
+        clustering_model: KMeans | GaussianMixture | None = None,
         similarity_func: Callable[
             [np.ndarray, np.ndarray], np.ndarray
         ] = cosine_similarity,
@@ -248,7 +248,7 @@ class ImageEncoderBase(SimilarityMetric):
         return self._feature_extractor
 
     @feature_extractor.setter
-    def feature_extractor(self, feature_extractor: FeatureExtractorBase):
+    def feature_extractor(self, feature_extractor: FeatureExtractorBase) -> None:
         if not isinstance(feature_extractor, FeatureExtractorBase):
             raise TypeError(
                 f"feature_extractor must be an instance of FeatureExtractorBase, not {type(feature_extractor)}"
@@ -272,11 +272,13 @@ class ImageEncoderBase(SimilarityMetric):
         self._feature_extractor = feature_extractor
 
     @property
-    def similarity_func(self):
+    def similarity_func(self) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]):
+    def similarity_func(
+        self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]
+    ) -> None:
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
@@ -285,7 +287,7 @@ class ImageEncoderBase(SimilarityMetric):
         return self._clustering_model
 
     @clustering_model.setter
-    def clustering_model(self, clustering_model):
+    def clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
         self._set_clustering_model(clustering_model)
 
     def _set_clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
@@ -323,11 +325,11 @@ class ImageEncoderBase(SimilarityMetric):
         self._clustering_model = clustering_model
 
     @property
-    def pca(self):
+    def pca(self) -> PCA | None:
         return self._pca
 
     @pca.setter
-    def pca(self, pca: PCA):
+    def pca(self, pca: PCA) -> None:
         if pca.n_features_in_ != self._feature_extractor.output_dim:
             raise ValueError(
                 "PCA input size has to match the feature extractor output size. "
@@ -352,7 +354,7 @@ class ImageEncoderBase(SimilarityMetric):
         *,
         n_clusters: int,
         dim_reduction_factor: int | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Learns the visual vocabulary from the given images.
@@ -419,19 +421,18 @@ class ImageEncoderBase(SimilarityMetric):
         self,
         images1: Iterable[np.ndarray] | np.ndarray,
         images2: Iterable[np.ndarray] | np.ndarray,
-    ) -> float:
+    ) -> np.ndarray:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 
         :param images1: First (batch of) image(s)
         :param images2: Second (batch of) image(s)
-        :return: Similarity score. If image iterables are provided, a similarity matrix between two image batches is returned.
+        :return: Similarity matrix between the two image batches.
         """
-        # super().similarity_score(images1, images2)
         vector1 = self.encode(images1)
         vector2 = self.encode(images2)
         result = self.similarity_func(vector1, vector2)
-        return np.float32(result)
+        return np.asarray(result, dtype=np.float32)
 
     def __repr__(self) -> str:
         n_clusters = None

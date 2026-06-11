@@ -17,13 +17,13 @@ class SimilarityMetric(abc.ABC):
     @abc.abstractmethod
     def similarity_score(
         self, image1: Iterable[np.ndarray], image2: Iterable[np.ndarray]
-    ):
+    ) -> np.ndarray:
         """
         Compute a similarity score between two images.
 
         :param image1: First image
         :param image2: Second image
-        :return: A similarity score
+        :return: A similarity score matrix
         """
         pass
 
@@ -39,7 +39,7 @@ class FeatureExtractorBase(abc.ABC):
     _logger = logging.getLogger("Feature_Extractor")
 
     @abc.abstractmethod
-    def __call__(self, image: np.ndarray):
+    def __call__(self, image: np.ndarray, /) -> np.ndarray:
         """
         Extracts features from an image.
 

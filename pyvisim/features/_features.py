@@ -8,6 +8,7 @@ with optional spatial encoding.
 
 from collections.abc import Callable
 from functools import wraps
+from typing import Any, cast
 
 import cv2
 import numpy as np
@@ -21,20 +22,21 @@ from .._config import setup_logging
 setup_logging()
 
 
-def _check_output_shape(func) -> Callable:
+def _check_output_shape[ExtractorCallT: Callable[..., Any]](
+    func: ExtractorCallT,
+) -> ExtractorCallT:
     """
     Ensures the feature extractor output is a 2D NumPy array of shape
     (num_vectors, self.output_dim).
     """
 
     @wraps(func)
-    def wrapper(self, *args, **kwargs) -> np.ndarray:
-        image = args[0]
+    def wrapper(self: FeatureExtractorBase, image: np.ndarray, /) -> np.ndarray:
         if isinstance(image, torch.Tensor):
             raise TypeError(
                 "Currently, only Torch images are not supported yet. Please convert to NumPy."
             )
-        feat_vecs = func(self, *args, **kwargs)
+        feat_vecs = func(self, image)
         if feat_vecs is None:
             print("No feature vectors found. Returning empty array.")
             return np.zeros((0, self.output_dim), dtype=np.float32)
@@ -57,7 +59,7 @@ def _check_output_shape(func) -> Callable:
 
         return feat_vecs
 
-    return wrapper
+    return cast(ExtractorCallT, wrapper)
 
 
 class SIFT(FeatureExtractorBase):
@@ -89,7 +91,7 @@ class SIFT(FeatureExtractorBase):
         _, descriptors = sift.detectAndCompute(image, None)
         return descriptors
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"SIFT(output_dim={self.output_dim})"
 
 
@@ -125,7 +127,7 @@ class RootSIFT(FeatureExtractorBase):
             return np.asarray(np.sqrt(descriptors))
         return descriptors
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RootSIFT(output_dim={self.output_dim})"
 
 
@@ -253,7 +255,7 @@ class DeepConvFeature(FeatureExtractorBase):
         return self._model
 
     @model.setter
-    def model(self, model: torch.nn.Module):
+    def model(self, model: torch.nn.Module) -> None:
         if not isinstance(model, torch.nn.Module):
             raise TypeError(
                 f"Currently, only torch.nn.Module is supported. Got {type(model)} instead."
@@ -301,7 +303,7 @@ class DeepConvFeature(FeatureExtractorBase):
         to capture its output (feature map).
         """
 
-        def hook_fn(module, input, output):
+        def hook_fn(module: torch.nn.Module, input: Any, output: torch.Tensor) -> None:
             self.buffer = (
                 output.detach()
             )  # output shape: [batch_size, channels, height, width]
@@ -347,7 +349,7 @@ class DeepConvFeature(FeatureExtractorBase):
 
         return feature_map
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"DeepConvFeature(model={type(self.model).__name__}, layer_index={self.layer_index}, "
             f"spatial_encoding={self.spatial_encoding}, device={self.device}, "

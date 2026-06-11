@@ -8,7 +8,7 @@ from sklearn.mixture import GaussianMixture
 
 from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
-from ..encoders._base_encoder import ImageEncoderBase
+from ..encoders._base_encoder import GMMWeights, ImageEncoderBase
 from ..features import RootSIFT
 
 
@@ -42,7 +42,7 @@ class FisherVectorEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights=None,
+        weights: GMMWeights | None = None,
         gmm_model: GaussianMixture = None,
         power_norm_weight: float = 0.5,
         norm_order: int = 2,
@@ -85,7 +85,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         return self._clustering_model
 
     @clustering_model.setter
-    def clustering_model(self, model: GaussianMixture):
+    def clustering_model(self, model: GaussianMixture) -> None:
         if not isinstance(model, GaussianMixture):
             raise ValueError(
                 f"The clustering model must be an instance of GaussianMixture, not {type(model)}"

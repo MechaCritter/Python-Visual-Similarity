@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 import cv2
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ def cluster_and_return_labels(
     data: np.ndarray,
     method: Literal["kmeans", "dbscan", "spectral"] = "kmeans",
     n_clusters: int | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> np.ndarray:
     """
     Clusters 'data' using the specified method.
@@ -115,7 +115,7 @@ def cluster_images_and_generate_statistics(
     true_labels: np.ndarray,
     n_clusters: int,
     method: Literal["kmeans", "dbscan", "spectral"] = "kmeans",
-    **kwargs,
+    **kwargs: Any,
 ) -> dict[str, float]:
     """
     Clusters the given features and computes RI, ARI and NMI.

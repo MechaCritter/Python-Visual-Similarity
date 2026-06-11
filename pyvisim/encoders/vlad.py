@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 
 from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
-from ..encoders._base_encoder import ImageEncoderBase
+from ..encoders._base_encoder import ImageEncoderBase, KMeansWeights
 from ..features._features import RootSIFT
 
 
@@ -45,7 +45,7 @@ class VLADEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights=None,
+        weights: KMeansWeights | None = None,
         kmeans_model: KMeans = None,
         power_norm_weight: float = 1,  # no paper found where power norm weight is used for VLAD
         norm_order: int = 2,
@@ -87,7 +87,7 @@ class VLADEncoder(ImageEncoderBase):
         return self._clustering_model
 
     @clustering_model.setter
-    def clustering_model(self, model: KMeans):
+    def clustering_model(self, model: KMeans) -> None:
         if not isinstance(model, KMeans):
             raise ValueError(
                 f"The clustering model must be an instance of KMeans, not {type(model)}"

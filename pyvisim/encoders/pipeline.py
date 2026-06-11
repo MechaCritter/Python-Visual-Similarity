@@ -87,11 +87,13 @@ class Pipeline(SimilarityMetric):
         return dict(zip(image_paths, self.encode(images), strict=True))
 
     @property
-    def similarity_func(self):
+    def similarity_func(self) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]):
+    def similarity_func(
+        self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]
+    ) -> None:
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
@@ -99,18 +101,18 @@ class Pipeline(SimilarityMetric):
         self,
         images1: Iterable[np.ndarray] | np.ndarray,
         images2: Iterable[np.ndarray] | np.ndarray,
-    ) -> float:
+    ) -> np.ndarray:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 
         :param images1: First (batch of) image(s)
         :param images2: Second (batch of) image(s)
-        :return: Similarity score. If image iterables are provided, a similarity matrix between two image batches is returned.
+        :return: Similarity matrix between the two image batches.
         """
         vector1 = self.encode(images1)
         vector2 = self.encode(images2)
         result = self.similarity_func(vector1, vector2)
-        return np.float32(result)
+        return np.asarray(result, dtype=np.float32)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
     #     """

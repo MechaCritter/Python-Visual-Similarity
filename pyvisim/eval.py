@@ -3,6 +3,7 @@ This module contains functions to evaluate the performance of a retrieval system
 """
 
 from collections.abc import Iterable
+from typing import Protocol
 
 import numpy as np
 
@@ -11,8 +12,24 @@ from ._utils import cosine_similarity
 __all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
 
 
+class Encoder(Protocol):
+    """Any object that can encode images into vector representations."""
+
+    def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
+        """
+        Encodes one or more images into a batch of vector representations.
+
+        :param images: One image or an iterable of images.
+        :return: Vector representations of the given images.
+        """
+        ...
+
+
 def retrieve_top_k_similar(
-    uploaded_image: np.ndarray, dataset: dict[str, np.ndarray], encoder, k: int = 5
+    uploaded_image: np.ndarray,
+    dataset: dict[str, np.ndarray],
+    encoder: Encoder,
+    k: int = 5,
 ) -> list[tuple[str, float]]:
     """
     Returns the top-k most similar images from 'dataset' to the 'uploaded_image'.
@@ -49,7 +66,7 @@ def top_k_map(
     image_labels: Iterable[int],
     encoding_map: dict[str, np.ndarray],
     path_labels_dict: dict[str, int],
-    encoder,
+    encoder: Encoder,
     k: int | None = None,
 ) -> float:
     """
@@ -108,7 +125,7 @@ def top_k_accuracy(
     image_labels: Iterable[int],
     encoding_map: dict[str, np.ndarray],
     path_labels_dict: dict[str, int],
-    encoder,
+    encoder: Encoder,
     k: int,
 ) -> float:
     """
