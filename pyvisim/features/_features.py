@@ -192,7 +192,7 @@ class DeepConvFeature(FeatureExtractorBase):
     def __init__(
         self,
         model: torch.nn.Module | None = None,
-        target_submodule: str = None,
+        target_submodule: str | None = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
@@ -201,7 +201,7 @@ class DeepConvFeature(FeatureExtractorBase):
         super().__init__()
         if model is None:
             model = vgg16(weights=VGG16_Weights.DEFAULT)
-        self._model = None
+        self._model: torch.nn.Module
         self.layer_index = layer_index
         self.spatial_encoding = spatial_encoding
         self.device = device
@@ -260,7 +260,7 @@ class DeepConvFeature(FeatureExtractorBase):
             )
         self._model = model
 
-    def _get_submodule(self, submodule_name: str = None) -> torch.nn.Module:
+    def _get_submodule(self, submodule_name: str | None = None) -> torch.nn.Module:
         """
         Retrieves a submodule from a PyTorch model by name.
 

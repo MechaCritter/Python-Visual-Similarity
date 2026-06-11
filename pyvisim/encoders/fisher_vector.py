@@ -48,7 +48,9 @@ class FisherVectorEncoder(ImageEncoderBase):
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
         pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ):

@@ -29,7 +29,9 @@ class Pipeline(SimilarityMetric):
     def __init__(
         self,
         encoders: list[ImageEncoderBase],
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
@@ -89,7 +91,7 @@ class Pipeline(SimilarityMetric):
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], float]):
+    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]):
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 

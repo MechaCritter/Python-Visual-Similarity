@@ -13,7 +13,7 @@ from sklearn.mixture import GaussianMixture
 
 from .._base_classes import SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
-from .._utils import read_image_rgb
+from .._utils import cosine_similarity, read_image_rgb
 from ..features._features import FeatureExtractorBase
 
 setup_logging()
@@ -206,10 +206,12 @@ class ImageEncoderBase(SimilarityMetric):
 
     def __init__(
         self,
-        feature_extractor: FeatureExtractorBase = None,
-        weights: KMeansWeights | GMMWeights = None,
+        feature_extractor: FeatureExtractorBase,
+        weights: KMeansWeights | GMMWeights | None = None,
         clustering_model=None,
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = None,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
         power_norm_weight: float = 1,
         norm_order: int = 2,
         epsilon: float = 1e-9,
@@ -218,10 +220,10 @@ class ImageEncoderBase(SimilarityMetric):
         raise_error_when_pca_incompatible: bool = True,
     ):
         # Set important attributes via setters to trigger error handling
-        self._feature_extractor = None
+        self._feature_extractor: FeatureExtractorBase
         self._clustering_model = None
         self._pca = None
-        self._similarity_func = None
+        self._similarity_func: Callable[[np.ndarray, np.ndarray], np.ndarray]
 
         self.similarity_func = similarity_func
         self.feature_extractor = feature_extractor
@@ -275,7 +277,7 @@ class ImageEncoderBase(SimilarityMetric):
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], float]):
+    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]):
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
@@ -341,7 +343,7 @@ class ImageEncoderBase(SimilarityMetric):
         /,
         *,
         n_clusters: int,
-        dim_reduction_factor: int = None,
+        dim_reduction_factor: int | None = None,
         **kwargs,
     ) -> None:
         """

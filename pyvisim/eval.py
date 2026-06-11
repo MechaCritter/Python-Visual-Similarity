@@ -50,7 +50,7 @@ def top_k_map(
     encoding_map: dict[str, np.ndarray],
     path_labels_dict: dict[str, int],
     encoder,
-    k: int = None,
+    k: int | None = None,
 ) -> float:
     """
     Computes mean Average Precision over the queries,
