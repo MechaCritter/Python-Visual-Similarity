@@ -167,5 +167,6 @@ def top_k_accuracy(
         if found_match:
             correct_count += 1
 
-    topk_acc = correct_count / num_images
-    return float(topk_acc)
+    if num_images == 0:
+        return 0.0
+    return float(correct_count / num_images)
