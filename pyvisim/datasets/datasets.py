@@ -2,7 +2,6 @@ import logging
 import os
 from multiprocessing import Process
 
-import cv2
 import numpy as np
 import requests
 import scipy
@@ -12,6 +11,7 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from pyvisim._config import setup_logging
+from pyvisim._utils import read_image_rgb
 
 setup_logging()
 
@@ -319,7 +319,7 @@ class OxfordFlowerDataset(Dataset):
         img_path = self.image_paths[idx]
         label = self.labels[idx] if self.labels else -1
 
-        image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+        image = read_image_rgb(img_path)
 
         if self.transform:
             image = self.transform(image)

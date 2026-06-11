@@ -129,8 +129,10 @@ def top_k_accuracy(
         np.array(list(encoding_map.values())),
     )
     correct_count = 0
+    num_images = 0
 
     for query_img, true_label in zip(images, image_labels, strict=True):
+        num_images += 1
         q_vec = encoder.encode(query_img)
         if q_vec.ndim == 1:
             q_vec = q_vec.reshape(1, -1)
@@ -148,5 +150,5 @@ def top_k_accuracy(
         if found_match:
             correct_count += 1
 
-    topk_acc = correct_count / len(images)
+    topk_acc = correct_count / num_images
     return float(topk_acc)

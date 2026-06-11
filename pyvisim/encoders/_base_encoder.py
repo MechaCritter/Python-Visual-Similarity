@@ -5,7 +5,6 @@ from enum import Enum
 from functools import wraps
 from typing import Any
 
-import cv2
 import joblib
 import numpy as np
 from sklearn.cluster import KMeans
@@ -14,6 +13,7 @@ from sklearn.mixture import GaussianMixture
 
 from .._base_classes import SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
+from .._utils import read_image_rgb
 from ..features._features import FeatureExtractorBase
 
 setup_logging()
@@ -392,9 +392,7 @@ class ImageEncoderBase(SimilarityMetric):
         :return: a dictionary where keys are image paths and values are descriptor vectors of the
                 corresponding images
         """
-        images = (
-            cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
-        )
+        images = (read_image_rgb(path) for path in image_paths)
         return dict(zip(image_paths, self.encode(images), strict=True))
 
     @abc.abstractmethod

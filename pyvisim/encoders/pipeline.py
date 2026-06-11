@@ -2,11 +2,10 @@ import logging
 from collections.abc import Callable, Iterable
 from itertools import tee
 
-import cv2
 import numpy as np
 import torch
 
-from .._utils import cosine_similarity
+from .._utils import cosine_similarity, read_image_rgb
 from ..encoders._base_encoder import ImageEncoderBase, SimilarityMetric
 from ._base_encoder import check_desired_output
 
@@ -82,9 +81,7 @@ class Pipeline(SimilarityMetric):
         :return: a dictionary where keys are image paths and values are descriptor vectors of the
                 corresponding images
         """
-        images = (
-            cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
-        )
+        images = (read_image_rgb(path) for path in image_paths)
         return dict(zip(image_paths, self.encode(images), strict=True))
 
     @property

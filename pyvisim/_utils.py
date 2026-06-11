@@ -1,5 +1,6 @@
 from typing import Literal
 
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -11,6 +12,20 @@ from sklearn.metrics import (
     rand_score,
 )
 from sklearn.metrics.pairwise import cosine_similarity as cs
+
+
+def read_image_rgb(path: str) -> np.ndarray:
+    """
+    Read an image from disk and convert it to RGB.
+
+    :param path: Path to the image file.
+    :return: Image as a NumPy array (H, W, C) in RGB order.
+    :raises FileNotFoundError: If the image cannot be read from the given path.
+    """
+    image = cv2.imread(path)
+    if image is None:
+        raise FileNotFoundError(f"Could not read image at '{path}'.")
+    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
 def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
