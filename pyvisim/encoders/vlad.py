@@ -18,7 +18,7 @@ class VLADEncoder(ImageEncoderBase):
     then compares two VLAD descriptor vectors with a user-specified
     or default (cosine) similarity function.
 
-    The output when calling `compute_vector` has shape (num_clusters * feature_dim,).
+    The output when calling `encode` has shape (num_clusters * feature_dim,).
 
     You can use euclidean distance, manhattan distance, etc. as the similarity function.
 

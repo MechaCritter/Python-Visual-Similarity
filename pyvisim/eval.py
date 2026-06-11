@@ -36,7 +36,7 @@ def retrieve_top_k_similar(
 
     :param uploaded_image: Query image as a NumPy array (H x W x C).
     :param dataset: A dict mapping file paths to their feature vectors (np.ndarray).
-    :param encoder: An object that implements `compute_vector(img) -> np.ndarray`.
+    :param encoder: An object that implements `encode(img) -> np.ndarray`.
     :param k: Number of top similar images to return.
     :return: A list of (image_path, similarity_score) for the top-k matches, sorted descending by similarity.
     """
@@ -77,7 +77,7 @@ def top_k_map(
     :param image_labels: Corresponding labels for the query images.
     :param encoding_map: dict {img_path: feature_vector}
     :param path_labels_dict: dict {img_path: label}
-    :param encoder: Object with `compute_vector(img)
+    :param encoder: Object with `encode(img)
     :param k: Number of top results to consider.
     :return: mAP
     """
@@ -137,7 +137,7 @@ def top_k_accuracy(
     :param image_labels: List of true labels for each query image.
     :param encoding_map: dict {path: feature_vector}.
     :param path_labels_dict: dict {path: label}.
-    :param encoder: An object with `compute_vector(img) -> np.ndarray`.
+    :param encoder: An object with `encode(img) -> np.ndarray`.
     :param k: Number of top results to check for a correct match.
     :return: Top-k accuracy (float) in the range [0, 1].
     """

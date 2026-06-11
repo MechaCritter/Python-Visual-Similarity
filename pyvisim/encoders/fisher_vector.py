@@ -20,7 +20,7 @@ class FisherVectorEncoder(ImageEncoderBase):
     (weights, means, and covariances) with respect to the feature descriptors extracted
     from the images. The representation is optionally power-normalized and L2-normalized.
 
-    The output when calling `compute_vector` has shape (2 * num_clusters * feature_dim + num_clusters,).
+    The output when calling `encode` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
     :param gmm_model: Gaussian Mixture Model instance from scikit-learn.
