@@ -69,7 +69,7 @@ class SIFT(FeatureExtractorBase):
     [1] Lowe, D. G. (2004). Distinctive image features from scale-invariant keypoints.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._output_dim = 128
 
@@ -102,7 +102,7 @@ class RootSIFT(FeatureExtractorBase):
     [1] Arandjelovic, R., & Zisserman, A. (2012). Three things everyone should know to improve object retrieval.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._output_dim = 128
 
@@ -216,7 +216,7 @@ class DeepConvFeature(FeatureExtractorBase):
         self._conv_layers = self.list_conv_layers()
         if not self._conv_layers:
             raise ValueError(
-                f"No convolutional layers found in model {self.model._get_name()}."
+                f"No convolutional layers found in model {type(self.model).__name__}."
             )
 
         self.buffer = None
@@ -231,10 +231,10 @@ class DeepConvFeature(FeatureExtractorBase):
             info = (
                 ""
                 if target_submodule is None
-                else f" in submodule {self._modules._get_name()}"
+                else f" in submodule {type(self._modules).__name__}"
             )
             raise IndexError(
-                f"Model {self.model._get_name()} has only {len(self._conv_layers)} convolutional layers {info}"
+                f"Model {type(self.model).__name__} has only {len(self._conv_layers)} convolutional layers {info}"
                 f". Got layer_index={self.layer_index}."
             ) from e
         self._output_dim = (
@@ -270,12 +270,12 @@ class DeepConvFeature(FeatureExtractorBase):
             return self._model
         if not hasattr(self._model, submodule_name):
             raise AttributeError(
-                f"Model {self.model._get_name()} has no submodule named {submodule_name}."
+                f"Model {type(self.model).__name__} has no submodule named {submodule_name}."
             )
         submodule = getattr(self._model, submodule_name)
         if not isinstance(submodule, torch.nn.Module):
             raise TypeError(
-                f"Attribute {submodule_name} of model {self.model._get_name()} "
+                f"Attribute {submodule_name} of model {type(self.model).__name__} "
                 f"is not a torch.nn.Module, got {type(submodule)} instead."
             )
         return submodule
@@ -295,7 +295,7 @@ class DeepConvFeature(FeatureExtractorBase):
                 idx += 1
         return conv_layers
 
-    def _register_hook(self):
+    def _register_hook(self) -> None:
         """
         Registers a forward hook on the selected convolutional layer
         to capture its output (feature map).
@@ -349,7 +349,7 @@ class DeepConvFeature(FeatureExtractorBase):
 
     def __repr__(self):
         return (
-            f"DeepConvFeature(model={self.model._get_name()}, layer_index={self.layer_index}, "
+            f"DeepConvFeature(model={type(self.model).__name__}, layer_index={self.layer_index}, "
             f"spatial_encoding={self.spatial_encoding}, device={self.device}, "
             f"transform={self.transform}, selected_layer_name={self.selected_layer_name}, "
             f"selected_layer_module={self.selected_layer_module}, output_dim={self.output_dim})"

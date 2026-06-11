@@ -184,7 +184,7 @@ def _check_data_integrity() -> bool:
     return True
 
 
-def download_oxford_flowers_data():
+def download_oxford_flowers_data() -> None:
     """
     Downloads the 102 flowers dataset and organizes it into the desired structure,
     under `destination/oxford_flower_dataset/`.

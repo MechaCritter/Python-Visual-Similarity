@@ -288,7 +288,7 @@ class ImageEncoderBase(SimilarityMetric):
     def clustering_model(self, clustering_model):
         self._set_clustering_model(clustering_model)
 
-    def _set_clustering_model(self, clustering_model):
+    def _set_clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
         """
         Validates the given clustering model against the current PCA or
         feature extractor and stores it.

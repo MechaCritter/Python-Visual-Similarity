@@ -17,7 +17,10 @@ LOGGER_FILE = RES_FOLDER / "logging_config.yaml"
 
 
 # - Logging - #
-def setup_logging(default_path=LOGGER_FILE, default_level=logging.WARNING):
+def setup_logging(
+    default_path: str | pathlib.Path = LOGGER_FILE,
+    default_level: int = logging.WARNING,
+) -> None:
     """Setup logging configuration"""
     try:
         with open(default_path) as f:
