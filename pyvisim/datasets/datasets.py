@@ -249,7 +249,7 @@ class OxfordFlowerDataset(Dataset):
         :return: List of labels.
         """
         mat_data = scipy.io.loadmat(labels_file)
-        return mat_data["labels"].squeeze().tolist()
+        return [int(label) for label in mat_data["labels"].squeeze()]
 
     def _load_image_paths(self) -> list[str]:
         """

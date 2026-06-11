@@ -122,7 +122,7 @@ class RootSIFT(FeatureExtractorBase):
         _, descriptors = sift.detectAndCompute(image, None)
         if descriptors is not None:
             descriptors = descriptors / (descriptors.sum(axis=1, keepdims=True) + 1e-7)
-            descriptors = np.sqrt(descriptors)
+            return np.asarray(np.sqrt(descriptors))
         return descriptors
 
     def __repr__(self):
@@ -138,7 +138,7 @@ class Lambda(FeatureExtractorBase):
     and output fixed-size feature vectors from each image.
     """
 
-    def __init__(self, func: Callable, output_dim: int):
+    def __init__(self, func: Callable[[np.ndarray], np.ndarray], output_dim: int):
         """
         Initializes the Lambda feature extractor.
         :param func:
@@ -272,7 +272,13 @@ class DeepConvFeature(FeatureExtractorBase):
             raise AttributeError(
                 f"Model {self.model._get_name()} has no submodule named {submodule_name}."
             )
-        return getattr(self._model, submodule_name)
+        submodule = getattr(self._model, submodule_name)
+        if not isinstance(submodule, torch.nn.Module):
+            raise TypeError(
+                f"Attribute {submodule_name} of model {self.model._get_name()} "
+                f"is not a torch.nn.Module, got {type(submodule)} instead."
+            )
+        return submodule
 
     def list_conv_layers(self) -> list[tuple[int, str, torch.nn.Module]]:
         """

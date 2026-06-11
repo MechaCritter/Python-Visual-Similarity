@@ -48,7 +48,7 @@ def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
             f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y."
         )
 
-    return cs(x, y)
+    return np.asarray(cs(x, y))
 
 
 def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
@@ -89,12 +89,12 @@ def cluster_and_return_labels(
         if n_clusters is None:
             raise ValueError("n_clusters must be specified for KMeans.")
         model = KMeans(n_clusters=n_clusters, random_state=42, **kwargs)
-        return model.fit_predict(data)
+        return np.asarray(model.fit_predict(data))
 
     if method == "dbscan":
         # DBSCAN doesn't need n_clusters (but can accept eps, min_samples)
         model = DBSCAN(**kwargs)
-        return model.fit_predict(data)
+        return np.asarray(model.fit_predict(data))
 
     if method == "spectral":
         if n_clusters is None:
@@ -105,7 +105,7 @@ def cluster_and_return_labels(
             random_state=42,
             **kwargs,
         )
-        return model.fit_predict(data)
+        return np.asarray(model.fit_predict(data))
 
     raise ValueError(f"Unknown method: {method}")
 
