@@ -121,7 +121,7 @@ class RootSIFT(FeatureExtractorBase):
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
         if descriptors is not None:
-            descriptors /= descriptors.sum(axis=1, keepdims=True) + 1e-7
+            descriptors = descriptors / (descriptors.sum(axis=1, keepdims=True) + 1e-7)
             descriptors = np.sqrt(descriptors)
         return descriptors
 
