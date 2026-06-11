@@ -5,9 +5,9 @@ from itertools import tee
 import numpy as np
 import torch
 
+from .._base_classes import SimilarityMetric
 from .._utils import cosine_similarity, read_image_rgb
-from ..encoders._base_encoder import ImageEncoderBase, SimilarityMetric
-from ._base_encoder import check_desired_output
+from ._base_encoder import ImageEncoderBase, check_desired_output
 
 
 class Pipeline(SimilarityMetric):

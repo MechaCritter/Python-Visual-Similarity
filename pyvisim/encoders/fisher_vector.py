@@ -6,10 +6,10 @@ import torch
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
+from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
 from ..encoders._base_encoder import ImageEncoderBase
 from ..features import RootSIFT
-from ..features._features import FeatureExtractorBase
 
 
 class FisherVectorEncoder(ImageEncoderBase):
@@ -82,7 +82,7 @@ class FisherVectorEncoder(ImageEncoderBase):
 
     @property
     def clustering_model(self) -> GaussianMixture:
-        return ImageEncoderBase.clustering_model.fget(self)
+        return self._clustering_model
 
     @clustering_model.setter
     def clustering_model(self, model: GaussianMixture):
@@ -96,7 +96,7 @@ class FisherVectorEncoder(ImageEncoderBase):
                 stacklevel=2,
             )
             model.covariance_type = "diag"
-        ImageEncoderBase.clustering_model.fset(self, model)
+        self._set_clustering_model(model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []

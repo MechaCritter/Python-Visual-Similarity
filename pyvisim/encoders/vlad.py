@@ -5,9 +5,10 @@ import torch
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
+from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
 from ..encoders._base_encoder import ImageEncoderBase
-from ..features._features import FeatureExtractorBase, RootSIFT
+from ..features._features import RootSIFT
 
 
 class VLADEncoder(ImageEncoderBase):
@@ -83,7 +84,7 @@ class VLADEncoder(ImageEncoderBase):
 
     @property
     def clustering_model(self) -> KMeans:
-        return ImageEncoderBase.clustering_model.fget(self)
+        return self._clustering_model
 
     @clustering_model.setter
     def clustering_model(self, model: KMeans):
@@ -91,7 +92,7 @@ class VLADEncoder(ImageEncoderBase):
             raise ValueError(
                 f"The clustering model must be an instance of KMeans, not {type(model)}"
             )
-        ImageEncoderBase.clustering_model.fset(self, model)
+        self._set_clustering_model(model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
         all_encodings = []

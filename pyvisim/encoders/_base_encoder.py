@@ -11,10 +11,9 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 
-from .._base_classes import SimilarityMetric
+from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
 from .._utils import cosine_similarity, read_image_rgb
-from ..features._features import FeatureExtractorBase
 
 setup_logging()
 
@@ -221,8 +220,8 @@ class ImageEncoderBase(SimilarityMetric):
     ):
         # Set important attributes via setters to trigger error handling
         self._feature_extractor: FeatureExtractorBase
-        self._clustering_model = None
-        self._pca = None
+        self._clustering_model: KMeans | GaussianMixture | None = None
+        self._pca: PCA | None = None
         self._similarity_func: Callable[[np.ndarray, np.ndarray], np.ndarray]
 
         self.similarity_func = similarity_func
@@ -287,6 +286,15 @@ class ImageEncoderBase(SimilarityMetric):
 
     @clustering_model.setter
     def clustering_model(self, clustering_model):
+        self._set_clustering_model(clustering_model)
+
+    def _set_clustering_model(self, clustering_model):
+        """
+        Validates the given clustering model against the current PCA or
+        feature extractor and stores it.
+
+        :param clustering_model: Clustering model to validate and store.
+        """
         if self._pca:
             if self._pca.n_components != clustering_model.n_features_in_:
                 if self.raise_error_when_pca_incompatible:
