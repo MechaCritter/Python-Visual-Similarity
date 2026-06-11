@@ -86,7 +86,6 @@ class SIFT(FeatureExtractorBase):
         :param image:
         :return:
         """
-        super().__call__(image)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
         return descriptors
@@ -119,7 +118,6 @@ class RootSIFT(FeatureExtractorBase):
         :param image:
         :return:
         """
-        super().__call__(image)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
         if descriptors is not None:
@@ -160,7 +158,6 @@ class Lambda(FeatureExtractorBase):
 
     @_check_output_shape
     def __call__(self, image: np.ndarray, /) -> np.ndarray:
-        super().__call__(image)
         return self.func(image)
 
 
@@ -322,7 +319,6 @@ class DeepConvFeature(FeatureExtractorBase):
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
                  D = number_of_channels (+ 2 if spatial coords are appended).
         """
-        super().__call__(image)
         image = self.transform(image).unsqueeze(0).to(self.device)
 
         self.model.eval()
