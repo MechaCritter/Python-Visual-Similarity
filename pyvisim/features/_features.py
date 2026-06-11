@@ -8,6 +8,7 @@ with optional spatial encoding.
 
 from collections.abc import Callable
 from functools import wraps
+from typing import Any, cast
 
 import cv2
 import numpy as np
@@ -21,20 +22,21 @@ from .._config import setup_logging
 setup_logging()
 
 
-def _check_output_shape(func) -> Callable:
+def _check_output_shape[ExtractorCallT: Callable[..., Any]](
+    func: ExtractorCallT,
+) -> ExtractorCallT:
     """
     Ensures the feature extractor output is a 2D NumPy array of shape
     (num_vectors, self.output_dim).
     """
 
     @wraps(func)
-    def wrapper(self, *args, **kwargs) -> np.ndarray:
-        image = args[0]
+    def wrapper(self: FeatureExtractorBase, image: np.ndarray, /) -> np.ndarray:
         if isinstance(image, torch.Tensor):
             raise TypeError(
                 "Currently, only Torch images are not supported yet. Please convert to NumPy."
             )
-        feat_vecs = func(self, *args, **kwargs)
+        feat_vecs = func(self, image)
         if feat_vecs is None:
             print("No feature vectors found. Returning empty array.")
             return np.zeros((0, self.output_dim), dtype=np.float32)
@@ -57,7 +59,7 @@ def _check_output_shape(func) -> Callable:
 
         return feat_vecs
 
-    return wrapper
+    return cast(ExtractorCallT, wrapper)
 
 
 class SIFT(FeatureExtractorBase):
@@ -69,7 +71,7 @@ class SIFT(FeatureExtractorBase):
     [1] Lowe, D. G. (2004). Distinctive image features from scale-invariant keypoints.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._output_dim = 128
 
@@ -84,12 +86,11 @@ class SIFT(FeatureExtractorBase):
         :param image:
         :return:
         """
-        super().__call__(image)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
         return descriptors
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"SIFT(output_dim={self.output_dim})"
 
 
@@ -102,7 +103,7 @@ class RootSIFT(FeatureExtractorBase):
     [1] Arandjelovic, R., & Zisserman, A. (2012). Three things everyone should know to improve object retrieval.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._output_dim = 128
 
@@ -117,15 +118,14 @@ class RootSIFT(FeatureExtractorBase):
         :param image:
         :return:
         """
-        super().__call__(image)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
         if descriptors is not None:
-            descriptors /= descriptors.sum(axis=1, keepdims=True) + 1e-7
-            descriptors = np.sqrt(descriptors)
+            descriptors = descriptors / (descriptors.sum(axis=1, keepdims=True) + 1e-7)
+            return np.asarray(np.sqrt(descriptors))
         return descriptors
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RootSIFT(output_dim={self.output_dim})"
 
 
@@ -138,7 +138,7 @@ class Lambda(FeatureExtractorBase):
     and output fixed-size feature vectors from each image.
     """
 
-    def __init__(self, func: Callable, output_dim: int):
+    def __init__(self, func: Callable[[np.ndarray], np.ndarray], output_dim: int):
         """
         Initializes the Lambda feature extractor.
         :param func:
@@ -158,7 +158,6 @@ class Lambda(FeatureExtractorBase):
 
     @_check_output_shape
     def __call__(self, image: np.ndarray, /) -> np.ndarray:
-        super().__call__(image)
         return self.func(image)
 
 
@@ -192,7 +191,7 @@ class DeepConvFeature(FeatureExtractorBase):
     def __init__(
         self,
         model: torch.nn.Module | None = None,
-        target_submodule: str = None,
+        target_submodule: str | None = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
@@ -201,7 +200,7 @@ class DeepConvFeature(FeatureExtractorBase):
         super().__init__()
         if model is None:
             model = vgg16(weights=VGG16_Weights.DEFAULT)
-        self._model = None
+        self._model: torch.nn.Module
         self.layer_index = layer_index
         self.spatial_encoding = spatial_encoding
         self.device = device
@@ -216,10 +215,10 @@ class DeepConvFeature(FeatureExtractorBase):
         self._conv_layers = self.list_conv_layers()
         if not self._conv_layers:
             raise ValueError(
-                f"No convolutional layers found in model {self.model._get_name()}."
+                f"No convolutional layers found in model {type(self.model).__name__}."
             )
 
-        self.buffer = None
+        self.buffer: torch.Tensor | None = None
         try:
             _, self.selected_layer_name, self.selected_layer_module = self._conv_layers[
                 self.layer_index
@@ -231,10 +230,10 @@ class DeepConvFeature(FeatureExtractorBase):
             info = (
                 ""
                 if target_submodule is None
-                else f" in submodule {self._modules._get_name()}"
+                else f" in submodule {type(self._modules).__name__}"
             )
             raise IndexError(
-                f"Model {self.model._get_name()} has only {len(self._conv_layers)} convolutional layers {info}"
+                f"Model {type(self.model).__name__} has only {len(self._conv_layers)} convolutional layers {info}"
                 f". Got layer_index={self.layer_index}."
             ) from e
         self._output_dim = (
@@ -253,14 +252,14 @@ class DeepConvFeature(FeatureExtractorBase):
         return self._model
 
     @model.setter
-    def model(self, model: torch.nn.Module):
+    def model(self, model: torch.nn.Module) -> None:
         if not isinstance(model, torch.nn.Module):
             raise TypeError(
                 f"Currently, only torch.nn.Module is supported. Got {type(model)} instead."
             )
         self._model = model
 
-    def _get_submodule(self, submodule_name: str = None) -> torch.nn.Module:
+    def _get_submodule(self, submodule_name: str | None = None) -> torch.nn.Module:
         """
         Retrieves a submodule from a PyTorch model by name.
 
@@ -270,18 +269,24 @@ class DeepConvFeature(FeatureExtractorBase):
             return self._model
         if not hasattr(self._model, submodule_name):
             raise AttributeError(
-                f"Model {self.model._get_name()} has no submodule named {submodule_name}."
+                f"Model {type(self.model).__name__} has no submodule named {submodule_name}."
             )
-        return getattr(self._model, submodule_name)
+        submodule = getattr(self._model, submodule_name)
+        if not isinstance(submodule, torch.nn.Module):
+            raise TypeError(
+                f"Attribute {submodule_name} of model {type(self.model).__name__} "
+                f"is not a torch.nn.Module, got {type(submodule)} instead."
+            )
+        return submodule
 
-    def list_conv_layers(self) -> list[tuple[int, str, torch.nn.Module]]:
+    def list_conv_layers(self) -> list[tuple[int, str, torch.nn.Conv2d]]:
         """
         Utility function to collect convolutional layers (and sub-modules)
         from the model / chosen submodule.
 
         :return: List of (layer_index, layer_module) for each convolutional layer.
         """
-        conv_layers = []
+        conv_layers: list[tuple[int, str, torch.nn.Conv2d]] = []
         idx = 0
         for name, module in self._modules.named_modules():
             if isinstance(module, torch.nn.Conv2d):
@@ -289,13 +294,13 @@ class DeepConvFeature(FeatureExtractorBase):
                 idx += 1
         return conv_layers
 
-    def _register_hook(self):
+    def _register_hook(self) -> None:
         """
         Registers a forward hook on the selected convolutional layer
         to capture its output (feature map).
         """
 
-        def hook_fn(module, input, output):
+        def hook_fn(module: torch.nn.Module, input: Any, output: torch.Tensor) -> None:
             self.buffer = (
                 output.detach()
             )  # output shape: [batch_size, channels, height, width]
@@ -314,7 +319,6 @@ class DeepConvFeature(FeatureExtractorBase):
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
                  D = number_of_channels (+ 2 if spatial coords are appended).
         """
-        super().__call__(image)
         image = self.transform(image).unsqueeze(0).to(self.device)
 
         self.model.eval()
@@ -335,15 +339,15 @@ class DeepConvFeature(FeatureExtractorBase):
             for y in range(Hf):
                 for x in range(Wf):
                     coords.append([x / Wf, y / Hf])  # (x/Wf, y/Hf)
-            coords = np.array(coords, dtype=np.float32)  # shape: (Hf*Wf, 2)
+            coords_array = np.array(coords, dtype=np.float32)  # shape: (Hf*Wf, 2)
             # Concatenate
-            feature_map = np.hstack([feature_map, coords])  # shape: (Hf*Wf, C+2)
+            feature_map = np.hstack([feature_map, coords_array])  # shape: (Hf*Wf, C+2)
 
         return feature_map
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
-            f"DeepConvFeature(model={self.model._get_name()}, layer_index={self.layer_index}, "
+            f"DeepConvFeature(model={type(self.model).__name__}, layer_index={self.layer_index}, "
             f"spatial_encoding={self.spatial_encoding}, device={self.device}, "
             f"transform={self.transform}, selected_layer_name={self.selected_layer_name}, "
             f"selected_layer_module={self.selected_layer_module}, output_dim={self.output_dim})"

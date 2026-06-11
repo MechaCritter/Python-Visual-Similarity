@@ -2,13 +2,12 @@ import logging
 from collections.abc import Callable, Iterable
 from itertools import tee
 
-import cv2
 import numpy as np
 import torch
 
-from .._utils import cosine_similarity
-from ..encoders._base_encoder import ImageEncoderBase, SimilarityMetric
-from ._base_encoder import check_desired_output
+from .._base_classes import SimilarityMetric
+from .._utils import cosine_similarity, read_image_rgb
+from ._base_encoder import ImageEncoderBase, check_desired_output
 
 
 class Pipeline(SimilarityMetric):
@@ -30,7 +29,9 @@ class Pipeline(SimilarityMetric):
     def __init__(
         self,
         encoders: list[ImageEncoderBase],
-        similarity_func: Callable[[np.ndarray, np.ndarray], float] = cosine_similarity,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
@@ -82,17 +83,17 @@ class Pipeline(SimilarityMetric):
         :return: a dictionary where keys are image paths and values are descriptor vectors of the
                 corresponding images
         """
-        images = (
-            cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in image_paths
-        )
+        images = (read_image_rgb(path) for path in image_paths)
         return dict(zip(image_paths, self.encode(images), strict=True))
 
     @property
-    def similarity_func(self):
+    def similarity_func(self) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: Callable[[np.ndarray, np.ndarray], float]):
+    def similarity_func(
+        self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]
+    ) -> None:
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
@@ -100,18 +101,18 @@ class Pipeline(SimilarityMetric):
         self,
         images1: Iterable[np.ndarray] | np.ndarray,
         images2: Iterable[np.ndarray] | np.ndarray,
-    ) -> float:
+    ) -> np.ndarray:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 
         :param images1: First (batch of) image(s)
         :param images2: Second (batch of) image(s)
-        :return: Similarity score. If image iterables are provided, a similarity matrix between two image batches is returned.
+        :return: Similarity matrix between the two image batches.
         """
         vector1 = self.encode(images1)
         vector2 = self.encode(images2)
         result = self.similarity_func(vector1, vector2)
-        return np.float32(result)
+        return np.asarray(result, dtype=np.float32)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
     #     """

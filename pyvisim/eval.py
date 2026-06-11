@@ -3,6 +3,7 @@ This module contains functions to evaluate the performance of a retrieval system
 """
 
 from collections.abc import Iterable
+from typing import Protocol
 
 import numpy as np
 
@@ -11,15 +12,31 @@ from ._utils import cosine_similarity
 __all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
 
 
+class Encoder(Protocol):
+    """Any object that can encode images into vector representations."""
+
+    def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
+        """
+        Encodes one or more images into a batch of vector representations.
+
+        :param images: One image or an iterable of images.
+        :return: Vector representations of the given images.
+        """
+        ...
+
+
 def retrieve_top_k_similar(
-    uploaded_image: np.ndarray, dataset: dict[str, np.ndarray], encoder, k: int = 5
+    uploaded_image: np.ndarray,
+    dataset: dict[str, np.ndarray],
+    encoder: Encoder,
+    k: int = 5,
 ) -> list[tuple[str, float]]:
     """
     Returns the top-k most similar images from 'dataset' to the 'uploaded_image'.
 
     :param uploaded_image: Query image as a NumPy array (H x W x C).
     :param dataset: A dict mapping file paths to their feature vectors (np.ndarray).
-    :param encoder: An object that implements `compute_vector(img) -> np.ndarray`.
+    :param encoder: An object that implements `encode(img) -> np.ndarray`.
     :param k: Number of top similar images to return.
     :return: A list of (image_path, similarity_score) for the top-k matches, sorted descending by similarity.
     """
@@ -49,8 +66,8 @@ def top_k_map(
     image_labels: Iterable[int],
     encoding_map: dict[str, np.ndarray],
     path_labels_dict: dict[str, int],
-    encoder,
-    k: int = None,
+    encoder: Encoder,
+    k: int | None = None,
 ) -> float:
     """
     Computes mean Average Precision over the queries,
@@ -60,7 +77,7 @@ def top_k_map(
     :param image_labels: Corresponding labels for the query images.
     :param encoding_map: dict {img_path: feature_vector}
     :param path_labels_dict: dict {img_path: label}
-    :param encoder: Object with `compute_vector(img)
+    :param encoder: Object with `encode(img)
     :param k: Number of top results to consider.
     :return: mAP
     """
@@ -108,7 +125,7 @@ def top_k_accuracy(
     image_labels: Iterable[int],
     encoding_map: dict[str, np.ndarray],
     path_labels_dict: dict[str, int],
-    encoder,
+    encoder: Encoder,
     k: int,
 ) -> float:
     """
@@ -120,7 +137,7 @@ def top_k_accuracy(
     :param image_labels: List of true labels for each query image.
     :param encoding_map: dict {path: feature_vector}.
     :param path_labels_dict: dict {path: label}.
-    :param encoder: An object with `compute_vector(img) -> np.ndarray`.
+    :param encoder: An object with `encode(img) -> np.ndarray`.
     :param k: Number of top results to check for a correct match.
     :return: Top-k accuracy (float) in the range [0, 1].
     """
@@ -129,8 +146,10 @@ def top_k_accuracy(
         np.array(list(encoding_map.values())),
     )
     correct_count = 0
+    num_images = 0
 
     for query_img, true_label in zip(images, image_labels, strict=True):
+        num_images += 1
         q_vec = encoder.encode(query_img)
         if q_vec.ndim == 1:
             q_vec = q_vec.reshape(1, -1)
@@ -148,5 +167,6 @@ def top_k_accuracy(
         if found_match:
             correct_count += 1
 
-    topk_acc = correct_count / len(images)
-    return float(topk_acc)
+    if num_images == 0:
+        return 0.0
+    return float(correct_count / num_images)

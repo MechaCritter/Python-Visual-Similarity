@@ -2,7 +2,6 @@ import logging
 import os
 from multiprocessing import Process
 
-import cv2
 import numpy as np
 import requests
 import scipy
@@ -12,6 +11,7 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from pyvisim._config import setup_logging
+from pyvisim._utils import read_image_rgb
 
 setup_logging()
 
@@ -35,7 +35,7 @@ NUM_TRAIN_IMG = 1020
 NUM_VAL_IMG = 1020
 
 
-def _download_and_process_file(url: str, dest: str, extract_dir: str):
+def _download_and_process_file(url: str, dest: str, extract_dir: str) -> None:
     """
     Downloads a file and processes it (e.g., extraction if it's a zip or tar.gz file).
     """
@@ -53,7 +53,7 @@ def _download_and_process_file(url: str, dest: str, extract_dir: str):
         os.remove(dest)
 
 
-def _download_file_with_progress(url: str, dest: str):
+def _download_file_with_progress(url: str, dest: str) -> None:
     """
     Download a file with a progress bar.
     """
@@ -78,7 +78,7 @@ def _download_file_with_progress(url: str, dest: str):
     logger.info(f"Downloaded file to {dest}")
 
 
-def _extract_zip(zip_file: str, extract_to: str):
+def _extract_zip(zip_file: str, extract_to: str) -> None:
     """
     Extract a zip archive.
     """
@@ -97,7 +97,7 @@ def _extract_zip(zip_file: str, extract_to: str):
                 progress_bar.update(1)
 
 
-def _extract_tar(tar_file: str, extract_to: str):
+def _extract_tar(tar_file: str, extract_to: str) -> None:
     """
     Extract a tar.gz archive.
     """
@@ -184,7 +184,7 @@ def _check_data_integrity() -> bool:
     return True
 
 
-def download_oxford_flowers_data():
+def download_oxford_flowers_data() -> None:
     """
     Downloads the 102 flowers dataset and organizes it into the desired structure,
     under `destination/oxford_flower_dataset/`.
@@ -207,7 +207,7 @@ def download_oxford_flowers_data():
     logger.info("Oxford Flowers dataset downloaded and processed successfully.")
 
 
-class OxfordFlowerDataset(Dataset):
+class OxfordFlowerDataset(Dataset[tuple[np.ndarray, int, str]]):
     """
     Oxford Flower Dataset. It can be found at: https://www.robots.ox.ac.uk/~vgg/data/flowers/102/index.html.
 
@@ -249,7 +249,7 @@ class OxfordFlowerDataset(Dataset):
         :return: List of labels.
         """
         mat_data = scipy.io.loadmat(labels_file)
-        return mat_data["labels"].squeeze().tolist()
+        return [int(label) for label in mat_data["labels"].squeeze()]
 
     def _load_image_paths(self) -> list[str]:
         """
@@ -319,7 +319,7 @@ class OxfordFlowerDataset(Dataset):
         img_path = self.image_paths[idx]
         label = self.labels[idx] if self.labels else -1
 
-        image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+        image = read_image_rgb(img_path)
 
         if self.transform:
             image = self.transform(image)

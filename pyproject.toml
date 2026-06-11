@@ -11,7 +11,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Nhat Huy Vu", email = "vunhathuy234@gmail.com"}
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -62,7 +62,7 @@ fmt = [
 ]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -77,8 +77,21 @@ no_implicit_optional = true
 check_untyped_defs = true
 exclude = ["^build/", "^dist/", "^\\.venv/", "^venv/"]
 
+# Third-party libraries that ship without type stubs or a py.typed marker.
+[[tool.mypy.overrides]]
+module = [
+  "joblib.*",
+  "scipy.*",
+  "seaborn.*",
+  "sklearn.*",
+  "torchvision.*",
+  "tqdm.*",
+  "yaml.*",
+]
+ignore_missing_imports = true
+
 [tool.ruff]
-target-version = "py314"
+target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]
