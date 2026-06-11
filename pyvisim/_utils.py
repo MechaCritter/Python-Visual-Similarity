@@ -1,5 +1,6 @@
-from typing import Literal
+from typing import Any, Literal
 
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -11,6 +12,20 @@ from sklearn.metrics import (
     rand_score,
 )
 from sklearn.metrics.pairwise import cosine_similarity as cs
+
+
+def read_image_rgb(path: str) -> np.ndarray:
+    """
+    Read an image from disk and convert it to RGB.
+
+    :param path: Path to the image file.
+    :return: Image as a NumPy array (H, W, C) in RGB order.
+    :raises FileNotFoundError: If the image cannot be read from the given path.
+    """
+    image = cv2.imread(path)
+    if image is None:
+        raise FileNotFoundError(f"Could not read image at '{path}'.")
+    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
 def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -33,7 +48,7 @@ def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
             f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y."
         )
 
-    return cs(x, y)
+    return np.asarray(cs(x, y))
 
 
 def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
@@ -59,7 +74,7 @@ def cluster_and_return_labels(
     data: np.ndarray,
     method: Literal["kmeans", "dbscan", "spectral"] = "kmeans",
     n_clusters: int | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> np.ndarray:
     """
     Clusters 'data' using the specified method.
@@ -74,12 +89,12 @@ def cluster_and_return_labels(
         if n_clusters is None:
             raise ValueError("n_clusters must be specified for KMeans.")
         model = KMeans(n_clusters=n_clusters, random_state=42, **kwargs)
-        return model.fit_predict(data)
+        return np.asarray(model.fit_predict(data))
 
     if method == "dbscan":
         # DBSCAN doesn't need n_clusters (but can accept eps, min_samples)
         model = DBSCAN(**kwargs)
-        return model.fit_predict(data)
+        return np.asarray(model.fit_predict(data))
 
     if method == "spectral":
         if n_clusters is None:
@@ -90,7 +105,7 @@ def cluster_and_return_labels(
             random_state=42,
             **kwargs,
         )
-        return model.fit_predict(data)
+        return np.asarray(model.fit_predict(data))
 
     raise ValueError(f"Unknown method: {method}")
 
@@ -100,7 +115,7 @@ def cluster_images_and_generate_statistics(
     true_labels: np.ndarray,
     n_clusters: int,
     method: Literal["kmeans", "dbscan", "spectral"] = "kmeans",
-    **kwargs,
+    **kwargs: Any,
 ) -> dict[str, float]:
     """
     Clusters the given features and computes RI, ARI and NMI.
@@ -127,7 +142,7 @@ def cluster_images_and_generate_statistics(
 
 
 def plot_and_save_heatmap(
-    matrix: list | np.ndarray | torch.Tensor,
+    matrix: list[Any] | np.ndarray | torch.Tensor,
     figsize: tuple[int, int] | None = None,
     x_tick_labels: list[str] | None = None,
     y_tick_labels: list[str] | None = None,
