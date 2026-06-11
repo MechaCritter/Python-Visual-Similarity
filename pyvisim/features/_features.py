@@ -282,14 +282,14 @@ class DeepConvFeature(FeatureExtractorBase):
             )
         return submodule
 
-    def list_conv_layers(self) -> list[tuple[int, str, torch.nn.Module]]:
+    def list_conv_layers(self) -> list[tuple[int, str, torch.nn.Conv2d]]:
         """
         Utility function to collect convolutional layers (and sub-modules)
         from the model / chosen submodule.
 
         :return: List of (layer_index, layer_module) for each convolutional layer.
         """
-        conv_layers = []
+        conv_layers: list[tuple[int, str, torch.nn.Conv2d]] = []
         idx = 0
         for name, module in self._modules.named_modules():
             if isinstance(module, torch.nn.Conv2d):
