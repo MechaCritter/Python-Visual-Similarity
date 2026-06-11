@@ -218,7 +218,7 @@ class DeepConvFeature(FeatureExtractorBase):
                 f"No convolutional layers found in model {type(self.model).__name__}."
             )
 
-        self.buffer = None
+        self.buffer: torch.Tensor | None = None
         try:
             _, self.selected_layer_name, self.selected_layer_module = self._conv_layers[
                 self.layer_index
@@ -339,9 +339,9 @@ class DeepConvFeature(FeatureExtractorBase):
             for y in range(Hf):
                 for x in range(Wf):
                     coords.append([x / Wf, y / Hf])  # (x/Wf, y/Hf)
-            coords = np.array(coords, dtype=np.float32)  # shape: (Hf*Wf, 2)
+            coords_array = np.array(coords, dtype=np.float32)  # shape: (Hf*Wf, 2)
             # Concatenate
-            feature_map = np.hstack([feature_map, coords])  # shape: (Hf*Wf, C+2)
+            feature_map = np.hstack([feature_map, coords_array])  # shape: (Hf*Wf, C+2)
 
         return feature_map
 

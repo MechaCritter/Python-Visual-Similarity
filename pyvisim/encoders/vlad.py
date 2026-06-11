@@ -115,7 +115,7 @@ class VLADEncoder(ImageEncoderBase):
 
             k = len(centroids)
             dim = descriptors.shape[1]
-            descriptor_vector = np.zeros((k, dim), dtype=np.float32)
+            descriptor_vector: np.ndarray = np.zeros((k, dim), dtype=np.float32)
 
             for i, desc in enumerate(descriptors):
                 cluster_id = labels[i]
