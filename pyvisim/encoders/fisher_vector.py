@@ -1,15 +1,13 @@
-import warnings
 from collections.abc import Callable, Iterable
+from typing import Any, cast
 
 import numpy as np
 import torch
-from sklearn.decomposition import PCA
-from sklearn.mixture import GaussianMixture
 
 from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
+from ..clustering import PCA, ClusteringModelBase, GaussianMixtureModel
 from ..encoders._base_encoder import GMMWeights, ImageEncoderBase
-from ..features import RootSIFT
 
 
 class FisherVectorEncoder(ImageEncoderBase):
@@ -20,17 +18,28 @@ class FisherVectorEncoder(ImageEncoderBase):
     (weights, means, and covariances) with respect to the feature descriptors extracted
     from the images. The representation is optionally power-normalized and L2-normalized.
 
+    The Gaussian Mixture Model is configured from the parameters passed to
+    this constructor (``n_components`` plus the optional ``gmm_params``
+    dictionary) and fitted by calling :meth:`learn`. An optional PCA
+    model for dimensionality reduction is configured the same way via
+    ``pca_params``.
+
     The output when calling `encode` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
-    :param gmm_model: Gaussian Mixture Model instance from scikit-learn.
+    :param weights: Pretrained GMM weights to load (deprecated).
+    :param n_components: Number of Gaussian mixture components (visual words) to use.
+    :param gmm_params: Dictionary of additional keyword arguments forwarded
+        verbatim to :class:`sklearn.mixture.GaussianMixture` (e.g. ``{"random_state": 0}``).
+    :param pca_params: Dictionary of keyword arguments for the PCA model used
+        for dimensionality reduction (see ``pyvisim.clustering.PCA``); must
+        include ``n_components``. If omitted, no PCA is applied.
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
     :param flatten: Whether to flatten the computed encoding vector (default: True).
     :param similarity_func: A function that takes two batches of vectors and returns a similarity score
     matrix with size (batch_1_size, batch_2_size).
-    :param pca: PCA model from scikit-learn for dimensionality reduction (optional).
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
@@ -39,11 +48,15 @@ class FisherVectorEncoder(ImageEncoderBase):
     [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
 
+    _clustering_model_cls = GaussianMixtureModel
+
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
         weights: GMMWeights | None = None,
-        gmm_model: GaussianMixture = None,
+        n_components: int = 256,
+        gmm_params: dict[str, Any] | None = None,
+        pca_params: dict[str, Any] | None = None,
         power_norm_weight: float = 0.5,
         norm_order: int = 2,
         epsilon: float = 1e-9,
@@ -51,51 +64,46 @@ class FisherVectorEncoder(ImageEncoderBase):
         similarity_func: Callable[
             [np.ndarray, np.ndarray], np.ndarray
         ] = cosine_similarity,
-        pca: PCA = None,
         raise_error_when_pca_incompatible: bool = False,
     ):
-        if feature_extractor is None:
-            feature_extractor = RootSIFT()
-        if gmm_model is not None:
-            if not isinstance(gmm_model, GaussianMixture):
-                raise ValueError(
-                    f"The clustering model must be an instance of GaussianMixture, not {type(gmm_model)}"
-                )
-            gmm_model.covariance_type = "diag"  # Otherwise, training will take forever
         if weights is not None:
             if (weights_class := weights.__class__.__name__) != "GMMWeights":
                 raise ValueError(
                     f"You can only pass an instance of GMMWeights, not {weights_class}"
                 )
+        if gmm_params and "n_components" in gmm_params:
+            raise ValueError(
+                "Pass 'n_components' directly to FisherVectorEncoder instead of inside gmm_params."
+            )
+        clustering_model = (
+            GaussianMixtureModel(n_components=n_components, **(gmm_params or {}))
+            if weights is None
+            else None
+        )
+        pca = PCA(**pca_params) if weights is None and pca_params is not None else None
         super().__init__(
-            feature_extractor,
-            weights,
-            gmm_model,
-            similarity_func,
-            power_norm_weight,
-            norm_order,
-            epsilon,
-            flatten,
-            pca,
-            raise_error_when_pca_incompatible,
+            feature_extractor=feature_extractor,
+            clustering_model=clustering_model,
+            weights=weights,
+            similarity_func=similarity_func,
+            power_norm_weight=power_norm_weight,
+            norm_order=norm_order,
+            epsilon=epsilon,
+            flatten=flatten,
+            pca=pca,
+            raise_error_when_pca_incompatible=raise_error_when_pca_incompatible,
         )
 
     @property
-    def clustering_model(self) -> GaussianMixture:
-        return self._clustering_model
+    def clustering_model(self) -> GaussianMixtureModel:
+        return cast(GaussianMixtureModel, self._clustering_model)
 
     @clustering_model.setter
-    def clustering_model(self, model: GaussianMixture) -> None:
-        if not isinstance(model, GaussianMixture):
+    def clustering_model(self, model: ClusteringModelBase) -> None:
+        if not isinstance(model, GaussianMixtureModel):
             raise ValueError(
-                f"The clustering model must be an instance of GaussianMixture, not {type(model)}"
+                f"The clustering model must be an instance of pyvisim.clustering.GaussianMixtureModel, not {type(model)}"
             )
-        if model.covariance_type != "diag":
-            warnings.warn(
-                "Attribute 'covariance_type' of the clustering model is set to 'diag' because training will take too long otherwise.",
-                stacklevel=2,
-            )
-            model.covariance_type = "diag"
         self._set_clustering_model(model)
 
     def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
@@ -110,9 +118,9 @@ class FisherVectorEncoder(ImageEncoderBase):
                 descriptors = self.pca.transform(descriptors.astype(np.float32))
             num_descriptors = len(descriptors)
 
-            mixture_weights = self.clustering_model.weights_
-            means = self.clustering_model.means_
-            covariances = self.clustering_model.covariances_
+            mixture_weights = self.clustering_model.weights
+            means = self.clustering_model.means
+            covariances = self.clustering_model.covariances
 
             posterior_probabilities = self.clustering_model.predict_proba(descriptors)
 

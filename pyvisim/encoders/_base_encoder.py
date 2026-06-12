@@ -3,17 +3,16 @@ import warnings
 from collections.abc import Callable, Iterable, Iterator, MutableSequence
 from enum import Enum
 from functools import wraps
-from typing import Any, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 import joblib
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.mixture import GaussianMixture
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
 from .._utils import cosine_similarity, read_image_rgb
+from ..clustering import PCA, ClusteringModelBase
+from ..features._features import RootSIFT
 
 setup_logging()
 
@@ -193,24 +192,30 @@ class ImageEncoderBase(SimilarityMetric):
 
     The encoding can be used for indexing, retrieval, clustering or classification tasks.
     :param feature_extractor: Feature extractor instance (should implement __call__).
+        Defaults to RootSIFT.
+    :param clustering_model: Clustering model (see ``pyvisim.clustering``)
+    used for generating descriptors.
     :param weights: Pretrained model for clustering. If provided, the clustering model will be loaded from the file,
     and `clustering_model` and `pca` parameters will be ignored.
-    :param clustering_model: Clustering model used for generating descriptors.
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
     :param flatten: Whether to flatten the computed descriptor vector (default: True).
     :param similarity_func: A function that takes two batches of vectors and returns a similarity score
     matrix with size (batch_1_size, batch_2_size).
-    :param pca: PCA model for dimensionality reduction (optional).
+    :param pca: PCA model (see ``pyvisim.clustering``) for dimensionality reduction
+    (optional). Subclasses build it from the ``pca_params`` dictionary passed to
+    their constructors.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, an Error will be raised"""
 
+    _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
+
     def __init__(
         self,
-        feature_extractor: FeatureExtractorBase,
+        feature_extractor: FeatureExtractorBase | None = None,
+        clustering_model: ClusteringModelBase | None = None,
         weights: KMeansWeights | GMMWeights | None = None,
-        clustering_model: KMeans | GaussianMixture | None = None,
         similarity_func: Callable[
             [np.ndarray, np.ndarray], np.ndarray
         ] = cosine_similarity,
@@ -223,28 +228,39 @@ class ImageEncoderBase(SimilarityMetric):
     ):
         # Set important attributes via setters to trigger error handling
         self._feature_extractor: FeatureExtractorBase
-        self._clustering_model: KMeans | GaussianMixture | None = None
+        self._clustering_model: ClusteringModelBase | None = None
         self._pca: PCA | None = None
         self._similarity_func: Callable[[np.ndarray, np.ndarray], np.ndarray]
-
-        self.similarity_func = similarity_func
-        self.feature_extractor = feature_extractor
-
-        if weights is not None:
-            if "PCA" in weights.name:
-                self.pca = _CLUSTERING_TO_PCA_MAPPING[weights].load()
-            self.clustering_model = weights.load()
-        else:
-            if pca is not None:
-                self.pca = pca
-            if clustering_model is not None:
-                self.clustering_model = clustering_model
 
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
         self.epsilon = epsilon
         self.flatten = flatten
         self.raise_error_when_pca_incompatible = raise_error_when_pca_incompatible
+
+        self.similarity_func = similarity_func
+        self.feature_extractor = (
+            feature_extractor if feature_extractor is not None else RootSIFT()
+        )
+
+        if weights is not None:
+            self._load_pretrained_weights(weights)
+        else:
+            if pca is not None:
+                self.pca = pca
+            if clustering_model is not None:
+                self.clustering_model = clustering_model
+
+    def _load_pretrained_weights(self, weights: KMeansWeights | GMMWeights) -> None:
+        """
+        Loads a pretrained scikit-learn estimator (and its matching PCA,
+        if any) into the encoder's clustering model class.
+
+        :param weights: Pretrained weight enum member to load.
+        """
+        if "PCA" in weights.name:
+            self.pca = PCA._from_sklearn(_CLUSTERING_TO_PCA_MAPPING[weights].load())
+        self.clustering_model = self._clustering_model_cls._from_sklearn(weights.load())
 
     @property
     def feature_extractor(self) -> FeatureExtractorBase:
@@ -256,21 +272,18 @@ class ImageEncoderBase(SimilarityMetric):
             raise TypeError(
                 f"feature_extractor must be an instance of FeatureExtractorBase, not {type(feature_extractor)}"
             )
-        if self._pca is not None:
-            if feature_extractor.output_dim != self._pca.n_features_in_:
+        if self._pca is not None and self._pca.is_fitted:
+            if feature_extractor.output_dim != self._pca.n_features_in:
                 raise RuntimeError(
                     f"Feature Extractor outputs shape {feature_extractor.output_dim}, "
-                    f"But PCA accepts input dim {self._pca.n_features_in_}"
+                    f"But PCA accepts input dim {self._pca.n_features_in}"
                 )
         else:
-            if self._clustering_model is not None:
-                if (
-                    feature_extractor.output_dim
-                    != self._clustering_model.n_features_in_
-                ):
+            if self._clustering_model is not None and self._clustering_model.is_fitted:
+                if feature_extractor.output_dim != self._clustering_model.n_features_in:
                     raise RuntimeError(
                         f"Feature Extractor outputs shape {feature_extractor.output_dim}, "
-                        f"But clustering model accepts input dim {self._clustering_model.n_features_in_}"
+                        f"But clustering model accepts input dim {self._clustering_model.n_features_in}"
                     )
         self._feature_extractor = feature_extractor
 
@@ -286,44 +299,50 @@ class ImageEncoderBase(SimilarityMetric):
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
     @property
-    def clustering_model(self) -> KMeans | GaussianMixture | None:
+    def clustering_model(self) -> ClusteringModelBase | None:
         return self._clustering_model
 
     @clustering_model.setter
-    def clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
+    def clustering_model(self, clustering_model: ClusteringModelBase) -> None:
         self._set_clustering_model(clustering_model)
 
-    def _set_clustering_model(self, clustering_model: KMeans | GaussianMixture) -> None:
+    def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
         """
         Validates the given clustering model against the current PCA or
         feature extractor and stores it.
 
+        Dimension checks only apply to fitted models; an unfitted model is
+        stored as-is and validated once it is fitted via :meth:`learn`.
+
         :param clustering_model: Clustering model to validate and store.
         """
-        if self._pca:
-            if self._pca.n_components != clustering_model.n_features_in_:
+        if not clustering_model.is_fitted:
+            self._clustering_model = clustering_model
+            return
+        if self._pca is not None and self._pca.is_fitted:
+            if self._pca.n_components != clustering_model.n_features_in:
                 if self.raise_error_when_pca_incompatible:
                     raise RuntimeError(
                         f"PCA is incompatible with the new clustering model. "
                         f"PCA input size: {self._pca.n_components}, "
-                        f"New clustering model input size: {clustering_model.n_features_in_}. "
+                        f"New clustering model input size: {clustering_model.n_features_in}. "
                         f"If you want the PCA to be reset to None instead, set raise_error_when_pca_incompatible=False."
                     )
                 warnings.warn(
                     f"PCA is incompatible with the new clustering model. "
                     f"PCA input size: {self._pca.n_components}, "
-                    f"New clustering model input size: {clustering_model.n_features_in_}. "
+                    f"New clustering model input size: {clustering_model.n_features_in}. "
                     "PCA will be reset to None to avoid errors."
                     "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=False.",
                     stacklevel=2,
                 )
                 self._pca = None
         else:
-            if self._feature_extractor.output_dim != clustering_model.n_features_in_:
+            if self._feature_extractor.output_dim != clustering_model.n_features_in:
                 raise RuntimeError(
                     "Feature extractor output size has to match the clustering model input size. "
                     f"Feature extractor has output size {self._feature_extractor.output_dim}, "
-                    f"while clustering model has input size {clustering_model.n_features_in_}"
+                    f"while clustering model has input size {clustering_model.n_features_in}"
                 )
         self._clustering_model = clustering_model
 
@@ -333,19 +352,26 @@ class ImageEncoderBase(SimilarityMetric):
 
     @pca.setter
     def pca(self, pca: PCA) -> None:
-        if pca.n_features_in_ != self._feature_extractor.output_dim:
+        if not isinstance(pca, PCA):
+            raise ValueError(
+                f"The PCA model must be an instance of pyvisim.clustering.PCA, not {type(pca)}"
+            )
+        if not pca.is_fitted:
+            self._pca = pca
+            return
+        if pca.n_features_in != self._feature_extractor.output_dim:
             raise ValueError(
                 "PCA input size has to match the feature extractor output size. "
-                f"PCA model has input size {pca.n_features_in_}, "
+                f"PCA model has input size {pca.n_features_in}, "
                 f"while feature extractor has output size {self._feature_extractor.output_dim}"
             )
 
-        if self._clustering_model is not None:
-            if pca.n_components != self._clustering_model.n_features_in_:
+        if self._clustering_model is not None and self._clustering_model.is_fitted:
+            if pca.n_components != self._clustering_model.n_features_in:
                 raise ValueError(
                     "PCA input size has to match the clustering model input size."
                     f"PCA model has input size {pca.n_components}, "
-                    f"while clustering model has input size {self._clustering_model.n_features_in_}"
+                    f"while clustering model has input size {self._clustering_model.n_features_in}"
                 )
 
         self._pca = pca
@@ -355,41 +381,38 @@ class ImageEncoderBase(SimilarityMetric):
         images: Iterable[np.ndarray],
         /,
         *,
-        n_clusters: int,
         dim_reduction_factor: int | None = None,
-        **kwargs: Any,
     ) -> None:
         """
         Learns the visual vocabulary from the given images.
 
+        The clustering model configured at initialization (with the
+        scikit-learn parameters passed to the encoder constructor) is fitted
+        on the extracted features. If a PCA model is configured, the features
+        are reduced with it first (fitting it beforehand if necessary).
+
         :param images: An iterable of images.
-        :param n_clusters: Number of clusters to use for the clustering model
-        :param dim_reduction_factor: If a value is provided, PCA will be used to reduce the dimensionality of the feature space
-        :param kwargs: Additional arguments for the clustering model
+        :param dim_reduction_factor: If a value is provided, a new PCA model will be used to reduce the dimensionality of the feature space
+        :raises RuntimeError: If the encoder has no clustering model configured.
         """
+        if self._clustering_model is None:
+            raise RuntimeError(
+                "This encoder has no clustering model to fit. "
+                "Configure one via the constructor parameters."
+            )
         features = np.vstack([self.feature_extractor(image) for image in images])
         print("[INFO] Learning the visual vocabulary with the following parameters:")
-        print("   - Number of clusters:", n_clusters)
+        print("   - Number of clusters:", self._clustering_model.n_clusters)
         print("   - Feature Extractor used:", self.feature_extractor.__class__.__name__)
         print("   - Dimension of the feature space:", feat_dim := features.shape[1])
         if dim_reduction_factor:
-            print(
-                "   - New dimension after PCA reduction:",
-                new_dim := feat_dim // dim_reduction_factor,
-            )
-            self._pca = PCA(n_components=new_dim)
-            self._pca.fit(features)
+            self._pca = PCA(n_components=feat_dim // dim_reduction_factor)
+        if self._pca is not None:
+            if not self._pca.is_fitted:
+                self._pca.fit(features)
             features = self._pca.transform(features)
-        if self.__class__.__name__ == "VLADEncoder":
-            clustering_model = KMeans(n_clusters=n_clusters, **kwargs)
-        elif self.__class__.__name__ == "FisherVectorEncoder":
-            clustering_model = GaussianMixture(
-                n_components=n_clusters, **kwargs, covariance_type="diag"
-            )
-        else:
-            raise ValueError("Unknown encoder class.")
-        clustering_model.fit(features)
-        self.clustering_model = clustering_model
+            print("   - New dimension after PCA reduction:", self._pca.n_components)
+        self._clustering_model.fit(features)
 
     @_tupleize_first_arg
     # @lru_cache(maxsize=4)
@@ -438,12 +461,9 @@ class ImageEncoderBase(SimilarityMetric):
         return np.asarray(result, dtype=np.float32)
 
     def __repr__(self) -> str:
-        n_clusters = None
-        if self._clustering_model:
-            if hasattr(self._clustering_model, "n_clusters"):
-                n_clusters = self._clustering_model.n_clusters
-            elif hasattr(self._clustering_model, "n_components"):
-                n_clusters = self._clustering_model.n_components
+        n_clusters = (
+            self._clustering_model.n_clusters if self._clustering_model else None
+        )
         return (
             self.__class__.__name__
             + f"(feature_extractor={self.feature_extractor.__class__.__name__}, \n"
