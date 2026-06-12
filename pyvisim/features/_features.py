@@ -8,7 +8,7 @@ with optional spatial encoding.
 
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 import cv2
 import numpy as np
@@ -22,7 +22,10 @@ from .._config import setup_logging
 setup_logging()
 
 
-def _check_output_shape[ExtractorCallT: Callable[..., Any]](
+ExtractorCallT = TypeVar("ExtractorCallT", bound=Callable[..., Any])
+
+
+def _check_output_shape(  # noqa: UP047
     func: ExtractorCallT,
 ) -> ExtractorCallT:
     """

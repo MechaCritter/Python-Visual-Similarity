@@ -3,7 +3,7 @@ import warnings
 from collections.abc import Callable, Iterable, Iterator, MutableSequence
 from enum import Enum
 from functools import wraps
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 import joblib
 import numpy as np
@@ -103,7 +103,10 @@ def _make_fallback_func(
         ) from e
 
 
-def _tupleize_first_arg[MethodT: Callable[..., Any]](func: MethodT) -> MethodT:
+MethodT = TypeVar("MethodT", bound=Callable[..., Any])
+
+
+def _tupleize_first_arg(func: MethodT) -> MethodT:  # noqa: UP047
     """
     # TODO: currently, the param 'image_paths' param is hardcoded. This should be more general
     # to be able to handle any variable name
