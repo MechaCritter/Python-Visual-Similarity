@@ -148,6 +148,15 @@ class _PretrainedModels(Enum):
 
 
 class KMeansWeights(_PretrainedModels):
+    """
+    Pretrained K-Means weights trained on the Oxford-102 flower dataset.
+
+    .. deprecated::
+        Loading pretrained models via this enum is deprecated and will be
+        removed in a future release. Use ``save_to_disk``/``load_from_disk``
+        with ``.encoder`` files instead.
+    """
+
     OXFORD102_K256_VGG16_PCA = (
         f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_pca.pkl"
     )
@@ -173,6 +182,15 @@ class _PCA(_PretrainedModels):
 
 
 class GMMWeights(_PretrainedModels):
+    """
+    Pretrained GMM weights trained on the Oxford-102 flower dataset.
+
+    .. deprecated::
+        Loading pretrained models via this enum is deprecated and will be
+        removed in a future release. Use ``save_to_disk``/``load_from_disk``
+        with ``.encoder`` files instead.
+    """
+
     OXFORD102_K256_VGG16_PCA = (
         f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_pca.pkl"
     )
@@ -274,8 +292,18 @@ class ImageEncoderBase(SimilarityMetric):
         Loads a pretrained scikit-learn estimator (and its matching PCA,
         if any) into the encoder's clustering model class.
 
+        .. deprecated::
+            Will be removed in a future release together with the weight enums.
+
         :param weights: Pretrained weight enum member to load.
         """
+        warnings.warn(
+            "Loading pretrained models via KMeansWeights/GMMWeights is "
+            "deprecated and will be removed in a future release. Use "
+            "save_to_disk()/load_from_disk() with .encoder files instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
         if "PCA" in weights.name:
             self.pca = PCA._from_sklearn(_CLUSTERING_TO_PCA_MAPPING[weights].load())
         self.clustering_model = self._clustering_model_cls._from_sklearn(weights.load())
