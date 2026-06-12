@@ -29,6 +29,40 @@ differ in the way they aggregate these descriptors and the underlying clustering
 After the feature extraction step, the local features are aggregated to their respective cluster centers. The final
 encoding matrix is then flattened and normalized to produce the final feature vector representation of the image.
 
+## Configuring Encoders
+
+The encoders build their clustering models internally: VLAD always uses K-Means and the Fisher Vector encoder always
+uses a Gaussian Mixture Model (both implemented in `pyvisim.clustering`).
+
+```python
+from pyvisim.encoders import VLADEncoder, FisherVectorEncoder
+
+vlad = VLADEncoder(
+    n_clusters=256,
+    kmeans_params={"random_state": 42},
+    pca_params={"n_components": 64},
+)
+fisher = FisherVectorEncoder(
+    n_components=256,
+    gmm_params={"random_state": 42},
+)
+```
+
+Calling `learn(images)` fits the configured PCA (if any) and the clustering model. A fitted encoder can be saved to
+disk and restored later:
+
+```python
+vlad.learn(images)
+path = vlad.save_to_disk("vlad")  # writes vlad.encoder
+vlad = VLADEncoder.load_from_disk(path)
+```
+
+The `.encoder` file stores the fitted clustering model, the PCA model and the normalization hyperparameters. The
+feature extractor and the similarity function are not serialized; provide them again when loading.
+
+Loading pretrained models via the `KMeansWeights`/`GMMWeights` enums is deprecated and will be removed in a future
+release.
+
 ## Similarity Metric Pipeline
 The _Pipeline_ class is designed to handle multiple encoders simultaneously to compute feature vectors. It takes
 a list of encoders (instances of the ImageEncoderBase class defined in the '_base_encoder.py' file) and a function
