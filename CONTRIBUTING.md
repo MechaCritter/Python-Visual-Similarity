@@ -35,7 +35,7 @@ This project uses [uv](https://github.com/astral-sh/uv) instead of `pip` for man
 
 ### Prerequisites
 
-- Python >= 3.12
+- Python >= 3.10
 - [uv](https://github.com/astral-sh/uv)
 
 ### Steps
