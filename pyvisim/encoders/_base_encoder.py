@@ -1,4 +1,5 @@
 import abc
+import pathlib
 import warnings
 from collections.abc import Callable, Iterable, Iterator, MutableSequence
 from enum import Enum
@@ -7,6 +8,7 @@ from typing import Any, ClassVar, TypeVar, cast
 
 import joblib
 import numpy as np
+from sklearn.exceptions import NotFittedError
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
@@ -15,6 +17,21 @@ from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT
 
 setup_logging()
+
+_ENCODER_FILE_SUFFIX = ".encoder"
+_ENCODER_FILE_FORMAT_VERSION = 1
+_ENCODER_STATE_KEYS = frozenset(
+    {
+        "encoder_class",
+        "clustering_model",
+        "pca",
+        "power_norm_weight",
+        "norm_order",
+        "epsilon",
+        "flatten",
+        "raise_error_when_pca_incompatible",
+    }
+)
 
 
 # Helper Functions
@@ -103,6 +120,7 @@ def _make_fallback_func(
 
 
 MethodT = TypeVar("MethodT", bound=Callable[..., Any])
+_EncoderT = TypeVar("_EncoderT", bound="ImageEncoderBase")
 
 
 def _tupleize_first_arg(func: MethodT) -> MethodT:  # noqa: UP047
@@ -413,6 +431,87 @@ class ImageEncoderBase(SimilarityMetric):
             features = self._pca.transform(features)
             print("   - New dimension after PCA reduction:", self._pca.n_components)
         self._clustering_model.fit(features)
+
+    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+        """
+        Saves the learned state of this encoder to a ``.encoder`` file.
+
+        The file contains the fitted clustering model, the PCA model (if any)
+        and the normalization hyperparameters. The feature extractor and the
+        similarity function are not serialized; provide them again when
+        calling :meth:`load_from_disk`.
+
+        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
+        :return: The path of the written file.
+        :raises NotFittedError: If the clustering model is missing or not fitted.
+        """
+        if self._clustering_model is None or not self._clustering_model.is_fitted:
+            raise NotFittedError(
+                "Cannot save an encoder whose clustering model is not fitted. "
+                "Call 'learn' first."
+            )
+        path = pathlib.Path(path)
+        if path.suffix != _ENCODER_FILE_SUFFIX:
+            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
+        state = {
+            "format_version": _ENCODER_FILE_FORMAT_VERSION,
+            "encoder_class": type(self).__name__,
+            "clustering_model": self._clustering_model,
+            "pca": self._pca,
+            "power_norm_weight": self.power_norm_weight,
+            "norm_order": self.norm_order,
+            "epsilon": self.epsilon,
+            "flatten": self.flatten,
+            "raise_error_when_pca_incompatible": self.raise_error_when_pca_incompatible,
+        }
+        joblib.dump(state, path)
+        return path
+
+    @classmethod
+    def load_from_disk(
+        cls: type[_EncoderT],
+        path: str | pathlib.Path,
+        *,
+        feature_extractor: FeatureExtractorBase | None = None,
+        similarity_func: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = cosine_similarity,
+    ) -> _EncoderT:
+        """
+        Loads an encoder previously saved with :meth:`save_to_disk`.
+
+        :param path: Path to the ``.encoder`` file.
+        :param feature_extractor: Feature extractor to use with the loaded
+            encoder. Defaults to RootSIFT. Its output dimension has to match
+            the input dimension of the saved PCA or clustering model.
+        :param similarity_func: Similarity function to use with the loaded encoder.
+        :return: A ready-to-use encoder instance.
+        :raises ValueError: If the file is not a valid ``.encoder`` file or
+            was saved by a different encoder class.
+        """
+        state = joblib.load(path)
+        if not isinstance(state, dict) or not _ENCODER_STATE_KEYS.issubset(state):
+            raise ValueError(f"File {path} is not a valid .encoder file.")
+        if state["encoder_class"] != cls.__name__:
+            raise ValueError(
+                f"File {path} was saved by {state['encoder_class']}. "
+                f"Load it with {state['encoder_class']}.load_from_disk instead."
+            )
+        encoder = cls(
+            feature_extractor=feature_extractor,
+            similarity_func=similarity_func,
+            power_norm_weight=state["power_norm_weight"],
+            norm_order=state["norm_order"],
+            epsilon=state["epsilon"],
+            flatten=state["flatten"],
+            raise_error_when_pca_incompatible=state[
+                "raise_error_when_pca_incompatible"
+            ],
+        )
+        if state["pca"] is not None:
+            encoder.pca = state["pca"]
+        encoder.clustering_model = state["clustering_model"]
+        return encoder
 
     @_tupleize_first_arg
     # @lru_cache(maxsize=4)
