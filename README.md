@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 ![Version](https://img.shields.io/badge/version-0.1.3-blue)
 ![Status](https://img.shields.io/badge/status-pre--release-orange)
-![Python](https://img.shields.io/badge/Python-3.12%2B-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.10--3.14-brightgreen)
 ![Contributions](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
 # Welcome to `pyvisim`!
