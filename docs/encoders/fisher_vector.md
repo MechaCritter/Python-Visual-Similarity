@@ -7,6 +7,29 @@ The Fisher Vector encodes an image into a vector of shape `(2 * K * D + K,)`, wh
 optional PCA). The `2 * K * D` term comes from the mean and variance gradients, and
 the `+ K` term from the mixture-weight gradients.
 
+## Constructing one
+
+Fisher Vectors always cluster with a Gaussian Mixture Model, configured through the
+encoder:
+
+```python
+from pyvisim.encoders import FisherVectorEncoder
+
+fisher = FisherVectorEncoder(
+    n_components=256,                # number of mixture components
+    gmm_params={"random_state": 0},  # forwarded to sklearn.mixture.GaussianMixture
+    pca_params={"n_components": 64}, # optional; omit for no PCA
+)
+fisher.learn(images)                 # fits the PCA (if any) then the GMM
+```
+
+`n_components` is passed directly, not inside `gmm_params` (doing both raises a
+`ValueError`). The GMM uses diagonal covariances; passing any other `covariance_type`
+in `gmm_params` raises a `ValueError`, since the Fisher Vector math assumes diagonal
+covariances. Save a fitted encoder with `fisher.save_to_disk("fisher")` and reload it
+with `FisherVectorEncoder.load_from_disk("fisher.encoder")`, see
+[base_encoder.md](base_encoder.md).
+
 ## How `encode` works
 
 For each image:

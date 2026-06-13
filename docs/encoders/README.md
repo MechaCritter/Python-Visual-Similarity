@@ -12,9 +12,11 @@ vectors are used for retrieval, clustering, and classification.
 
 where `K` is the number of clusters and `D` is the local descriptor dimension.
 
-Shared machinery lives in [`ImageEncoderBase`](base_encoder.md), and pretrained
-clustering/PCA models are exposed through the enums documented in
-[weights.md](weights.md).
+Shared machinery lives in [`ImageEncoderBase`](base_encoder.md). Each encoder builds its
+aggregation model from the [`pyvisim.clustering`](../clustering/README.md) package using
+the parameters you pass at construction, then fits it in `learn`. Trained encoders are
+saved and restored with `save_to_disk` / `load_from_disk`; the older pretrained-weight
+enums in [weights.md](weights.md) still work but are deprecated.
 
 ## VLAD vs Fisher Vector
 
