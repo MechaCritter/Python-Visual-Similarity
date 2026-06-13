@@ -14,6 +14,7 @@ pyvisim/
 ├── _errors.py           Custom exceptions
 ├── eval.py              Retrieval metrics (top-k, mAP, accuracy)
 ├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
+├── clustering/          KMeans, GaussianMixtureModel, PCA
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── datasets/            OxfordFlowerDataset
 └── neural_networks/     Siamese network (planned, not yet implemented)
@@ -22,6 +23,8 @@ pyvisim/
 Per-area docs:
 
 - [Encoders](encoders/): how images become vectors.
+- [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
+  vocabulary with.
 - [Features](features/): how local descriptors are extracted from an image.
 - [Neural networks](neural_networks/): planned Siamese network.
 - [Dataset](dataset/): the bundled Oxford Flowers dataset class.
@@ -66,9 +69,10 @@ Everything is built on the two abstract base classes in
   and `(M, D)` arrays and returning an `(N, M)` matrix can be used. On assignment it
   is probed with dummy input; if it does not return the expected shape,
   fall back to a row-by-row loop. Default is cosine similarity.
-- **Pretrained weights are enums.** `KMeansWeights` and `GMMWeights` are enums whose
-  values are file paths to pickled scikit-learn models. PCA models are paired to the
-  PCA weight variants automatically. See [encoders/weights.md](encoders/weights.md).
+- **Trained encoders persist to `.encoder` files.** `save_to_disk` / `load_from_disk`
+  serialize the fitted clustering model, PCA, and normalization settings. This replaces
+  the deprecated `KMeansWeights` / `GMMWeights` enum loading path, which still works for
+  now but warns. See [encoders/weights.md](encoders/weights.md).
 
 ## Evaluation
 
