@@ -1,6 +1,5 @@
 """Gaussian Mixture Model used by the Fisher Vector encoder."""
 
-import warnings
 from typing import Any
 
 import numpy as np
@@ -40,12 +39,10 @@ class GaussianMixtureModel(ClusteringModelBase):
 
     def _validate_sklearn_model(self) -> None:
         if self._model.covariance_type != "diag":
-            warnings.warn(
-                "Attribute 'covariance_type' of the underlying GaussianMixture is "
-                "set to 'diag' because training will take too long otherwise.",
-                stacklevel=2,
+            raise ValueError(
+                f"{type(self).__name__} only supports covariance_type='diag', "
+                f"got {self._model.covariance_type!r}."
             )
-            self._model.covariance_type = "diag"
 
     @property
     def n_clusters(self) -> int:
