@@ -5,6 +5,8 @@ Thank you for your interest! Contributions of all kinds are welcome.
 
 ## PR TODO list - your first PR
 
+To understand how the library is structured as well the technical details before diving in, you can first read the [developer documentation](docs/overview.md), and/or you can also read the docstrings of the modules and classes that you are working on.
+
 Use this checklist to stay on track for your first code PR:
 
 - **Clone this repository**: see [Set up developer environment](#set-up-developer-environment) section.

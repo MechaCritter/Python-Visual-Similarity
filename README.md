@@ -26,6 +26,8 @@ and the Siamese Neural Networks.
 7. [License](#license)
 8. [References](#references)
 
+For a technical deep-dive into the library internals, see the [developer documentation](docs/overview.md).
+
 ## Why `pyvisim`?
 
 `pyvisim` is designed to provide a simple and efficient way to compare images.
