@@ -57,6 +57,13 @@ similarity_score = encoder.similarity_score(image1, image2)
 
 print(f"Similarity Score: {similarity_score}")
 ```
+
+A fitted encoder can be saved to a `.encoder` file and restored later:
+
+```python
+path = encoder.save_to_disk("vlad_oxford102")  # writes vlad_oxford102.encoder
+encoder = VLADEncoder.load_from_disk(path)
+```
 You can also visit the [introduction notebook](examples/getting_started.ipynb) for more examples.
 
 I also provided various notebooks for different use-cases. Feel free to check them out, and let me know if you
@@ -111,6 +118,11 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 
 ## Pretrained Models
 
+> [!CAUTION]
+> **Deprecated:** Loading pretrained models via the `KMeansWeights`/`GMMWeights` enums is deprecated
+> and will be removed in a future release. Train an encoder with `learn()` and persist it with `save_to_disk()`/
+> `load_from_disk()` (`.encoder` files) instead.
+
 The following pretrained models are provided for clustering and dimensionality reduction. All clustering
 models were trained with `k=256`. The choice of `k` was made arbitrarily
 based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on.
@@ -118,7 +130,7 @@ Since higher values would take too long, I chose `k=256` as a balance between pe
 
 ### KMeans Models
 
-You can access these weights by importing `KMWeights` from the `pyvisim.encoders` module.
+You can access these weights by importing `KMeansWeights` from the `pyvisim.encoders` module.
 
 | Model Name                             | Features Extracted From | PCA Applied | Feature Dimensions |
 |----------------------------------------|-------------------------|-------------|--------------------|
