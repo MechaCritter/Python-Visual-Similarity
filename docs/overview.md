@@ -1,0 +1,79 @@
+# Developer Overview
+
+`pyvisim` computes image similarity by turning images into fixed-size vectors and
+comparing those vectors with a similarity function. This document explains how the
+pieces fit together so you can extend the library or debug it.
+
+## Package layout
+
+```
+pyvisim/
+├── _base_classes.py     Abstract interfaces (SimilarityMetric, FeatureExtractorBase)
+├── _config.py           Paths and logging setup
+├── _utils.py            cosine_similarity, image IO, clustering + plotting helpers
+├── _errors.py           Custom exceptions
+├── eval.py              Retrieval metrics (top-k, mAP, accuracy)
+├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
+├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
+├── datasets/            OxfordFlowerDataset
+└── neural_networks/     Siamese network (planned, not yet implemented)
+```
+
+Per-area docs:
+
+- [Encoders](encoders/): how images become vectors.
+- [Features](features/): how local descriptors are extracted from an image.
+- [Neural networks](neural_networks/): planned Siamese network.
+- [Dataset](dataset/): the bundled Oxford Flowers dataset class.
+
+## The core pipeline
+
+Every encoder follows the same three-stage flow:
+
+```
+image (NumPy array)
+   │  feature extractor   (features/)
+   ▼
+local descriptors  (N, D)
+   │  optional PCA, then clustering model (KMeans or GMM)
+   ▼
+aggregated vector  (fixed size, independent of N)
+   │  power + L2 normalization
+   ▼
+encoding  →  similarity_func  →  similarity score
+```
+
+The key property is that the number of local descriptors `N` varies per image, but
+the aggregated encoding has a fixed length. That is what makes two images comparable
+with a single similarity function.
+
+## Two abstract interfaces
+
+Everything is built on the two abstract base classes in
+[`_base_classes.py`](../pyvisim/_base_classes.py):
+
+- `SimilarityMetric`: anything that can produce a `similarity_score` between two
+  images. Both the encoders and the `Pipeline` implement this.
+- `FeatureExtractorBase`: anything that maps one image to a `(N, D)` array of
+  descriptors via `__call__`, and reports its `output_dim`. Used to validate that a
+  feature extractor matches the clustering model and PCA it is paired with.
+
+## Design decisions worth knowing
+
+- **NumPy images only.** For the current implementation, only NumPy images are accepted.
+  It is still open whether to switch completely to PyTorch, or support both.
+- **Similarity function is pluggable and guarded.** Any callable taking two `(N, D)`
+  and `(M, D)` arrays and returning an `(N, M)` matrix can be used. On assignment it
+  is probed with dummy input; if it does not return the expected shape,
+  fall back to a row-by-row loop. Default is cosine similarity.
+- **Pretrained weights are enums.** `KMeansWeights` and `GMMWeights` are enums whose
+  values are file paths to pickled scikit-learn models. PCA models are paired to the
+  PCA weight variants automatically. See [encoders/weights.md](encoders/weights.md).
+
+## Evaluation
+
+[`eval.py`](../pyvisim/eval.py) provides methods to compute the performance
+of the retrieval pipeline, given the ground-truth labels. Currently available:
+- `retrieve_top_k_similar`: return the top-k most similar items to a query.
+- `top_k_map`: mean Average Precision over a set of queries.
+- `top_k_accuracy`: fraction of queries whose top-k contains a label match.
