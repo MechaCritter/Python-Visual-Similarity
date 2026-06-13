@@ -6,6 +6,27 @@ VLAD (Vector of Locally Aggregated Descriptors) encodes an image into a vector o
 shape `(K * D,)`, where `K` is the number of KMeans clusters and `D` is the local
 descriptor dimension (after optional PCA).
 
+## Constructing one
+
+VLAD always clusters with K-Means, so you configure that model through the encoder:
+
+```python
+from pyvisim.encoders import VLADEncoder
+
+vlad = VLADEncoder(
+    n_clusters=256,                    # number of visual words
+    kmeans_params={"random_state": 0}, # forwarded to sklearn.cluster.KMeans
+    pca_params={"n_components": 64},   # optional; omit for no PCA
+)
+vlad.learn(images)                     # fits the PCA (if any) then K-Means
+```
+
+`n_clusters` is passed directly, not inside `kmeans_params` (doing both raises a
+`ValueError`). Everything else in `kmeans_params` / `pca_params` is handed straight to
+the matching scikit-learn estimator. Once fitted, save with `vlad.save_to_disk("vlad")`
+and reload with `VLADEncoder.load_from_disk("vlad.encoder")`, see
+[base_encoder.md](base_encoder.md).
+
 ## How `encode` works
 
 For each image:

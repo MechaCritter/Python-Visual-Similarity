@@ -12,19 +12,42 @@ A concrete encoder is the combination of:
 
 1. a **feature extractor** (`FeatureExtractorBase`),
 2. an optional **PCA** model,
-3. a **clustering model** (`KMeans` for VLAD, `GaussianMixture` for Fisher),
+3. a **clustering model** (`KMeans` for VLAD, `GaussianMixtureModel` for Fisher; both
+   from [`pyvisim.clustering`](../clustering/README.md)),
 4. a **similarity function**.
 
 The base class wires these together, validates their dimensions, and provides
-`learn`, `encode` (abstract), `generate_encoding_map`, and `similarity_score`.
+`learn`, `save_to_disk`/`load_from_disk`, `encode` (abstract), `generate_encoding_map`,
+and `similarity_score`.
 
 ## Constructing an encoder
 
-Two mutually exclusive ways to supply a clustering model:
+The encoder classes are constructed like this:
 
-- Pass `weights=` (a `KMeansWeights` / `GMMWeights` enum member). The base class loads
-  the pickled model, and if the weight name contains `PCA` it also loads the matching
-  PCA model automatically. When `weights` is given, the `clustering_model` and `pca`
-  arguments are ignored.
-- Pass an explicit `clustering_model=` (and optionally `pca=`) that you trained
-  yourself or loaded elsewhere.
+- `VLADEncoder` takes `n_clusters` plus an optional `kmeans_params` dict.
+- `FisherVectorEncoder` takes `n_components` plus an optional `gmm_params` dict.
+- Both take an optional `pca_params` dict (must include `n_components`) to add a PCA
+  step. Leave it out and no PCA is applied.
+
+Everything in `kmeans_params` / `gmm_params` / `pca_params` is forwarded verbatim to the
+underlying scikit-learn models (see scikit-learn for `KMeans` and `GaussianMixture` documentation). See
+[vlad.md](vlad.md) and [fisher_vector.md](fisher_vector.md) for the per-encoder details.
+
+## Training and persistence
+
+The models start unfitted, so you have to train before encoding:
+
+- `learn(images)` extracts features from the images, fits the configured PCA first (if
+  any), then fits the clustering model. Dimension checks against the feature extractor
+  and PCA are deferred until the models are actually fitted.
+- `save_to_disk(path)` writes the fitted clustering model, the PCA model, and the
+  normalization hyperparameters to a versioned `.encoder` file (the `.encoder` suffix is
+  added if you leave it off). It raises `NotFittedError` if you haven't called `learn`
+  yet.
+- `load_from_disk(path)` rebuilds the encoder from that file. The feature extractor and
+  similarity function aren't serialized, so you pass them again here (the feature
+  extractor defaults to `RootSIFT`); its output dimension has to match the saved PCA or
+  clustering model.
+
+This save/load round-trip is the supported way to reuse a trained encoder. The old
+`weights=` enum path still works but is deprecated, see [weights.md](weights.md).
