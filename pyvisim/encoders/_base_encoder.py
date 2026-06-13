@@ -440,7 +440,12 @@ class ImageEncoderBase(SimilarityMetric):
         :param images: An iterable of images.
         :param dim_reduction_factor: If a value is provided, a new PCA model will be used to reduce the dimensionality of the feature space
         :raises RuntimeError: If the encoder has no clustering model configured.
+        :raises ValueError: If dim_reduction_factor is provided but is not a positive integer.
         """
+        if dim_reduction_factor is not None and (
+            dim_reduction_factor <= 0 or not isinstance(dim_reduction_factor, int)
+        ):
+            raise ValueError("dim_reduction_factor must be a positive integer.")
         if self._clustering_model is None:
             raise RuntimeError(
                 "This encoder has no clustering model to fit. "
