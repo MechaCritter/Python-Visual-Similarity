@@ -20,6 +20,13 @@ setup_logging()
 
 _ENCODER_FILE_SUFFIX = ".encoder"
 _ENCODER_FILE_FORMAT_VERSION = 1
+_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
+    # TODO: when the next _ENCODER_FILE_FORMAT_VERSION comes, check if
+    # it's forward / backward compatible, then add entries like:
+    # (1, 2): True,  # version 1 can read files from version 2
+    #
+    # However, (2, 1) might not be True!!
+}
 _ENCODER_STATE_KEYS = frozenset(
     {
         "encoder_class",
@@ -530,6 +537,8 @@ class ImageEncoderBase(SimilarityMetric):
         state = joblib.load(path)
         if not isinstance(state, dict) or not _ENCODER_STATE_KEYS.issubset(state):
             raise ValueError(f"File {path} is not a valid .encoder file.")
+        # TODO: in the future, verify format version by checking
+        # compatibility via _ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
         if state["encoder_class"] != cls.__name__:
             raise ValueError(
                 f"File {path} was saved by {state['encoder_class']}. "
