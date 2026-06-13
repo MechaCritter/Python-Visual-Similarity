@@ -457,7 +457,12 @@ class ImageEncoderBase(SimilarityMetric):
         print("   - Feature Extractor used:", self.feature_extractor.__class__.__name__)
         print("   - Dimension of the feature space:", feat_dim := features.shape[1])
         if dim_reduction_factor:
-            self._pca = PCA(n_components=feat_dim // dim_reduction_factor)
+            if (n_components := feat_dim // dim_reduction_factor) <= 0:
+                raise ValueError(
+                    f"dim_reduction_factor {dim_reduction_factor} is too large for the feature dimension {feat_dim}. "
+                    f"Resulting PCA components would be {n_components}. Please choose a smaller dim_reduction_factor."
+                )
+            self._pca = PCA(n_components=n_components)
         if self._pca is not None:
             if not self._pca.is_fitted:
                 self._pca.fit(features)
