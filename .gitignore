@@ -175,6 +175,9 @@ pyvisim/one_time_use.py
 doc/
 res/
 
+# Generated test debug images (written by tests/conftest.py)
+tests/debug/
+
 # Files to keep in the ignored folders
 !res/images/
 !pyvisim/res/
