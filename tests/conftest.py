@@ -10,6 +10,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
+
 #: Directory where generated test images are dumped for manual inspection.
 DEBUG_DIR = Path(__file__).parent / "debug"
 
@@ -263,6 +265,34 @@ def checkerboard_image() -> ImageObj:
 
 
 @pytest.fixture
+def blobs_image() -> ImageObj:
+    """A field of random white rectangles on black, corner-rich and structurally distinct from a checkerboard.
+
+    Uses a seed not present in the training data so it acts as an unseen query.
+
+    :returns: an ``ImageObj`` object with the ``(256, 256)`` ``uint8`` array.
+    """
+    image = _make_blobs(size=MAIN_SIZE, seed=9999)
+    _save_debug_image(image, "blobs_image")
+    return ImageObj(array=image, path=DEBUG_DIR / "blobs_image.png")
+
+
+@pytest.fixture
+def noisy_checkerboard_image() -> ImageObj:
+    """A checkerboard image with mild Gaussian noise (std=15) applied.
+
+    Used to assert that a noisy variant of an image is more similar to its
+    clean original than to a structurally different image.
+
+    :returns: an ``ImageObj`` object with the ``(256, 256)`` ``uint8`` array.
+    """
+    base = _make_checkerboard(size=MAIN_SIZE)
+    image = _add_gaussian_noise(base, std=15.0, seed=42)
+    _save_debug_image(image, "noisy_checkerboard_image")
+    return ImageObj(array=image, path=DEBUG_DIR / "noisy_checkerboard_image.png")
+
+
+@pytest.fixture
 def horizontal_gradient_image() -> ImageObj:
     """A smooth horizontal gradient with very few sharp features.
 
@@ -326,26 +356,6 @@ def very_noisy_image_pair() -> tuple[ImageObj, ImageObj]:
 
 
 @pytest.fixture
-def extremely_noisy_image_pair() -> tuple[ImageObj, ImageObj]:
-    """Two checkerboard images with heavy, independent gaussian noise.
-
-    Both images share the same base pattern and noise standard deviation
-    (``std=90``), pushing the pattern close to indistinguishable from
-    random noise.
-
-    :returns: a tuple of two ``ImageObj`` objects with ``(256, 256)`` ``uint8``
-        arrays.
-    """
-    image_a, image_b = _make_noise_pair("extremely_noisy")
-    _save_debug_image(image_a, "extremely_noisy_image_a")
-    _save_debug_image(image_b, "extremely_noisy_image_b")
-    return (
-        ImageObj(array=image_a, path=DEBUG_DIR / "extremely_noisy_image_a.png"),
-        ImageObj(array=image_b, path=DEBUG_DIR / "extremely_noisy_image_b.png"),
-    )
-
-
-@pytest.fixture
 def identical_image_pair() -> tuple[np.ndarray, np.ndarray]:
     """Two pixel-identical checkerboard images.
 
@@ -360,75 +370,151 @@ def identical_image_pair() -> tuple[np.ndarray, np.ndarray]:
     return image, image.copy()
 
 
-@pytest.fixture
-def rotated_image_pair() -> tuple[np.ndarray, np.ndarray]:
-    """A stripe image and a 90-degree rotation of itself.
+#: Number of training images generated per category.
+CATEGORY_TRAIN_SIZE = 10
 
-    Rotating vertical stripes by 90 degrees turns them into horizontal
-    stripes, giving a meaningful (non-trivial) rotation test.
+#: PCA configurations used to parametrize the learned-encoder fixtures: one
+#: variant without PCA and one with PCA reducing descriptors to 32 dimensions.
+PCA_PARAMS = [None, {"n_components": 32, "random_state": 0}]
 
-    :returns: a tuple ``(image, rotated_image)`` of ``(256, 256)``
-        ``uint8`` arrays.
+
+def _make_blobs(size: int, seed: int, n_blobs: int = 40) -> np.ndarray:
+    """Generate a corner-rich field of random white rectangles on black.
+
+    Unlike the regular checkerboard, this produces an irregular texture, so
+    the two categories used in the behavioural tests are visually and
+    descriptively distinct while both still yielding RootSIFT descriptors.
+
+    :param size: width and height of the square image, in pixels.
+    :param seed: random seed controlling the (fixed) blob layout.
+    :param n_blobs: number of white rectangles to draw.
+    :returns: a ``(size, size)`` ``uint8`` array.
     """
-    image = _make_stripes(size=MAIN_SIZE)
-    rotated = np.rot90(image).copy()
-    _save_debug_image(image, "rotated_image_pair_original")
-    _save_debug_image(rotated, "rotated_image_pair_rotated")
-    return image, rotated
+    rng = np.random.default_rng(seed)
+    image = np.zeros((size, size), dtype=np.uint8)
+    for _ in range(n_blobs):
+        y, x = rng.integers(0, size - 30, size=2)
+        height, width = rng.integers(10, 30, size=2)
+        image[y : y + height, x : x + width] = 255
+    return image
 
 
-@pytest.fixture
-def shifted_image_pair() -> tuple[ImageObj, ImageObj]:
-    """A checkerboard image and a translated (shifted) version of itself.
+def _category_variant(base: np.ndarray, seed: int) -> np.ndarray:
+    """Create an intra-category variant via a small shift plus mild noise.
 
-    The shift is smaller than one checkerboard square, so the pattern
-    remains recognizable but no longer pixel-aligned.
+    The variation is deliberately small so that all variants of one base
+    pattern remain mutually similar, while differing enough to be non-trivial.
 
-    :returns: a tuple of two ``ImageObj`` objects with ``(256, 256)``
-        ``uint8`` arrays.
+    :param base: the category's base ``uint8`` image.
+    :param seed: random seed, fixed for reproducibility.
+    :returns: a ``uint8`` array with the same shape as ``base``.
     """
-    image = _make_checkerboard(size=MAIN_SIZE)
-    shifted = np.roll(image, shift=8, axis=1)
-    _save_debug_image(image, "shifted_image_pair_original")
-    _save_debug_image(shifted, "shifted_image_pair_shifted")
-    return (
-        ImageObj(array=image, path=DEBUG_DIR / "shifted_image_pair_original.png"),
-        ImageObj(array=shifted, path=DEBUG_DIR / "shifted_image_pair_shifted.png"),
+    rng = np.random.default_rng(seed)
+    shift_y = int(rng.integers(-5, 6))
+    shift_x = int(rng.integers(-5, 6))
+    shifted = np.roll(np.roll(base, shift_y, axis=0), shift_x, axis=1)
+    noisy = shifted.astype(np.float64) + rng.normal(0.0, 6.0, base.shape)
+    return np.clip(noisy, 0, 255).astype(np.uint8)
+
+
+#: Base pattern per category. ``checker`` is the standard checkerboard; ``blobs``
+#: is a random-rectangle field. Both are corner-rich and mutually distinct.
+_CATEGORY_BASES = {
+    "checker": _make_checkerboard(MAIN_SIZE),
+    "blobs": _make_blobs(MAIN_SIZE, seed=1234),
+}
+
+
+@pytest.fixture(scope="session")
+def category_train_images() -> dict[str, list[np.ndarray]]:
+    """Training images for the behavioural tests: 2 categories, 10 images each.
+
+    Every image is ``(256, 256)`` ``uint8``, corner-rich (so RootSIFT yields
+    descriptors) and visually distinct between categories.
+
+    :returns: a mapping ``{category_name: [image, ...]}`` with
+        :data:`CATEGORY_TRAIN_SIZE` images per category.
+    """
+    images: dict[str, list[np.ndarray]] = {}
+    for offset, (name, base) in enumerate(_CATEGORY_BASES.items()):
+        seed0 = offset * 1000
+        images[name] = [
+            _category_variant(base, seed0 + i) for i in range(CATEGORY_TRAIN_SIZE)
+        ]
+        _save_debug_image(images[name][0], f"category_train_{name}_0")
+    return images
+
+
+@pytest.fixture(scope="session")
+def category_query_images() -> dict[str, list[np.ndarray]]:
+    """Held-out query images, not present in :func:`category_train_images`.
+
+    Provides at least two new same-category images per category so that
+    same-category and different-category query pairs can be built.
+
+    :returns: a mapping ``{category_name: [image, image]}`` of held-out images.
+    """
+    images: dict[str, list[np.ndarray]] = {}
+    for offset, (name, base) in enumerate(_CATEGORY_BASES.items()):
+        seed0 = 500 + offset * 100
+        images[name] = [_category_variant(base, seed0 + i) for i in range(2)]
+        _save_debug_image(images[name][0], f"category_query_{name}_0")
+    return images
+
+
+@pytest.fixture(scope="session")
+def category_train_images_flat(
+    category_train_images: dict[str, list[np.ndarray]],
+) -> list[np.ndarray]:
+    """All training images flattened into a single list, for ``learn``.
+
+    :param category_train_images: the per-category training image fixture.
+    :returns: a flat list of every training image across all categories.
+    """
+    return [image for images in category_train_images.values() for image in images]
+
+
+@pytest.fixture(scope="session", params=PCA_PARAMS, ids=["no_pca", "pca32"])
+def learned_vlad_encoder(
+    request: pytest.FixtureRequest,
+    category_train_images_flat: list[np.ndarray],
+) -> VLADEncoder:
+    """A :class:`VLADEncoder` already learned on the training images.
+
+    Parametrized over a non-PCA and a PCA variant so dependent tests run for
+    both paths. Session-scoped to avoid re-fitting per test.
+
+    :param request: the pytest request, carrying the PCA params for this variant.
+    :param category_train_images_flat: flattened training images to learn from.
+    :returns: a fitted ``VLADEncoder`` with ``n_clusters=8``.
+    """
+    encoder = VLADEncoder(
+        n_clusters=8,
+        kmeans_params={"random_state": 0, "n_init": 3},
+        pca_params=request.param,
     )
+    encoder.learn(category_train_images_flat)
+    return encoder
 
 
-@pytest.fixture
-def different_image_pair() -> tuple[ImageObj, ImageObj]:
-    """Two clearly different patterns: a checkerboard and a stripe image.
+@pytest.fixture(scope="session", params=PCA_PARAMS, ids=["no_pca", "pca32"])
+def learned_fisher_encoder(
+    request: pytest.FixtureRequest,
+    category_train_images_flat: list[np.ndarray],
+) -> FisherVectorEncoder:
+    """A :class:`FisherVectorEncoder` already learned on the training images.
 
-    Used as a baseline for "these should NOT be considered similar".
+    Parametrized over a non-PCA and a PCA variant so dependent tests run for
+    both paths. Session-scoped to avoid re-fitting per test.
 
-    :returns: a tuple of two ``ImageObj`` objects with ``(256, 256)``
-        ``uint8`` arrays.
+    :param request: the pytest request, carrying the PCA params for this variant.
+    :param category_train_images_flat: flattened training images to learn from.
+    :returns: a fitted ``FisherVectorEncoder`` with ``n_components=8``.
     """
-    image_a = _make_checkerboard(size=MAIN_SIZE)
-    image_b = _make_stripes(size=MAIN_SIZE)
-    _save_debug_image(image_a, "different_image_pair_a")
-    _save_debug_image(image_b, "different_image_pair_b")
-    return (
-        ImageObj(array=image_a, path=DEBUG_DIR / "different_image_pair_a.png"),
-        ImageObj(array=image_b, path=DEBUG_DIR / "different_image_pair_b.png"),
+    encoder = FisherVectorEncoder(
+        n_components=8,
+        gmm_params={"random_state": 0},
+        pca_params=request.param,
     )
-
-
-@pytest.fixture
-def image_batch(
-    checkerboard_image: ImageObj,
-    horizontal_gradient_image: ImageObj,
-    stripes_image: ImageObj,
-    solid_image: ImageObj,
-) -> list[ImageObj]:
-    """A small batch of varied images for testing :class:`Pipeline` encoding.
-
-    :param checkerboard_image: fixture providing a checkerboard image.
-    :param horizontal_gradient_image: fixture providing a horizontal gradient image.
-    :param stripes_image: fixture providing a stripe image.
-    :param solid_image: fixture providing a featureless solid image.
-    :returns: a list of four ``ImageObj`` objects with ``(256, 256)`` ``uint8`` arrays.
-    """
-    return [checkerboard_image, horizontal_gradient_image, stripes_image, solid_image]
+    encoder.learn(category_train_images_flat)
+    return encoder
