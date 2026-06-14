@@ -1,13 +1,14 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from typing import Any, cast
 
 import numpy as np
-import torch
 
 from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
 from ..clustering import PCA, ClusteringModelBase, KMeans
 from ..encoders._base_encoder import ImageEncoderBase, KMeansWeights
+from ..typing import ImageInput
+from .utils import iter_images
 
 
 class VLADEncoder(ImageEncoderBase):
@@ -111,13 +112,31 @@ class VLADEncoder(ImageEncoderBase):
             )
         self._set_clustering_model(model)
 
-    def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
+    def encode(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> np.ndarray:
+        """
+        Encode one or more images into VLAD descriptor vectors.
+
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: ``(N, n_clusters × feature_dim)`` array of VLAD encodings.
+        """
         all_encodings = []
-        if isinstance(images, torch.Tensor):
-            raise RuntimeError("Torch images are not supported yet.")
-        if isinstance(images, np.ndarray) and images.ndim == 3:
-            images = [images]  # Handle single image case
-        for image in images:
+        for image in iter_images(images, dims=dims, value_range=value_range):
             descriptors = self.feature_extractor(image)
             if self.pca:
                 descriptors = self.pca.transform(descriptors.astype(np.float32))
