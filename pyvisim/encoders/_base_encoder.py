@@ -15,6 +15,13 @@ from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
 from .._utils import cosine_similarity, read_image_rgb
 from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT
+from ..typing import (
+    Float32NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+    SimilarityFunc,
+)
+from .utils import iter_images
 
 setup_logging()
 
@@ -43,10 +50,10 @@ _ENCODER_STATE_KEYS = frozenset(
 
 # Helper Functions
 def check_desired_output(
-    similarity_func: Callable[[np.ndarray, np.ndarray], Any],
-    vecs1: np.ndarray,
-    vecs2: np.ndarray,
-) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    similarity_func: Callable[[FloatNumpyArray, FloatNumpyArray], Any],
+    vecs1: FloatNumpyArray,
+    vecs2: FloatNumpyArray,
+) -> SimilarityFunc:
     """
     Checks the output of the given similarity_func(vecs1, vecs2).
     Requirements:
@@ -101,14 +108,14 @@ def check_desired_output(
 
 
 def _make_fallback_func(
-    sim_func: Callable[[np.ndarray, np.ndarray], Any],
-) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    sim_func: Callable[[FloatNumpyArray, FloatNumpyArray], Any],
+) -> SimilarityFunc:
     """
     Returns a new function that loops row-by-row if the original
     similarity function can't handle batch mode.
     """
 
-    def fallback(vecs1: np.ndarray, vecs2: np.ndarray) -> np.ndarray:
+    def fallback(vecs1: FloatNumpyArray, vecs2: FloatNumpyArray) -> Float32NumpyArray:
         N = vecs1.shape[0]  # (N, D)
         M = vecs2.shape[0]  # (M, D)
         out = np.zeros((N, M), dtype=np.float32)
@@ -259,9 +266,7 @@ class ImageEncoderBase(SimilarityMetric):
         feature_extractor: FeatureExtractorBase | None = None,
         clustering_model: ClusteringModelBase | None = None,
         weights: KMeansWeights | GMMWeights | None = None,
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
         power_norm_weight: float = 1,
         norm_order: int = 2,
         epsilon: float = 1e-9,
@@ -273,7 +278,7 @@ class ImageEncoderBase(SimilarityMetric):
         self._feature_extractor: FeatureExtractorBase
         self._clustering_model: ClusteringModelBase | None = None
         self._pca: PCA | None = None
-        self._similarity_func: Callable[[np.ndarray, np.ndarray], np.ndarray]
+        self._similarity_func: SimilarityFunc
 
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
@@ -341,13 +346,11 @@ class ImageEncoderBase(SimilarityMetric):
         self._feature_extractor = feature_extractor
 
     @property
-    def similarity_func(self) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    def similarity_func(self) -> SimilarityFunc:
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(
-        self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]
-    ) -> None:
+    def similarity_func(self, func: SimilarityFunc) -> None:
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
@@ -431,10 +434,12 @@ class ImageEncoderBase(SimilarityMetric):
 
     def learn(
         self,
-        images: Iterable[np.ndarray],
+        images: ImageInput,
         /,
         *,
         dim_reduction_factor: int | None = None,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
     ) -> None:
         """
         Learns the visual vocabulary from the given images.
@@ -444,8 +449,19 @@ class ImageEncoderBase(SimilarityMetric):
         on the extracted features. If a PCA model is configured, the features
         are reduced with it first (fitting it beforehand if necessary).
 
-        :param images: An iterable of images.
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images. Each image is normalized to a canonical
+            ``uint8`` ``(H, W, C)`` array before feature extraction.
         :param dim_reduction_factor: If a value is provided, a new PCA model will be used to reduce the dimensionality of the feature space
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
         :raises RuntimeError: If the encoder has no clustering model configured.
         :raises ValueError: If dim_reduction_factor is provided but is not a positive integer.
         """
@@ -458,7 +474,12 @@ class ImageEncoderBase(SimilarityMetric):
                 "This encoder has no clustering model to fit. "
                 "Configure one via the constructor parameters."
             )
-        features = np.vstack([self.feature_extractor(image) for image in images])
+        features: FloatNumpyArray = np.vstack(
+            [
+                self.feature_extractor(image)
+                for image in iter_images(images, dims=dims, value_range=value_range)
+            ]
+        )
         print("[INFO] Learning the visual vocabulary with the following parameters:")
         print("   - Number of clusters:", self._clustering_model.n_clusters)
         print("   - Feature Extractor used:", self.feature_extractor.__class__.__name__)
@@ -518,9 +539,7 @@ class ImageEncoderBase(SimilarityMetric):
         path: str | pathlib.Path,
         *,
         feature_extractor: FeatureExtractorBase | None = None,
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
     ) -> _EncoderT:
         """
         Loads an encoder previously saved with :meth:`save_to_disk`.
@@ -564,7 +583,7 @@ class ImageEncoderBase(SimilarityMetric):
     # @lru_cache(maxsize=4)
     def generate_encoding_map(
         self, image_paths: Iterable[str], /
-    ) -> dict[str, np.ndarray]:
+    ) -> dict[str, FloatNumpyArray]:
         """
         Converts a collection of image file paths into a dictionary of
         ``{image_path: encoded_vector}``.
@@ -580,29 +599,62 @@ class ImageEncoderBase(SimilarityMetric):
         return dict(zip(image_paths, self.encode(images), strict=True))
 
     @abc.abstractmethod
-    def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
+    def encode(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> FloatNumpyArray:
         """
         Encodes one or more images into a batch of vector representations.
 
-        :param images: iterable. Consider using an iterator if you have a lot of images.
+        Each image is normalized to a canonical ``uint8`` ``(H, W, C)`` array
+        before feature extraction, so NumPy arrays, torch tensors and other
+        array-like inputs are all accepted. When a batch axis is present (via
+        ``dims``), every image in the batch is encoded.
+
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images. Consider using an iterator for large datasets.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
         :return: vector representations of the given images
         """
         raise NotImplementedError
 
     def similarity_score(
         self,
-        images1: Iterable[np.ndarray] | np.ndarray,
-        images2: Iterable[np.ndarray] | np.ndarray,
-    ) -> np.ndarray:
+        images1: ImageInput,
+        images2: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> Float32NumpyArray:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 
-        :param images1: First (batch of) image(s)
-        :param images2: Second (batch of) image(s)
+        :param images1: First (batch of) image(s) as ``MatLike``.
+        :param images2: Second (batch of) image(s) as ``MatLike``.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
         :return: Similarity matrix between the two image batches.
         """
-        vector1 = self.encode(images1)
-        vector2 = self.encode(images2)
+        vector1 = self.encode(images1, dims=dims, value_range=value_range)
+        vector2 = self.encode(images2, dims=dims, value_range=value_range)
         result = self.similarity_func(vector1, vector2)
         return np.asarray(result, dtype=np.float32)
 

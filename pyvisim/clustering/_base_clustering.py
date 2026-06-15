@@ -5,9 +5,10 @@ Base classes for the scikit-learn-backed models used by the image encoders.
 import abc
 from typing import Any, ClassVar, TypeVar
 
-import numpy as np
 from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
+
+from ..typing import FloatNumpyArray
 
 _SklearnModelT = TypeVar("_SklearnModelT", bound="_SklearnModelBase")
 
@@ -56,7 +57,7 @@ class _SklearnModelBase(abc.ABC):
         self._check_is_fitted()
         return int(self._model.n_features_in_)
 
-    def fit(self, features: np.ndarray) -> None:
+    def fit(self, features: FloatNumpyArray) -> None:
         """
         Fits the underlying estimator on the given feature matrix.
 

@@ -85,6 +85,7 @@ disallow_untyped_calls = true
 no_implicit_optional = true
 check_untyped_defs = true
 exclude = ["^build/", "^dist/", "^\\.venv/", "^venv/"]
+plugins = ["numpy.typing.mypy_plugin"]
 
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]

@@ -1,13 +1,18 @@
 import logging
-from collections.abc import Callable, Iterable
-from itertools import tee
+from collections.abc import Iterable
 
 import numpy as np
-import torch
 
 from .._base_classes import SimilarityMetric
 from .._utils import cosine_similarity, read_image_rgb
+from ..typing import (
+    Float32NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+    SimilarityFunc,
+)
 from ._base_encoder import ImageEncoderBase, check_desired_output
+from .utils import iter_images
 
 
 class Pipeline(SimilarityMetric):
@@ -29,9 +34,7 @@ class Pipeline(SimilarityMetric):
     def __init__(
         self,
         encoders: list[ImageEncoderBase],
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
@@ -48,30 +51,48 @@ class Pipeline(SimilarityMetric):
                     f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}"
                 )
 
-    def encode(self, images: Iterable[np.ndarray] | np.ndarray) -> np.ndarray:
+    def encode(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> FloatNumpyArray:
         """
         Encode an image using all encoders in the pipeline.
 
-        :param images: Images to process.
+        The input is normalized once into canonical ``uint8`` ``(H, W, C)``
+        images (handling torch tensors and batches), then shared across every
+        encoder in the pipeline.
+
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
         :return: encoded images using the combined encoders.
         """
+        image_list = list(iter_images(images, dims=dims, value_range=value_range))
         all_encodings = []
-        if isinstance(images, torch.Tensor):
-            raise RuntimeError("Torch images are not supported yet.")
-        if isinstance(images, np.ndarray) and images.ndim == 3:
-            images = [images]  # Handle single image case
-        images_gen = tee(images, len(self.encoders))
-        for metric, images in zip(self.encoders, images_gen, strict=True):
+        for metric in self.encoders:
             a = metric.flatten  # each encoder has to be flattened to be usable here. Saving the original state temporarily
             metric.flatten = True
-            encodings = metric.encode(images)  # Each of size (num_imgs, feature_dim)
+            encodings = metric.encode(
+                image_list
+            )  # Each of size (num_imgs, feature_dim)
             all_encodings.append(encodings)
             metric.flatten = a
         return np.hstack(all_encodings)
 
     def generate_encoding_map(
         self, image_paths: Iterable[str]
-    ) -> dict[str, np.ndarray]:
+    ) -> dict[str, FloatNumpyArray]:
         """
         Converts a collection of image file paths into a dictionary of
         ``{image_path: encoded_vector}``.
@@ -87,30 +108,40 @@ class Pipeline(SimilarityMetric):
         return dict(zip(image_paths, self.encode(images), strict=True))
 
     @property
-    def similarity_func(self) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    def similarity_func(self) -> SimilarityFunc:
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(
-        self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]
-    ) -> None:
+    def similarity_func(self, func: SimilarityFunc) -> None:
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
     def similarity_score(
         self,
-        images1: Iterable[np.ndarray] | np.ndarray,
-        images2: Iterable[np.ndarray] | np.ndarray,
-    ) -> np.ndarray:
+        images1: ImageInput,
+        images2: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> Float32NumpyArray:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 
-        :param images1: First (batch of) image(s)
-        :param images2: Second (batch of) image(s)
+        :param images1: First (batch of) image(s) as ``MatLike``.
+        :param images2: Second (batch of) image(s) as ``MatLike``.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
         :return: Similarity matrix between the two image batches.
         """
-        vector1 = self.encode(images1)
-        vector2 = self.encode(images2)
+        vector1 = self.encode(images1, dims=dims, value_range=value_range)
+        vector2 = self.encode(images2, dims=dims, value_range=value_range)
         result = self.similarity_func(vector1, vector2)
         return np.asarray(result, dtype=np.float32)
 
