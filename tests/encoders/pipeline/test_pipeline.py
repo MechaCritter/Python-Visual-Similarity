@@ -49,21 +49,19 @@ def pipeline(
     return Pipeline([vlad, fisher])
 
 
-def test_pipeline_rejects_non_encoder() -> None:
+def test_rejects_non_encoder() -> None:
     """A pipeline rejects members that are not encoders."""
     with pytest.raises(ValueError, match="only accepts instances of ImageEncoderBase"):
         Pipeline(["not an encoder"])  # type: ignore[list-item]
 
 
-def test_pipeline_encode_concatenates(
-    pipeline: Pipeline, checkerboard_image: ImageObj
-) -> None:
+def test_encode_concatenates(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
     """The pipeline concatenates each encoder's output along the feature axis."""
     out = pipeline.encode([checkerboard_image.array])
     assert out.shape == (1, PIPELINE_DIM)
 
 
-def test_pipeline_restores_flatten_flag(
+def test_restores_flatten_flag(
     pipeline: Pipeline,
     pipeline_encoders: tuple[VLADEncoder, FisherVectorEncoder],
     checkerboard_image: ImageObj,
@@ -79,16 +77,14 @@ def test_pipeline_restores_flatten_flag(
         vlad.flatten = original
 
 
-def test_pipeline_encode_batch(
-    pipeline: Pipeline, checkerboard_image: ImageObj
-) -> None:
+def test_encode_batch(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
     """A batch of two images encodes to ``(2, PIPELINE_DIM)``."""
     base = checkerboard_image.array
     batch = [base, np.roll(base, 8, axis=0)]
     assert pipeline.encode(batch).shape == (2, PIPELINE_DIM)
 
 
-def test_pipeline_encode_accepts_tensor(
+def test_encode_accepts_tensor(
     pipeline: Pipeline, checkerboard_image: ImageObj
 ) -> None:
     """A grayscale torch tensor image is accepted and encodes like its array."""
@@ -96,7 +92,7 @@ def test_pipeline_encode_accepts_tensor(
     assert pipeline.encode([tensor]).shape == (1, PIPELINE_DIM)
 
 
-def test_pipeline_similarity_score_shape(
+def test_similarity_score_shape(
     pipeline: Pipeline, checkerboard_image: ImageObj
 ) -> None:
     """``similarity_score`` returns an ``(n1, n2)`` float32 matrix."""
@@ -108,7 +104,7 @@ def test_pipeline_similarity_score_shape(
     assert scores.dtype == np.float32
 
 
-def test_pipeline_generate_encoding_map(
+def test_generate_encoding_map(
     pipeline: Pipeline,
     tmp_path: Path,
     category_train_images_flat: list[np.ndarray],
@@ -128,7 +124,7 @@ def test_pipeline_generate_encoding_map(
     assert len(lengths) == 1
 
 
-def test_pipeline_repr(pipeline: Pipeline) -> None:
+def test_repr(pipeline: Pipeline) -> None:
     """``repr`` names the pipeline and each member encoder."""
     text = repr(pipeline)
     assert "Pipeline(" in text
