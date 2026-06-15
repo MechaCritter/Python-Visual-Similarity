@@ -182,8 +182,8 @@ def plot_and_save_heatmap(
 
     figsize = (
         (
-            matrix.shape[1] * 0.7,
-            matrix.shape[0] * 0.7,
+            int(matrix.shape[1] * 0.7),
+            int(matrix.shape[0] * 0.7),
         )
         if figsize is None
         else figsize
