@@ -269,10 +269,10 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         """
         mat_data = scipy.io.loadmat(set_id_file)
         train_ids = (
-            mat_data["tstid"].squeeze().tolist()
+            mat_data["tstid"].flatten().tolist()
         )  # Swaps train and test, since test contains significantly more images
-        val_ids = mat_data["valid"].squeeze().tolist()
-        test_ids = mat_data["trnid"].squeeze().tolist()
+        val_ids = mat_data["valid"].flatten().tolist()
+        test_ids = mat_data["trnid"].flatten().tolist()
         return train_ids, val_ids, test_ids
 
     def _filter_by_purpose(self) -> tuple[list[str], list[int]]:
