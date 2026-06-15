@@ -74,7 +74,7 @@ SimilarityFunc = Callable[[FloatNumpyArray, FloatNumpyArray], FloatNumpyArray]
 
 #: Anything that can be turned into a numerical NumPy array: a NumPy array, a
 #: PyTorch tensor, or any array-like object (e.g. nested lists of numbers).
-MatLike = np.ndarray | torch.Tensor | npt.ArrayLike
+MatLike = torch.Tensor | npt.ArrayLike
 
 #: A single image or a collection of images. Either one ``MatLike`` object
 #: (optionally carrying a batch axis) or an iterable of ``MatLike`` images.
