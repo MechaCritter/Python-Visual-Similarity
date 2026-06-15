@@ -15,7 +15,12 @@ from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
 from .._utils import cosine_similarity, read_image_rgb
 from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT
-from ..typing import ImageInput
+from ..typing import (
+    Float32NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+    SimilarityFunc,
+)
 from .utils import iter_images
 
 setup_logging()
@@ -45,10 +50,10 @@ _ENCODER_STATE_KEYS = frozenset(
 
 # Helper Functions
 def check_desired_output(
-    similarity_func: Callable[[np.ndarray, np.ndarray], Any],
-    vecs1: np.ndarray,
-    vecs2: np.ndarray,
-) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    similarity_func: Callable[[FloatNumpyArray, FloatNumpyArray], Any],
+    vecs1: FloatNumpyArray,
+    vecs2: FloatNumpyArray,
+) -> SimilarityFunc:
     """
     Checks the output of the given similarity_func(vecs1, vecs2).
     Requirements:
@@ -103,14 +108,14 @@ def check_desired_output(
 
 
 def _make_fallback_func(
-    sim_func: Callable[[np.ndarray, np.ndarray], Any],
-) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    sim_func: Callable[[FloatNumpyArray, FloatNumpyArray], Any],
+) -> SimilarityFunc:
     """
     Returns a new function that loops row-by-row if the original
     similarity function can't handle batch mode.
     """
 
-    def fallback(vecs1: np.ndarray, vecs2: np.ndarray) -> np.ndarray:
+    def fallback(vecs1: FloatNumpyArray, vecs2: FloatNumpyArray) -> Float32NumpyArray:
         N = vecs1.shape[0]  # (N, D)
         M = vecs2.shape[0]  # (M, D)
         out = np.zeros((N, M), dtype=np.float32)
@@ -261,9 +266,7 @@ class ImageEncoderBase(SimilarityMetric):
         feature_extractor: FeatureExtractorBase | None = None,
         clustering_model: ClusteringModelBase | None = None,
         weights: KMeansWeights | GMMWeights | None = None,
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
         power_norm_weight: float = 1,
         norm_order: int = 2,
         epsilon: float = 1e-9,
@@ -275,7 +278,7 @@ class ImageEncoderBase(SimilarityMetric):
         self._feature_extractor: FeatureExtractorBase
         self._clustering_model: ClusteringModelBase | None = None
         self._pca: PCA | None = None
-        self._similarity_func: Callable[[np.ndarray, np.ndarray], np.ndarray]
+        self._similarity_func: SimilarityFunc
 
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
@@ -343,13 +346,11 @@ class ImageEncoderBase(SimilarityMetric):
         self._feature_extractor = feature_extractor
 
     @property
-    def similarity_func(self) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+    def similarity_func(self) -> SimilarityFunc:
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(
-        self, func: Callable[[np.ndarray, np.ndarray], np.ndarray]
-    ) -> None:
+    def similarity_func(self, func: SimilarityFunc) -> None:
         dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
         self._similarity_func = check_desired_output(func, dummy1, dummy2)
 
@@ -473,7 +474,7 @@ class ImageEncoderBase(SimilarityMetric):
                 "This encoder has no clustering model to fit. "
                 "Configure one via the constructor parameters."
             )
-        features = np.vstack(
+        features: FloatNumpyArray = np.vstack(
             [
                 self.feature_extractor(image)
                 for image in iter_images(images, dims=dims, value_range=value_range)
@@ -538,9 +539,7 @@ class ImageEncoderBase(SimilarityMetric):
         path: str | pathlib.Path,
         *,
         feature_extractor: FeatureExtractorBase | None = None,
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
     ) -> _EncoderT:
         """
         Loads an encoder previously saved with :meth:`save_to_disk`.
@@ -584,7 +583,7 @@ class ImageEncoderBase(SimilarityMetric):
     # @lru_cache(maxsize=4)
     def generate_encoding_map(
         self, image_paths: Iterable[str], /
-    ) -> dict[str, np.ndarray]:
+    ) -> dict[str, FloatNumpyArray]:
         """
         Converts a collection of image file paths into a dictionary of
         ``{image_path: encoded_vector}``.
@@ -606,7 +605,7 @@ class ImageEncoderBase(SimilarityMetric):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> FloatNumpyArray:
         """
         Encodes one or more images into a batch of vector representations.
 
@@ -637,7 +636,7 @@ class ImageEncoderBase(SimilarityMetric):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Computes vector encodings for two images and calculates the similarity score between them.
 

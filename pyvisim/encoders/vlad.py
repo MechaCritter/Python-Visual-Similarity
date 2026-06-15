@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from typing import Any, cast
 
 import numpy as np
@@ -7,7 +6,12 @@ from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
 from ..clustering import PCA, ClusteringModelBase, KMeans
 from ..encoders._base_encoder import ImageEncoderBase, KMeansWeights
-from ..typing import ImageInput
+from ..typing import (
+    Float32NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+    SimilarityFunc,
+)
 from .utils import iter_images
 
 
@@ -67,9 +71,7 @@ class VLADEncoder(ImageEncoderBase):
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
         raise_error_when_pca_incompatible: bool = False,
     ) -> None:
         if weights is not None:
@@ -118,7 +120,7 @@ class VLADEncoder(ImageEncoderBase):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Encode one or more images into VLAD descriptor vectors.
 
@@ -137,7 +139,7 @@ class VLADEncoder(ImageEncoderBase):
         """
         all_encodings = []
         for image in iter_images(images, dims=dims, value_range=value_range):
-            descriptors = self.feature_extractor(image)
+            descriptors: FloatNumpyArray = self.feature_extractor(image)
             if self.pca:
                 descriptors = self.pca.transform(descriptors.astype(np.float32))
 
@@ -151,7 +153,7 @@ class VLADEncoder(ImageEncoderBase):
 
             k = len(centroids)
             dim = descriptors.shape[1]
-            descriptor_vector: np.ndarray = np.zeros((k, dim), dtype=np.float32)
+            descriptor_vector: FloatNumpyArray = np.zeros((k, dim), dtype=np.float32)
 
             for i, desc in enumerate(descriptors):
                 cluster_id = labels[i]

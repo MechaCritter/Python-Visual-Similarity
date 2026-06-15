@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from typing import Any, cast
 
 import numpy as np
@@ -7,7 +6,12 @@ from .._base_classes import FeatureExtractorBase
 from .._utils import cosine_similarity
 from ..clustering import PCA, ClusteringModelBase, GaussianMixtureModel
 from ..encoders._base_encoder import GMMWeights, ImageEncoderBase
-from ..typing import ImageInput
+from ..typing import (
+    Float64NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+    SimilarityFunc,
+)
 from .utils import iter_images
 
 
@@ -62,9 +66,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: Callable[
-            [np.ndarray, np.ndarray], np.ndarray
-        ] = cosine_similarity,
+        similarity_func: SimilarityFunc = cosine_similarity,
         raise_error_when_pca_incompatible: bool = False,
     ):
         if weights is not None:
@@ -113,7 +115,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float64NumpyArray:
         """
         Encode one or more images into Fisher Vector descriptors.
 
@@ -133,7 +135,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         """
         all_encodings = []
         for image in iter_images(images, dims=dims, value_range=value_range):
-            descriptors = self.feature_extractor(image)
+            descriptors: FloatNumpyArray = self.feature_extractor(image)
             if self.pca:
                 descriptors = self.pca.transform(descriptors.astype(np.float32))
             num_descriptors = len(descriptors)

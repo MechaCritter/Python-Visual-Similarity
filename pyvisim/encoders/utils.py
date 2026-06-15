@@ -5,14 +5,14 @@ import torch
 
 from .._errors import InvalidImageError
 from ..features._features import grayscale_dims
-from ..typing import ImageInput, _to_image_list
+from ..typing import ImageInput, UInt8NumpyArray, _to_image_list
 
 
 def iter_images(
     images: ImageInput,
     dims: str = "HWC",
     value_range: tuple[float, float] = (0.0, 255.0),
-) -> Iterator[np.ndarray]:
+) -> Iterator[UInt8NumpyArray]:
     """
     Yield canonical per-image arrays from a single object or an iterable.
 

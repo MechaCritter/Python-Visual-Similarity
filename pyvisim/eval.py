@@ -8,7 +8,7 @@ from typing import Protocol
 import numpy as np
 
 from ._utils import cosine_similarity
-from .typing import ImageInput
+from .typing import FloatNumpyArray, ImageInput, NumpyArray
 
 __all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
 
@@ -22,7 +22,7 @@ class Encoder(Protocol):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> FloatNumpyArray:
         """
         Encodes one or more images into a batch of vector representations.
 
@@ -41,8 +41,8 @@ class Encoder(Protocol):
 
 
 def retrieve_top_k_similar(
-    uploaded_image: np.ndarray,
-    dataset: dict[str, np.ndarray],
+    uploaded_image: NumpyArray,
+    dataset: dict[str, FloatNumpyArray],
     encoder: Encoder,
     k: int = 5,
 ) -> list[tuple[str, float]]:
@@ -77,9 +77,9 @@ def retrieve_top_k_similar(
 
 
 def top_k_map(
-    images: Iterable[np.ndarray],
+    images: Iterable[NumpyArray],
     image_labels: Iterable[int],
-    encoding_map: dict[str, np.ndarray],
+    encoding_map: dict[str, FloatNumpyArray],
     path_labels_dict: dict[str, int],
     encoder: Encoder,
     k: int | None = None,
@@ -136,9 +136,9 @@ def top_k_map(
 
 
 def top_k_accuracy(
-    images: Iterable[np.ndarray],
+    images: Iterable[NumpyArray],
     image_labels: Iterable[int],
-    encoding_map: dict[str, np.ndarray],
+    encoding_map: dict[str, FloatNumpyArray],
     path_labels_dict: dict[str, int],
     encoder: Encoder,
     k: int,

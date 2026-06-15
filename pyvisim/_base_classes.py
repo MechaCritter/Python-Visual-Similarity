@@ -1,9 +1,7 @@
 import abc
 import logging
 
-import numpy as np
-
-from .typing import ImageInput, MatLike
+from .typing import Float32NumpyArray, FloatNumpyArray, ImageInput, MatLike
 
 
 class SimilarityMetric(abc.ABC):
@@ -23,7 +21,7 @@ class SimilarityMetric(abc.ABC):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> FloatNumpyArray:
         """
         Compute a similarity score between two images.
 
@@ -62,7 +60,7 @@ class FeatureExtractorBase(abc.ABC):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Extracts features from an image.
 

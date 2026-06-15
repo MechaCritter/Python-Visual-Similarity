@@ -18,7 +18,12 @@ from torchvision.models import VGG16_Weights, vgg16
 
 from .._base_classes import FeatureExtractorBase
 from .._config import setup_logging
-from ..typing import MatLike, _to_image_list
+from ..typing import (
+    Float32NumpyArray,
+    MatLike,
+    UInt8NumpyArray,
+    _to_image_list,
+)
 
 setup_logging()
 
@@ -54,7 +59,7 @@ def _to_single_image(
     image: MatLike,
     dims: str = "HWC",
     value_range: tuple[float, float] = (0.0, 255.0),
-) -> np.ndarray:
+) -> UInt8NumpyArray:
     """
     Normalize a single ``MatLike`` image into one canonical array.
 
@@ -97,7 +102,7 @@ def _check_output_shape(  # noqa: UP047
     @wraps(func)
     def wrapper(
         self: FeatureExtractorBase, image: MatLike, /, *args: Any, **kwargs: Any
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         feat_vecs = func(self, image, *args, **kwargs)
         if feat_vecs is None:
             print("No feature vectors found. Returning empty array.")
@@ -149,7 +154,7 @@ class SIFT(FeatureExtractorBase):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Extracts SIFT features from an image.
 
@@ -165,7 +170,7 @@ class SIFT(FeatureExtractorBase):
         image = _to_single_image(image, dims=dims, value_range=value_range)
         sift = cv2.SIFT.create()
         _, descriptors = sift.detectAndCompute(image, None)
-        return descriptors
+        return cast(Float32NumpyArray, descriptors)
 
     def __repr__(self) -> str:
         return f"SIFT(output_dim={self.output_dim})"
@@ -196,7 +201,7 @@ class RootSIFT(FeatureExtractorBase):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Extracts RootSIFT features from an image.
 
@@ -230,7 +235,9 @@ class Lambda(FeatureExtractorBase):
     and output fixed-size feature vectors from each image.
     """
 
-    def __init__(self, func: Callable[[np.ndarray], np.ndarray], output_dim: int):
+    def __init__(
+        self, func: Callable[[UInt8NumpyArray], Float32NumpyArray], output_dim: int
+    ):
         """
         Initializes the Lambda feature extractor.
         :param func:
@@ -256,7 +263,7 @@ class Lambda(FeatureExtractorBase):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Extracts features from an image using the user-defined function.
 
@@ -427,7 +434,7 @@ class DeepConvFeature(FeatureExtractorBase):
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> np.ndarray:
+    ) -> Float32NumpyArray:
         """
         Processes a single image through the chosen conv layer and
         returns flattened feature descriptors.

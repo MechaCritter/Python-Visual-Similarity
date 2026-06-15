@@ -46,13 +46,31 @@ provided, e.g. ``(0.0, 1.0)`` for normalized float tensors, the values are
 rescaled into the canonical ``[0, 255]`` range.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
 import torch
 
 from .._errors import InvalidImageError
+
+#: Generic NumPy array of any dtype.
+NumpyArray = npt.NDArray[np.generic]
+#: NumPy array of uint8 values (canonical image layout).
+UInt8NumpyArray = npt.NDArray[np.uint8]
+#: NumPy array of float32 values (feature descriptors and encodings).
+Float32NumpyArray = npt.NDArray[np.float32]
+#: NumPy array of float64 values (sklearn estimator outputs).
+Float64NumpyArray = npt.NDArray[np.float64]
+#: NumPy array of any floating-point dtype.
+FloatNumpyArray = npt.NDArray[np.floating[Any]]
+#: NumPy array of platform-native signed integers (cluster labels / indices).
+IntNumpyArray = npt.NDArray[np.intp]
+
+#: A similarity function: maps two batches of feature vectors of shapes
+#: ``(N, D)`` and ``(M, D)`` to an ``(N, M)`` similarity matrix.
+SimilarityFunc = Callable[[FloatNumpyArray, FloatNumpyArray], FloatNumpyArray]
 
 #: Anything that can be turned into a numerical NumPy array: a NumPy array, a
 #: PyTorch tensor, or any array-like object (e.g. nested lists of numbers).
@@ -67,7 +85,7 @@ _CANONICAL_AXIS_ORDER = "BHWC"
 _DEFAULT_VALUE_RANGE: tuple[float, float] = (0.0, 255.0)
 
 
-def _to_ndarray(data: MatLike) -> np.ndarray:
+def _to_ndarray(data: MatLike) -> NumpyArray:
     """
     Convert any ``MatLike`` object into a numerical NumPy array.
 
@@ -128,7 +146,7 @@ def _validate_dims(dims: str, ndim: int) -> str:
     return normalized
 
 
-def _to_uint8(array: np.ndarray, value_range: tuple[float, float]) -> np.ndarray:
+def _to_uint8(array: NumpyArray, value_range: tuple[float, float]) -> UInt8NumpyArray:
     """
     Rescale an array from ``value_range`` into the canonical ``[0, 255]`` uint8 range.
 
@@ -143,13 +161,13 @@ def _to_uint8(array: np.ndarray, value_range: tuple[float, float]) -> np.ndarray
             f"'value_range' must be an increasing (low, high) tuple, got {value_range}."
         )
     if value_range == _DEFAULT_VALUE_RANGE and array.dtype == np.uint8:
-        return array
+        return cast(UInt8NumpyArray, array)
     scaled = (array.astype(np.float64) - low) / (high - low) * 255.0
     scaled = np.clip(scaled, 0.0, 255.0)
     return scaled.astype(np.uint8)
 
 
-def _split_into_images(array: np.ndarray, dims: str) -> list[np.ndarray]:
+def _split_into_images(array: UInt8NumpyArray, dims: str) -> list[UInt8NumpyArray]:
     """
     Reorder an array into ``(B, H, W[, C])`` and split it along the batch axis.
 
@@ -170,7 +188,7 @@ def _to_image_list(
     images: MatLike,
     dims: str = "HWC",
     value_range: tuple[float, float] = (0.0, 255.0),
-) -> list[np.ndarray]:
+) -> list[UInt8NumpyArray]:
     """
     Normalize a single ``MatLike`` object into canonical per-image arrays.
 
