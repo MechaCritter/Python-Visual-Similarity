@@ -1,16 +1,10 @@
 from collections.abc import Callable
 
-import numpy as np
-import numpy.typing as npt
 import torch
 
 from .._base_classes import SimilarityMetric
 from .._utils import cosine_similarity
-
-MatLike = np.ndarray | torch.Tensor | npt.ArrayLike
-
-
-# TODO: uncomment all "ignore" comments after implementing the class properly.
+from ..typing import MatLike, NumpyArray
 
 
 class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
@@ -33,7 +27,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         image: MatLike,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0, 255),
-    ) -> np.ndarray:
+    ) -> NumpyArray:
         raise NotImplementedError("SiameseNeuralNetwork is not implemented yet.")
 
     def similarity_score(  # type: ignore
