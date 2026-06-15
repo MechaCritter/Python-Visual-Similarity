@@ -65,6 +65,10 @@ dead-code = [
 fmt = [
   "ruff",
 ]
+test = [
+    "pytest",
+    "pytest-cov",
+]
 
 [tool.mypy]
 python_version = "3.10"
@@ -120,3 +124,18 @@ indent-style = "space"
 [tool.codespell]
 ignore-words-list = "Commun"
 skip = "./examples"  # jupyter notebooks
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Always emit a coverage report at the end of every run, locally and in CI.
+addopts = "--cov=pyvisim --cov-report=term-missing"
+markers = [
+  "slow: tests that download model weights or data (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+source = ["pyvisim"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
