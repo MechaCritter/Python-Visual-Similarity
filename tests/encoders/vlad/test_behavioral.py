@@ -157,3 +157,24 @@ def test_noisy_closer_to_original_than_different(
         noisy_checkerboard_image.array,
         blobs_image.array,
     )
+
+
+# §3.6.5 Serialization round-trip
+
+
+def test_encode_invariant_after_serialization(
+    learned_vlad_encoder: VLADEncoder,
+    checkerboard_image: ImageObj,
+    tmp_path,
+) -> None:
+    """VLAD encodes an image to the exact same vector before and after a save/load round-trip."""
+    image = checkerboard_image.array
+    vector_before = learned_vlad_encoder.encode([image])
+
+    path = learned_vlad_encoder.save_to_disk(tmp_path / "encoder")
+    try:
+        loaded = VLADEncoder.load_from_disk(path)
+        vector_after = loaded.encode([image])
+        assert np.allclose(vector_before, vector_after)
+    finally:
+        path.unlink()
