@@ -66,10 +66,13 @@ def test_sift_tiny_returns_empty(tiny_image: ImageObj) -> None:
     assert SIFT()(tiny_image.array).shape == (0, 128)
 
 
-def test_sift_rejects_tensor() -> None:
-    """Passing a torch tensor raises ``TypeError``."""
-    with pytest.raises(TypeError):
-        SIFT()(torch.zeros(3, 64, 64))
+def test_sift_accepts_tensor(checkerboard_image: ImageObj) -> None:
+    """A grayscale torch tensor is accepted and yields the ``(N, 128)`` contract."""
+    tensor = torch.from_numpy(checkerboard_image.array)
+    out = SIFT()(tensor)
+    assert out.ndim == 2
+    assert out.shape[1] == 128
+    assert out.shape[0] > 0
 
 
 def test_sift_repr() -> None:
@@ -129,10 +132,13 @@ def test_rootsift_low_contrast_returns_empty() -> None:
     assert RootSIFT()(image).shape == (0, 128)
 
 
-def test_rootsift_rejects_tensor() -> None:
-    """Passing a torch tensor raises ``TypeError``."""
-    with pytest.raises(TypeError):
-        RootSIFT()(torch.zeros(3, 64, 64))
+def test_rootsift_accepts_tensor(checkerboard_image: ImageObj) -> None:
+    """A grayscale torch tensor is accepted and yields the ``(N, 128)`` contract."""
+    tensor = torch.from_numpy(checkerboard_image.array)
+    out = RootSIFT()(tensor)
+    assert out.ndim == 2
+    assert out.shape[1] == 128
+    assert out.shape[0] > 0
 
 
 def test_rootsift_repr() -> None:
@@ -201,11 +207,11 @@ def test_lambda_none_returns_empty(checkerboard_image: ImageObj) -> None:
     assert extractor(checkerboard_image.array).shape == (0, 4)
 
 
-def test_lambda_rejects_tensor() -> None:
-    """Passing a torch tensor raises ``TypeError`` before the function runs."""
+def test_lambda_accepts_tensor() -> None:
+    """A torch tensor is normalized and passed through to the function."""
     extractor = Lambda(lambda image: np.ones((5, 4), np.float32), output_dim=4)
-    with pytest.raises(TypeError):
-        extractor(torch.zeros(3, 8, 8))
+    out = extractor(torch.zeros(8, 8))
+    assert out.shape == (5, 4)
 
 
 # DeepConvFeature
@@ -285,11 +291,11 @@ def test_deepconv_non_module_model_raises() -> None:
         DeepConvFeature(model="not a module", device="cpu")  # type: ignore[arg-type]
 
 
-def test_deepconv_rejects_tensor() -> None:
-    """Passing a torch tensor raises ``TypeError``."""
+def test_deepconv_accepts_tensor() -> None:
+    """A ``CHW`` torch tensor is accepted when its layout is described via ``dims``."""
     extractor = DeepConvFeature(_tiny_conv_model(), device="cpu")
-    with pytest.raises(TypeError):
-        extractor(torch.zeros(3, 64, 64))
+    out = extractor(torch.zeros(3, 64, 64), dims="CHW")
+    assert out.ndim == 2
 
 
 @pytest.mark.slow

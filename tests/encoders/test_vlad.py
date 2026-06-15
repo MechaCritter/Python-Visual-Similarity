@@ -135,10 +135,12 @@ def test_vlad_encode_no_descriptors_raises(
         vlad_no_pca.encode([solid_image.array])
 
 
-def test_vlad_encode_rejects_tensor(vlad_no_pca: VLADEncoder) -> None:
-    """Encoding a torch tensor raises ``RuntimeError``."""
-    with pytest.raises(RuntimeError, match="Torch images are not supported"):
-        vlad_no_pca.encode(torch.zeros(3, 64, 64))
+def test_vlad_encode_accepts_tensor(
+    vlad_no_pca: VLADEncoder, checkerboard_image: ImageObj
+) -> None:
+    """A grayscale torch tensor image is accepted and encodes like its array."""
+    tensor = torch.from_numpy(checkerboard_image.array)
+    assert vlad_no_pca.encode([tensor]).shape == (1, VLAD_DIM_NO_PCA)
 
 
 def test_vlad_predict_before_learn_raises(checkerboard_image: ImageObj) -> None:

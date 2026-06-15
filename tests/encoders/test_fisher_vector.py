@@ -99,10 +99,12 @@ def test_fisher_encode_batch_shape(
     assert fisher_no_pca.encode(batch).shape == (2, FISHER_DIM_NO_PCA)
 
 
-def test_fisher_encode_rejects_tensor(fisher_no_pca: FisherVectorEncoder) -> None:
-    """Encoding a torch tensor raises ``RuntimeError``."""
-    with pytest.raises(RuntimeError, match="Torch images are not supported"):
-        fisher_no_pca.encode(torch.zeros(3, 64, 64))
+def test_fisher_encode_accepts_tensor(
+    fisher_no_pca: FisherVectorEncoder, checkerboard_image: ImageObj
+) -> None:
+    """A grayscale torch tensor image is accepted and encodes like its array."""
+    tensor = torch.from_numpy(checkerboard_image.array)
+    assert fisher_no_pca.encode([tensor]).shape == (1, FISHER_DIM_NO_PCA)
 
 
 def test_fisher_encode_no_descriptors(

@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from .._errors import InvalidImageError
+from ..features._features import grayscale_dims
 from ..typing import ImageInput, _to_image_list
 
 
@@ -42,6 +43,6 @@ def iter_images(
         return
     if isinstance(images, Iterable):
         for image in images:
-            yield from _to_image_list(image, dims, value_range)
+            yield from _to_image_list(image, grayscale_dims(image, dims), value_range)
         return
     yield from _to_image_list(images, dims, value_range)

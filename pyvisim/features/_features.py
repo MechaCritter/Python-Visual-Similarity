@@ -26,6 +26,30 @@ setup_logging()
 ExtractorCallT = TypeVar("ExtractorCallT", bound=Callable[..., Any])
 
 
+def grayscale_dims(image: MatLike, dims: str) -> str:
+    """
+    Drop the channel label from ``dims`` for a single-channel (grayscale) image.
+
+    A grayscale image carries no channel axis, so an array with exactly one
+    fewer dimension than a channel-bearing ``dims`` (e.g. a 2-D array with the
+    default ``"HWC"``) is treated as single-channel and the ``"C"`` label is
+    removed. This keeps the canonical ``(H, W)`` grayscale layout working with
+    the channel-bearing default, matching the NumPy-only behaviour the library
+    accepted before ``dims`` were introduced.
+
+    :param image: The image whose axis count is inspected.
+    :param dims: The requested axis-label string.
+    :return: ``dims`` with ``"C"`` removed when ``image`` is single-channel,
+        otherwise ``dims`` unchanged.
+    """
+    normalized = dims.upper()
+    if "C" not in normalized:
+        return dims
+    if np.ndim(image) == len(normalized) - 1:
+        return normalized.replace("C", "")
+    return dims
+
+
 def _to_single_image(
     image: MatLike,
     dims: str = "HWC",
@@ -41,12 +65,14 @@ def _to_single_image(
         width × channels (NumPy/OpenCV single-image layout, **default**);
         ``"CHW"`` is channels × height × width (PyTorch single-image layout);
         ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+        A single-channel (grayscale) image may be passed as a 2-D array with the
+        default ``"HWC"``; the channel label is dropped automatically.
     :param value_range: The ``(low, high)`` range the input values live in
         (default ``(0.0, 255.0)``).
     :return: A ``uint8`` image of shape ``(H, W[, C])`` in ``[0, 255]``.
     :raises ValueError: If the input expands to anything other than one image.
     """
-    images = _to_image_list(image, dims, value_range)
+    images = _to_image_list(image, grayscale_dims(image, dims), value_range)
     if len(images) != 1:
         raise ValueError(
             f"Expected a single image, but the input expands to {len(images)} images. "
