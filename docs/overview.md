@@ -12,6 +12,7 @@ pyvisim/
 ├── _config.py           Paths and logging setup
 ├── _utils.py            cosine_similarity, image IO, clustering + plotting helpers
 ├── _errors.py           Custom exceptions
+├── typing/              Public types and helper methods
 ├── eval.py              Retrieval metrics (top-k, mAP, accuracy)
 ├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
 ├── clustering/          KMeans, GaussianMixtureModel, PCA
@@ -22,6 +23,7 @@ pyvisim/
 
 Per-area docs:
 
+- [Typing](typing.md): Public types (`MatLike`, `ImageInput`).
 - [Encoders](encoders/): how images become vectors.
 - [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
   vocabulary with.
@@ -63,8 +65,11 @@ Everything is built on the two abstract base classes in
 
 ## Design decisions worth knowing
 
-- **NumPy images only.** For the current implementation, only NumPy images are accepted.
-  It is still open whether to switch completely to PyTorch, or support both.
+- **NumPy, torch, or array-like images.** Encoders and feature extractors accept `MatLike`
+  inputs: NumPy arrays, PyTorch tensors, or anything `numpy.asarray` can turn into a
+  numeric array. Use the `dims` string (e.g. `"HWC"`, `"BCHW"`) to describe the axis
+  layout, and `value_range` to rescale float inputs into `[0, 255]`. See
+  [typing.md](typing.md).
 - **Similarity function is pluggable and guarded.** Any callable taking two `(N, D)`
   and `(M, D)` arrays and returning an `(N, M)` matrix can be used. On assignment it
   is probed with dummy input; if it does not return the expected shape,
