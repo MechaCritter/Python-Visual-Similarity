@@ -26,9 +26,7 @@ if TYPE_CHECKING:
     from tests.conftest import ImageObj
 
 
-# ---------------------------------------------------------------------------
 # §3.1 check_desired_output / _make_fallback_func
-# ---------------------------------------------------------------------------
 
 
 def _list_returning_func(vecs1: np.ndarray, vecs2: np.ndarray) -> list[list[int]]:
