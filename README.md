@@ -28,6 +28,16 @@ and the Siamese Neural Networks.
 
 For a technical deep-dive into the library internals, see the [developer documentation](docs/overview.md).
 
+## Status
+
+> [!WARNING]
+> This project is still in early development, so the API might change anytime (with deprecation,
+> but the change will come soon afterwards). Feel free to use it in development environments, but I
+> would recommend against using it in production.
+>
+> The first stable release will have the version tag `v1.0.0` and will come approximately by the
+> end of `August 2026`.
+
 ## Why `pyvisim`?
 
 `pyvisim` is designed to provide a simple and efficient way to compare images.
