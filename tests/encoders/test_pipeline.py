@@ -88,10 +88,12 @@ def test_pipeline_encode_batch(
     assert pipeline.encode(batch).shape == (2, PIPELINE_DIM)
 
 
-def test_pipeline_encode_rejects_tensor(pipeline: Pipeline) -> None:
-    """Encoding a torch tensor raises ``RuntimeError``."""
-    with pytest.raises(RuntimeError, match="Torch images are not supported"):
-        pipeline.encode(torch.zeros(3, 64, 64))
+def test_pipeline_encode_accepts_tensor(
+    pipeline: Pipeline, checkerboard_image: ImageObj
+) -> None:
+    """A grayscale torch tensor image is accepted and encodes like its array."""
+    tensor = torch.from_numpy(checkerboard_image.array)
+    assert pipeline.encode([tensor]).shape == (1, PIPELINE_DIM)
 
 
 def test_pipeline_similarity_score_shape(

@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 from sklearn.mixture import GaussianMixture
 
+from ..typing import Float64NumpyArray, FloatNumpyArray
 from ._base_clustering import ClusteringModelBase
 
 
@@ -50,7 +51,7 @@ class GaussianMixtureModel(ClusteringModelBase):
         return int(self._model.n_components)
 
     @property
-    def weights(self) -> np.ndarray:
+    def weights(self) -> Float64NumpyArray:
         """
         Mixture weights of each component, shape (n_components,).
 
@@ -60,7 +61,7 @@ class GaussianMixtureModel(ClusteringModelBase):
         return np.asarray(self._model.weights_)
 
     @property
-    def means(self) -> np.ndarray:
+    def means(self) -> Float64NumpyArray:
         """
         Mean of each mixture component, shape (n_components, n_features).
 
@@ -70,7 +71,7 @@ class GaussianMixtureModel(ClusteringModelBase):
         return np.asarray(self._model.means_)
 
     @property
-    def covariances(self) -> np.ndarray:
+    def covariances(self) -> Float64NumpyArray:
         """
         Diagonal covariance of each component, shape (n_components, n_features).
 
@@ -79,7 +80,7 @@ class GaussianMixtureModel(ClusteringModelBase):
         self._check_is_fitted()
         return np.asarray(self._model.covariances_)
 
-    def predict_proba(self, features: np.ndarray) -> np.ndarray:
+    def predict_proba(self, features: FloatNumpyArray) -> Float64NumpyArray:
         """
         Evaluates the components' posterior probability for each feature vector.
 

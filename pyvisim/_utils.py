@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import cv2
 import matplotlib.pyplot as plt
@@ -13,8 +13,16 @@ from sklearn.metrics import (
 )
 from sklearn.metrics.pairwise import cosine_similarity as cs
 
+from .typing import (
+    Float64NumpyArray,
+    FloatNumpyArray,
+    IntNumpyArray,
+    NumpyArray,
+    UInt8NumpyArray,
+)
 
-def read_image_rgb(path: str) -> np.ndarray:
+
+def read_image_rgb(path: str) -> UInt8NumpyArray:
     """
     Read an image from disk and convert it to RGB.
 
@@ -25,10 +33,10 @@ def read_image_rgb(path: str) -> np.ndarray:
     image = cv2.imread(path)
     if image is None:
         raise FileNotFoundError(f"Could not read image at '{path}'.")
-    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return cast(UInt8NumpyArray, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
 
-def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def cosine_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArray:
     """
     Compute the cosine similarity between two matrices.
 
@@ -51,7 +59,7 @@ def cosine_similarity(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.asarray(cs(x, y))
 
 
-def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
+def plot_image(image: UInt8NumpyArray | torch.Tensor, title: str = "Image") -> None:
     """
     Plot a single image.
 
@@ -71,11 +79,11 @@ def plot_image(image: np.ndarray | torch.Tensor, title: str = "Image") -> None:
 
 
 def cluster_and_return_labels(
-    data: np.ndarray,
+    data: FloatNumpyArray,
     method: Literal["kmeans", "dbscan", "spectral"] = "kmeans",
     n_clusters: int | None = None,
     **kwargs: Any,
-) -> np.ndarray:
+) -> IntNumpyArray:
     """
     Clusters 'data' using the specified method.
 
@@ -111,8 +119,8 @@ def cluster_and_return_labels(
 
 
 def cluster_images_and_generate_statistics(
-    features: np.ndarray,
-    true_labels: np.ndarray,
+    features: FloatNumpyArray,
+    true_labels: IntNumpyArray,
     n_clusters: int,
     method: Literal["kmeans", "dbscan", "spectral"] = "kmeans",
     **kwargs: Any,
@@ -142,7 +150,7 @@ def cluster_images_and_generate_statistics(
 
 
 def plot_and_save_heatmap(
-    matrix: list[Any] | np.ndarray | torch.Tensor,
+    matrix: list[Any] | NumpyArray | torch.Tensor,
     figsize: tuple[int, int] | None = None,
     x_tick_labels: list[str] | None = None,
     y_tick_labels: list[str] | None = None,
@@ -174,8 +182,8 @@ def plot_and_save_heatmap(
 
     figsize = (
         (
-            matrix.shape[1] * 0.7,
-            matrix.shape[0] * 0.7,
+            int(matrix.shape[1] * 0.7),
+            int(matrix.shape[0] * 0.7),
         )
         if figsize is None
         else figsize

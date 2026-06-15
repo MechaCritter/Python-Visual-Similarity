@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 from sklearn.decomposition import PCA as _SklearnPCA
 
+from ..typing import Float64NumpyArray, FloatNumpyArray
 from ._base_clustering import _SklearnModelBase
 
 
@@ -34,7 +35,7 @@ class PCA(_SklearnModelBase):
         self._check_is_fitted()
         return int(self._model.n_components_)
 
-    def transform(self, features: np.ndarray) -> np.ndarray:
+    def transform(self, features: FloatNumpyArray) -> Float64NumpyArray:
         """
         Projects the given features onto the principal components.
 

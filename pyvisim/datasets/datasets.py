@@ -2,7 +2,6 @@ import logging
 import os
 from multiprocessing import Process
 
-import numpy as np
 import requests
 import scipy
 from platformdirs import user_cache_dir
@@ -12,6 +11,7 @@ from tqdm import tqdm
 
 from pyvisim._config import setup_logging
 from pyvisim._utils import read_image_rgb
+from pyvisim.typing import UInt8NumpyArray
 
 setup_logging()
 
@@ -207,7 +207,7 @@ def download_oxford_flowers_data() -> None:
     logger.info("Oxford Flowers dataset downloaded and processed successfully.")
 
 
-class OxfordFlowerDataset(Dataset[tuple[np.ndarray, int, str]]):
+class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
     """
     Oxford Flower Dataset. It can be found at: https://www.robots.ox.ac.uk/~vgg/data/flowers/102/index.html.
 
@@ -309,7 +309,7 @@ class OxfordFlowerDataset(Dataset[tuple[np.ndarray, int, str]]):
         """
         return len(self.image_paths)
 
-    def __getitem__(self, idx: int) -> tuple[np.ndarray, int, str]:
+    def __getitem__(self, idx: int) -> tuple[UInt8NumpyArray, int, str]:
         """
         Get an image and its corresponding label.
 
