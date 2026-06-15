@@ -49,32 +49,32 @@ def fisher_pca(category_train_images_flat: list[np.ndarray]) -> FisherVectorEnco
     return encoder
 
 
-def test_fisher_clustering_model_type() -> None:
+def test_clustering_model_type() -> None:
     """Fisher builds a Gaussian mixture clustering model."""
     model = FisherVectorEncoder(n_components=8).clustering_model
     assert isinstance(model, GaussianMixtureModel)
 
 
-def test_fisher_n_components_kwargs_collision() -> None:
+def test_n_components_kwargs_collision() -> None:
     """Passing ``n_components`` inside ``gmm_params`` raises ``ValueError``."""
     with pytest.raises(ValueError, match="Pass 'n_components' directly"):
         FisherVectorEncoder(gmm_params={"n_components": 8})
 
 
-def test_fisher_wrong_weights_class_raises() -> None:
+def test_wrong_weights_class_raises() -> None:
     """Passing KMeans weights to Fisher raises ``ValueError``."""
     with pytest.raises(ValueError, match="only pass an instance of GMMWeights"):
         FisherVectorEncoder(weights=KMeansWeights.OXFORD102_K256_SIFT)
 
 
-def test_fisher_clustering_setter_rejects_non_gmm() -> None:
+def test_clustering_setter_rejects_non_gmm() -> None:
     """Assigning a non-GMM clustering model raises ``ValueError``."""
     encoder = FisherVectorEncoder(n_components=8)
     with pytest.raises(ValueError, match="GaussianMixtureModel"):
         encoder.clustering_model = KMeans(8)
 
 
-def test_fisher_encode_shape_no_pca(
+def test_encode_shape_no_pca(
     fisher_no_pca: FisherVectorEncoder, checkerboard_image: ImageObj
 ) -> None:
     """Without PCA, a single image encodes to ``(1, 2 * k * 128 + k)``."""
@@ -82,7 +82,7 @@ def test_fisher_encode_shape_no_pca(
     assert out.shape == (1, FISHER_DIM_NO_PCA)
 
 
-def test_fisher_encode_shape_with_pca(
+def test_encode_shape_with_pca(
     fisher_pca: FisherVectorEncoder, checkerboard_image: ImageObj
 ) -> None:
     """With PCA to 32 dims, a single image encodes to ``(1, 2 * k * 32 + k)``."""
@@ -90,7 +90,7 @@ def test_fisher_encode_shape_with_pca(
     assert out.shape == (1, FISHER_DIM_PCA)
 
 
-def test_fisher_encode_batch_shape(
+def test_encode_batch_shape(
     fisher_no_pca: FisherVectorEncoder, checkerboard_image: ImageObj
 ) -> None:
     """A batch of two images encodes to ``(2, 2 * k * 128 + k)``."""
@@ -99,7 +99,7 @@ def test_fisher_encode_batch_shape(
     assert fisher_no_pca.encode(batch).shape == (2, FISHER_DIM_NO_PCA)
 
 
-def test_fisher_encode_accepts_tensor(
+def test_encode_accepts_tensor(
     fisher_no_pca: FisherVectorEncoder, checkerboard_image: ImageObj
 ) -> None:
     """A grayscale torch tensor image is accepted and encodes like its array."""
@@ -107,7 +107,7 @@ def test_fisher_encode_accepts_tensor(
     assert fisher_no_pca.encode([tensor]).shape == (1, FISHER_DIM_NO_PCA)
 
 
-def test_fisher_encode_no_descriptors(
+def test_encode_no_descriptors(
     fisher_no_pca: FisherVectorEncoder, solid_image: ImageObj
 ) -> None:
     """Encoding a featureless image raises (GMM cannot score zero descriptors)."""
@@ -115,7 +115,7 @@ def test_fisher_encode_no_descriptors(
         fisher_no_pca.encode([solid_image.array])
 
 
-def test_fisher_before_learn_raises(checkerboard_image: ImageObj) -> None:
+def test_before_learn_raises(checkerboard_image: ImageObj) -> None:
     """Encoding before learning raises ``NotFittedError`` (GMM not fitted)."""
     with pytest.raises(NotFittedError):
         FisherVectorEncoder(n_components=8).encode([checkerboard_image.array])
