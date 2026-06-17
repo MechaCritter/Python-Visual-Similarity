@@ -4,7 +4,8 @@ from collections.abc import Iterable
 import numpy as np
 
 from .._base_classes import SimilarityMetric
-from .._utils import cosine_similarity, read_image_rgb
+from .._utils import cosine_similarity
+from ..image_store import ImageEncodingMap
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -90,22 +91,21 @@ class Pipeline(SimilarityMetric):
             metric.flatten = a
         return np.hstack(all_encodings)
 
-    def generate_encoding_map(
-        self, image_paths: Iterable[str]
-    ) -> dict[str, FloatNumpyArray]:
+    def generate_encoding_map(self, image_paths: Iterable[str]) -> ImageEncodingMap:
         """
-        Converts a collection of image file paths into a dictionary of
-        ``{image_path: encoded_vector}``.
+        Build an :class:`~pyvisim.image_store.ImageEncodingMap` from image paths.
 
-        This method automatically reads each image, applies the internal
-        encoding pipeline, and stores the resulting descriptor vector.
+        The returned object is a lazy ``{image_path: encoded_vector}`` mapping:
+        each image is read and encoded with the full pipeline on first access
+        and then buffered in memory. It behaves like the previously returned
+        dictionary (indexing by path, iteration, ``len``, ``values``), so
+        existing path-based access keeps working.
 
-        :param image_paths: List of image full paths
-        :return: a dictionary where keys are image paths and values are descriptor vectors of the
-                corresponding images
+        :param image_paths: List of image full paths.
+        :return: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping each
+                image path to the descriptor vector of the corresponding image.
         """
-        images = (read_image_rgb(path) for path in image_paths)
-        return dict(zip(image_paths, self.encode(images), strict=True))
+        return ImageEncodingMap(self, image_paths)
 
     @property
     def similarity_func(self) -> SimilarityFunc:

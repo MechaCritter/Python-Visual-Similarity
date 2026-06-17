@@ -51,3 +51,10 @@ The models start unfitted, so you have to train before encoding:
 
 This save/load round-trip is the supported way to reuse a trained encoder. The old
 `weights=` enum path still works but is deprecated, see [weights.md](weights.md).
+
+## Encoding images by file path
+
+`generate_encoding_map(image_paths)` returns an
+[`ImageEncodingMap`](../image_store.md): a lazy `{path: encoding}` mapping that reads and
+encodes each image the first time you access it, then keeps the vector in memory. It
+behaves like the dict it used to return (index by path, iterate, `len`, `.values()`), and the whole mapping can be persisted to an HDF5 file.
