@@ -1,0 +1,37 @@
+# .github/dependabot.yml
+#
+# Keeps dependencies up to date and surfaces security fixes for pyvisim.
+# Version-update PRs are opened on the schedule below; security-update PRs are
+# opened automatically (out of schedule) once Dependabot alerts are enabled in
+# the repository's "Settings -> Code security" page.
+
+version: 2
+updates:
+  # GitHub Actions pinned in .github/workflows/ (ci.yml, publish_pypi.yml).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    # Roll all action bumps into a single PR to cut review noise.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Python dependencies (uv-managed: pyproject.toml + uv.lock).
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
+    # Batch low-risk minor/patch bumps; let majors come as individual PRs.
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
