@@ -1,0 +1,113 @@
+# .github/workflows/publish_pypi.yml
+#
+# Publishes pyvisim to PyPI when a version tag is pushed.
+
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"           # version tags only
+  workflow_dispatch:   # allows triggering manually from the GitHub Actions UI
+    inputs:
+      test-pypi-only:
+        description: "Publish to Test PyPI only (dry run)"
+        type: boolean
+        default: true
+
+# Minimal default permissions: each job opts in to only what it needs.
+permissions:
+  contents: read
+
+jobs:
+  # Build the source distribution and wheel.
+  build:
+    name: "Build distributions"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: "Build sdist and wheel"
+        # SOURCE_DATE_EPOCH makes builds reproducible (same source -> same bytes).
+        run: |
+          SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) \
+          uv build
+
+      - name: "Upload dist artifacts"
+        uses: actions/upload-artifact@v4
+        id: upload-artifact
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 5
+
+  # Publish to PyPI (only on tag pushes).
+  publish:
+    name: "Publish to PyPI"
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    environment:
+      name: publish                             # GitHub Environment
+      url: https://pypi.org/project/pyvisim/
+
+    permissions:
+      id-token: write                            # Required for Trusted Publishing
+
+    steps:
+      - name: "Download dist artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: "Publish to PyPI"
+        uses: pypa/gh-action-pypi-publish@v1.14.0
+        with:
+          attestations: true                     # Cryptographically signs the release
+
+  # Publish to Test PyPI (manual dry-run only).
+  # Trigger via: Actions → "Publish to PyPI" → "Run workflow"
+  # and leave "test-pypi-only" checked.
+  publish-test:
+    name: "Publish to Test PyPI (dry run)"
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/pyvisim/
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: "Download dist artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: "Publish to Test PyPI"
+        uses: pypa/gh-action-pypi-publish@v1.14.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          attestations: true
