@@ -15,6 +15,7 @@ pyvisim/
 ├── typing/              Public types and helper methods
 ├── eval.py              Retrieval metrics (top-k, mAP, accuracy)
 ├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
+├── image_store/         ImageEncodingMap: lazy image-path → encoding store
 ├── clustering/          KMeans, GaussianMixtureModel, PCA
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── datasets/            OxfordFlowerDataset
@@ -23,8 +24,9 @@ pyvisim/
 
 Per-area docs:
 
-- [Typing](typing.md): Public types (`MatLike`, `ImageInput`).
+- [Typing](typing.md): Public types (`MatLike`, `ImageInput`, `Encoder`).
 - [Encoders](encoders/): how images become vectors.
+- [Image store](image_store.md): cache image encodings keyed by file path.
 - [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
   vocabulary with.
 - [Features](features/): how local descriptors are extracted from an image.

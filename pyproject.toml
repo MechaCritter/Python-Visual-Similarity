@@ -86,6 +86,7 @@ plugins = ["numpy.typing.mypy_plugin"]
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
+  "h5py.*",
   "joblib.*",
   "scipy.*",
   "sklearn.*",
