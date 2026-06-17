@@ -1,6 +1,6 @@
 """Public types used in pyvisim"""
 
-from ._typing import (
+from .numeric import (
     Float32NumpyArray,
     Float64NumpyArray,
     FloatNumpyArray,
