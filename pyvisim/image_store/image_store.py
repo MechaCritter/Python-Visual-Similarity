@@ -19,7 +19,8 @@ class ImageEncodingMap(Mapping[str, FloatNumpyArray]):
 
     The encoding for a given path is computed lazily on first access. Once a
     vector has been computed (or loaded) it is kept in an in-memory buffer for
-    the rest of the object's lifetime.
+    the rest of the object's lifetime. Call :meth:`clear_buffer` to release the
+    buffered vectors; they are recomputed lazily on the next access.
 
     The full ``path -> encoding`` mapping can be written to and restored from
     an HDF5 file via :meth:`save_to_disk` and :meth:`load_from_disk`.
@@ -159,6 +160,14 @@ class ImageEncodingMap(Mapping[str, FloatNumpyArray]):
         for path, vector in zip(paths, encodings, strict=True):
             store._buffer[path] = np.asarray(vector)
         return store
+
+    def clear_buffer(self) -> None:
+        """Drop every buffered encoding, freeing the memory they occupy.
+
+        Registered paths are kept, so subsequent access re-encodes the
+        corresponding images lazily.
+        """
+        self._buffer.clear()
 
     def _register_paths(self, image_paths: Iterable[str]) -> None:
         """Add paths, dropping duplicates and validating their type."""
