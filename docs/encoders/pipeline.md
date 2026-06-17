@@ -30,3 +30,6 @@ It implements `SimilarityMetric` (not `ImageEncoderBase`), so it exposes `encode
   assignment, with a row-wise fallback). Default is cosine similarity.
 - A commented-out `fit` method exists in the source; training is done per encoder, not
   through the pipeline.
+- `generate_encoding_map(image_paths)` returns a lazy
+  [`ImageEncodingMap`](../image_store.md), encoding each image with the full pipeline on
+  first access. See [base_encoder.md](base_encoder.md).
