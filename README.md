@@ -74,7 +74,7 @@ A fitted encoder can be saved to a `.encoder` file and restored later:
 path = encoder.save_to_disk("vlad_oxford102")  # writes vlad_oxford102.encoder
 encoder = VLADEncoder.load_from_disk(path)
 ```
-You can also visit the [introduction notebook](examples/getting_started.ipynb) for more examples.
+You can also visit the [introduction notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/getting_started.ipynb) for more examples.
 
 I also provided various notebooks for different use-cases. Feel free to check them out, and let me know if you
 have any suggestions or questions!
@@ -82,7 +82,7 @@ have any suggestions or questions!
 1. **Image Retrieval**  
    Retrieve the top-k most similar images from a dataset.  
    - Use encoding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
-   [this juptyer notebook](examples/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
+   [this juptyer notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
    - Example use: Building a fast image search engine for photo management software.
 
 2. **Deep Learning Embeddings**  
@@ -91,11 +91,11 @@ have any suggestions or questions!
 
 3. **Image Clustering**  
    - Cluster images based on their similarities to group them by category or content. An example and benchmarking
-    can be found in [this notebook](examples/clustering_images_using_fv.ipynb).
+    can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/clustering_images_using_fv.ipynb).
    - Useful for organizing unlabeled data or generating pseudo-labels for further training.
 
 4. **Pipeline for Combining Multiple Encoders**  
-   - Chain various encoders in a single pipeline. An example can be found in [this notebook](examples/pipeline.ipynb).
+   - Chain various encoders in a single pipeline. An example can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/pipeline.ipynb).
    - Achieve more robust similarity metrics by blending different feature representations.
 
 5. **Siamese Network (Coming Soon!)**  
