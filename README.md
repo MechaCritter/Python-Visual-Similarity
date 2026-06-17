@@ -4,10 +4,10 @@
 </p>
 
 <!-- Added badges to convey project readiness/branding (example placeholders) -->
-![License](https://img.shields.io/badge/license-MIT-brightgreen)
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![License](https://img.shields.io/github/license/MechaCritter/Python-Visual-Similarity)
+![Version](https://img.shields.io/pypi/v/pyvisim)
 ![Status](https://img.shields.io/badge/status-pre--release-orange)
-![Python](https://img.shields.io/badge/Python-3.10--3.14-brightgreen)
+![Python](https://img.shields.io/pypi/pyversions/pyvisim)
 ![Contributions](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
 # Welcome to `pyvisim`!
