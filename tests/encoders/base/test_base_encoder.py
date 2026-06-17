@@ -21,6 +21,7 @@ from pyvisim.encoders._base_encoder import (
     check_desired_output,
 )
 from pyvisim.features import Lambda, RootSIFT
+from pyvisim.image_store import ImageEncodingMap
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -237,12 +238,16 @@ def test_load_wrong_class_raises(learned_vlad: VLADEncoder, tmp_path: Path) -> N
         FisherVectorEncoder.load_from_disk(path)
 
 
-def test_generate_encoding_map_returns_dict(
+def test_generate_encoding_map_returns_image_encoding_map(
     learned_vlad: VLADEncoder,
     tmp_path: Path,
     category_train_images_flat: list[np.ndarray],
 ) -> None:
-    """``generate_encoding_map`` maps each image path to a 1-D vector."""
+    """``generate_encoding_map`` returns an :class:`ImageEncodingMap`.
+
+    The mapping exposes each registered image path and yields an equal-length
+    1-D vector per path, so existing path-based access keeps working.
+    """
     paths = []
     for index in (0, 1):
         gray = category_train_images_flat[index]
@@ -252,6 +257,7 @@ def test_generate_encoding_map_returns_dict(
         paths.append(path)
 
     encoding_map = learned_vlad.generate_encoding_map(paths)
+    assert isinstance(encoding_map, ImageEncodingMap)
     assert set(encoding_map) == set(paths)
     vectors = [np.asarray(vector) for vector in encoding_map.values()]
     assert all(vector.ndim == 1 for vector in vectors)
