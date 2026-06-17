@@ -27,17 +27,17 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
       - name: "Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.x"
 
       - name: "Install uv"
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
@@ -49,7 +49,7 @@ jobs:
           uv build
 
       - name: "Upload dist artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         id: upload-artifact
         with:
           name: dist
@@ -73,7 +73,7 @@ jobs:
 
     steps:
       - name: "Download dist artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -101,7 +101,7 @@ jobs:
 
     steps:
       - name: "Download dist artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
