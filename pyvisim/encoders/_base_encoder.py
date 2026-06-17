@@ -12,9 +12,10 @@ from sklearn.exceptions import NotFittedError
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
-from .._utils import cosine_similarity, read_image_rgb
+from .._utils import cosine_similarity
 from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT
+from ..image_store import ImageEncodingMap
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -580,23 +581,27 @@ class ImageEncoderBase(SimilarityMetric):
         return encoder
 
     @_tupleize_first_arg
-    # @lru_cache(maxsize=4)
-    def generate_encoding_map(
-        self, image_paths: Iterable[str], /
-    ) -> dict[str, FloatNumpyArray]:
+    def generate_encoding_map(self, image_paths: Iterable[str], /) -> ImageEncodingMap:
         """
-        Converts a collection of image file paths into a dictionary of
-        ``{image_path: encoded_vector}``.
+        Build an :class:`~pyvisim.image_store.ImageEncodingMap` from image paths.
 
-        This method automatically reads each image, applies the internal
-        encoding pipeline, and stores the resulting descriptor vector.
+        The returned object is a lazy ``{image_path: encoded_vector}`` mapping:
+        each image is read and encoded on first access and then buffered in
+        memory.
 
-        :param image_paths: List of image full paths
-        :return: a dictionary where keys are image paths and values are descriptor vectors of the
-                corresponding images
+        The result behaves like a regular dictionary: access the encoding for a path
+        by simply:
+
+        ```python
+        image_path = "path/to/image.jpg"
+        encoding = encoding_map[image_path]
+        ```
+
+        :param image_paths: List of image full paths.
+        :return: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping each
+                image path to the descriptor vector of the corresponding image.
         """
-        images = (read_image_rgb(path) for path in image_paths)
-        return dict(zip(image_paths, self.encode(images), strict=True))
+        return ImageEncodingMap(self, image_paths)
 
     @abc.abstractmethod
     def encode(
