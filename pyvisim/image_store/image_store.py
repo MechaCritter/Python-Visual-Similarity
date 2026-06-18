@@ -22,7 +22,7 @@ class ImageEncodingMap(Mapping[str, FloatNumpyArray]):
     """Map an image path to its encoding vector.
 
     The full ``path -> encoding`` mapping can be written to and restored from
-    an HDF5 file via :meth:`save_to_disk` and :meth:`load_from_disk`.
+    a safetensors file via :meth:`save_to_disk` and :meth:`load_from_disk`.
 
     :param encoder: Encoder used to turn an image into a fixed-size vector. Any
         object satisfying :class:`pyvisim.typing.Encoder` is accepted.
