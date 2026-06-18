@@ -8,45 +8,9 @@ import numpy as np
 
 from ._utils import cosine_similarity
 from .image_store import ImageEncodingMap
-from .typing import Encoder, ImageInput, MatLike
+from .typing import Encoder, MatLike
 
-__all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
-
-
-def retrieve_top_k_similar(
-    uploaded_image: ImageInput,
-    dataset: ImageEncodingMap,
-    encoder: Encoder,
-    k: int = 5,
-) -> list[tuple[str, float]]:
-    """
-    Returns the top-k most similar images from 'dataset' to the 'uploaded_image'.
-
-    :param uploaded_image: Query image.
-    :param dataset: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping file paths to their feature vectors.
-    :param encoder: An object that implements `encode(img) -> np.ndarray`.
-    :param k: Number of top similar images to return.
-    :return: A list of (image_path, similarity_score) for the top-k matches, sorted descending by similarity.
-    """
-    all_vectors, all_paths = np.array(list(dataset.values())), list(dataset.keys())
-
-    # Query vector
-    query_vector = encoder.encode(uploaded_image)
-
-    # If `query_vector` is 1D, reshape to (1, D) to work with `cosine_similarity`
-    if query_vector.ndim == 1:
-        query_vector = query_vector.reshape(1, -1)
-
-    scores = cosine_similarity(query_vector, all_vectors)  # (1, N)
-    scores = scores[0]
-
-    sorted_indices = np.argsort(-scores)  # highest scores first
-
-    # Slice top-k
-    top_k_indices = sorted_indices[:k]
-
-    results = [(all_paths[i], scores[i]) for i in top_k_indices]
-    return results
+__all__ = ["top_k_map", "top_k_accuracy"]
 
 
 def top_k_map(
