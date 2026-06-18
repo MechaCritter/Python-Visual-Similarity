@@ -87,7 +87,7 @@ class FisherVectorEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights: GMMWeights | None = None,
+        weights: GMMWeights | None = None,  # TODO: removed with version 1.0.0
         n_components: int = 256,
         gmm_params: dict[str, Any] | None = None,
         pca_params: dict[str, Any] | None = None,

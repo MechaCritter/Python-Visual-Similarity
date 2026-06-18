@@ -87,7 +87,7 @@ class VLADEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights: KMeansWeights | None = None,
+        weights: KMeansWeights | None = None,  # TODO: removed with version 1.0.0
         n_clusters: int = 256,
         kmeans_params: dict[str, Any] | None = None,
         pca_params: dict[str, Any] | None = None,

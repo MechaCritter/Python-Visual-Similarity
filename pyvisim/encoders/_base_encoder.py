@@ -140,6 +140,7 @@ class GMMWeights(_PretrainedModels):
     OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift.encoder"
 
 
+# TODO: removed with version 1.0.0
 _CLUSTERING_TO_PCA_MAPPING = {
     KMeansWeights.OXFORD102_K256_VGG16_PCA: _PCA.OXFORD102_PCA256_VGG16,
     KMeansWeights.OXFORD102_K256_ROOTSIFT_PCA: _PCA.OXFORD102_PCA256_ROOTSIFT,
@@ -201,7 +202,9 @@ class ImageEncoderBase(SimilarityMetric):
         self,
         feature_extractor: FeatureExtractorBase | None = None,
         clustering_model: ClusteringModelBase | None = None,
-        weights: KMeansWeights | GMMWeights | None = None,
+        weights: KMeansWeights
+        | GMMWeights
+        | None = None,  # TODO: removed with version 1.0.0
         similarity_func: str = "cosine",
         power_norm_weight: float = 1,
         norm_order: int = 2,
@@ -229,20 +232,22 @@ class ImageEncoderBase(SimilarityMetric):
         )
 
         if weights is not None:
-            self._load_pretrained_weights(weights)
+            self._load_pretrained_weights(weights)  # TODO: removed with version 1.0.0
         else:
             if pca is not None:
                 self.pca = pca
             if clustering_model is not None:
                 self.clustering_model = clustering_model
 
+    # TODO: removed with version 1.0.0
     def _load_pretrained_weights(self, weights: KMeansWeights | GMMWeights) -> None:
         """
-        Loads a pretrained scikit-learn estimator (and its matching PCA,
-        if any) into the encoder's clustering model class.
+        Loads a pretrained clustering model (and its matching PCA, if any) from
+        a bundled ``.encoder`` file into this encoder.
 
         .. deprecated::
-            Will be removed in a future release together with the weight enums.
+            Will be removed in version 1.0.0 together with the weight enums.
+            Use :meth:`from_pretrained` or :meth:`load_from_disk` instead.
 
         :param weights: Pretrained weight enum member to load.
         """
