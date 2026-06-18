@@ -49,7 +49,7 @@ With just a few lines of code, you can compute the similarity score between two 
 #### Example: Compute Similarity Score Using VLAD
 
 ```python
-from pyvisim.encoders import VLADEncoder, KMeansWeights
+from pyvisim.encoders import VLADEncoder, PretrainedVLAD
 from pyvisim.datasets import OxfordFlowerDataset
 
 # Load images from the Oxford Flower Dataset. Has to be NumPy Images!
@@ -57,15 +57,22 @@ dataset = OxfordFlowerDataset()
 image1, *_  = dataset[0]
 image2, *_ = dataset[1]
 
-# Initialize the VLAD encoder with SIFT features and pretrained KMeans weights
-encoder = VLADEncoder(
-    weights=KMeansWeights.OXFORD102_K256_ROOTSIFT
-)
+# Load a bundled pretrained VLAD encoder (RootSIFT features, k=256).
+# The feature extractor and similarity metric come with it.
+encoder = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
 
 # Compute the similarity score. By default, cosine similarity is used.
 similarity_score = encoder.similarity_score(image1, image2)
 
 print(f"Similarity Score: {similarity_score}")
+```
+
+By default the encoder uses cosine similarity. To use a different metric, pass
+its name; `"cosine"`, `"euclidean"`, `"l1"` and `"manhattan"` are supported:
+
+```python
+encoder = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
+encoder.similarity_func = "euclidean"
 ```
 
 A fitted encoder can be saved to a `.encoder` file and restored later:
@@ -128,41 +135,59 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 
 ## Pretrained Models
 
-> [!CAUTION]
-> **Deprecated:** Loading pretrained models via the `KMeansWeights`/`GMMWeights` enums is deprecated
-> and will be removed in a future release. Train an encoder with `learn()` and persist it with `save_to_disk()`/
-> `load_from_disk()` (`.encoder` files) instead.
+pyvisim ships ready-to-use pretrained encoders trained on the Oxford-102 flower
+dataset. Each one is a bundled `.encoder` file that already includes the right
+feature extractor and the cosine similarity metric, so loading one gives you a
+working encoder in a single line:
 
-The following pretrained models are provided for clustering and dimensionality reduction. All clustering
-models were trained with `k=256`. The choice of `k` was made arbitrarily
+```python
+from pyvisim.encoders import (
+    VLADEncoder,
+    FisherVectorEncoder,
+    PretrainedVLAD,
+    PretrainedFisher,
+)
+
+vlad = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
+fisher = FisherVectorEncoder.from_pretrained(PretrainedFisher.OXFORD102_K256_VGG16_PCA)
+```
+
+All clustering models were trained with `k=256`. The choice of `k` was made arbitrarily
 based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on.
 Since higher values would take too long, I chose `k=256` as a balance between performance and computational cost.
+Variants ending in `_PCA` reduce the feature dimensions by half with PCA before clustering.
 
-### KMeans Models
+> [!CAUTION]
+> **Deprecated:** the old `weights=KMeansWeights.X` / `weights=GMMWeights.X` constructor
+> argument is deprecated and will be removed in `1.0.0`. Use `from_pretrained()` with the
+> `PretrainedVLAD`/`PretrainedFisher` enums (or `load_from_disk()` with a `.encoder` file)
+> instead. The enums above load the exact same trained models.
 
-You can access these weights by importing `KMeansWeights` from the `pyvisim.encoders` module.
+### VLAD encoders (`PretrainedVLAD`)
 
-| Model Name                             | Features Extracted From | PCA Applied | Feature Dimensions |
-|----------------------------------------|-------------------------|-------------|--------------------|
-| `OXFORD102_K256_VGG16_PCA`             | Last Conv Layer (VGG16) | Yes         | 257                |
-| `OXFORD102_K256_VGG16`                 | Last Conv Layer (VGG16) | No          | 514                |
-| `OXFORD102_K256_ROOTSIFT_PCA`          | RootSIFT features       | Yes         | 64                 |
-| `OXFORD102_K256_ROOTSIFT`              | RootSIFT features       | No          | 128                |
-| `OXFORD102_K256_SIFT_PCA`              | SIFT features           | Yes         | 64                 |
-| `OXFORD102_K256_SIFT`                  | SIFT features           | No          | 128                |
+Loaded with `VLADEncoder.from_pretrained(...)`.
 
-### Gaussian Mixture Models (GMMWeights)
+| Member                        | Feature Extractor       | PCA Applied | Feature Dimensions |
+|-------------------------------|-------------------------|-------------|--------------------|
+| `OXFORD102_K256_VGG16_PCA`    | Last Conv Layer (VGG16) | Yes         | 257                |
+| `OXFORD102_K256_VGG16`        | Last Conv Layer (VGG16) | No          | 514                |
+| `OXFORD102_K256_ROOTSIFT_PCA` | RootSIFT features       | Yes         | 64                 |
+| `OXFORD102_K256_ROOTSIFT`     | RootSIFT features       | No          | 128                |
+| `OXFORD102_K256_SIFT_PCA`     | SIFT features           | Yes         | 64                 |
+| `OXFORD102_K256_SIFT`         | SIFT features           | No          | 128                |
 
-You can access these weights by importing `GMMWeights` from the `pyvisim.encoders` module.
+### Fisher Vector encoders (`PretrainedFisher`)
 
-| Model Name                             | Features Extracted From    | PCA Applied | Feature Dimensions |
-|----------------------------------------|----------------------------|-------------|--------------------|
-| `OXFORD102_K256_VGG16_PCA`             | Last Conv Layer (VGG16)    | Yes         | 257                |
-| `OXFORD102_K256_VGG16`                 | Last Conv Layer (VGG16)    | No          | 514                |
-| `OXFORD102_K256_ROOTSIFT_PCA`          | RootSIFT features          | Yes         | 64                 |
-| `OXFORD102_K256_ROOTSIFT`              | RootSIFT features          | No          | 128                |
-| `OXFORD102_K256_SIFT_PCA`              | SIFT features              | Yes         | 64                 |
-| `OXFORD102_K256_SIFT`                  | SIFT features              | No          | 128                |
+Loaded with `FisherVectorEncoder.from_pretrained(...)`.
+
+| Member                        | Feature Extractor       | PCA Applied | Feature Dimensions |
+|-------------------------------|-------------------------|-------------|--------------------|
+| `OXFORD102_K256_VGG16_PCA`    | Last Conv Layer (VGG16) | Yes         | 257                |
+| `OXFORD102_K256_VGG16`        | Last Conv Layer (VGG16) | No          | 514                |
+| `OXFORD102_K256_ROOTSIFT_PCA` | RootSIFT features       | Yes         | 64                 |
+| `OXFORD102_K256_ROOTSIFT`     | RootSIFT features       | No          | 128                |
+| `OXFORD102_K256_SIFT_PCA`     | SIFT features           | Yes         | 64                 |
+| `OXFORD102_K256_SIFT`         | SIFT features           | No          | 128                |
 
 ### Notes
 1. **Feature Extraction**:
@@ -196,6 +221,7 @@ If you have any questions or just want to say hi, feel free to:
 
 The features below are planned for future releases:
 
+- With `v1.0.0`, remove the deprecated `weights` constructor argument and the `_CLUSTERING_TO_PCA_MAPPING` internal variable, since they are no longer needed with the new `from_pretrained()` API.
 - Implement the **siamese network**.
 - Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
 paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>

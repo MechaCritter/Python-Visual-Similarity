@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.3.1"
+version = "0.4.0"
 description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
 readme = "README.md"
 license = "MIT"
@@ -23,7 +23,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "joblib",
     "numpy",
     "opencv-python",
     "platformdirs",
@@ -49,7 +48,10 @@ Homepage = "https://github.com/MechaCritter/Python-Visual-Similarity"
 include = ["pyvisim", "pyvisim.*"]
 
 [tool.setuptools.package-data]
-pyvisim = ["res/model_files/*.pkl", "res/logging_config.yaml"]
+pyvisim = [
+    "res/model_files/*.encoder",
+    "res/logging_config.yaml",
+]
 
 # Dependencies groups to isolate test env from production env
 [dependency-groups]
@@ -87,7 +89,6 @@ plugins = ["numpy.typing.mypy_plugin"]
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
-  "joblib.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",

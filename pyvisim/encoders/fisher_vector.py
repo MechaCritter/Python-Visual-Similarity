@@ -3,16 +3,45 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
-from .._utils import cosine_similarity
+from .._config import MODEL_FILES_PATH
 from ..clustering import PCA, ClusteringModelBase, GaussianMixtureModel
-from ..encoders._base_encoder import GMMWeights, ImageEncoderBase
+from ..encoders._base_encoder import (
+    GMMWeights,
+    ImageEncoderBase,
+    _PretrainedEncoder,
+)
 from ..typing import (
     Float64NumpyArray,
     FloatNumpyArray,
     ImageInput,
-    SimilarityFunc,
 )
 from .utils import iter_images
+
+
+class PretrainedFisher(_PretrainedEncoder):
+    """
+    Bundled pretrained Fisher Vector encoders trained on the Oxford-102 flower
+    dataset with ``k=256`` components. Load one with
+    :meth:`FisherVectorEncoder.from_pretrained`.
+
+    Variants differ by the feature extractor (RootSIFT, SIFT or VGG16 deep
+    features) and whether PCA dimensionality reduction was applied.
+    """
+
+    OXFORD102_K256_ROOTSIFT = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift.encoder"
+    )
+    OXFORD102_K256_ROOTSIFT_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift_pca.encoder"
+    )
+    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift.encoder"
+    OXFORD102_K256_SIFT_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift_pca.encoder"
+    )
+    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16.encoder"
+    OXFORD102_K256_VGG16_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16_pca.encoder"
+    )
 
 
 class FisherVectorEncoder(ImageEncoderBase):
@@ -43,8 +72,8 @@ class FisherVectorEncoder(ImageEncoderBase):
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
     :param flatten: Whether to flatten the computed encoding vector (default: True).
-    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
-    matrix with size (batch_1_size, batch_2_size).
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
@@ -58,7 +87,7 @@ class FisherVectorEncoder(ImageEncoderBase):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights: GMMWeights | None = None,
+        weights: GMMWeights | None = None,  # TODO: removed with version 1.0.0
         n_components: int = 256,
         gmm_params: dict[str, Any] | None = None,
         pca_params: dict[str, Any] | None = None,
@@ -66,7 +95,7 @@ class FisherVectorEncoder(ImageEncoderBase):
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: SimilarityFunc = cosine_similarity,
+        similarity_func: str = "cosine",
         raise_error_when_pca_incompatible: bool = False,
     ):
         if weights is not None:

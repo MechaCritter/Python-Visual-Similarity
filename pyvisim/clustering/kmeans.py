@@ -21,6 +21,10 @@ class KMeans(ClusteringModelBase):
 
     _sklearn_class = _SklearnKMeans
 
+    #: ``labels_`` and ``inertia_`` describe the training data, not the learned
+    #: centroids, and are not needed to predict cluster assignments.
+    _transient_attrs = frozenset({"labels_", "inertia_"})
+
     def __init__(self, n_clusters: int = 256, **kmeans_params: Any) -> None:
         super().__init__(_SklearnKMeans(n_clusters=n_clusters, **kmeans_params))
 

@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here. Newest releases first.
 
+## [v0.4.0] - 2026-06-18
+
+> Package version `0.4.0`. Still not production-ready yet.
+
+### Added
+- `from_pretrained()` on `VLADEncoder` and `FisherVectorEncoder`, plus the
+  `PretrainedVLAD` and `PretrainedFisher` enums. Pick a bundled encoder and
+  you're ready to go: `VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)`.
+
+### Changed
+- Encoders now serialize to a single safetensors `.encoder` file that captures
+  everything: the clustering model, PCA, normalization settings, the feature
+  extractor and the similarity metric. `load_from_disk()` takes just the path
+  and rebuilds the whole encoder, so there's nothing else to pass back in.
+- For a `DeepConvFeature` extractor, the default torchvision model is rebuilt on
+  load (only a flag is stored), while a model you supply yourself has its full
+  `state_dict` embedded so your trained weights come back exactly.
+- `similarity_func` is now chosen by name: `"cosine"` (default), `"euclidean"`,
+  `"l1"` or `"manhattan"`.
+- The pretrained Oxford-102 weights ship as `.encoder` files instead of `.pkl`,
+  shrinking them from ~144 MB to ~12 MB (the K-Means training `labels_` array is
+  no longer stored).
+
+### Removed
+- Dropped `joblib` entirely in favor of safetensors.
+- ⚠️ You can no longer pass your own similarity function; use one of the four
+  built-in metric names above.
+
+### Deprecated
+- Loading pretrained weights via `KMeansWeights`/`GMMWeights` (the `weights=`
+  argument) is deprecated and will be removed in 1.0.0. Use `from_pretrained()`
+  or `load_from_disk()` with `.encoder` files instead.
+
 ## [v0.3.1] - 2026-06-18
 
 > Package version `0.3.1`. Still not production-ready yet.

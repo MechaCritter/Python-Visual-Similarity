@@ -6,20 +6,14 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import joblib
 import numpy as np
 import pytest
 from PIL import Image
 from sklearn.exceptions import NotFittedError
-from sklearn.metrics.pairwise import cosine_similarity
 
 from pyvisim.clustering import PCA
 from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
-from pyvisim.encoders._base_encoder import (
-    ImageEncoderBase,
-    _make_fallback_func,
-    check_desired_output,
-)
+from pyvisim.encoders._base_encoder import ImageEncoderBase
 from pyvisim.features import Lambda, RootSIFT
 from pyvisim.image_store import ImageEncodingMap
 
@@ -27,74 +21,33 @@ if TYPE_CHECKING:
     from tests.conftest import ImageObj
 
 
-# §3.1 check_desired_output / _make_fallback_func
+# §3.1 similarity-function selection
 
 
-def _list_returning_func(vecs1: np.ndarray, vecs2: np.ndarray) -> list[list[int]]:
-    """A similarity function that wrongly returns a Python list."""
-    return [[1, 2]]
+def test_similarity_func_defaults_to_cosine() -> None:
+    """Encoders default to the cosine similarity metric."""
+    encoder = VLADEncoder(n_clusters=8)
+    assert encoder.similarity_func_name == "cosine"
 
 
-def _wrong_shape_func(vecs1: np.ndarray, vecs2: np.ndarray) -> np.ndarray:
-    """A similarity function that returns an array of the wrong shape."""
-    return np.zeros((3, 3))
+@pytest.mark.parametrize("name", ["cosine", "euclidean", "l1", "manhattan"])
+def test_similarity_func_accepts_supported_metrics(name: str) -> None:
+    """Each supported metric name resolves to a callable."""
+    encoder = VLADEncoder(n_clusters=8, similarity_func=name)
+    assert encoder.similarity_func_name == name
+    assert callable(encoder.similarity_func)
 
 
-def _raising_func(vecs1: np.ndarray, vecs2: np.ndarray) -> np.ndarray:
-    """A similarity function that always raises."""
-    raise RuntimeError("boom")
+def test_similarity_func_rejects_custom_function() -> None:
+    """Passing a custom callable is no longer supported and raises ``ValueError``."""
+    with pytest.raises(ValueError, match="Unsupported similarity function"):
+        VLADEncoder(n_clusters=8, similarity_func=lambda a, b: a)  # type: ignore[arg-type]
 
 
-def _scalar_cosine(vecs1: np.ndarray, vecs2: np.ndarray) -> float:
-    """Cosine similarity of two single-row inputs reduced to a scalar.
-
-    The row-wise fallback assigns the result to a scalar cell, so the wrapped
-    function must return a scalar rather than a ``(1, 1)`` array.
-    """
-    return float(cosine_similarity(vecs1, vecs2)[0, 0])
-
-
-def test_cdo_valid_returns_same_func() -> None:
-    """A valid similarity function is returned unchanged."""
-    rng = np.random.default_rng(0)
-    vecs = rng.random((10, 10))
-    assert check_desired_output(cosine_similarity, vecs, vecs) is cosine_similarity
-
-
-def test_cdo_raising_func_falls_back() -> None:
-    """A raising similarity function is replaced by a fallback, with a warning."""
-    rng = np.random.default_rng(0)
-    vecs = rng.random((10, 10))
-    with pytest.warns(UserWarning, match="threw an error"):
-        result = check_desired_output(_raising_func, vecs, vecs)
-    assert result is not _raising_func
-
-
-def test_cdo_non_ndarray_falls_back() -> None:
-    """A function returning a non-array is replaced by a fallback, with a warning."""
-    rng = np.random.default_rng(0)
-    vecs = rng.random((10, 10))
-    with pytest.warns(UserWarning, match="Expected a NumPy array"):
-        result = check_desired_output(_list_returning_func, vecs, vecs)
-    assert result is not _list_returning_func
-
-
-def test_cdo_wrong_shape_falls_back() -> None:
-    """A function returning the wrong shape is replaced by a fallback, with a warning."""
-    rng = np.random.default_rng(0)
-    vecs = rng.random((10, 10))
-    with pytest.warns(UserWarning, match="not the expected"):
-        result = check_desired_output(_wrong_shape_func, vecs, vecs)
-    assert result is not _wrong_shape_func
-
-
-def test_fallback_loops_rowwise() -> None:
-    """The fallback wrapper builds an ``(N1, N2)`` float32 matrix row-wise."""
-    fallback = _make_fallback_func(_scalar_cosine)
-    rng = np.random.default_rng(0)
-    out = fallback(rng.random((4, 5)), rng.random((3, 5)))
-    assert out.shape == (4, 3)
-    assert out.dtype == np.float32
+def test_similarity_func_rejects_unknown_name() -> None:
+    """An unknown metric name raises ``ValueError``."""
+    with pytest.raises(ValueError, match="Unsupported similarity function"):
+        VLADEncoder(n_clusters=8, similarity_func="dot")
 
 
 # §3.2 ImageEncoderBase shared behaviour (exercised via VLADEncoder)
@@ -226,7 +179,7 @@ def test_load_roundtrip_same_encoding(
 def test_load_invalid_file_raises(tmp_path: Path) -> None:
     """Loading a file that is not a valid encoder raises ``ValueError``."""
     bad = tmp_path / "bad.encoder"
-    joblib.dump({"foo": 1}, bad)
+    bad.write_bytes(b"not a safetensors file")
     with pytest.raises(ValueError, match="not a valid .encoder file"):
         VLADEncoder.load_from_disk(bad)
 
