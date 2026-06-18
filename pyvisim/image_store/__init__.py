@@ -1,4 +1,4 @@
-"""Persistent, lazily-populated image-path to encoding-vector mappings."""
+"""Image-path to encoding-vector mappings."""
 
 from .image_store import ImageEncodingMap
 

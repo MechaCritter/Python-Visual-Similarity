@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.3.0"
+version = "0.3.1"
 description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
 readme = "README.md"
 license = "MIT"
@@ -23,12 +23,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "h5py",
     "joblib",
     "numpy",
     "opencv-python",
     "platformdirs",
     "PyYAML",
+    "safetensors",
     "scikit-learn",
     "scipy",
     "torch",
@@ -87,7 +87,6 @@ plugins = ["numpy.typing.mypy_plugin"]
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
-  "h5py.*",
   "joblib.*",
   "scipy.*",
   "sklearn.*",

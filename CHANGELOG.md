@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here. Newest releases first.
 
+## [v0.3.1] - 2026-06-18
+
+> Package version `0.3.1`. Still not production-ready yet.
+
+### Changed
+- `ImageEncodingMap` now encodes every image up front instead of lazily on first access, which drops the in-memory buffer machinery and simplifies the class.
+- `ImageEncodingMap.save_to_disk()` / `load_from_disk()` now use the safetensors format instead of HDF5. Files default to the `.safetensors` extension.
+- `skip_errors` moved from `save_to_disk()` to the `ImageEncodingMap` constructor, since encoding now happens at construction time.
+
+### Removed
+- Dropped `h5py` as a dependency; added `safetensors`.
+- Removed `ImageEncodingMap.clear_buffer()` (there's no buffer to clear anymore).
+
+### Breaking
+- ⚠️ Unreadable or missing images now raise (`FileNotFoundError` / `ValueError`) when the map is built, not on first access. Use `skip_errors=True` to drop them with a warning instead.
+- ⚠️ Encoding maps saved with `0.3.0` (HDF5) can't be loaded by `0.3.1`; re-save them as safetensors.
+
 ## [v0.3.0] - 2026-06-17
 
 > Package version `0.3.0`. Still not production-ready yet.

@@ -585,9 +585,8 @@ class ImageEncoderBase(SimilarityMetric):
         """
         Build an :class:`~pyvisim.image_store.ImageEncodingMap` from image paths.
 
-        The returned object is a lazy ``{image_path: encoded_vector}`` mapping:
-        each image is read and encoded on first access and then buffered in
-        memory.
+        The returned object is a ``{image_path: encoded_vector}`` mapping:
+        each image is read and encoded up front.
 
         The result behaves like a regular dictionary: access the encoding for a path
         by simply:
