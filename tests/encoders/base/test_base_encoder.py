@@ -6,7 +6,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import joblib
 import numpy as np
 import pytest
 from PIL import Image
@@ -180,7 +179,7 @@ def test_load_roundtrip_same_encoding(
 def test_load_invalid_file_raises(tmp_path: Path) -> None:
     """Loading a file that is not a valid encoder raises ``ValueError``."""
     bad = tmp_path / "bad.encoder"
-    joblib.dump({"foo": 1}, bad)
+    bad.write_bytes(b"not a safetensors file")
     with pytest.raises(ValueError, match="not a valid .encoder file"):
         VLADEncoder.load_from_disk(bad)
 

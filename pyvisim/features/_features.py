@@ -255,6 +255,19 @@ class Lambda(FeatureExtractorBase):
     def output_dim(self) -> int:
         return self._output_dim
 
+    def _serialization_config(self) -> dict[str, Any]:
+        """
+        Lambda extractors wrap an arbitrary user function and cannot be
+        serialised.
+
+        :raises TypeError: Always; pass ``feature_extractor`` explicitly when
+            loading an encoder that used a Lambda extractor.
+        """
+        raise TypeError(
+            "Lambda feature extractors wrap a user-defined function and cannot "
+            "be serialised. Provide 'feature_extractor' explicitly when loading."
+        )
+
     @_check_output_shape
     def __call__(
         self,
@@ -317,9 +330,14 @@ class DeepConvFeature(FeatureExtractorBase):
         transform: transforms.Compose = None,
     ):
         super().__init__()
+        # Track whether the default model is used: when serialising, a default
+        # model is rebuilt from torchvision on load (no weights stored), while a
+        # user-supplied model has its state_dict embedded in the encoder file.
+        self._is_default_model = model is None
         if model is None:
             model = vgg16(weights=VGG16_Weights.DEFAULT)
         self._model: torch.nn.Module
+        self._target_submodule = target_submodule
         self.layer_index = layer_index
         self.spatial_encoding = spatial_encoding
         self.device = device
@@ -365,6 +383,65 @@ class DeepConvFeature(FeatureExtractorBase):
     @property
     def output_dim(self) -> int:
         return self._output_dim
+
+    def _serialization_config(self) -> dict[str, Any]:
+        """
+        Return the configuration needed to rebuild this deep feature extractor.
+
+        When the default model is used (``model=None`` at construction), only
+        its architecture name is stored and the model is rebuilt from
+        torchvision's default weights on load. When a user-supplied model is
+        used, its full ``state_dict`` is embedded (as array nodes that the
+        encoder serializer writes as binary tensors) so the trained weights
+        are recovered exactly. The custom ``transform`` is not serialised; the
+        default transform is used when reconstructing.
+
+        :return: A mapping of constructor arguments. It may contain encoded
+            array nodes (the model ``state_dict``) which the encoder serializer
+            extracts into the ``.encoder`` file's tensors.
+        """
+        config: dict[str, Any] = {
+            "model_arch": type(self._model).__name__,
+            "default_model": self._is_default_model,
+            "target_submodule": self._target_submodule,
+            "layer_index": self.layer_index,
+            "spatial_encoding": self.spatial_encoding,
+            "device": self.device,
+        }
+        if not self._is_default_model:
+            config["state_dict"] = _encode_state_dict(self._model)
+        return config
+
+    @classmethod
+    def _from_config(cls, config: dict[str, Any]) -> "DeepConvFeature":
+        """
+        Rebuild a :class:`DeepConvFeature` from a serialised configuration.
+
+        For a default model the architecture is rebuilt from torchvision's
+        default weights. For a user-supplied model the architecture skeleton is
+        rebuilt and the embedded ``state_dict`` is loaded into it, recovering
+        the trained weights exactly.
+
+        :param config: Mapping produced by :meth:`_serialization_config`.
+        :return: A reconstructed deep feature extractor.
+        :raises ValueError: If the stored model architecture is not known and
+            cannot be rebuilt automatically.
+        """
+        arch = config["model_arch"]
+        default_model = config.get("default_model", True)
+        device = config.get("device", "cpu")
+        if device == "cuda" and not torch.cuda.is_available():
+            device = "cpu"
+        model = _build_torchvision_model(arch, pretrained=default_model)
+        if not default_model:
+            model.load_state_dict(_decode_state_dict(config["state_dict"]))
+        return cls(
+            model=model,
+            target_submodule=config.get("target_submodule"),
+            layer_index=config["layer_index"],
+            spatial_encoding=config["spatial_encoding"],
+            device=device,
+        )
 
     @property
     def model(self) -> torch.nn.Module:
@@ -489,3 +566,99 @@ class DeepConvFeature(FeatureExtractorBase):
             f"transform={self.transform}, selected_layer_name={self.selected_layer_name}, "
             f"selected_layer_module={self.selected_layer_module}, output_dim={self.output_dim})"
         )
+
+
+#: Maps a torchvision model architecture name to a builder. The builder takes a
+#: ``pretrained`` flag: ``True`` loads torchvision's default (ImageNet) weights,
+#: ``False`` returns the bare architecture so embedded weights can be loaded into
+#: it. Used to rebuild :class:`DeepConvFeature` extractors when loading an encoder.
+_TORCHVISION_MODEL_BUILDERS: dict[str, Callable[[bool], torch.nn.Module]] = {
+    "VGG": lambda pretrained: vgg16(
+        weights=VGG16_Weights.DEFAULT if pretrained else None
+    ),
+}
+
+
+def _build_torchvision_model(arch: str, *, pretrained: bool) -> torch.nn.Module:
+    """
+    Rebuild a torchvision model from its architecture name.
+
+    :param arch: Model architecture name (e.g. ``"VGG"``).
+    :param pretrained: Whether to load the default (ImageNet) weights.
+    :return: The reconstructed model.
+    :raises ValueError: If the architecture is not known.
+    """
+    builder = _TORCHVISION_MODEL_BUILDERS.get(arch)
+    if builder is None:
+        raise ValueError(
+            f"Cannot automatically rebuild model architecture {arch!r}. "
+            "Provide 'feature_extractor' explicitly when loading."
+        )
+    return builder(pretrained)
+
+
+def _encode_state_dict(model: torch.nn.Module) -> dict[str, Any]:
+    """
+    Encode a model's ``state_dict`` as array nodes for the encoder serializer.
+
+    :param model: The model whose weights are serialised.
+    :return: A mapping of parameter name to an encoded array node. The encoder
+        serializer extracts these arrays into the ``.encoder`` file's tensors.
+    """
+    encoded: dict[str, Any] = {}
+    for name, tensor in model.state_dict().items():
+        array = tensor.detach().cpu().numpy()
+        encoded[name] = {
+            "__ndarray__": True,
+            "data": array,
+            "dtype": str(array.dtype),
+            "shape": list(array.shape),
+            "order": "C",
+        }
+    return encoded
+
+
+def _decode_state_dict(state_dict: dict[str, Any]) -> dict[str, torch.Tensor]:
+    """
+    Rebuild a model ``state_dict`` from arrays restored by the encoder loader.
+
+    :param state_dict: Mapping of parameter name to NumPy array (restored from
+        the ``.encoder`` file's tensors).
+    :return: A mapping of parameter name to torch tensor.
+    """
+    return {
+        name: torch.from_numpy(np.ascontiguousarray(array))
+        for name, array in state_dict.items()
+    }
+
+
+#: Stateless feature extractors that take no constructor arguments.
+_STATELESS_FEATURE_EXTRACTORS: dict[str, type[FeatureExtractorBase]] = {
+    "SIFT": SIFT,
+    "RootSIFT": RootSIFT,
+}
+
+
+def feature_extractor_from_dict(data: dict[str, Any]) -> FeatureExtractorBase:
+    """
+    Rebuild a feature extractor from a dict produced by
+    :meth:`FeatureExtractorBase.to_dict`.
+
+    :param data: Mapping ``{"__class__": str, "config": dict}``.
+    :return: A reconstructed feature extractor instance.
+    :raises TypeError: If ``data`` is not a mapping with the expected keys.
+    :raises ValueError: If the extractor class cannot be reconstructed
+        automatically (e.g. a Lambda extractor).
+    """
+    if not isinstance(data, dict) or "__class__" not in data:
+        raise TypeError("Expected a feature-extractor dict from to_dict().")
+    name = data["__class__"]
+    config = data.get("config", {})
+    if name in _STATELESS_FEATURE_EXTRACTORS:
+        return _STATELESS_FEATURE_EXTRACTORS[name]()
+    if name == "DeepConvFeature":
+        return DeepConvFeature._from_config(config)
+    raise ValueError(
+        f"Cannot reconstruct feature extractor {name!r} automatically. "
+        "Provide 'feature_extractor' explicitly when loading."
+    )

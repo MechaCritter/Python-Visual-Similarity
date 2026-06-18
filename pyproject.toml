@@ -29,6 +29,7 @@ dependencies = [
     "opencv-python",
     "platformdirs",
     "PyYAML",
+    "safetensors",
     "scikit-learn",
     "scipy",
     "torch",
@@ -49,7 +50,11 @@ Homepage = "https://github.com/MechaCritter/Python-Visual-Similarity"
 include = ["pyvisim", "pyvisim.*"]
 
 [tool.setuptools.package-data]
-pyvisim = ["res/model_files/*.pkl", "res/logging_config.yaml"]
+pyvisim = [
+    "res/model_files/*.pkl",
+    "res/model_files/*.encoder",
+    "res/logging_config.yaml",
+]
 
 # Dependencies groups to isolate test env from production env
 [dependency-groups]

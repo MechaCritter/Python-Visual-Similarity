@@ -14,7 +14,7 @@ from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
 from .._utils import get_similarity_func
 from ..clustering import PCA, ClusteringModelBase
-from ..features._features import RootSIFT
+from ..features._features import RootSIFT, feature_extractor_from_dict
 from ..image_store import ImageEncodingMap
 from ..typing import (
     Float32NumpyArray,
@@ -22,6 +22,7 @@ from ..typing import (
     ImageInput,
     SimilarityFunc,
 )
+from ._serialization import load_encoder_state, save_encoder_state
 from .utils import iter_images
 
 setup_logging()
@@ -45,6 +46,8 @@ _ENCODER_STATE_KEYS = frozenset(
         "epsilon",
         "flatten",
         "raise_error_when_pca_incompatible",
+        "similarity_func",
+        "feature_extractor",
     }
 )
 
@@ -425,10 +428,6 @@ class ImageEncoderBase(SimilarityMetric):
         """
         Saves the learned state of this encoder to a ``.encoder`` file.
 
-        The file contains the fitted clustering model, the PCA model (if any)
-        and the normalization hyperparameters. The feature extractor and the
-        similarity function are not serialized; provide them again when
-        calling :meth:`load_from_disk`.
 
         :param path: Target file path. The ``.encoder`` suffix is appended if missing.
         :return: The path of the written file.
@@ -445,39 +444,34 @@ class ImageEncoderBase(SimilarityMetric):
         state = {
             "format_version": _ENCODER_FILE_FORMAT_VERSION,
             "encoder_class": type(self).__name__,
-            "clustering_model": self._clustering_model,
-            "pca": self._pca,
+            "clustering_model": self._clustering_model.to_dict(),
+            "pca": self._pca.to_dict() if self._pca is not None else None,
             "power_norm_weight": self.power_norm_weight,
             "norm_order": self.norm_order,
             "epsilon": self.epsilon,
             "flatten": self.flatten,
             "raise_error_when_pca_incompatible": self.raise_error_when_pca_incompatible,
+            "similarity_func": self._similarity_func_name,
+            "feature_extractor": self._feature_extractor.to_dict(),
         }
-        joblib.dump(state, path)
+        save_encoder_state(state, path)
         return path
 
     @classmethod
     def load_from_disk(
         cls: type[_EncoderT],
         path: str | pathlib.Path,
-        *,
-        feature_extractor: FeatureExtractorBase | None = None,
-        similarity_func: str = "cosine",
     ) -> _EncoderT:
         """
         Loads an encoder previously saved with :meth:`save_to_disk`.
 
         :param path: Path to the ``.encoder`` file.
-        :param feature_extractor: Feature extractor to use with the loaded
-            encoder. Defaults to RootSIFT. Its output dimension has to match
-            the input dimension of the saved PCA or clustering model.
-        :param similarity_func: Similarity function to use with the loaded encoder.
         :return: A ready-to-use encoder instance.
         :raises ValueError: If the file is not a valid ``.encoder`` file or
             was saved by a different encoder class.
         """
-        state = joblib.load(path)
-        if not isinstance(state, dict) or not _ENCODER_STATE_KEYS.issubset(state):
+        state = load_encoder_state(pathlib.Path(path))
+        if not _ENCODER_STATE_KEYS.issubset(state):
             raise ValueError(f"File {path} is not a valid .encoder file.")
         # TODO: in the future, verify format version by checking
         # compatibility via _ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
@@ -487,8 +481,8 @@ class ImageEncoderBase(SimilarityMetric):
                 f"Load it with {state['encoder_class']}.load_from_disk instead."
             )
         encoder = cls(
-            feature_extractor=feature_extractor,
-            similarity_func=similarity_func,
+            feature_extractor=feature_extractor_from_dict(state["feature_extractor"]),
+            similarity_func=state["similarity_func"],
             power_norm_weight=state["power_norm_weight"],
             norm_order=state["norm_order"],
             epsilon=state["epsilon"],
@@ -498,8 +492,10 @@ class ImageEncoderBase(SimilarityMetric):
             ],
         )
         if state["pca"] is not None:
-            encoder.pca = state["pca"]
-        encoder.clustering_model = state["clustering_model"]
+            encoder.pca = PCA.from_dict(state["pca"])
+        encoder.clustering_model = cls._clustering_model_cls.from_dict(
+            state["clustering_model"]
+        )
         return encoder
 
     @_tupleize_first_arg

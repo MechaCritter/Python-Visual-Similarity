@@ -83,6 +83,10 @@ class _SklearnModelBase(abc.ABC):
 
     _sklearn_class: ClassVar[type[Any]]
 
+    #: Fitted attributes that are training artifacts, not needed for inference.
+    #: They are excluded from :meth:`to_dict` to keep serialised models small.
+    _transient_attrs: ClassVar[frozenset[str]] = frozenset()
+
     def __init__(self, model: Any) -> None:
         self._model = model
 
@@ -115,15 +119,24 @@ class _SklearnModelBase(abc.ABC):
         The returned mapping contains only plain numbers, strings and nested
         containers.
 
+        **NOTE**: Training-only artifacts listed in :attr:`_transient_attrs`
+        (e.g. K-Means ``labels_``) are excluded, since they are not needed to
+        use the fitted estimator and would bloat the serialised file.
+
         :return: A dictionary describing the underlying estimator class and
-            its complete fitted state.
+            its fitted state required for inference.
         :raises NotFittedError: If the underlying estimator is not fitted.
         """
         self._check_is_fitted()
+        state = {
+            key: value
+            for key, value in vars(self._model).items()
+            if key not in self._transient_attrs
+        }
         return {
             "__class__": type(self._model).__name__,
             "__module__": type(self._model).__module__,
-            "state": _encode(vars(self._model)),
+            "state": _encode(state),
         }
 
     @classmethod
