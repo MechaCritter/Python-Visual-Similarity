@@ -95,11 +95,8 @@ class Pipeline(SimilarityMetric):
         """
         Build an :class:`~pyvisim.image_store.ImageEncodingMap` from image paths.
 
-        The returned object is a lazy ``{image_path: encoded_vector}`` mapping:
-        each image is read and encoded with the full pipeline on first access
-        and then buffered in memory. It behaves like the previously returned
-        dictionary (indexing by path, iteration, ``len``, ``values``), so
-        existing path-based access keeps working.
+        The returned object is a ``{image_path: encoded_vector}`` mapping:
+        each image is read and encoded with the full pipeline up front.
 
         :param image_paths: List of image full paths.
         :return: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping each
