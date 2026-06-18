@@ -255,7 +255,7 @@ class ImageEncoderBase(SimilarityMetric):
             "Loading pretrained models via KMeansWeights/GMMWeights is "
             "deprecated and will be removed in a future release. Use "
             "from_pretrained()/load_from_disk() with .encoder files instead.",
-            DeprecationWarning,
+            FutureWarning,
             stacklevel=3,
         )
         if "PCA" in weights.name:
