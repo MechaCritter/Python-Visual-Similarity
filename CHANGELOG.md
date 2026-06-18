@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here. Newest releases first.
 
+## [v0.5.0] - 2026-06-18
+
+> Package version `0.5.0`. Still not production-ready yet.
+
+### Added
+- New `pyvisim.retrieval` package for fast similarity search. Wrap an
+  `ImageEncodingMap` in an index (`ImageIndexIVFFlat` or `ImageIndexIVFPQ`,
+  both `l2` or `inner_product`), then hand it to an `ImageRetriever`:
+
+  ```python
+  from pyvisim.retrieval import ImageIndexIVFFlat, ImageRetriever
+
+  index = ImageIndexIVFFlat(encoding_map, quantizer="inner_product", nlist=100)
+  retriever = ImageRetriever(index)
+  results = retriever.retrieve_top_k_similar(query_images, k=5)
+  ```
+- New `pyvisim.functional` module holding `retrieve_top_k_similar` and the
+  `Candidate(path, score)` result type.
+
+### Changed
+- `retrieve_top_k_similar` now ranks a whole batch of query images in one shot
+  and returns one ranked `list[Candidate]` per query (in input order), so a
+  single call can search many images at once. Pass an `index=` to run the search
+  through FAISS instead of brute-force cosine.
+
+### Breaking
+- ⚠️ `retrieve_top_k_similar` moved out of `pyvisim.eval` into
+  `pyvisim.functional`. Update your imports:
+  `from pyvisim.functional import retrieve_top_k_similar`.
+- ⚠️ Its return type changed from `list[tuple[str, float]]` to
+  `list[list[Candidate]]` (one list per query image). Read `candidate.path` and
+  `candidate.score` instead of unpacking a tuple.
+
 ## [v0.4.1] - 2026-06-18
 
 > Package version `0.4.1`. Still not production-ready yet.
