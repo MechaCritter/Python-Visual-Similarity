@@ -62,7 +62,13 @@ def gallery(
         arrays.append(array)
         paths.append(str(path))
     encoder = FlattenEncoder()
-    return arrays, paths, encoder, ImageEncodingMap(encoder, paths)
+    encoding_map = ImageEncodingMap(
+        {
+            path: encoder.encode(array)[0]
+            for path, array in zip(paths, arrays, strict=True)
+        }
+    )
+    return arrays, paths, encoder, encoding_map
 
 
 def test_returns_one_ranked_list_per_query_in_order(

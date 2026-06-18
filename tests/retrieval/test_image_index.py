@@ -11,21 +11,6 @@ from pyvisim.retrieval.index import (
     ImageIndexIVFFlat,
     ImageIndexIVFPQ,
 )
-from pyvisim.typing import FloatNumpyArray, ImageInput
-
-
-class _StubEncoder:
-    """Minimal encoder; the index reads ``.encoder`` but never calls it."""
-
-    def encode(
-        self,
-        images: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
-        """Return a throw-away vector (unused by the indexes)."""
-        return np.zeros((1, 1), dtype=np.float32)
 
 
 def _random_map(num: int, dim: int, seed: int = 0) -> ImageEncodingMap:
@@ -37,11 +22,9 @@ def _random_map(num: int, dim: int, seed: int = 0) -> ImageEncodingMap:
     :returns: A populated ``ImageEncodingMap`` not backed by any image files.
     """
     rng = np.random.default_rng(seed)
-    store = ImageEncodingMap(_StubEncoder())
-    store._encodings = {
-        f"img_{i}.png": rng.random(dim).astype(np.float32) for i in range(num)
-    }
-    return store
+    return ImageEncodingMap(
+        {f"img_{i}.png": rng.random(dim).astype(np.float32) for i in range(num)}
+    )
 
 
 # Construction and exposed state
@@ -62,12 +45,11 @@ def test_len_dim_and_paths_match_insertion_order() -> None:
     assert index.paths == list(store.keys())
 
 
-def test_encoder_and_encoding_map_are_exposed() -> None:
-    """The source encoding map and its encoder are reachable from the index."""
+def test_encoding_map_is_exposed() -> None:
+    """The source encoding map is reachable from the index."""
     store = _random_map(num=20, dim=8)
     index = ImageIndexIVFFlat(store, nlist=2)
     assert index.encoding_map is store
-    assert index.encoder is store.encoder
 
 
 # Search
@@ -159,7 +141,7 @@ def test_unknown_quantizer_raises() -> None:
 def test_empty_encoding_map_raises() -> None:
     """An empty gallery cannot be indexed."""
     with pytest.raises(ValueError, match="empty ImageEncodingMap"):
-        ImageIndexIVFFlat(ImageEncodingMap(_StubEncoder()), nlist=1)
+        ImageIndexIVFFlat(ImageEncodingMap(), nlist=1)
 
 
 def test_nlist_larger_than_gallery_raises() -> None:
