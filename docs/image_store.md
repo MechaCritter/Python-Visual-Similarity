@@ -7,12 +7,10 @@ File: [`pyvisim/image_store/__init__.py`](../pyvisim/image_store/__init__.py)
 `Mapping`, so you use it like a dict: index by path, iterate, call `len`, `.values()`,
 `dict(...)`, and so on.
 
-## Lazy, then sticky
+## Encode images
 
-Nothing is encoded up front. The first time you ask for a path, the image is read,
-encoded, and the vector is kept in an in-memory buffer. Ask for the same path again and
-you get the buffered vector back instantly. The buffer is unbounded and never evicts on
-its own, so once a vector is computed it stays put for the lifetime of the object.
+You can encode a batch of images and get a mapping that maps
+each path to its encoding vector (in form `{path: str → encoding: np.ndarray}` with the following code:
 
 ```python
 from pyvisim.encoders import VLADEncoder
@@ -21,12 +19,20 @@ from pyvisim.image_store import ImageEncodingMap
 encoder = VLADEncoder(n_clusters=64)
 encoder.learn(train_images)
 
-store = ImageEncodingMap(encoder, ["a.jpg", "b.jpg", "c.jpg"])
-vec = store["a.jpg"]        # reads + encodes "a.jpg" on this first access
-vec_again = store["a.jpg"]  # served straight from the buffer, no re-encoding
+store = ImageEncodingMap(encoder, ["a.jpg", "b.jpg", "c.jpg"])  # encodes all three now
+vec = store["a.jpg"]  # access the encoding.
 ```
 
-You can also get one straight from an encoder or a pipeline via
+A missing file raises `FileNotFoundError` and a file that isn't a valid image raises
+`ValueError`. If you'd rather skip the bad ones, pass `skip_errors=True` and they're dropped
+with a warning instead:
+
+```python
+store = ImageEncodingMap(encoder, ["a.jpg", "missing.jpg"], skip_errors=True)
+# RuntimeWarning: Skipped 1 image(s) that could not be encoded.
+```
+
+You can also get a map straight from an encoder or a pipeline via
 [`generate_encoding_map`](encoders/base_encoder.md):
 
 ```python
@@ -36,33 +42,14 @@ store = encoder.generate_encoding_map(["a.jpg", "b.jpg", "c.jpg"])
 Any object that satisfies the [`Encoder`](typing.md) protocol works here, so encoders and
 `Pipeline` are both fair game.
 
-## Freeing memory
-
-Holding every encoding in memory is convenient but not free. When you're done with the
-cached vectors, call `clear_buffer()` to drop them. The registered paths stay, so the next
-access just re-encodes lazily.
-
-```python
-store.clear_buffer()  # buffer emptied; paths still known
-store["a.jpg"]         # re-encoded on demand
-```
-
 ## Saving and loading
 
-`save_to_disk(path)` encodes everything (reusing whatever is already buffered) and writes
-the full `path → encoding` mapping to an HDF5 file. `load_from_disk(path, encoder)` rebuilds
-the map with those encodings loaded straight into the buffer, so reopening a saved store
-involves no re-encoding.
+`save_to_disk(path)` writes the `path → encoding` mapping to a
+[safetensors](https://github.com/huggingface/safetensors) file: the stacked encoding matrix
+is stored as a single tensor, and the paths, encoder name, and format version live in the
+file metadata. `load_from_disk(path, encoder)` reads those vectors back.
 
 ```python
-store.save_to_disk("encodings.h5")
-restored = ImageEncodingMap.load_from_disk("encodings.h5", encoder)
+store.save_to_disk("encodings.safetensors")
+restored = ImageEncodingMap.load_from_disk("encodings.safetensors", encoder)
 ```
-
-A few things worth knowing:
-
-- Pass `skip_errors=True` to `save_to_disk` to warn about and skip images that can't be
-  read instead of aborting the whole save.
-- Saving an empty store, or one where every image fails to encode, raises `ValueError`.
-- `load_from_disk` warns if the encoder you pass doesn't match the one recorded in the
-  file, since re-encoding new paths would then disagree with the stored vectors.
