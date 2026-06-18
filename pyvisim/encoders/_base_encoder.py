@@ -150,6 +150,21 @@ _CLUSTERING_TO_PCA_MAPPING = {
 }
 
 
+class _PretrainedEncoder(Enum):
+    """
+    Base for pretrained-encoder enums backed by bundled ``.encoder`` files.
+
+    Concrete members live next to their encoders:
+    :class:`~pyvisim.encoders.PretrainedVLAD` (in ``vlad.py``) and
+    :class:`~pyvisim.encoders.PretrainedFisher` (in ``fisher_vector.py``).
+    """
+
+    @property
+    def path(self) -> pathlib.Path:
+        """Filesystem path of the bundled ``.encoder`` file."""
+        return pathlib.Path(self.value)
+
+
 class ImageEncoderBase(SimilarityMetric):
     """
     Base class for image encoders. An image encoder is a class that
@@ -429,6 +444,23 @@ class ImageEncoderBase(SimilarityMetric):
             features = self._pca.transform(features)
             print("   - New dimension after PCA reduction:", self._pca.n_components)
         self._clustering_model.fit(features)
+
+    @classmethod
+    def from_pretrained(
+        cls: type[_EncoderT], pretrained: _PretrainedEncoder
+    ) -> _EncoderT:
+        """
+        Loads a bundled pretrained encoder.
+
+        :param pretrained: A pretrained-encoder enum member, e.g.
+            :class:`PretrainedVLAD` for :class:`VLADEncoder` or
+            :class:`PretrainedFisher` for :class:`FisherVectorEncoder`.
+        :return: A ready-to-use encoder instance with its feature extractor and
+            similarity metric restored from the file.
+        :raises ValueError: If the chosen pretrained encoder was not saved by
+            this encoder class (e.g. loading a Fisher encoder as VLAD).
+        """
+        return cls.load_from_disk(pretrained.path)
 
     def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
         """

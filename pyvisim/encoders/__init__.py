@@ -1,7 +1,7 @@
 from ._base_encoder import GMMWeights, KMeansWeights
-from .fisher_vector import FisherVectorEncoder
+from .fisher_vector import FisherVectorEncoder, PretrainedFisher
 from .pipeline import Pipeline
-from .vlad import VLADEncoder
+from .vlad import PretrainedVLAD, VLADEncoder
 
 __all__ = [
     "VLADEncoder",
@@ -9,4 +9,6 @@ __all__ = [
     "Pipeline",
     "KMeansWeights",
     "GMMWeights",
+    "PretrainedVLAD",
+    "PretrainedFisher",
 ]

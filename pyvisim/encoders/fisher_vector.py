@@ -3,14 +3,45 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
+from .._config import MODEL_FILES_PATH
 from ..clustering import PCA, ClusteringModelBase, GaussianMixtureModel
-from ..encoders._base_encoder import GMMWeights, ImageEncoderBase
+from ..encoders._base_encoder import (
+    GMMWeights,
+    ImageEncoderBase,
+    _PretrainedEncoder,
+)
 from ..typing import (
     Float64NumpyArray,
     FloatNumpyArray,
     ImageInput,
 )
 from .utils import iter_images
+
+
+class PretrainedFisher(_PretrainedEncoder):
+    """
+    Bundled pretrained Fisher Vector encoders trained on the Oxford-102 flower
+    dataset with ``k=256`` components. Load one with
+    :meth:`FisherVectorEncoder.from_pretrained`.
+
+    Variants differ by the feature extractor (RootSIFT, SIFT or VGG16 deep
+    features) and whether PCA dimensionality reduction was applied.
+    """
+
+    OXFORD102_K256_ROOTSIFT = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift.encoder"
+    )
+    OXFORD102_K256_ROOTSIFT_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift_pca.encoder"
+    )
+    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift.encoder"
+    OXFORD102_K256_SIFT_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift_pca.encoder"
+    )
+    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16.encoder"
+    OXFORD102_K256_VGG16_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16_pca.encoder"
+    )
 
 
 class FisherVectorEncoder(ImageEncoderBase):
