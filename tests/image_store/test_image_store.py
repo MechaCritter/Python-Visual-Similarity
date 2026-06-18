@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import inspect
+import json
 from pathlib import Path
 
-import h5py
 import numpy as np
 import pytest
 from PIL import Image
+from safetensors.numpy import save_file
 
 from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
 from pyvisim.image_store import ImageEncodingMap
@@ -53,79 +54,30 @@ def image_paths(
 
 @pytest.fixture
 def image_map(encoder: VLADEncoder, image_paths: list[str]) -> ImageEncodingMap:
-    """A fresh, unbuffered :class:`ImageEncodingMap` over the test images.
+    """An :class:`ImageEncodingMap` over the test images.
 
     :param encoder: the learned encoder fixture.
     :param image_paths: the on-disk image paths fixture.
-    :returns: an ``ImageEncodingMap`` with no encodings buffered yet.
+    :returns: an ``ImageEncodingMap`` whose encodings are computed up front.
     """
     return ImageEncodingMap(encoder, image_paths)
 
 
-# Lazy, unbounded, permanent buffering
+# encoding
 
 
-def test_buffer_empty_until_first_access(image_map: ImageEncodingMap) -> None:
-    """Construction registers paths but encodes nothing up front."""
-    assert len(image_map) == NUM_IMAGES
-    assert len(image_map._buffer) == 0
-
-
-def test_access_buffers_a_single_vector(
+def test_access_returns_one_dimensional_vector(
     image_map: ImageEncodingMap, image_paths: list[str]
 ) -> None:
-    """Accessing one path encodes and buffers exactly that one path."""
+    """Indexing a path returns its flattened, 1-D encoding vector."""
     vector = image_map[image_paths[0]]
     assert vector.ndim == 1
-    assert set(image_map._buffer) == {image_paths[0]}
-
-
-def test_repeated_access_is_cached(
-    image_map: ImageEncodingMap, image_paths: list[str]
-) -> None:
-    """A second access returns the same buffered object without re-encoding."""
-    first = image_map[image_paths[0]]
-    second = image_map[image_paths[0]]
-    assert first is second
-    assert len(image_map._buffer) == 1
-
-
-def test_buffer_has_no_cap(image_map: ImageEncodingMap, image_paths: list[str]) -> None:
-    """Every accessed encoding stays buffered; nothing is ever evicted."""
-    for path in image_paths:
-        image_map[path]
-    assert len(image_map._buffer) == NUM_IMAGES
 
 
 def test_constructor_has_no_cache_size_parameter() -> None:
     """The removed buffer cap must not reappear on the constructor."""
     params = inspect.signature(ImageEncodingMap.__init__).parameters
     assert "max_cache_size" not in params
-
-
-# Clearing the buffer
-
-
-def test_clear_buffer_empties_buffer_but_keeps_paths(
-    image_map: ImageEncodingMap, image_paths: list[str]
-) -> None:
-    """``clear_buffer`` drops buffered vectors while keeping registered paths."""
-    for path in image_paths:
-        image_map[path]
-    image_map.clear_buffer()
-    assert len(image_map._buffer) == 0
-    assert len(image_map) == NUM_IMAGES
-
-
-def test_reaccess_after_clear_recomputes(
-    image_map: ImageEncodingMap, image_paths: list[str]
-) -> None:
-    """After clearing, accessing a path re-encodes and re-buffers it."""
-    original = image_map[image_paths[0]]
-    image_map.clear_buffer()
-    recomputed = image_map[image_paths[0]]
-    assert np.allclose(original, recomputed)
-    assert len(image_map._buffer) == 1
 
 
 # Mapping protocol
@@ -147,13 +99,12 @@ def test_dict_conversion_round_trips_keys(
     assert all(vector.ndim == 1 for vector in as_dict.values())
 
 
-def test_contains_does_not_trigger_encoding(
+def test_contains_reports_registered_paths(
     image_map: ImageEncodingMap, image_paths: list[str]
 ) -> None:
-    """Membership tests are cheap and never encode anything."""
+    """Membership tests report whether a path was registered."""
     assert image_paths[0] in image_map
     assert "not-a-registered-path" not in image_map
-    assert len(image_map._buffer) == 0
 
 
 # Path registration and key validation
@@ -200,22 +151,30 @@ def test_empty_map_has_no_paths(encoder: VLADEncoder) -> None:
 def test_missing_file_raises_file_not_found(
     encoder: VLADEncoder, tmp_path: Path
 ) -> None:
-    """Accessing a registered-but-missing file raises ``FileNotFoundError``."""
+    """A registered-but-missing file raises ``FileNotFoundError`` on construction."""
     missing = str(tmp_path / "gone.png")
-    store = ImageEncodingMap(encoder, [missing])
     with pytest.raises(FileNotFoundError):
-        store[missing]
+        ImageEncodingMap(encoder, [missing])
 
 
 def test_unreadable_file_raises_value_error(
     encoder: VLADEncoder, tmp_path: Path
 ) -> None:
-    """A registered file that is not an image raises ``ValueError``."""
+    """A registered file that is not an image raises ``ValueError`` on construction."""
     bogus = tmp_path / "bogus.png"
     bogus.write_text("this is not an image")
-    store = ImageEncodingMap(encoder, [str(bogus)])
     with pytest.raises(ValueError, match="Could not read image"):
-        store[str(bogus)]
+        ImageEncodingMap(encoder, [str(bogus)])
+
+
+def test_skip_errors_warns_and_keeps_good_images(
+    encoder: VLADEncoder, image_paths: list[str], tmp_path: Path
+) -> None:
+    """``skip_errors`` warns about and omits images that fail to encode."""
+    missing = str(tmp_path / "missing.png")
+    with pytest.warns(RuntimeWarning, match="Skipped 1 image"):
+        store = ImageEncodingMap(encoder, [image_paths[0], missing], skip_errors=True)
+    assert set(store) == {image_paths[0]}
 
 
 # Persistence: save_to_disk / load_from_disk
@@ -224,15 +183,14 @@ def test_unreadable_file_raises_value_error(
 def test_save_and_load_round_trip(
     image_map: ImageEncodingMap, encoder: VLADEncoder, tmp_path: Path
 ) -> None:
-    """A saved store reloads with identical, pre-buffered encodings."""
+    """A saved store reloads with identical encodings."""
     expected = {path: image_map[path] for path in image_map}
-    target = str(tmp_path / "store.h5")
+    target = str(tmp_path / "store.safetensors")
     image_map.save_to_disk(target)
 
     loaded = ImageEncodingMap.load_from_disk(target, encoder)
     assert set(loaded) == set(image_map)
-    # Loaded encodings live in the buffer, so no re-encoding is required.
-    assert len(loaded._buffer) == len(loaded)
+    assert len(loaded._encodings) == len(loaded)
     for path, vector in expected.items():
         assert np.allclose(loaded[path], vector)
 
@@ -241,43 +199,40 @@ def test_save_empty_store_raises(encoder: VLADEncoder, tmp_path: Path) -> None:
     """Saving a store with no images raises ``ValueError``."""
     store = ImageEncodingMap(encoder)
     with pytest.raises(ValueError, match="empty ImageStore"):
-        store.save_to_disk(str(tmp_path / "empty.h5"))
+        store.save_to_disk(str(tmp_path / "empty.safetensors"))
 
 
 def test_save_to_missing_directory_raises(image_map: ImageEncodingMap) -> None:
     """Saving into a non-existent directory raises ``OSError``."""
     with pytest.raises(OSError, match="directory does not exist"):
-        image_map.save_to_disk("/no/such/directory/store.h5")
-
-
-def test_save_skip_errors_warns_and_persists_good_images(
-    encoder: VLADEncoder, image_paths: list[str], tmp_path: Path
-) -> None:
-    """``skip_errors`` warns about and omits images that fail to encode."""
-    missing = str(tmp_path / "missing.png")
-    store = ImageEncodingMap(encoder, [image_paths[0], missing])
-    target = str(tmp_path / "partial.h5")
-    with pytest.warns(RuntimeWarning, match="Skipped 1 image"):
-        store.save_to_disk(target, skip_errors=True)
-
-    reloaded = ImageEncodingMap.load_from_disk(target, encoder)
-    assert set(reloaded) == {image_paths[0]}
+        image_map.save_to_disk("/no/such/directory/store.safetensors")
 
 
 def test_load_missing_file_raises(encoder: VLADEncoder, tmp_path: Path) -> None:
     """Loading a path that does not exist raises ``FileNotFoundError``."""
-    with pytest.raises(FileNotFoundError, match="No such HDF5 file"):
-        ImageEncodingMap.load_from_disk(str(tmp_path / "absent.h5"), encoder)
+    with pytest.raises(FileNotFoundError, match="No such safetensors file"):
+        ImageEncodingMap.load_from_disk(str(tmp_path / "absent.safetensors"), encoder)
 
 
-def test_load_file_missing_datasets_raises(
+def test_load_file_missing_tensor_raises(encoder: VLADEncoder, tmp_path: Path) -> None:
+    """Loading a safetensors file without the encodings tensor raises ``ValueError``."""
+    target = tmp_path / "wrong.safetensors"
+    save_file(
+        {"unrelated": np.zeros(3, dtype=np.float32)},
+        str(target),
+        metadata={"paths": json.dumps([])},
+    )
+    with pytest.raises(ValueError, match="missing the 'encodings' tensor"):
+        ImageEncodingMap.load_from_disk(str(target), encoder)
+
+
+def test_load_file_missing_paths_metadata_raises(
     encoder: VLADEncoder, tmp_path: Path
 ) -> None:
-    """Loading an HDF5 file without the expected datasets raises ``ValueError``."""
-    target = tmp_path / "wrong.h5"
-    with h5py.File(target, "w") as handle:
-        handle.create_dataset("unrelated", data=np.zeros(3))
-    with pytest.raises(ValueError, match="missing the"):
+    """Loading a safetensors file without the paths metadata raises ``ValueError``."""
+    target = tmp_path / "no_paths.safetensors"
+    save_file({"encodings": np.zeros((1, 3), dtype=np.float32)}, str(target))
+    with pytest.raises(ValueError, match="missing the 'paths' metadata"):
         ImageEncodingMap.load_from_disk(str(target), encoder)
 
 
@@ -288,7 +243,7 @@ def test_load_with_mismatched_encoder_warns(
     tmp_path: Path,
 ) -> None:
     """Loading with a different encoder class warns about the mismatch."""
-    target = str(tmp_path / "store.h5")
+    target = str(tmp_path / "store.safetensors")
     image_map.save_to_disk(target)
 
     other = FisherVectorEncoder(n_components=4, gmm_params={"random_state": 0})
