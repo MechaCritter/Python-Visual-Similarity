@@ -64,7 +64,7 @@ for you from the parameters passed to their constructors (see
 ## Adopting a pretrained scikit-learn estimator
 
 There's an internal `_from_sklearn` classmethod used to wrap an already-fitted
-estimator loaded from a legacy `KMeansWeights` / `GMMWeights` pickle. It type-checks
-the estimator (and, for the GMM, re-validates the diagonal covariance) before adopting
-it. You won't call this directly; it backs the deprecated weight-loading path described
-in [encoders/weights.md](../encoders/weights.md).
+estimator. It type-checks the estimator (and, for the GMM, re-validates the diagonal
+covariance) before adopting it. You won't call this directly; it backs `from_dict`,
+which rebuilds a clustering model from a serialized `.encoder` file (and the deprecated
+weight-loading path described in [encoders/weights.md](../encoders/weights.md)).

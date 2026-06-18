@@ -57,11 +57,13 @@ path = vlad.save_to_disk("vlad")  # writes vlad.encoder
 vlad = VLADEncoder.load_from_disk(path)
 ```
 
-The `.encoder` file stores the fitted clustering model, the PCA model and the normalization hyperparameters. The
-feature extractor and the similarity function are not serialized; provide them again when loading.
+The `.encoder` file (safetensors) stores everything needed to rebuild the encoder: the fitted clustering model, the
+PCA model, the normalization hyperparameters, the similarity metric and the feature-extractor configuration. That's
+why `load_from_disk` only needs the path.
 
-Loading pretrained models via the `KMeansWeights`/`GMMWeights` enums is deprecated and will be removed in a future
-release.
+pyvisim also ships pretrained encoders. Load one with `VLADEncoder.from_pretrained(PretrainedVLAD.X)` or
+`FisherVectorEncoder.from_pretrained(PretrainedFisher.X)`. The older `weights=KMeansWeights.X` / `weights=GMMWeights.X`
+constructor argument is deprecated and will be removed in `1.0.0`.
 
 ## Similarity Metric Pipeline
 The _Pipeline_ class is designed to handle multiple encoders simultaneously to compute feature vectors. It takes

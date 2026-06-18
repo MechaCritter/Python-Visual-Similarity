@@ -14,8 +14,8 @@ It implements `SimilarityMetric` (not `ImageEncoderBase`), so it exposes `encode
 
 - Member encoders can use different feature extractors and clustering models; the
   pipeline does not require them to agree, since their outputs are simply concatenated.
-- The similarity function is guarded the same way as in the encoders (probed on
-  assignment, with a row-wise fallback). Default is cosine similarity.
+- The similarity metric is chosen by name, just like in the encoders: `"cosine"`
+  (default), `"euclidean"`, `"l1"` or `"manhattan"`.
 - A commented-out `fit` method exists in the source; training is done per encoder, not
   through the pipeline.
 - `generate_encoding_map(image_paths)` returns a lazy

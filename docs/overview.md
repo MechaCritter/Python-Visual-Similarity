@@ -72,14 +72,13 @@ Everything is built on the two abstract base classes in
   numeric array. Use the `dims` string (e.g. `"HWC"`, `"BCHW"`) to describe the axis
   layout, and `value_range` to rescale float inputs into `[0, 255]`. See
   [typing.md](typing.md).
-- **Similarity function is pluggable and guarded.** Any callable taking two `(N, D)`
-  and `(M, D)` arrays and returning an `(N, M)` matrix can be used. On assignment it
-  is probed with dummy input; if it does not return the expected shape,
-  fall back to a row-by-row loop. Default is cosine similarity.
-- **Trained encoders persist to `.encoder` files.** `save_to_disk` / `load_from_disk`
-  serialize the fitted clustering model, PCA, and normalization settings. This replaces
-  the deprecated `KMeansWeights` / `GMMWeights` enum loading path, which still works for
-  now but warns. See [encoders/weights.md](encoders/weights.md).
+- **Similarity metric is chosen by name.** `similarity_func` takes one of the built-in
+  metric names: `"cosine"` (default), `"euclidean"`, `"l1"` or `"manhattan"`.
+- **Trained encoders persist to safetensors `.encoder` files.** `save_to_disk` /
+  `load_from_disk` capture everything (clustering model, PCA, normalization settings,
+  similarity metric and feature extractor), so loading only needs the path. Bundled
+  pretrained encoders load via `from_pretrained`.
+  See [encoders/weights.md](encoders/weights.md).
 
 ## Evaluation
 
