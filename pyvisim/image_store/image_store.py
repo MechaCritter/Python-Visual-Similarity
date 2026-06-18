@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import json
 import os
 import warnings
 from collections.abc import Iterable, Iterator, Mapping
 
-import h5py
 import numpy as np
 from PIL import Image, UnidentifiedImageError
+from safetensors import safe_open
+from safetensors.numpy import save_file
 
 from ..typing import Encoder, FloatNumpyArray
 
-#: On-disk format version, bumped if the HDF5 layout ever changes.
+#: Name of the tensor holding the stacked encoding matrix on disk.
+_ENCODINGS_KEY = "encodings"
+#: On-disk format version, bumped if the safetensors layout ever changes.
 _FORMAT_VERSION = 1
 
 
@@ -71,9 +75,13 @@ class ImageEncodingMap(Mapping[str, FloatNumpyArray]):
         )
 
     def save_to_disk(self, file_path: str) -> None:
-        """Persist the ``path -> encoding`` mapping to an HDF5 file.
+        """Persist the ``path -> encoding`` mapping to a safetensors file.
 
-        :param file_path: Destination ``.h5`` path. Overwritten if it exists.
+        The stacked encoding matrix is stored as a single tensor; the image
+        paths, encoder name and format version live in the file metadata.
+
+        :param file_path: Destination ``.safetensors`` path. Overwritten if it
+            exists.
         :raises ValueError: If the store is empty or the encodings have
             inconsistent lengths.
         :raises OSError: If the destination directory does not exist.
@@ -90,18 +98,13 @@ class ImageEncodingMap(Mapping[str, FloatNumpyArray]):
         if len({vector.shape[0] for vector in encodings}) != 1:
             raise ValueError("All encodings must share the same length to be saved.")
 
-        matrix = np.stack(encodings)
-        string_dtype = h5py.string_dtype(encoding="utf-8")
-
-        with h5py.File(file_path, "w") as handle:
-            handle.create_dataset("encodings", data=matrix, compression="gzip")
-            handle.create_dataset(
-                "paths",
-                data=np.array(saved_paths, dtype=object),
-                dtype=string_dtype,
-            )
-            handle.attrs["encoder"] = self.encoder.__class__.__name__
-            handle.attrs["format_version"] = _FORMAT_VERSION
+        matrix = np.ascontiguousarray(np.stack(encodings))
+        metadata = {
+            "paths": json.dumps(saved_paths),
+            "encoder": self.encoder.__class__.__name__,
+            "format_version": str(_FORMAT_VERSION),
+        }
+        save_file({_ENCODINGS_KEY: matrix}, file_path, metadata=metadata)
 
     @classmethod
     def load_from_disk(
@@ -114,26 +117,33 @@ class ImageEncodingMap(Mapping[str, FloatNumpyArray]):
         The encodings are restored directly from the file; no image is
         re-encoded.
 
-        :param file_path: Path to an HDF5 file produced by :meth:`save_to_disk`.
+        :param file_path: Path to a safetensors file produced by
+            :meth:`save_to_disk`.
         :param encoder: Encoder to attach. It should match the one used when
             saving.
         :returns: A populated :class:`ImageEncodingMap`.
         :raises FileNotFoundError: If ``file_path`` does not exist.
-        :raises ValueError: If the file is missing the required datasets.
+        :raises ValueError: If the file is missing the required tensor or
+            metadata.
         """
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"No such HDF5 file: {file_path!r}.")
+            raise FileNotFoundError(f"No such safetensors file: {file_path!r}.")
 
-        with h5py.File(file_path, "r") as handle:
-            for name in ("encodings", "paths"):
-                if name not in handle:
-                    raise ValueError(
-                        f"{file_path!r} is missing the {name!r} dataset; it "
-                        "was not written by ImageEncodingMap.save_to_disk."
-                    )
-            encodings = handle["encodings"][...]
-            paths = list(handle["paths"].asstr()[...])
-            stored_encoder = handle.attrs.get("encoder")
+        with safe_open(file_path, framework="numpy") as handle:
+            metadata = handle.metadata() or {}
+            if _ENCODINGS_KEY not in handle.keys():
+                raise ValueError(
+                    f"{file_path!r} is missing the {_ENCODINGS_KEY!r} tensor; "
+                    "it was not written by ImageEncodingMap.save_to_disk."
+                )
+            if "paths" not in metadata:
+                raise ValueError(
+                    f"{file_path!r} is missing the 'paths' metadata; it was "
+                    "not written by ImageEncodingMap.save_to_disk."
+                )
+            encodings = handle.get_tensor(_ENCODINGS_KEY)
+            paths = json.loads(metadata["paths"])
+            stored_encoder = metadata.get("encoder")
 
         if stored_encoder and stored_encoder != encoder.__class__.__name__:
             warnings.warn(

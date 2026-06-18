@@ -29,6 +29,7 @@ dependencies = [
     "opencv-python",
     "platformdirs",
     "PyYAML",
+    "safetensors",
     "scikit-learn",
     "scipy",
     "torch",
