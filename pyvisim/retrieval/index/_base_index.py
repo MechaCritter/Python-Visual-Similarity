@@ -20,7 +20,7 @@ import faiss
 import numpy as np
 
 from ...image_store import ImageEncodingMap
-from ...typing import Encoder, Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
 #: Supported quantizer/metric choices, mapped to their FAISS metric constant.
 _METRICS: dict[str, int] = {
@@ -105,11 +105,6 @@ class ImageIndex(abc.ABC):
     def encoding_map(self) -> ImageEncodingMap:
         """The gallery :class:`~pyvisim.image_store.ImageEncodingMap`."""
         return self._encoding_map
-
-    @property
-    def encoder(self) -> Encoder:
-        """The encoder used to build the gallery encodings."""
-        return self._encoding_map.encoder
 
     @property
     def paths(self) -> list[str]:
