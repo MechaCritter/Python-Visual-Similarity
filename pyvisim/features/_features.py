@@ -325,7 +325,7 @@ class DeepConvFeature(FeatureExtractorBase):
         The ``model`` keyword argument is deprecated; pass the model through
         ``backbone`` instead. When ``model`` is supplied it is used as the
         ``backbone`` (unless ``backbone`` is also given) and a
-        :class:`DeprecationWarning` is emitted.
+        :class:`FutureWarning` is emitted.
 
     References:
     ===========
@@ -403,7 +403,7 @@ class DeepConvFeature(FeatureExtractorBase):
         """
         Resolve the deprecated ``model`` keyword argument into ``backbone``.
 
-        If ``model`` is present in ``kwargs`` a :class:`DeprecationWarning` is
+        If ``model`` is present in ``kwargs`` a :class:`FutureWarning` is
         emitted. The popped ``model`` is used as the ``backbone`` only when no
         explicit ``backbone`` was supplied; otherwise ``backbone`` wins.
 
@@ -417,7 +417,7 @@ class DeepConvFeature(FeatureExtractorBase):
                 "The 'model' argument of DeepConvFeature is deprecated and will "
                 "be removed in a future release; pass the model through "
                 "'backbone' instead.",
-                DeprecationWarning,
+                FutureWarning,
                 stacklevel=3,
             )
             model = kwargs.pop("model")
