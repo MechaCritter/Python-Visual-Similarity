@@ -2,24 +2,23 @@
 Functional building blocks shared across pyvisim's retrieval API.
 
 This module hosts :func:`retrieve_top_k_similar`, the single entry point used to
-rank a gallery against one or more query images, and the read-only
-:class:`TopKSimilarityMap` it returns. The function works either by brute force
-(comparing every gallery vector) or, when given a :class:`pyvisim.typing.SearchIndex`,
-by delegating the nearest-neighbour search to that accelerated index.
+rank a gallery against one or more query images, and the :class:`Candidate` it
+returns. The function works either by brute force (comparing every gallery
+vector) or, when given a :class:`pyvisim.typing.SearchIndex`, by delegating the
+nearest-neighbour search to that accelerated index.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping
 from typing import NamedTuple
 
 import numpy as np
 
 from ._utils import cosine_similarity
 from .image_store import ImageEncodingMap
-from .typing import Encoder, FloatNumpyArray, IntNumpyArray, SearchIndex
+from .typing import Encoder, FloatNumpyArray, ImageInput, IntNumpyArray, SearchIndex
 
-__all__ = ["Candidate", "TopKSimilarityMap", "retrieve_top_k_similar"]
+__all__ = ["Candidate", "retrieve_top_k_similar"]
 
 
 class Candidate(NamedTuple):
@@ -35,39 +34,14 @@ class Candidate(NamedTuple):
     score: float
 
 
-class TopKSimilarityMap(Mapping[str, list[Candidate]]):
-    """Read-only mapping from a query image path to its ranked candidates.
-
-    Indexing the map with a query image path returns the list of
-    :class:`Candidate` matches for that query, ordered best match first.
-
-    :param results: Mapping of query path to its ranked list of candidates.
-    """
-
-    def __init__(self, results: dict[str, list[Candidate]]) -> None:
-        self._results = results
-
-    def __getitem__(self, query_path: str) -> list[Candidate]:
-        return self._results[query_path]
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._results)
-
-    def __len__(self) -> int:
-        return len(self._results)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(num_queries={len(self)})"
-
-
 def retrieve_top_k_similar(
-    query_image_paths: str | Iterable[str],
+    query_images: ImageInput,
     dataset: ImageEncodingMap,
     encoder: Encoder,
     k: int = 5,
     *,
     index: SearchIndex | None = None,
-) -> TopKSimilarityMap:
+) -> list[list[Candidate]]:
     """
     Return the top-k most similar gallery images for each query image.
 
@@ -76,33 +50,25 @@ def retrieve_top_k_similar(
     force using cosine similarity; otherwise the nearest-neighbour search is
     delegated to ``index`` for acceleration.
 
-    :param query_image_paths: A single image path or an iterable of image paths
-        to use as queries.
+    :param query_images: A single image or a batch/iterable of images to use as
+        queries. Anything accepted by ``encoder.encode`` is valid.
     :param dataset: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping
         gallery image paths to their feature vectors.
-    :param encoder: Encoder used to turn each query image into a feature vector.
+    :param encoder: Encoder used to turn the query images into feature vectors.
     :param k: Number of top similar gallery images to return per query.
     :param index: Optional accelerated search index built over ``dataset``. When
         provided, its ids must align with ``dataset`` insertion order.
-    :return: A :class:`TopKSimilarityMap` keyed by query image path; each value
-        is the ranked list of :class:`Candidate` matches.
-    :raises FileNotFoundError: If a query image file is missing.
-    :raises ValueError: If a query image cannot be decoded.
+    :return: One ranked list of :class:`Candidate` matches per query image, in
+        the same order as ``query_images``.
     """
-    paths = (
-        [query_image_paths]
-        if isinstance(query_image_paths, str)
-        else list(query_image_paths)
-    )
-    query_map = ImageEncodingMap(encoder, paths)
-    query_paths = list(query_map.keys())
-    if not query_paths:
-        return TopKSimilarityMap({})
-
-    # Stack the query vectors so the whole batch is searched at once: both the
-    # cosine matmul and FAISS are far faster on one ``(M, D)`` matrix than on a
-    # per-query loop.
-    query_matrix = np.asarray(list(query_map.values()))
+    # ``encoder.encode`` returns one row per query image, in input order, so the
+    # whole batch is searched at once: both the cosine matmul and FAISS are far
+    # faster on one ``(M, D)`` matrix than on a per-query loop.
+    query_matrix = np.asarray(encoder.encode(query_images))
+    if query_matrix.ndim == 1:
+        query_matrix = query_matrix.reshape(1, -1)
+    if query_matrix.shape[0] == 0:
+        return []
 
     if index is None:
         scores, ids = _brute_force_search(query_matrix, dataset, k)
@@ -111,7 +77,7 @@ def retrieve_top_k_similar(
         scores, ids = index.search(query_matrix, k)
         gallery_paths = index.paths
 
-    return TopKSimilarityMap(_assemble_results(query_paths, gallery_paths, scores, ids))
+    return _assemble_results(gallery_paths, scores, ids)
 
 
 def _brute_force_search(
@@ -136,25 +102,23 @@ def _brute_force_search(
 
 
 def _assemble_results(
-    query_paths: list[str],
     gallery_paths: list[str],
     scores: FloatNumpyArray,
     ids: IntNumpyArray,
-) -> dict[str, list[Candidate]]:
+) -> list[list[Candidate]]:
     """
-    Turn batched ``(M, k)`` search results into a per-query candidate mapping.
+    Turn batched ``(M, k)`` search results into per-query candidate lists.
 
-    :param query_paths: Query image paths, one per row of ``scores``/``ids``.
     :param gallery_paths: Gallery image paths the ``ids`` index into.
     :param scores: ``(M, k)`` similarity (or distance) scores, best first.
     :param ids: ``(M, k)`` gallery ids; negative ids mark missing neighbours.
-    :return: Mapping of query path to its ranked list of candidates.
+    :return: One ranked list of candidates per query row, in row order.
     """
-    results: dict[str, list[Candidate]] = {}
-    for query_path, row_scores, row_ids in zip(query_paths, scores, ids, strict=True):
-        results[query_path] = [
+    return [
+        [
             Candidate(gallery_paths[int(image_id)], float(score))
             for score, image_id in zip(row_scores, row_ids, strict=True)
             if image_id >= 0
         ]
-    return results
+        for row_scores, row_ids in zip(scores, ids, strict=True)
+    ]
