@@ -3,54 +3,27 @@ This module contains functions to evaluate the performance of a retrieval system
 """
 
 from collections.abc import Iterable
-from typing import Protocol
 
 import numpy as np
 
 from ._utils import cosine_similarity
-from .typing import FloatNumpyArray, ImageInput, NumpyArray
+from .image_store import ImageEncodingMap
+from .typing import Encoder, ImageInput, MatLike
 
 __all__ = ["retrieve_top_k_similar", "top_k_map", "top_k_accuracy"]
 
 
-class Encoder(Protocol):
-    """Any object that can encode images into vector representations."""
-
-    def encode(
-        self,
-        images: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
-        """
-        Encodes one or more images into a batch of vector representations.
-
-        :param images: One ``MatLike`` image or an iterable of images.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in.
-        :return: Vector representations of the given images.
-        """
-        ...
-
-
 def retrieve_top_k_similar(
-    uploaded_image: NumpyArray,
-    dataset: dict[str, FloatNumpyArray],
+    uploaded_image: ImageInput,
+    dataset: ImageEncodingMap,
     encoder: Encoder,
     k: int = 5,
 ) -> list[tuple[str, float]]:
     """
     Returns the top-k most similar images from 'dataset' to the 'uploaded_image'.
 
-    :param uploaded_image: Query image as a NumPy array (H x W x C).
-    :param dataset: A dict mapping file paths to their feature vectors (np.ndarray).
+    :param uploaded_image: Query image.
+    :param dataset: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping file paths to their feature vectors.
     :param encoder: An object that implements `encode(img) -> np.ndarray`.
     :param k: Number of top similar images to return.
     :return: A list of (image_path, similarity_score) for the top-k matches, sorted descending by similarity.
@@ -77,9 +50,9 @@ def retrieve_top_k_similar(
 
 
 def top_k_map(
-    images: Iterable[NumpyArray],
+    images: Iterable[MatLike],
     image_labels: Iterable[int],
-    encoding_map: dict[str, FloatNumpyArray],
+    encoding_map: ImageEncodingMap,
     path_labels_dict: dict[str, int],
     encoder: Encoder,
     k: int | None = None,
@@ -88,9 +61,9 @@ def top_k_map(
     Computes mean Average Precision over the queries,
     based on whether retrieved images have matching labels.
 
-    :param images: List of query images (NumPy arrays).
+    :param images: Query images.
     :param image_labels: Corresponding labels for the query images.
-    :param encoding_map: dict {img_path: feature_vector}
+    :param encoding_map: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping image paths to feature vectors.
     :param path_labels_dict: dict {img_path: label}
     :param encoder: Object with `encode(img)
     :param k: Number of top results to consider.
@@ -136,9 +109,9 @@ def top_k_map(
 
 
 def top_k_accuracy(
-    images: Iterable[NumpyArray],
+    images: Iterable[MatLike],
     image_labels: Iterable[int],
-    encoding_map: dict[str, FloatNumpyArray],
+    encoding_map: ImageEncodingMap,
     path_labels_dict: dict[str, int],
     encoder: Encoder,
     k: int,
@@ -148,9 +121,9 @@ def top_k_accuracy(
     most similar results in the dataset. If any of them match the
     query's label, that query is considered correct.
 
-    :param images: List of query images.
+    :param images: Query images.
     :param image_labels: List of true labels for each query image.
-    :param encoding_map: dict {path: feature_vector}.
+    :param encoding_map: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping image paths to feature vectors.
     :param path_labels_dict: dict {path: label}.
     :param encoder: An object with `encode(img) -> np.ndarray`.
     :param k: Number of top results to check for a correct match.
