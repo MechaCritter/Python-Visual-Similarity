@@ -85,12 +85,10 @@ def test_feature_extractor_setter_type_check() -> None:
         encoder.feature_extractor = "x"  # type: ignore[assignment]
 
 
-def test_pca_setter_type_check() -> None:
-    """Assigning a non-PCA object to ``pca`` raises ``ValueError``."""
+def test_pca_is_read_only() -> None:
+    """``pca`` is a read-only property; direct assignment raises ``AttributeError``."""
     encoder = VLADEncoder(n_clusters=8)
-    with pytest.raises(
-        ValueError, match="must be an instance of pyvisim.clustering.PCA"
-    ):
+    with pytest.raises(AttributeError):
         encoder.pca = object()  # type: ignore[assignment]
 
 
