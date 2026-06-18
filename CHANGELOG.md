@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. Newest releases first.
 
+## [v0.4.1] - 2026-06-18
+
+> Package version `0.4.1`. Still not production-ready yet.
+
+### Added
+- `DeepConvFeature` now takes a `backbone` argument. Pass `"vgg16"` to grab a
+  torchvision VGG16 with ImageNet weights, or hand it your own `torch.nn.Module`.
+  Leave it out and you still get the default VGG16.
+
+### Deprecated
+- The `model` argument of `DeepConvFeature` is deprecated; use `backbone`
+  instead. If you still pass `model`, it's used as the backbone and you'll get a
+  `DeprecationWarning`. It'll be removed in a future release.
+
 ## [v0.4.0] - 2026-06-18
 
 > Package version `0.4.0`. Still not production-ready yet.
