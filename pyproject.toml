@@ -23,7 +23,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "h5py",
     "numpy",
     "opencv-python",
     "platformdirs",
@@ -90,7 +89,6 @@ plugins = ["numpy.typing.mypy_plugin"]
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
-  "h5py.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",
@@ -100,7 +98,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py310"
 line-length = 88
 
 [tool.ruff.lint]
