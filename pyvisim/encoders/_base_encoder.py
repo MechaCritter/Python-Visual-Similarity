@@ -12,7 +12,7 @@ from sklearn.exceptions import NotFittedError
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
-from .._utils import cosine_similarity
+from .._utils import get_similarity_func
 from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT
 from ..image_store import ImageEncodingMap
@@ -47,91 +47,6 @@ _ENCODER_STATE_KEYS = frozenset(
         "raise_error_when_pca_incompatible",
     }
 )
-
-
-# Helper Functions
-def check_desired_output(
-    similarity_func: Callable[[FloatNumpyArray, FloatNumpyArray], Any],
-    vecs1: FloatNumpyArray,
-    vecs2: FloatNumpyArray,
-) -> SimilarityFunc:
-    """
-    Checks the output of the given similarity_func(vecs1, vecs2).
-    Requirements:
-    1) Output must be a NumPy array
-    2) Output shape must be (len(vecs1), len(vecs2)) if batch
-       or (1,1) if single
-    3) If it fails, we degrade to a fallback method that
-       loops over each row in vecs1 vs each row in vecs2.
-
-    :param similarity_func: function that tries to compute similarities
-                           between two arrays of shape (N, D) and (M, D).
-    :param vecs1: (N, D) or (D,) array
-    :param vecs2: (M, D) or (D,) array
-    :return: A potentially wrapped function that always returns
-             shape (N, M) as a NumPy array of floats
-    """
-    try:
-        out = similarity_func(vecs1, vecs2)
-    except Exception as e:
-        warnings.warn(
-            f"Similarity function threw an error: {e}. Falling back to row-wise loop.",
-            stacklevel=2,
-        )
-        return _make_fallback_func(similarity_func)
-
-    if not isinstance(out, np.ndarray):
-        warnings.warn(
-            f"Expected a NumPy array, got {type(out)}. Using fallback method.",
-            stacklevel=2,
-        )
-        return _make_fallback_func(similarity_func)
-
-    # Check shape
-    # If vecs1 is shape (N, D) and vecs2 is shape (M, D), we expect out.shape = (N, M).
-    # If single vector, it might produce shape (1,1) or just a float
-    shape_ok = True
-    if out.ndim == 2:
-        if out.shape[0] != vecs1.shape[0] or out.shape[1] != vecs2.shape[0]:
-            shape_ok = False
-    elif out.ndim == 1 and out.size != 1:
-        shape_ok = False
-
-    if not shape_ok:
-        warnings.warn(
-            f"Output shape {out.shape} is not the expected (N, M). Expected output shape to be "
-            f"({vecs1.shape[0]}, {vecs2.shape[0]}). Using fallback.",
-            stacklevel=2,
-        )
-        return _make_fallback_func(similarity_func)
-
-    return similarity_func
-
-
-def _make_fallback_func(
-    sim_func: Callable[[FloatNumpyArray, FloatNumpyArray], Any],
-) -> SimilarityFunc:
-    """
-    Returns a new function that loops row-by-row if the original
-    similarity function can't handle batch mode.
-    """
-
-    def fallback(vecs1: FloatNumpyArray, vecs2: FloatNumpyArray) -> Float32NumpyArray:
-        N = vecs1.shape[0]  # (N, D)
-        M = vecs2.shape[0]  # (M, D)
-        out = np.zeros((N, M), dtype=np.float32)
-        for i in range(N):
-            for j in range(M):
-                out[i, j] = sim_func(vecs1[i : i + 1], vecs2[j : j + 1])
-        return out
-
-    try:
-        return fallback
-    except Exception as e:
-        raise RuntimeError(
-            f"Row-wise operation was not possible with the given similarity function: {e}"
-            "Your function is invalid."
-        ) from e
 
 
 MethodT = TypeVar("MethodT", bound=Callable[..., Any])
@@ -252,8 +167,8 @@ class ImageEncoderBase(SimilarityMetric):
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
     :param flatten: Whether to flatten the computed descriptor vector (default: True).
-    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
-    matrix with size (batch_1_size, batch_2_size).
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+    ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param pca: PCA model (see ``pyvisim.clustering``) for dimensionality reduction
     (optional). Subclasses build it from the ``pca_params`` dictionary passed to
     their constructors.
@@ -267,7 +182,7 @@ class ImageEncoderBase(SimilarityMetric):
         feature_extractor: FeatureExtractorBase | None = None,
         clustering_model: ClusteringModelBase | None = None,
         weights: KMeansWeights | GMMWeights | None = None,
-        similarity_func: SimilarityFunc = cosine_similarity,
+        similarity_func: str = "cosine",
         power_norm_weight: float = 1,
         norm_order: int = 2,
         epsilon: float = 1e-9,
@@ -280,6 +195,7 @@ class ImageEncoderBase(SimilarityMetric):
         self._clustering_model: ClusteringModelBase | None = None
         self._pca: PCA | None = None
         self._similarity_func: SimilarityFunc
+        self._similarity_func_name: str
 
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
@@ -348,12 +264,18 @@ class ImageEncoderBase(SimilarityMetric):
 
     @property
     def similarity_func(self) -> SimilarityFunc:
+        """The resolved similarity function callable."""
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: SimilarityFunc) -> None:
-        dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
-        self._similarity_func = check_desired_output(func, dummy1, dummy2)
+    def similarity_func(self, name: str) -> None:
+        self._similarity_func = get_similarity_func(name)
+        self._similarity_func_name = name
+
+    @property
+    def similarity_func_name(self) -> str:
+        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
+        return self._similarity_func_name
 
     @property
     def clustering_model(self) -> ClusteringModelBase | None:
@@ -540,7 +462,7 @@ class ImageEncoderBase(SimilarityMetric):
         path: str | pathlib.Path,
         *,
         feature_extractor: FeatureExtractorBase | None = None,
-        similarity_func: SimilarityFunc = cosine_similarity,
+        similarity_func: str = "cosine",
     ) -> _EncoderT:
         """
         Loads an encoder previously saved with :meth:`save_to_disk`.
@@ -670,7 +592,7 @@ class ImageEncoderBase(SimilarityMetric):
         return (
             self.__class__.__name__
             + f"(feature_extractor={self.feature_extractor.__class__.__name__}, \n"
-            f"similarity_func={self.similarity_func.__name__}, \n"
+            f"similarity_func={self.similarity_func_name}, \n"
             f"Number of cluster={n_clusters}, \n"
             f"Power Norm Weight={self.power_norm_weight}, \n"
             f"Norm Order={self.norm_order})"

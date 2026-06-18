@@ -3,14 +3,12 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
-from .._utils import cosine_similarity
 from ..clustering import PCA, ClusteringModelBase, KMeans
 from ..encoders._base_encoder import ImageEncoderBase, KMeansWeights
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
     ImageInput,
-    SimilarityFunc,
 )
 from .utils import iter_images
 
@@ -46,8 +44,8 @@ class VLADEncoder(ImageEncoderBase):
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
     :param flatten: Whether to flatten the computed descriptor vector (default: True).
-    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
-    matrix with size (batch_1_size, batch_2_size).
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
@@ -71,7 +69,7 @@ class VLADEncoder(ImageEncoderBase):
         norm_order: int = 2,
         epsilon: float = 1e-9,
         flatten: bool = True,
-        similarity_func: SimilarityFunc = cosine_similarity,
+        similarity_func: str = "cosine",
         raise_error_when_pca_incompatible: bool = False,
     ) -> None:
         if weights is not None:
