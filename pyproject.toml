@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.4.2"
+version = "0.5.0"
 description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
 readme = "README.md"
 license = "MIT"
@@ -35,6 +35,7 @@ dependencies = [
     "torchaudio",
     "tqdm",
     "requests",
+    "faiss-cpu",
 ]
 
 # To install PyTorch with CUDA support instead of the CPU-only default:
@@ -89,6 +90,7 @@ plugins = ["numpy.typing.mypy_plugin"]
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
+  "faiss.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",

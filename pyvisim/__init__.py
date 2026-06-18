@@ -8,6 +8,8 @@ __all__ = [
     "encoders",
     "features",
     "eval",
+    "functional",
     "image_store",
+    "retrieval",
     "typing",
 ]
