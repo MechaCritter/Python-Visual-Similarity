@@ -298,8 +298,8 @@ def test_deepconv_unknown_backbone_name_raises() -> None:
 
 
 def test_deepconv_deprecated_model_kwarg_warns() -> None:
-    """The deprecated ``model`` keyword still works but emits a ``DeprecationWarning``."""
-    with pytest.warns(DeprecationWarning, match="'model' argument"):
+    """The deprecated ``model`` keyword still works but emits a ``FutureWarning``."""
+    with pytest.warns(FutureWarning, match="'model' argument"):
         extractor = DeepConvFeature(model=_tiny_conv_model(), device="cpu")
     assert extractor.output_dim == 12
 
@@ -307,7 +307,7 @@ def test_deepconv_deprecated_model_kwarg_warns() -> None:
 def test_deepconv_explicit_backbone_wins_over_deprecated_model() -> None:
     """When both ``backbone`` and ``model`` are passed, ``backbone`` is used."""
     backbone = _tiny_conv_model()
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(FutureWarning):
         extractor = DeepConvFeature(
             backbone=backbone, model=nn.Sequential(nn.ReLU()), device="cpu"
         )
