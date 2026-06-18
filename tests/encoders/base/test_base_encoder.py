@@ -217,6 +217,70 @@ def test_generate_encoding_map_returns_image_encoding_map(
     assert len({vector.shape[0] for vector in vectors}) == 1
 
 
+def _write_rgb_image(array: np.ndarray, path: Path) -> str:
+    """Write a grayscale array out as an RGB PNG and return its path string.
+
+    :param array: source grayscale image array.
+    :param path: destination file path.
+    :returns: the saved file path as a string.
+    """
+    rgb = np.stack([array, array, array], axis=-1)
+    Image.fromarray(rgb).save(path)
+    return str(path)
+
+
+def test_generate_encoding_map_drops_duplicate_paths(
+    learned_vlad: VLADEncoder,
+    tmp_path: Path,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """Duplicate input paths collapse to a single registered entry."""
+    path = _write_rgb_image(category_train_images_flat[0], tmp_path / "img.png")
+    encoding_map = learned_vlad.generate_encoding_map([path, path])
+    assert list(encoding_map) == [path]
+
+
+def test_generate_encoding_map_non_string_path_raises(
+    learned_vlad: VLADEncoder,
+) -> None:
+    """A non-string path is rejected before any encoding happens."""
+    with pytest.raises(TypeError, match="Image paths must be strings"):
+        learned_vlad.generate_encoding_map([123])  # type: ignore[list-item]
+
+
+def test_generate_encoding_map_missing_file_raises(
+    learned_vlad: VLADEncoder, tmp_path: Path
+) -> None:
+    """A missing image file raises ``FileNotFoundError``."""
+    with pytest.raises(FileNotFoundError):
+        learned_vlad.generate_encoding_map([str(tmp_path / "gone.png")])
+
+
+def test_generate_encoding_map_unreadable_file_raises(
+    learned_vlad: VLADEncoder, tmp_path: Path
+) -> None:
+    """A file that is not a valid image raises ``ValueError``."""
+    bogus = tmp_path / "bogus.png"
+    bogus.write_text("this is not an image")
+    with pytest.raises(ValueError, match="Could not read image"):
+        learned_vlad.generate_encoding_map([str(bogus)])
+
+
+def test_generate_encoding_map_skip_errors_warns_and_keeps_good_images(
+    learned_vlad: VLADEncoder,
+    tmp_path: Path,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """``skip_errors`` warns about and omits images that fail to encode."""
+    good = _write_rgb_image(category_train_images_flat[0], tmp_path / "good.png")
+    missing = str(tmp_path / "missing.png")
+    with pytest.warns(FutureWarning, match="Skipped 1 image"):
+        encoding_map = learned_vlad.generate_encoding_map(
+            [good, missing], skip_errors=True
+        )
+    assert set(encoding_map) == {good}
+
+
 def test_repr_smoke(learned_vlad: VLADEncoder) -> None:
     """``repr`` names the encoder class and its RootSIFT feature extractor."""
     text = repr(learned_vlad)

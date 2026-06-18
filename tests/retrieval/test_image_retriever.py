@@ -57,11 +57,16 @@ def retriever(
         arrays.append(array)
         paths.append(str(path))
     encoder = FlattenEncoder()
-    encoding_map = ImageEncodingMap(encoder, paths)
+    encoding_map = ImageEncodingMap(
+        {
+            path: encoder.encode(array)[0]
+            for path, array in zip(paths, arrays, strict=True)
+        }
+    )
     index = ImageIndexIVFFlat(
         encoding_map, quantizer="inner_product", nlist=2, nprobe=2
     )
-    return arrays, paths, ImageRetriever(index)
+    return arrays, paths, ImageRetriever(index, encoder)
 
 
 def test_index_property_returns_the_index(
