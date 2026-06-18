@@ -24,7 +24,6 @@ classifiers = [
 ]
 dependencies = [
     "h5py",
-    "joblib",
     "numpy",
     "opencv-python",
     "platformdirs",
@@ -51,7 +50,6 @@ include = ["pyvisim", "pyvisim.*"]
 
 [tool.setuptools.package-data]
 pyvisim = [
-    "res/model_files/*.pkl",
     "res/model_files/*.encoder",
     "res/logging_config.yaml",
 ]
@@ -93,7 +91,6 @@ plugins = ["numpy.typing.mypy_plugin"]
 [[tool.mypy.overrides]]
 module = [
   "h5py.*",
-  "joblib.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",

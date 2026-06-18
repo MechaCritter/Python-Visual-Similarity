@@ -6,12 +6,11 @@ from enum import Enum
 from functools import wraps
 from typing import Any, ClassVar, TypeVar, cast
 
-import joblib
 import numpy as np
 from sklearn.exceptions import NotFittedError
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
-from .._config import PICKLE_MODEL_FILES_PATH, setup_logging
+from .._config import MODEL_FILES_PATH, setup_logging
 from .._utils import get_similarity_func
 from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT, feature_extractor_from_dict
@@ -74,10 +73,11 @@ def _tupleize_first_arg(func: MethodT) -> MethodT:  # noqa: UP047
 
 
 class _PretrainedModels(Enum):
-    def load(self) -> object:
-        """Loads the model from the file path"""
-        with open(self.value, "rb") as f:
-            return joblib.load(f)
+    # TODO: removed with version 1.0.0
+    @property
+    def path(self) -> pathlib.Path:
+        """Filesystem path of the bundled ``.encoder`` file."""
+        return pathlib.Path(self.value)
 
 
 class KMeansWeights(_PretrainedModels):
@@ -86,32 +86,30 @@ class KMeansWeights(_PretrainedModels):
 
     .. deprecated::
         Loading pretrained models via this enum is deprecated and will be
-        removed in a future release. Use ``save_to_disk``/``load_from_disk``
-        with ``.encoder`` files instead.
+        removed in a future release. Use :meth:`VLADEncoder.from_pretrained`
+        or ``load_from_disk`` with ``.encoder`` files instead.
     """
 
+    # TODO: removed with version 1.0.0
     OXFORD102_K256_VGG16_PCA = (
-        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_pca.pkl"
+        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16_pca.encoder"
     )
-    OXFORD102_K256_VGG16 = (
-        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_deep_features_vgg16_no_pca.pkl"
-    )
+    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16.encoder"
     OXFORD102_K256_ROOTSIFT_PCA = (
-        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_pca.pkl"
+        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift_pca.encoder"
     )
-    OXFORD102_K256_ROOTSIFT = (
-        f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_root_sift_no_pca.pkl"
-    )
-    OXFORD102_K256_SIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_sift_pca.pkl"
-    OXFORD102_K256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/k_means_k256_sift_no_pca.pkl"
+    OXFORD102_K256_ROOTSIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift.encoder"
+    OXFORD102_K256_SIFT_PCA = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift_pca.encoder"
+    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift.encoder"
 
 
 class _PCA(_PretrainedModels):
-    OXFORD102_PCA256_VGG16 = (
-        f"{PICKLE_MODEL_FILES_PATH}/pca_k256_deep_features_vgg16_f2.pkl"
+    # TODO: removed with version 1.0.0
+    OXFORD102_PCA256_VGG16 = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16_pca.encoder"
+    OXFORD102_PCA256_ROOTSIFT = (
+        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift_pca.encoder"
     )
-    OXFORD102_PCA256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_root_sift_f2.pkl"
-    OXFORD102_PCA256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/pca_k256_sift_f2.pkl"
+    OXFORD102_PCA256_SIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift_pca.encoder"
 
 
 class GMMWeights(_PretrainedModels):
@@ -120,22 +118,26 @@ class GMMWeights(_PretrainedModels):
 
     .. deprecated::
         Loading pretrained models via this enum is deprecated and will be
-        removed in a future release. Use ``save_to_disk``/``load_from_disk``
+        removed in a future release. Use
+        :meth:`FisherVectorEncoder.from_pretrained` or ``load_from_disk``
         with ``.encoder`` files instead.
     """
 
+    # TODO: removed with version 1.0.0
     OXFORD102_K256_VGG16_PCA = (
-        f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_pca.pkl"
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16_pca.encoder"
     )
-    OXFORD102_K256_VGG16 = (
-        f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_deep_features_vgg16_no_pca.pkl"
-    )
+    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16.encoder"
     OXFORD102_K256_ROOTSIFT_PCA = (
-        f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_pca.pkl"
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift_pca.encoder"
     )
-    OXFORD102_K256_ROOTSIFT = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_root_sift_no_pca.pkl"
-    OXFORD102_K256_SIFT_PCA = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_sift_pca.pkl"
-    OXFORD102_K256_SIFT = f"{PICKLE_MODEL_FILES_PATH}/gmm_k256_sift_no_pca.pkl"
+    OXFORD102_K256_ROOTSIFT = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift.encoder"
+    )
+    OXFORD102_K256_SIFT_PCA = (
+        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift_pca.encoder"
+    )
+    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift.encoder"
 
 
 _CLUSTERING_TO_PCA_MAPPING = {
@@ -232,13 +234,17 @@ class ImageEncoderBase(SimilarityMetric):
         warnings.warn(
             "Loading pretrained models via KMeansWeights/GMMWeights is "
             "deprecated and will be removed in a future release. Use "
-            "save_to_disk()/load_from_disk() with .encoder files instead.",
+            "from_pretrained()/load_from_disk() with .encoder files instead.",
             DeprecationWarning,
             stacklevel=3,
         )
         if "PCA" in weights.name:
-            self.pca = PCA._from_sklearn(_CLUSTERING_TO_PCA_MAPPING[weights].load())
-        self.clustering_model = self._clustering_model_cls._from_sklearn(weights.load())
+            pca_state = load_encoder_state(_CLUSTERING_TO_PCA_MAPPING[weights].path)
+            self.pca = PCA.from_dict(pca_state["pca"])
+        clustering_state = load_encoder_state(weights.path)
+        self.clustering_model = self._clustering_model_cls.from_dict(
+            clustering_state["clustering_model"]
+        )
 
     @property
     def feature_extractor(self) -> FeatureExtractorBase:
