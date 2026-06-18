@@ -4,8 +4,7 @@ Image retrieval machine over an accelerated index.
 This module defines :class:`ImageRetriever`, a thin façade that pairs an
 :class:`~pyvisim.retrieval.ImageIndex` with the gallery and encoder it was built
 from. It exposes a single :meth:`ImageRetriever.retrieve_top_k_similar` method
-that ranks the gallery against one or more query images, delegating the actual
-work to :func:`pyvisim.functional.retrieve_top_k_similar`.
+that ranks the gallery against one or more query images.
 """
 
 from __future__ import annotations

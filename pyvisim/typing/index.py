@@ -1,11 +1,5 @@
 """
 Structural type describing the search-index interface used by retrieval.
-
-This module defines :class:`SearchIndex`, a :class:`typing.Protocol` that
-captures the minimal surface an accelerated index must expose to be usable by
-:func:`pyvisim.functional.retrieve_top_k_similar`. Concrete indexes such as
-:class:`pyvisim.retrieval.ImageIndex` subclasses satisfy the protocol
-structurally, without importing anything from this module.
 """
 
 from typing import Protocol

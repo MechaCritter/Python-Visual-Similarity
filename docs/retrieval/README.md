@@ -4,7 +4,8 @@ File: [`pyvisim/retrieval/__init__.py`](../../pyvisim/retrieval/__init__.py)
 
 The `retrieval` package finds the images in a gallery that look most like a query
 image. The gallery is an [`ImageEncodingMap`](../image_store.md); the search runs
-either by brute-force cosine or through a FAISS index for speed.
+either by brute-force cosine or through a significantly faster, which is the
+recommended way.
 
 ## Quick start
 
@@ -58,9 +59,6 @@ from pyvisim.functional import retrieve_top_k_similar
 # brute-force cosine over the whole gallery
 results = retrieve_top_k_similar(query_images, encoding_map, encoder, k=5)
 
-# or run the search through a FAISS index
+# or run the search through an index
 results = retrieve_top_k_similar(query_images, encoding_map, encoder, k=5, index=index)
 ```
-
-Leave `index` out and it compares every gallery vector; pass one and the search
-goes through FAISS. Either way the result is the same `list[list[Candidate]]`.

@@ -1,5 +1,5 @@
 """
-Functional building blocks shared across pyvisim's retrieval API.
+Functional building blocks shared across pyvisim's retrieval pipeline.
 
 This module hosts :func:`retrieve_top_k_similar`, the single entry point used to
 rank a gallery against one or more query images, and the :class:`Candidate` it
@@ -48,7 +48,7 @@ def retrieve_top_k_similar(
     Each query image is encoded with ``encoder`` and matched against the
     ``dataset`` gallery. When ``index`` is ``None`` the search is done by brute
     force using cosine similarity; otherwise the nearest-neighbour search is
-    delegated to ``index`` for acceleration.
+    delegated to ``index``, which accelerates the search significantly.
 
     :param query_images: A single image or a batch/iterable of images to use as
         queries. Anything accepted by ``encoder.encode`` is valid.

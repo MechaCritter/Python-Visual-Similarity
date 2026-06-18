@@ -90,7 +90,7 @@ have any suggestions or questions!
    Retrieve the top-k most similar images from a dataset.  
    - Use encoding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
    [this juptyer notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
-   - For large galleries, wrap your encodings in a FAISS index and search through an `ImageRetriever`:
+   - For large galleries, wrap your encodings in an index and search through an `ImageRetriever`:
 
      ```python
      from pyvisim.retrieval import ImageIndexIVFFlat, ImageRetriever

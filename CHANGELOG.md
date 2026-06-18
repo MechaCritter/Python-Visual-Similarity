@@ -8,7 +8,7 @@ All notable changes to this project are documented here. Newest releases first.
 
 ### Added
 - New `pyvisim.retrieval` package for fast similarity search. Wrap an
-  `ImageEncodingMap` in a FAISS index (`ImageIndexIVFFlat` or `ImageIndexIVFPQ`,
+  `ImageEncodingMap` in an index (`ImageIndexIVFFlat` or `ImageIndexIVFPQ`,
   both `l2` or `inner_product`), then hand it to an `ImageRetriever`:
 
   ```python

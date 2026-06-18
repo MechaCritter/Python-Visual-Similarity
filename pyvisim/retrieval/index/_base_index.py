@@ -1,5 +1,5 @@
 """
-Abstract interface for the FAISS-backed image indexes.
+Abstract interface for the image indexes.
 
 This module defines :class:`ImageIndex`, the base class shared by every
 accelerated image index. A concrete index turns an
@@ -34,10 +34,10 @@ Quantizer = Literal["l2", "inner_product"]
 
 class ImageIndex(abc.ABC):
     """
-    Abstract base for FAISS-backed image indexes.
+    Abstract base for all image indexes.
 
     :param encoding_map: Gallery mapping of image path to feature vector. Its
-        insertion order defines the integer ids used by the FAISS index.
+        insertion order defines the integer ids used by the index.
     :param quantizer: Distance metric to build the index for. ``"l2"`` uses
         Euclidean distance; ``"inner_product"`` uses the dot product and the
         gallery vectors are L2-normalised first, so it ranks by cosine
@@ -81,12 +81,12 @@ class ImageIndex(abc.ABC):
     @abc.abstractmethod
     def _learn_index(self) -> Any:
         """
-        Build and train the FAISS index over :attr:`_vectors`.
+        Build and train the index over :attr:`_vectors`.
 
         Called once during construction. Implementations train the index,
-        add every gallery vector and return the ready-to-search FAISS index.
+        add every gallery vector and return the ready-to-search index.
 
-        :return: The trained FAISS index instance.
+        :return: The trained index instance.
         """
         ...
 
@@ -98,7 +98,7 @@ class ImageIndex(abc.ABC):
 
     @property
     def index(self) -> Any:
-        """The underlying trained FAISS index."""
+        """The underlying trained index."""
         return self._index
 
     @property
@@ -113,7 +113,7 @@ class ImageIndex(abc.ABC):
 
     @property
     def paths(self) -> list[str]:
-        """Gallery image paths, ordered to match the FAISS index ids."""
+        """Gallery image paths, ordered to match the index ids."""
         return list(self._paths)
 
     @property

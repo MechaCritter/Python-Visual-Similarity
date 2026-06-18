@@ -19,7 +19,7 @@ pyvisim/
 ├── image_store/         ImageEncodingMap: image-path → encoding store
 ├── clustering/          KMeans, GaussianMixtureModel, PCA
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
-├── retrieval/           FAISS-backed image indexes + ImageRetriever
+├── retrieval/           image indexes + ImageRetriever
 ├── datasets/            OxfordFlowerDataset
 └── neural_networks/     Siamese network (planned, not yet implemented)
 ```
@@ -32,8 +32,8 @@ Per-area docs:
 - [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
   vocabulary with.
 - [Features](features/): how local descriptors are extracted from an image.
-- [Retrieval](retrieval/): FAISS-backed indexes and the `ImageRetriever` for fast
-  top-k search over an encoding map.
+- [Retrieval](retrieval/): search indexes and the `ImageRetriever` for fast
+  top-k image search over an encoding map.
 - [Neural networks](neural_networks/): planned Siamese network.
 - [Dataset](dataset/): the bundled Oxford Flowers dataset class.
 
@@ -91,7 +91,7 @@ entry point for ranking a gallery against query images. Give it a batch of query
 images and an [`ImageEncodingMap`](image_store.md) gallery and it returns one
 ranked `list[Candidate]` per query, where each `Candidate` carries a `path` and a
 `score`. By default it compares every gallery vector (brute-force cosine); pass an
-`index=` and the search runs through FAISS instead. The
+`index=` and the search runs through the, which is significantly faster. The
 [`retrieval`](retrieval/) package wraps all of this: build an `ImageIndexIVFFlat`
 or `ImageIndexIVFPQ` over your encoding map and hand it to an `ImageRetriever`.
 
