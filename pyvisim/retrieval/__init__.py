@@ -1,6 +1,5 @@
 """Accelerated image indexes and retrieval over an image gallery."""
 
-from ._base_index import ImageIndex
-from .image_index import ImageIndexIVFFlat
+from .index import ImageIndex, ImageIndexIVFFlat, ImageIndexIVFPQ
 
-__all__ = ["ImageIndex", "ImageIndexIVFFlat"]
+__all__ = ["ImageIndex", "ImageIndexIVFFlat", "ImageIndexIVFPQ"]

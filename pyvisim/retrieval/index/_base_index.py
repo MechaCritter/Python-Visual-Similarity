@@ -19,8 +19,8 @@ from typing import Any, Literal, cast
 import faiss
 import numpy as np
 
-from ..image_store import ImageEncodingMap
-from ..typing import Encoder, Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ...image_store import ImageEncodingMap
+from ...typing import Encoder, Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
 #: Supported quantizer/metric choices, mapped to their FAISS metric constant.
 _METRICS: dict[str, int] = {
