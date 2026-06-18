@@ -285,10 +285,39 @@ def test_deepconv_bad_submodule_raises() -> None:
         )
 
 
-def test_deepconv_non_module_model_raises() -> None:
-    """A model that is not a ``torch.nn.Module`` raises ``TypeError``."""
+def test_deepconv_invalid_backbone_type_raises() -> None:
+    """A backbone that is neither a string nor a ``torch.nn.Module`` raises ``TypeError``."""
     with pytest.raises(TypeError):
-        DeepConvFeature(model="not a module", device="cpu")  # type: ignore[arg-type]
+        DeepConvFeature(backbone=123, device="cpu")  # type: ignore[arg-type]
+
+
+def test_deepconv_unknown_backbone_name_raises() -> None:
+    """An unknown built-in backbone name raises ``ValueError``."""
+    with pytest.raises(ValueError, match="Unknown backbone"):
+        DeepConvFeature(backbone="not a module", device="cpu")
+
+
+def test_deepconv_deprecated_model_kwarg_warns() -> None:
+    """The deprecated ``model`` keyword still works but emits a ``DeprecationWarning``."""
+    with pytest.warns(DeprecationWarning, match="'model' argument"):
+        extractor = DeepConvFeature(model=_tiny_conv_model(), device="cpu")
+    assert extractor.output_dim == 12
+
+
+def test_deepconv_explicit_backbone_wins_over_deprecated_model() -> None:
+    """When both ``backbone`` and ``model`` are passed, ``backbone`` is used."""
+    backbone = _tiny_conv_model()
+    with pytest.warns(DeprecationWarning):
+        extractor = DeepConvFeature(
+            backbone=backbone, model=nn.Sequential(nn.ReLU()), device="cpu"
+        )
+    assert extractor.model is backbone
+
+
+def test_deepconv_unexpected_kwarg_raises() -> None:
+    """An unexpected keyword argument raises ``TypeError``."""
+    with pytest.raises(TypeError, match="unexpected keyword arguments"):
+        DeepConvFeature(_tiny_conv_model(), bogus=1, device="cpu")  # type: ignore[call-arg]
 
 
 def test_deepconv_accepts_tensor() -> None:
@@ -302,4 +331,12 @@ def test_deepconv_accepts_tensor() -> None:
 def test_deepconv_default_vgg16() -> None:
     """The default VGG16 last conv layer gives ``output_dim == 514`` (512 + 2)."""
     extractor = DeepConvFeature(device="cpu")
+    assert extractor.output_dim == 514
+
+
+@pytest.mark.slow
+def test_deepconv_string_backbone_vgg16() -> None:
+    """The ``"vgg16"`` string backbone builds the same VGG16 extractor."""
+    extractor = DeepConvFeature(backbone="vgg16", device="cpu")
+    assert type(extractor.model).__name__ == "VGG"
     assert extractor.output_dim == 514

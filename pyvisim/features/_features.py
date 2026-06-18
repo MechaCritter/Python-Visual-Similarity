@@ -6,6 +6,7 @@ custom feature extraction functions, and deep convolutional feature extraction
 with optional spatial encoding.
 """
 
+import warnings
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar, cast
@@ -303,8 +304,15 @@ class DeepConvFeature(FeatureExtractorBase):
     presented in [1], where VLAD encodings were computed from deep convolutional features and input into
     a metric learning algorithm in order to distinguish between different people.
 
-    :param model: A PyTorch model instance from torchvision.model_files. Default is VGG16. In the paper [1],
-                a VGG-Face model trained on Idmb-Wiki dataset was used with VLAD encoding for younger faces verification.
+    :param backbone: The convolutional backbone to extract features from. It may be:
+
+        * ``None`` (default): builds a torchvision VGG16 with ImageNet weights.
+        * A string naming a built-in backbone. Currently only ``"vgg16"`` is
+          supported, which builds a torchvision VGG16 with ImageNet weights.
+        * A ``torch.nn.Module`` instance: any user-supplied PyTorch model.
+
+        In the paper [1], a VGG-Face model trained on the Imdb-Wiki dataset was
+        used with VLAD encoding for younger faces verification.
     :param target_submodule: Optional submodule name to hook into. If None, the whole model is used.
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`
                        to see the ordering or use -1 for the last conv layer.
@@ -312,6 +320,12 @@ class DeepConvFeature(FeatureExtractorBase):
     :param device: 'cpu' or 'cuda'. Where to run the model.
     :param transform: Optional torchvision.transforms.Compose. Default includes `to_tensor`, `resize(224, 224)`,
                         and normalization with ImageNet stats.
+
+    .. deprecated:: 0.4.1
+        The ``model`` keyword argument is deprecated; pass the model through
+        ``backbone`` instead. When ``model`` is supplied it is used as the
+        ``backbone`` (unless ``backbone`` is also given) and a
+        :class:`DeprecationWarning` is emitted.
 
     References:
     ===========
@@ -322,20 +336,21 @@ class DeepConvFeature(FeatureExtractorBase):
 
     def __init__(
         self,
-        model: torch.nn.Module | None = None,
+        backbone: str | torch.nn.Module | None = None,
         target_submodule: str | None = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
         transform: transforms.Compose = None,
+        **kwargs: Any,
     ):
         super().__init__()
-        # Track whether the default model is used: when serialising, a default
-        # model is rebuilt from torchvision on load (no weights stored), while a
-        # user-supplied model has its state_dict embedded in the encoder file.
-        self._is_default_model = model is None
-        if model is None:
-            model = vgg16(weights=VGG16_Weights.DEFAULT)
+        backbone = self._resolve_deprecated_model(backbone, kwargs)
+        # Track whether a rebuildable (torchvision-default) model is used: when
+        # serialising, such a model is rebuilt from torchvision on load (no
+        # weights stored), while a user-supplied model has its state_dict
+        # embedded in the encoder file.
+        model, self._is_default_model = _build_backbone(backbone)
         self._model: torch.nn.Module
         self._target_submodule = target_submodule
         self.layer_index = layer_index
@@ -379,6 +394,40 @@ class DeepConvFeature(FeatureExtractorBase):
             else self.selected_layer_module.out_channels
         )
         self._register_hook()
+
+    @staticmethod
+    def _resolve_deprecated_model(
+        backbone: str | torch.nn.Module | None,
+        kwargs: dict[str, Any],
+    ) -> str | torch.nn.Module | None:
+        """
+        Resolve the deprecated ``model`` keyword argument into ``backbone``.
+
+        If ``model`` is present in ``kwargs`` a :class:`DeprecationWarning` is
+        emitted. The popped ``model`` is used as the ``backbone`` only when no
+        explicit ``backbone`` was supplied; otherwise ``backbone`` wins.
+
+        :param backbone: The ``backbone`` argument as passed by the caller.
+        :param kwargs: Extra keyword arguments captured by ``__init__``.
+        :return: The backbone to use.
+        :raises TypeError: If ``kwargs`` contains unexpected keyword arguments.
+        """
+        if "model" in kwargs:
+            warnings.warn(
+                "The 'model' argument of DeepConvFeature is deprecated and will "
+                "be removed in a future release; pass the model through "
+                "'backbone' instead.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            model = kwargs.pop("model")
+            if backbone is None:
+                backbone = model
+        if kwargs:
+            raise TypeError(
+                f"DeepConvFeature got unexpected keyword arguments: {sorted(kwargs)}."
+            )
+        return backbone
 
     @property
     def output_dim(self) -> int:
@@ -561,22 +610,63 @@ class DeepConvFeature(FeatureExtractorBase):
 
     def __repr__(self) -> str:
         return (
-            f"DeepConvFeature(model={type(self.model).__name__}, layer_index={self.layer_index}, "
+            f"DeepConvFeature(backbone={type(self.model).__name__}, layer_index={self.layer_index}, "
             f"spatial_encoding={self.spatial_encoding}, device={self.device}, "
             f"transform={self.transform}, selected_layer_name={self.selected_layer_name}, "
             f"selected_layer_module={self.selected_layer_module}, output_dim={self.output_dim})"
         )
 
 
-#: Maps a torchvision model architecture name to a builder. The builder takes a
-#: ``pretrained`` flag: ``True`` loads torchvision's default (ImageNet) weights,
-#: ``False`` returns the bare architecture so embedded weights can be loaded into
-#: it. Used to rebuild :class:`DeepConvFeature` extractors when loading an encoder.
-_TORCHVISION_MODEL_BUILDERS: dict[str, Callable[[bool], torch.nn.Module]] = {
-    "VGG": lambda pretrained: vgg16(
+#: Maps a backbone identifier to a builder. The builder takes a ``pretrained``
+#: flag: ``True`` loads torchvision's default (ImageNet) weights, ``False``
+#: returns the bare architecture so embedded weights can be loaded into it.
+#:
+#: Each backbone is registered under two identifiers so a single map serves both
+#: lookups: the friendly name users pass via ``backbone`` (e.g. ``"vgg16"``) and
+#: the model class name serialization recovers from a model instance
+#: (``type(model).__name__``, e.g. ``"VGG"``). Currently only VGG16 is supported.
+_BACKBONE_BUILDERS: dict[str, Callable[[bool], torch.nn.Module]] = {
+    "vgg16": lambda pretrained: vgg16(
         weights=VGG16_Weights.DEFAULT if pretrained else None
     ),
 }
+_BACKBONE_BUILDERS["VGG"] = _BACKBONE_BUILDERS["vgg16"]
+
+
+def _build_backbone(
+    backbone: str | torch.nn.Module | None,
+) -> tuple[torch.nn.Module, bool]:
+    """
+    Resolve a ``backbone`` argument into a concrete model.
+
+    :param backbone: ``None`` for the default VGG16, a string naming a built-in
+        backbone (see :data:`_BACKBONE_BUILDERS`), or a ``torch.nn.Module``.
+    :return: A ``(model, is_default_model)`` tuple. ``is_default_model`` is
+        ``True`` when the model can be rebuilt from torchvision's default
+        weights on load (``None`` or a built-in name) and ``False`` for a
+        user-supplied module whose weights must be embedded when serialising.
+    :raises ValueError: If ``backbone`` is an unknown built-in name.
+    :raises TypeError: If ``backbone`` is neither ``None``, a string, nor a
+        ``torch.nn.Module``.
+    """
+    if backbone is None:
+        return _BACKBONE_BUILDERS["vgg16"](True), True
+    if isinstance(backbone, str):
+        builder = _BACKBONE_BUILDERS.get(backbone.lower())
+        if builder is None:
+            # Only the friendly, lowercase names are public; the class-name
+            # aliases exist purely for serialization round-trips.
+            raise ValueError(
+                f"Unknown backbone {backbone!r}. Supported backbones: "
+                f"{sorted(name for name in _BACKBONE_BUILDERS if name.islower())}."
+            )
+        return builder(True), True
+    if isinstance(backbone, torch.nn.Module):
+        return backbone, False
+    raise TypeError(
+        "backbone must be None, a string naming a built-in backbone, or a "
+        f"torch.nn.Module. Got {type(backbone)} instead."
+    )
 
 
 def _build_torchvision_model(arch: str, *, pretrained: bool) -> torch.nn.Module:
@@ -588,7 +678,7 @@ def _build_torchvision_model(arch: str, *, pretrained: bool) -> torch.nn.Module:
     :return: The reconstructed model.
     :raises ValueError: If the architecture is not known.
     """
-    builder = _TORCHVISION_MODEL_BUILDERS.get(arch)
+    builder = _BACKBONE_BUILDERS.get(arch)
     if builder is None:
         raise ValueError(
             f"Cannot automatically rebuild model architecture {arch!r}. "
