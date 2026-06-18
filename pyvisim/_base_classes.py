@@ -1,5 +1,6 @@
 import abc
 import logging
+from typing import Any
 
 from .typing import Float32NumpyArray, FloatNumpyArray, ImageInput, MatLike
 
@@ -85,3 +86,30 @@ class FeatureExtractorBase(abc.ABC):
         The dimensionality (D) of each feature vector, i.e., shape[1] of the output.
         """
         pass
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialise this feature extractor into a JSON-safe configuration dict.
+
+        The dict captures the extractor's class name and the keyword arguments
+        needed to rebuild an equivalent instance (see
+        :func:`pyvisim.features.feature_extractor_from_dict`).
+
+        :return: A mapping ``{"__class__": str, "config": dict}``.
+        """
+        return {
+            "__class__": type(self).__name__,
+            "config": self._serialization_config(),
+        }
+
+    def _serialization_config(self) -> dict[str, Any]:
+        """
+        Return the JSON-safe constructor arguments needed to rebuild this extractor.
+
+        Stateless extractors (e.g. SIFT, RootSIFT) need no configuration and
+        return an empty mapping. Subclasses override this hook when they carry
+        reconstructable parameters.
+
+        :return: A JSON-safe mapping of constructor arguments.
+        """
+        return {}

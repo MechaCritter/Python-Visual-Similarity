@@ -4,7 +4,7 @@ from collections.abc import Iterable
 import numpy as np
 
 from .._base_classes import SimilarityMetric
-from .._utils import cosine_similarity
+from .._utils import get_similarity_func
 from ..image_store import ImageEncodingMap
 from ..typing import (
     Float32NumpyArray,
@@ -12,7 +12,7 @@ from ..typing import (
     ImageInput,
     SimilarityFunc,
 )
-from ._base_encoder import ImageEncoderBase, check_desired_output
+from ._base_encoder import ImageEncoderBase
 from .utils import iter_images
 
 
@@ -26,8 +26,8 @@ class Pipeline(SimilarityMetric):
     have different output sizes.
 
     :param encoders: A list of ImageEncoderBase instances.
-    :param similarity_func: A function that takes two batches of vectors and returns a similarity score
-    matrix with size (batch_1_size, batch_2_size).
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     """
 
     _logger = logging.getLogger("Pipeline")
@@ -35,11 +35,11 @@ class Pipeline(SimilarityMetric):
     def __init__(
         self,
         encoders: list[ImageEncoderBase],
-        similarity_func: SimilarityFunc = cosine_similarity,
+        similarity_func: str = "cosine",
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
-        self._similarity_func = similarity_func
+        self.similarity_func = similarity_func
 
     def _check_valid_encoders(self, encoders: list[ImageEncoderBase]) -> None:
         """
@@ -106,12 +106,18 @@ class Pipeline(SimilarityMetric):
 
     @property
     def similarity_func(self) -> SimilarityFunc:
+        """The resolved similarity function callable."""
         return self._similarity_func
 
     @similarity_func.setter
-    def similarity_func(self, func: SimilarityFunc) -> None:
-        dummy1, dummy2 = np.random.rand(10, 10), np.random.rand(10, 10)
-        self._similarity_func = check_desired_output(func, dummy1, dummy2)
+    def similarity_func(self, name: str) -> None:
+        self._similarity_func = get_similarity_func(name)
+        self._similarity_func_name = name
+
+    @property
+    def similarity_func_name(self) -> str:
+        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
+        return self._similarity_func_name
 
     def similarity_score(
         self,
@@ -166,5 +172,5 @@ class Pipeline(SimilarityMetric):
         return (
             f"Pipeline(\n"
             f"encoders=[{encoders_str}],\n"
-            f"similarity_func={self._similarity_func.__name__ if hasattr(self._similarity_func, '__name__') else str(self._similarity_func)})"
+            f"similarity_func={self._similarity_func_name})"
         )
