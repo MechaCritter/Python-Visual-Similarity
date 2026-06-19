@@ -236,9 +236,9 @@ class ImageEncoderBase(SimilarityMetric):
             self._load_pretrained_weights(weights)  # TODO: removed with version 1.0.0
         else:
             if pca is not None:
-                self.pca = pca
+                self._set_pca(pca)
             if clustering_model is not None:
-                self.clustering_model = clustering_model
+                self._set_clustering_model(clustering_model)
 
     # TODO: removed with version 1.0.0
     def _load_pretrained_weights(self, weights: KMeansWeights | GMMWeights) -> None:
@@ -261,10 +261,10 @@ class ImageEncoderBase(SimilarityMetric):
         )
         if "PCA" in weights.name:
             pca_state = load_encoder_state(_CLUSTERING_TO_PCA_MAPPING[weights].path)
-            self.pca = PCA.from_dict(pca_state["pca"])
+            self._set_pca(PCA.from_dict(pca_state["pca"]))
         clustering_state = load_encoder_state(weights.path)
-        self.clustering_model = self._clustering_model_cls.from_dict(
-            clustering_state["clustering_model"]
+        self._set_clustering_model(
+            self._clustering_model_cls.from_dict(clustering_state["clustering_model"])
         )
 
     @property
@@ -311,10 +311,6 @@ class ImageEncoderBase(SimilarityMetric):
     def clustering_model(self) -> ClusteringModelBase | None:
         return self._clustering_model
 
-    @clustering_model.setter
-    def clustering_model(self, clustering_model: ClusteringModelBase) -> None:
-        self._set_clustering_model(clustering_model)
-
     def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
         """
         Validates the given clustering model against the current PCA or
@@ -359,8 +355,14 @@ class ImageEncoderBase(SimilarityMetric):
     def pca(self) -> PCA | None:
         return self._pca
 
-    @pca.setter
-    def pca(self, pca: PCA) -> None:
+    def _set_pca(self, pca: PCA) -> None:
+        """
+        Validates and stores the given PCA model.
+
+        :param pca: PCA model to validate and store.
+        :raises ValueError: If ``pca`` is not a :class:`~pyvisim.clustering.PCA` instance
+            or its dimensions are incompatible with the feature extractor or clustering model.
+        """
         if not isinstance(pca, PCA):
             raise ValueError(
                 f"The PCA model must be an instance of pyvisim.clustering.PCA, not {type(pca)}"
@@ -536,9 +538,9 @@ class ImageEncoderBase(SimilarityMetric):
             ],
         )
         if state["pca"] is not None:
-            encoder.pca = PCA.from_dict(state["pca"])
-        encoder.clustering_model = cls._clustering_model_cls.from_dict(
-            state["clustering_model"]
+            encoder._set_pca(PCA.from_dict(state["pca"]))
+        encoder._set_clustering_model(
+            cls._clustering_model_cls.from_dict(state["clustering_model"])
         )
         return encoder
 

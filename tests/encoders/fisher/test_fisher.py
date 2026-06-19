@@ -67,11 +67,11 @@ def test_wrong_weights_class_raises() -> None:
         FisherVectorEncoder(weights=KMeansWeights.OXFORD102_K256_SIFT)
 
 
-def test_clustering_setter_rejects_non_gmm() -> None:
-    """Assigning a non-GMM clustering model raises ``ValueError``."""
+def test_clustering_model_is_read_only() -> None:
+    """``clustering_model`` is a read-only property; direct assignment raises ``AttributeError``."""
     encoder = FisherVectorEncoder(n_components=8)
-    with pytest.raises(ValueError, match="GaussianMixtureModel"):
-        encoder.clustering_model = KMeans(8)
+    with pytest.raises(AttributeError):
+        encoder.clustering_model = KMeans(8)  # type: ignore[assignment]
 
 
 def test_encode_shape_no_pca(

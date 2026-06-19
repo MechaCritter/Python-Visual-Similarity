@@ -66,13 +66,11 @@ def test_wrong_weights_class_raises() -> None:
         VLADEncoder(weights=GMMWeights.OXFORD102_K256_SIFT)
 
 
-def test_clustering_setter_rejects_non_kmeans() -> None:
-    """Assigning a non-KMeans clustering model raises ``ValueError``."""
+def test_clustering_model_is_read_only() -> None:
+    """``clustering_model`` is a read-only property; direct assignment raises ``AttributeError``."""
     encoder = VLADEncoder(n_clusters=8)
-    with pytest.raises(
-        ValueError, match="must be an instance of pyvisim.clustering.KMeans"
-    ):
-        encoder.clustering_model = GaussianMixtureModel(8)
+    with pytest.raises(AttributeError):
+        encoder.clustering_model = GaussianMixtureModel(8)  # type: ignore[assignment]
 
 
 def test_encode_shape_no_pca(
