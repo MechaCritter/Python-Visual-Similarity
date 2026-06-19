@@ -130,13 +130,12 @@ class FisherVectorEncoder(ImageEncoderBase):
     def clustering_model(self) -> GaussianMixtureModel:
         return cast(GaussianMixtureModel, self._clustering_model)
 
-    @clustering_model.setter
-    def clustering_model(self, model: ClusteringModelBase) -> None:
-        if not isinstance(model, GaussianMixtureModel):
+    def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
+        if not isinstance(clustering_model, GaussianMixtureModel):
             raise ValueError(
-                f"The clustering model must be an instance of pyvisim.clustering.GaussianMixtureModel, not {type(model)}"
+                f"The clustering model must be an instance of pyvisim.clustering.GaussianMixtureModel, not {type(clustering_model)}"
             )
-        self._set_clustering_model(model)
+        super()._set_clustering_model(clustering_model)
 
     def encode(
         self,
