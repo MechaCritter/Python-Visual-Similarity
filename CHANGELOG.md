@@ -1,10 +1,12 @@
 # Changelog
 
-All notable changes to this project are documented here. Newest releases first.
+## [v0.5.1] - 2026-06-19
+
+## Fixed
+- The method `_from_config` of `DeepConvFeature` was using the deprecated
+  `model` argument instead of `backbone`. This version only fixed that.
 
 ## [v0.5.0] - 2026-06-19
-
-> Package version `0.5.0`. Still not production-ready yet.
 
 ### Added
 - New `pyvisim.retrieval` package for fast similarity search. Wrap an
@@ -44,8 +46,6 @@ All notable changes to this project are documented here. Newest releases first.
 
 ## [v0.4.1] - 2026-06-18
 
-> Package version `0.4.1`. Still not production-ready yet.
-
 ### Added
 - `DeepConvFeature` now takes a `backbone` argument. Pass `"vgg16"` to grab a
   torchvision VGG16 with ImageNet weights, or hand it your own `torch.nn.Module`.
@@ -57,8 +57,6 @@ All notable changes to this project are documented here. Newest releases first.
   `DeprecationWarning`. It'll be removed in a future release.
 
 ## [v0.4.0] - 2026-06-18
-
-> Package version `0.4.0`. Still not production-ready yet.
 
 ### Added
 - `from_pretrained()` on `VLADEncoder` and `FisherVectorEncoder`, plus the
@@ -91,8 +89,6 @@ All notable changes to this project are documented here. Newest releases first.
 
 ## [v0.3.1] - 2026-06-18
 
-> Package version `0.3.1`. Still not production-ready yet.
-
 ### Changed
 - `ImageEncodingMap` now encodes every image up front instead of lazily on first access, which drops the in-memory buffer machinery and simplifies the class.
 - `ImageEncodingMap.save_to_disk()` / `load_from_disk()` now use the safetensors format instead of HDF5. Files default to the `.safetensors` extension.
@@ -108,8 +104,6 @@ All notable changes to this project are documented here. Newest releases first.
 
 ## [v0.3.0] - 2026-06-17
 
-> Package version `0.3.0`. Still not production-ready yet.
-
 ### Added
 - New encoding map feature for the encoders (#36).
 - PyPI publishing step in the CI workflow, so releases ship automatically (#37).
@@ -122,8 +116,6 @@ All notable changes to this project are documented here. Newest releases first.
 - Dropped the deprecated `project.license` TOML table in `pyproject.toml` (#39).
 
 ## [v0.2.0] - 2026-06-16
-
-> ⚠️ Heads up: still not production-ready. Treat this as an early preview.
 
 ### Added
 - Clustering models with a fresh public API (#19), plus docs to match (#21).
