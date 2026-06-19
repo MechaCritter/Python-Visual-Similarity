@@ -485,7 +485,7 @@ class DeepConvFeature(FeatureExtractorBase):
         if not default_model:
             model.load_state_dict(_decode_state_dict(config["state_dict"]))
         return cls(
-            model=model,
+            backbone=model,
             target_submodule=config.get("target_submodule"),
             layer_index=config["layer_index"],
             spatial_encoding=config["spatial_encoding"],
