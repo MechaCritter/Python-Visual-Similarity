@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. Newest releases first.
 
-## [v0.5.0] - 2026-06-18
+## [v0.5.0] - 2026-06-19
 
 > Package version `0.5.0`. Still not production-ready yet.
 
@@ -34,6 +34,13 @@ All notable changes to this project are documented here. Newest releases first.
 - ⚠️ Its return type changed from `list[tuple[str, float]]` to
   `list[list[Candidate]]` (one list per query image). Read `candidate.path` and
   `candidate.score` instead of unpacking a tuple.
+- ⚠️ The getters for the `pca` and `clustering_model` attributes of all encoders
+   are removed (the attributes are now read-only). This is in order to discourage
+   users from mutating the clustering internals, which could break the
+   algorithm completely. Also, once trained, there's not really a reason to
+   have to mutate those models at all because any different model would be
+   basically wrong for the trained encoder.
+- ⚠️ The `ImageEncodingMap` does not take the `Encoder` as an argument anymore.
 
 ## [v0.4.1] - 2026-06-18
 
