@@ -1,13 +1,10 @@
 import logging
-import warnings
-from collections.abc import Iterable
+from typing import Any, cast
 
 import numpy as np
-from PIL import Image, UnidentifiedImageError
 
 from .._base_classes import SimilarityMetric
 from .._utils import get_similarity_func
-from ..image_store import ImageEncodingMap
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -16,6 +13,9 @@ from ..typing import (
 )
 from ._base_encoder import ImageEncoderBase
 from .utils import iter_images
+
+#: On-disk format version of the serialised pipeline state.
+_PIPELINE_FORMAT_VERSION = 1
 
 
 class Pipeline(SimilarityMetric):
@@ -53,6 +53,42 @@ class Pipeline(SimilarityMetric):
                 raise ValueError(
                     f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}"
                 )
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialises the pipeline into a JSON-safe state dictionary.
+
+        Each member encoder is serialised with its own
+        :meth:`~pyvisim.encoders.ImageEncoderBase.to_dict`, so every encoder
+        must be fitted.
+
+        :return: A JSON-safe pipeline description suitable for
+            :meth:`from_dict`.
+        :raises NotFittedError: If any member encoder is not fitted.
+        """
+        return {
+            "format_version": _PIPELINE_FORMAT_VERSION,
+            "encoder_class": type(self).__name__,
+            "encoders": [encoder.to_dict() for encoder in self.encoders],
+            "similarity_func": self._similarity_func_name,
+        }
+
+    @classmethod
+    def from_dict(cls, state: dict[str, Any]) -> "Pipeline":
+        """
+        Rebuilds a pipeline from a dictionary produced by :meth:`to_dict`.
+
+        :param state: A JSON-safe pipeline description from :meth:`to_dict`.
+        :return: A ready-to-use :class:`Pipeline` instance.
+        """
+        # Imported lazily to avoid an import cycle with the encoder registry.
+        from ._reconstruct import encoder_from_dict
+
+        encoders = [
+            cast(ImageEncoderBase, encoder_from_dict(encoder_state))
+            for encoder_state in state["encoders"]
+        ]
+        return cls(encoders, similarity_func=state["similarity_func"])
 
     def encode(
         self,
@@ -92,91 +128,6 @@ class Pipeline(SimilarityMetric):
             all_encodings.append(encodings)
             metric.flatten = a
         return np.hstack(all_encodings)
-
-    def generate_encoding_map(
-        self,
-        image_paths: Iterable[str],
-        *,
-        skip_errors: bool = False,
-    ) -> ImageEncodingMap:
-        """
-        Build an :class:`~pyvisim.image_store.ImageEncodingMap` from image paths.
-
-        Each image is read and encoded with the full pipeline up front, and the
-        resulting ``{image_path: encoded_vector}`` mapping is wrapped in an
-        :class:`~pyvisim.image_store.ImageEncodingMap`. The map only stores the
-        vectors, so it stays decoupled from the pipeline.
-
-        :param image_paths: Iterable of image file paths. Duplicates are
-            dropped, keeping the first occurrence.
-        :param skip_errors: If ``True``, images that cannot be read or encoded
-            are skipped with a warning instead of aborting.
-        :return: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping each
-                image path to the descriptor vector of the corresponding image.
-        :raises TypeError: If any provided path is not a string.
-        :raises FileNotFoundError: If an image file is missing (and
-            ``skip_errors`` is ``False``).
-        :raises ValueError: If an image cannot be decoded (and ``skip_errors``
-            is ``False``).
-        """
-        encodings = self._encode_paths(image_paths, skip_errors)
-        return ImageEncodingMap(encodings)
-
-    def _encode_paths(
-        self,
-        image_paths: Iterable[str],
-        skip_errors: bool,
-    ) -> dict[str, FloatNumpyArray]:
-        """
-        Encode every path, dropping duplicates and validating their type.
-
-        :param image_paths: Iterable of image file paths to encode.
-        :param skip_errors: If ``True``, unreadable images are skipped with a
-            warning instead of raising.
-        :return: A ``{image_path: encoding}`` dictionary in input order.
-        :raises TypeError: If any provided path is not a string.
-        """
-        encodings: dict[str, FloatNumpyArray] = {}
-        failures: list[str] = []
-        for path in image_paths:
-            if not isinstance(path, str):
-                raise TypeError(
-                    f"Image paths must be strings, got {type(path).__name__}."
-                )
-            if path in encodings:
-                continue
-            try:
-                encodings[path] = self._encode_path(path)
-            except (FileNotFoundError, ValueError, OSError):
-                if not skip_errors:
-                    raise
-                failures.append(path)
-
-        if failures:
-            warnings.warn(
-                f"Skipped {len(failures)} image(s) that could not be encoded.",
-                FutureWarning,
-                stacklevel=3,
-            )
-        return encodings
-
-    def _encode_path(self, path: str) -> FloatNumpyArray:
-        """
-        Open one image and return its flattened encoding.
-
-        :param path: Filesystem path of the image to encode.
-        :return: The flattened encoding vector for the image.
-        :raises FileNotFoundError: If the image file is missing.
-        :raises ValueError: If the image cannot be decoded.
-        """
-        try:
-            with Image.open(path) as image:
-                rgb_image = np.asarray(image.convert("RGB"))
-        except FileNotFoundError:
-            raise  # already clear and specific; let it propagate
-        except (UnidentifiedImageError, OSError) as exc:
-            raise ValueError(f"Could not read image {path!r}: {exc}") from exc
-        return self.encode(rgb_image).flatten()
 
     @property
     def similarity_func(self) -> SimilarityFunc:

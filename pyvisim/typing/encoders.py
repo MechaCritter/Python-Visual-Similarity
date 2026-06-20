@@ -1,13 +1,5 @@
 """
 Structural type describing the encoder interface used across pyvisim.
-
-This module defines :class:`Encoder`, a :class:`typing.Protocol` that captures
-the minimal surface an object must expose to be usable as an image encoder
-(notably by :class:`pyvisim.image_store.ImageEncodingMap`). Any object that
-implements a compatible :meth:`encode` method satisfies the protocol; concrete
-encoders such as :class:`pyvisim.encoders.ImageEncoderBase` subclasses and
-:class:`pyvisim.encoders.Pipeline` do so structurally, without importing or
-subclassing anything from this module.
 """
 
 from typing import Protocol, runtime_checkable

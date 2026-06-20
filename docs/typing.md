@@ -46,8 +46,13 @@ class Encoder(Protocol):
 A structural type (a `typing.Protocol`) for anything that turns images into vectors: all
 it needs is an `encode` method. `VLADEncoder`, `FisherVectorEncoder`, and `Pipeline` all
 satisfy it without inheriting from it. That's what lets
-[`ImageEncodingMap`](image_store.md) accept any of them without importing the concrete
-encoder classes.
+[`InMemoryImageEmbeddingStore`](image_store.md) accept any of them without importing the
+concrete encoder classes.
+
+There's a matching `EmbeddingStore` protocol too (the gallery surface that retrieval and
+evaluation rely on: `paths`, `embeddings`, `encoder`, and `search`).
+`InMemoryImageEmbeddingStore` satisfies it structurally, so `retrieve_top_k_similar`,
+`top_k_map`, and `top_k_accuracy` stay decoupled from the concrete store.
 
 ## The `dims` string
 

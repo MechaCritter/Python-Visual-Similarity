@@ -8,16 +8,20 @@ into ``nlist`` Voronoi cells and probe ``nprobe`` of them per query:
   is exact within the probed cells.
 - :class:`ImageIndexIVFPQ` compresses the vectors with product quantization,
   trading a little accuracy for a much smaller memory footprint.
+
+Two further index structures, :class:`ImageIndexHNSW` and
+:class:`ImageIndexScalarQuantizer`, are sketched for upcoming releases and
+currently raise :class:`NotImplementedError` when constructed.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 import faiss
 
-from ...image_store import ImageEncodingMap
-from ...typing import Float32NumpyArray
+from ...typing import Float32NumpyArray, FloatNumpyArray
 from ._base_index import ImageIndex, Quantizer
 
 
@@ -32,7 +36,8 @@ class ImageIndexIVFFlat(ImageIndex):
 
     - https://milvus.io/ai-quick-reference/how-do-inverted-file-ivf-indexes-work-in-vector-databases-and-what-role-do-clustering-centroids-play-in-the-search-process
 
-    :param encoding_map: Gallery mapping of image path to feature vector.
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
     :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"`` (see
         :class:`~pyvisim.retrieval.ImageIndex`).
     :param nlist: Number of Voronoi cells to partition the gallery into.
@@ -42,7 +47,8 @@ class ImageIndexIVFFlat(ImageIndex):
 
     def __init__(
         self,
-        encoding_map: ImageEncodingMap,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
         *,
         quantizer: Quantizer = "l2",
         nlist: int = 100,
@@ -50,7 +56,7 @@ class ImageIndexIVFFlat(ImageIndex):
     ) -> None:
         self._nlist = int(nlist)
         self._nprobe = int(nprobe)
-        super().__init__(encoding_map, quantizer=quantizer)
+        super().__init__(paths, vectors, quantizer=quantizer)
 
     @property
     def nlist(self) -> int:
@@ -67,15 +73,16 @@ class ImageIndexIVFFlat(ImageIndex):
         """Coordinates of the ``nlist`` cell centroids, shape ``(nlist, D)``."""
         return self._coarse_centroids()
 
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
         """
         Build, train and populate the IVF-Flat index.
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :return: The trained FAISS ``IndexIVFFlat``.
         :raises ValueError: If ``nlist`` exceeds the gallery size or ``nprobe``
             is not within ``[1, nlist]``.
         """
-        num_vectors = self._vectors.shape[0]
+        num_vectors = vectors.shape[0]
         if not 1 <= self._nlist <= num_vectors:
             raise ValueError(
                 f"'nlist' must be between 1 and the number of indexed vectors "
@@ -89,8 +96,8 @@ class ImageIndexIVFFlat(ImageIndex):
 
         quantizer = self._make_quantizer()
         index = faiss.IndexIVFFlat(quantizer, self.dim, self._nlist, self._metric)
-        index.train(self._vectors)
-        index.add(self._vectors)
+        index.train(vectors)
+        index.add(vectors)
         index.nprobe = self._nprobe
         return index
 
@@ -112,7 +119,8 @@ class ImageIndexIVFPQ(ImageIndex):
 
     - https://www.pinecone.io/learn/series/faiss/product-quantization/
 
-    :param encoding_map: Gallery mapping of image path to feature vector.
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
     :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"`` (see
         :class:`~pyvisim.retrieval.ImageIndex`).
     :param nlist: Number of Voronoi cells to partition the gallery into.
@@ -128,7 +136,8 @@ class ImageIndexIVFPQ(ImageIndex):
 
     def __init__(
         self,
-        encoding_map: ImageEncodingMap,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
         *,
         quantizer: Quantizer = "l2",
         nlist: int = 100,
@@ -140,7 +149,7 @@ class ImageIndexIVFPQ(ImageIndex):
         self._nprobe = int(nprobe)
         self._m = int(m)
         self._nbits = int(nbits)
-        super().__init__(encoding_map, quantizer=quantizer)
+        super().__init__(paths, vectors, quantizer=quantizer)
 
     @property
     def nlist(self) -> int:
@@ -167,16 +176,17 @@ class ImageIndexIVFPQ(ImageIndex):
         """Coordinates of the ``nlist`` cell centroids, shape ``(nlist, D)``."""
         return self._coarse_centroids()
 
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
         """
         Build, train and populate the IVF-PQ index.
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :return: The trained FAISS ``IndexIVFPQ``.
         :raises ValueError: If ``nlist`` exceeds the gallery size, ``nprobe`` is
             not within ``[1, nlist]``, ``m`` does not divide the dimensionality,
             or the gallery has fewer than ``2 ** nbits`` vectors.
         """
-        num_vectors = self._vectors.shape[0]
+        num_vectors = vectors.shape[0]
         if not 1 <= self._nlist <= num_vectors:
             raise ValueError(
                 f"'nlist' must be between 1 and the number of indexed vectors "
@@ -206,7 +216,125 @@ class ImageIndexIVFPQ(ImageIndex):
         index = faiss.IndexIVFPQ(
             quantizer, self.dim, self._nlist, self._m, self._nbits, self._metric
         )
-        index.train(self._vectors)
-        index.add(self._vectors)
+        index.train(vectors)
+        index.add(vectors)
         index.nprobe = self._nprobe
         return index
+
+
+class ImageIndexHNSW(ImageIndex):
+    """
+    Hierarchical Navigable Small World (HNSW) graph index.
+
+    HNSW builds a multi-layer proximity graph over the gallery and walks it
+    greedily at query time, giving fast and accurate approximate search without
+    a training step.
+
+    .. note::
+        This index is sketched for an upcoming release and is **not yet
+        implemented**: constructing it raises :class:`NotImplementedError`.
+
+    Detail
+    ------
+    Check out this documentation if you are interested in the algorithm
+    details:
+
+    - https://www.pinecone.io/learn/series/faiss/hnsw/
+
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
+    :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"``.
+    :param m: Number of neighbours stored per node in the graph.
+    :param ef_construction: Breadth of the search used while building the graph.
+    :param ef_search: Breadth of the search used at query time.
+    """
+
+    def __init__(
+        self,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
+        *,
+        quantizer: Quantizer = "l2",
+        m: int = 32,
+        ef_construction: int = 40,
+        ef_search: int = 16,
+    ) -> None:
+        self._m = int(m)
+        self._ef_construction = int(ef_construction)
+        self._ef_search = int(ef_search)
+        super().__init__(paths, vectors, quantizer=quantizer)
+
+    @property
+    def cluster_centers(self) -> Float32NumpyArray:
+        """Unavailable: HNSW is a graph index without coarse centroids."""
+        raise NotImplementedError(
+            "ImageIndexHNSW is planned for a future release and is not yet implemented."
+        )
+
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
+        """
+        Build the HNSW graph index (planned for a future release).
+
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
+        :raises NotImplementedError: Always; this index is not yet implemented.
+        """
+        raise NotImplementedError(
+            "ImageIndexHNSW is planned for a future release and is not yet implemented."
+        )
+
+
+class ImageIndexScalarQuantizer(ImageIndex):
+    """
+    Flat index with scalar-quantized (e.g. 8-bit integer) gallery vectors.
+
+    A scalar quantizer compresses every vector component independently to a
+    small integer type, roughly quartering the memory of ``int8`` storage while
+    keeping search exhaustive within the compressed space.
+
+    .. note::
+        This index is sketched for an upcoming release and is **not yet
+        implemented**: constructing it raises :class:`NotImplementedError`.
+
+    Detail
+    ------
+    Check out this documentation if you are interested in the algorithm
+    details:
+
+    - https://github.com/facebookresearch/faiss/wiki/Faiss-indexes#scalar-quantizer
+
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
+    :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"``.
+    :param qtype: Scalar-quantizer component type, e.g. ``"8bit"``.
+    """
+
+    def __init__(
+        self,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
+        *,
+        quantizer: Quantizer = "l2",
+        qtype: str = "8bit",
+    ) -> None:
+        self._qtype = str(qtype)
+        super().__init__(paths, vectors, quantizer=quantizer)
+
+    @property
+    def cluster_centers(self) -> Float32NumpyArray:
+        """Unavailable: a flat scalar-quantizer index has no coarse centroids."""
+        raise NotImplementedError(
+            "ImageIndexScalarQuantizer is planned for a future release and is "
+            "not yet implemented."
+        )
+
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
+        """
+        Build the scalar-quantizer index (planned for a future release).
+
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
+        :raises NotImplementedError: Always; this index is not yet implemented.
+        """
+        raise NotImplementedError(
+            "ImageIndexScalarQuantizer is planned for a future release and is "
+            "not yet implemented."
+        )

@@ -3,22 +3,23 @@
 File: [`pyvisim/retrieval/__init__.py`](../../pyvisim/retrieval/__init__.py)
 
 The `retrieval` package finds the images in a gallery that look most like a query
-image. The gallery is an [`ImageEncodingMap`](../image_store.md); the search runs
-either by brute-force cosine or through a significantly faster, which is the
-recommended way.
+image. The gallery is an
+[`InMemoryImageEmbeddingStore`](../image_store.md), which builds a FAISS index over
+the embeddings so the search is fast.
 
 ## Quick start
 
-Wrap your encoding map in an index, hand it to an `ImageRetriever`, and search:
+The store searches itself, so most of the time you just call it directly:
 
 ```python
-from pyvisim.retrieval import ImageIndexIVFFlat, ImageRetriever
+from pyvisim.image_store import InMemoryImageEmbeddingStore
 
-# encoding_map is an ImageEncodingMap built over your gallery images
-index = ImageIndexIVFFlat(encoding_map, quantizer="inner_product", nlist=100, nprobe=8)
-retriever = ImageRetriever(index)
+store = InMemoryImageEmbeddingStore(
+    gallery_paths, encoder, "ivf-flat",
+    quantizer="inner_product", index_params={"nlist": 100, "nprobe": 8},
+)
 
-results = retriever.retrieve_top_k_similar([query_a, query_b], k=5)
+results = store.retrieve_top_k_similar([query_a, query_b], k=5)
 for ranked in results:                 # one list per query image, in input order
     for candidate in ranked:           # already sorted, best match first
         print(candidate.path, candidate.score)
@@ -26,6 +27,16 @@ for ranked in results:                 # one list per query image, in input orde
 
 You pass the query image array(s), and you get back one ranked `list[Candidate]`
 per query. Each `Candidate` is a small named tuple of `(path, score)`.
+
+If you prefer a façade object, `ImageRetriever` wraps a store and forwards to the same
+method:
+
+```python
+from pyvisim.retrieval import ImageRetriever
+
+retriever = ImageRetriever(store)
+results = retriever.retrieve_top_k_similar([query_a, query_b], k=5)
+```
 
 ## Picking a quantizer
 
@@ -46,19 +57,28 @@ Both indexes take `quantizer="l2"` or `quantizer="inner_product"`:
   of approximate distances. `m` must divide the vector dimensionality, and the
   gallery needs at least `2 ** nbits` vectors to train the codebook.
 
-Both expose their coarse-quantizer centroids via `index.cluster_centers`.
+Both expose their coarse-quantizer centroids via `index.cluster_centers`. Two more
+structures, `ImageIndexHNSW` (the `"hnsw"` store) and `ImageIndexScalarQuantizer`
+(the `"int8"` store), are sketched for upcoming releases and raise
+`NotImplementedError` for now.
+
+You usually don't build an index by hand: the store does it for you from the
+`index_type` and `index_params` you pass. If you do, an index takes the gallery as
+`(paths, vectors)`:
+
+```python
+from pyvisim.retrieval import ImageIndexIVFFlat
+
+index = ImageIndexIVFFlat(paths, vectors, quantizer="inner_product", nlist=100, nprobe=8)
+```
 
 ## Going lower level
 
-If you don't need the `ImageRetriever` façade, call the function directly. It
-takes the gallery and encoder explicitly, and an optional `index`:
+If you don't need the `ImageRetriever` façade, call the function directly. It takes
+the query images and the store:
 
 ```python
 from pyvisim.functional import retrieve_top_k_similar
 
-# brute-force cosine over the whole gallery
-results = retrieve_top_k_similar(query_images, encoding_map, encoder, k=5)
-
-# or run the search through an index
-results = retrieve_top_k_similar(query_images, encoding_map, encoder, k=5, index=index)
+results = retrieve_top_k_similar(query_images, store, k=5)
 ```

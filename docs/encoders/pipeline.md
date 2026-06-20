@@ -7,8 +7,12 @@ encoder, concatenates the per-encoder vectors, and compares the combined vectors
 a single similarity function. The goal is a more robust representation that blends,
 for example, VLAD and Fisher Vector encodings.
 
-It implements `SimilarityMetric` (not `ImageEncoderBase`), so it exposes `encode`,
-`generate_encoding_map`, and `similarity_score` but has no clustering model of its own.
+It implements `SimilarityMetric` (not `ImageEncoderBase`), so it exposes `encode` and
+`similarity_score` but has no clustering model of its own. It's also serialisable:
+`to_dict`/`from_dict` round-trip the whole pipeline (each member encoder is serialised
+in turn), which is what lets an
+[`InMemoryImageEmbeddingStore`](../image_store.md) persist a pipeline alongside its
+gallery.
 
 ## Notes
 
@@ -18,6 +22,5 @@ It implements `SimilarityMetric` (not `ImageEncoderBase`), so it exposes `encode
   (default), `"euclidean"`, `"l1"` or `"manhattan"`.
 - A commented-out `fit` method exists in the source; training is done per encoder, not
   through the pipeline.
-- `generate_encoding_map(image_paths)` returns a lazy
-  [`ImageEncodingMap`](../image_store.md), encoding each image with the full pipeline on
-  first access. See [base_encoder.md](base_encoder.md).
+- To index a gallery with a pipeline, hand it to an
+  [`InMemoryImageEmbeddingStore`](../image_store.md) just like any other encoder.
