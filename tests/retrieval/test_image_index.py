@@ -7,8 +7,10 @@ import pytest
 
 from pyvisim.retrieval.index import (
     ImageIndex,
+    ImageIndexHNSW,
     ImageIndexIVFFlat,
     ImageIndexIVFPQ,
+    ImageIndexScalarQuantizer,
 )
 from pyvisim.typing import Float32NumpyArray
 
@@ -202,3 +204,16 @@ def test_ivfpq_too_few_vectors_raises() -> None:
     paths, vectors = _random_gallery(num=20, dim=16)
     with pytest.raises(ValueError, match="needs at least"):
         ImageIndexIVFPQ(paths, vectors, nlist=4, m=4, nbits=8)
+
+
+# Sketched (not-yet-implemented) index structures
+
+
+@pytest.mark.parametrize("index_cls", [ImageIndexHNSW, ImageIndexScalarQuantizer])
+def test_sketched_indexes_raise_not_implemented(
+    index_cls: type[ImageIndex],
+) -> None:
+    """The sketched index structures raise ``NotImplementedError`` on build."""
+    paths, vectors = _random_gallery(num=20, dim=8)
+    with pytest.raises(NotImplementedError):
+        index_cls(paths, vectors)

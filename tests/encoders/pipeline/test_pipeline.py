@@ -108,3 +108,15 @@ def test_repr(pipeline: Pipeline) -> None:
     assert "Pipeline(" in text
     assert "VLADEncoder(" in text
     assert "FisherVectorEncoder(" in text
+
+
+def test_to_dict_from_dict_round_trip(
+    pipeline: Pipeline, checkerboard_image: ImageObj
+) -> None:
+    """``Pipeline.from_dict(pipeline.to_dict())`` rebuilds an equivalent pipeline."""
+    restored = Pipeline.from_dict(pipeline.to_dict())
+    assert isinstance(restored, Pipeline)
+    assert len(restored.encoders) == len(pipeline.encoders)
+    assert restored.similarity_func_name == pipeline.similarity_func_name
+    probe = [checkerboard_image.array]
+    assert np.allclose(restored.encode(probe), pipeline.encode(probe), atol=1e-5)

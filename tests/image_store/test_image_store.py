@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.encoders import VLADEncoder
+from pyvisim.encoders import Pipeline, VLADEncoder
+from pyvisim.functional import Candidate
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 
 
@@ -47,6 +48,163 @@ def store(
         learned_vlad_encoder,
         "ivf-flat",
         index_params={"nlist": 4, "nprobe": 4},
+    )
+
+
+# Construction and exposed state
+
+
+def test_reports_paths_dim_and_len(
+    store: InMemoryImageEmbeddingStore, gallery_paths: list[str]
+) -> None:
+    """The store exposes the gallery paths, dimensionality and size."""
+    assert store.paths == gallery_paths
+    assert len(store) == len(gallery_paths)
+    assert store.dim == store.embeddings.shape[1]
+    assert store.index_type == "ivf-flat"
+
+
+def test_contains_and_repr(store: InMemoryImageEmbeddingStore) -> None:
+    """``in`` checks gallery membership and ``repr`` names the store."""
+    assert store.paths[0] in store
+    assert "absent.png" not in store
+    assert "InMemoryImageEmbeddingStore(" in repr(store)
+
+
+def test_search_returns_expected_shapes(
+    store: InMemoryImageEmbeddingStore,
+) -> None:
+    """``search`` returns ``(M, k)`` score and id arrays."""
+    scores, ids = store.search(store.embeddings[:3], k=4)
+    assert scores.shape == (3, 4)
+    assert ids.shape == (3, 4)
+
+
+def test_retrieve_recovers_self(
+    store: InMemoryImageEmbeddingStore,
+    gallery_paths: list[str],
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """Retrieving with a gallery image returns that image as the top match."""
+    gray = category_train_images_flat[2]
+    probe = np.stack([gray, gray, gray], axis=-1)
+    results = store.retrieve_top_k_similar(probe, k=3)
+    assert isinstance(results[0][0], Candidate)
+    assert results[0][0].path == gallery_paths[2]
+
+
+def test_unknown_index_type_raises(
+    gallery_paths: list[str], learned_vlad_encoder: VLADEncoder
+) -> None:
+    """An unknown index_type is rejected before any image is encoded."""
+    with pytest.raises(ValueError, match="Unknown index_type"):
+        InMemoryImageEmbeddingStore(gallery_paths, learned_vlad_encoder, "bogus")
+
+
+@pytest.mark.parametrize("index_type", ["hnsw", "int8"])
+def test_unimplemented_index_types_raise(
+    index_type: str, gallery_paths: list[str], learned_vlad_encoder: VLADEncoder
+) -> None:
+    """The sketched index types raise ``NotImplementedError`` when built."""
+    with pytest.raises(NotImplementedError):
+        InMemoryImageEmbeddingStore(gallery_paths[:6], learned_vlad_encoder, index_type)
+
+
+def test_non_string_path_raises(learned_vlad_encoder: VLADEncoder) -> None:
+    """A non-string path is rejected before any encoding happens."""
+    with pytest.raises(TypeError, match="Image paths must be strings"):
+        InMemoryImageEmbeddingStore([123], learned_vlad_encoder)  # type: ignore[list-item]
+
+
+def test_missing_file_raises(
+    learned_vlad_encoder: VLADEncoder, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """A missing image file aborts construction by default."""
+    missing = str(tmp_path_factory.mktemp("missing") / "gone.png")
+    with pytest.raises(FileNotFoundError):
+        InMemoryImageEmbeddingStore([missing], learned_vlad_encoder)
+
+
+def test_skip_errors_warns_and_keeps_good_images(
+    gallery_paths: list[str],
+    learned_vlad_encoder: VLADEncoder,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """``skip_errors`` warns about and omits images that fail to encode."""
+    missing = str(tmp_path_factory.mktemp("partial") / "gone.png")
+    with pytest.warns(FutureWarning, match="Skipped 1 image"):
+        store = InMemoryImageEmbeddingStore(
+            [*gallery_paths[:5], missing],
+            learned_vlad_encoder,
+            index_params={"nlist": 2, "nprobe": 2},
+            skip_errors=True,
+        )
+    assert store.paths == gallery_paths[:5]
+
+
+def test_all_images_unreadable_raises(
+    learned_vlad_encoder: VLADEncoder, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """A store cannot be built when every image fails to encode."""
+    missing = str(tmp_path_factory.mktemp("empty") / "gone.png")
+    with pytest.warns(FutureWarning):
+        with pytest.raises(ValueError, match="No images could be encoded"):
+            InMemoryImageEmbeddingStore(
+                [missing], learned_vlad_encoder, skip_errors=True
+            )
+
+
+def test_inner_product_embeddings_are_normalized(
+    gallery_paths: list[str], learned_vlad_encoder: VLADEncoder
+) -> None:
+    """An inner-product store exposes L2-normalised embeddings."""
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:8],
+        learned_vlad_encoder,
+        "ivf-flat",
+        quantizer="inner_product",
+        index_params={"nlist": 2, "nprobe": 2},
+    )
+    norms = np.linalg.norm(store.embeddings, axis=1)
+    assert np.allclose(norms, 1.0, atol=1e-5)
+
+
+def test_ivf_pq_store_builds_and_searches(
+    gallery_paths: list[str], learned_vlad_encoder: VLADEncoder
+) -> None:
+    """An IVF-PQ store builds, searches and survives a save/load round-trip."""
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths,
+        learned_vlad_encoder,
+        "ivf-pq",
+        index_params={"nlist": 4, "nprobe": 4, "m": 8, "nbits": 4},
+    )
+    scores, ids = store.search(store.embeddings[:2], k=3)
+    assert scores.shape == (2, 3)
+    assert ids.shape == (2, 3)
+
+
+def test_store_with_pipeline_encoder_round_trips(
+    gallery_paths: list[str],
+    learned_vlad_encoder: VLADEncoder,
+    tmp_path_factory: pytest.TempPathFactory,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """A store built on a Pipeline serialises and reconstructs the Pipeline."""
+    pipeline = Pipeline([learned_vlad_encoder])
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:8],
+        pipeline,
+        index_params={"nlist": 2, "nprobe": 2},
+    )
+    target = tmp_path_factory.mktemp("pipeline_store") / "store.safetensors"
+    loaded = InMemoryImageEmbeddingStore.load_from_disk(store.save_to_disk(target))
+
+    assert isinstance(loaded.encoder, Pipeline)
+    gray = category_train_images_flat[0]
+    probe = np.stack([gray, gray, gray], axis=-1)
+    assert np.allclose(
+        loaded.encoder.encode(probe), store.encoder.encode(probe), atol=1e-5
     )
 
 
