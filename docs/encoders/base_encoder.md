@@ -17,7 +17,7 @@ A concrete encoder is the combination of:
 4. a **similarity function**.
 
 The base class wires these together, validates their dimensions, and provides
-`learn`, `save_to_disk`/`load_from_disk`, `encode` (abstract), `generate_encoding_map`,
+`learn`, `to_dict`/`from_dict`, `save_to_disk`/`load_from_disk`, `encode` (abstract),
 and `similarity_score`.
 
 ## Constructing an encoder
@@ -55,9 +55,13 @@ The models start unfitted, so you have to train before encoding:
 This save/load round-trip is the supported way to reuse a trained encoder. The old
 `weights=` enum path still works but is deprecated, see [weights.md](weights.md).
 
-## Encoding images by file path
+`to_dict`/`from_dict` expose the same state as a plain dictionary (no file involved);
+`save_to_disk`/`load_from_disk` are thin wrappers over them. This is also how an
+[`InMemoryImageEmbeddingStore`](../image_store.md) embeds the encoder when it serialises
+a gallery.
 
-`generate_encoding_map(image_paths)` returns an
-[`ImageEncodingMap`](../image_store.md): a lazy `{path: encoding}` mapping that reads and
-encodes each image the first time you access it, then keeps the vector in memory. It
-behaves like the dict it used to return (index by path, iterate, `len`, `.values()`), and the whole mapping can be persisted to an HDF5 file.
+## Indexing images by file path
+
+To turn a folder of images into a searchable gallery, hand the paths and the fitted
+encoder to an [`InMemoryImageEmbeddingStore`](../image_store.md): it encodes each image,
+indexes the embeddings, and lets you search by similarity.

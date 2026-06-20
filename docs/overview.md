@@ -16,7 +16,7 @@ pyvisim/
 ├── eval.py              Retrieval metrics (mAP, top-k accuracy)
 ├── functional.py        retrieve_top_k_similar
 ├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
-├── image_store/         ImageEncodingMap: image-path → encoding store
+├── image_store/         InMemoryImageEmbeddingStore: indexed embedding gallery
 ├── clustering/          KMeans, GaussianMixtureModel, PCA
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── retrieval/           image indexes + ImageRetriever
@@ -28,12 +28,12 @@ Per-area docs:
 
 - [Typing](typing.md): Public types (`MatLike`, `ImageInput`, `Encoder`).
 - [Encoders](encoders/): how images become vectors.
-- [Image store](image_store.md): cache image encodings keyed by file path.
+- [Image store](image_store.md): the indexed embedding gallery you search.
 - [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
   vocabulary with.
 - [Features](features/): how local descriptors are extracted from an image.
-- [Retrieval](retrieval/): search indexes and the `ImageRetriever` for fast
-  top-k image search over an encoding map.
+- [Retrieval](retrieval/): search indexes and the `ImageRetriever` façade for fast
+  top-k image search over a store.
 - [Neural networks](neural_networks/): planned Siamese network.
 - [Dataset](dataset/): the bundled Oxford Flowers dataset class.
 
@@ -88,12 +88,11 @@ Everything is built on the two abstract base classes in
 
 [`functional.py`](../pyvisim/functional.py) holds `retrieve_top_k_similar`, the
 entry point for ranking a gallery against query images. Give it a batch of query
-images and an [`ImageEncodingMap`](image_store.md) gallery and it returns one
+images and an [`InMemoryImageEmbeddingStore`](image_store.md) and it returns one
 ranked `list[Candidate]` per query, where each `Candidate` carries a `path` and a
-`score`. By default it compares every gallery vector (brute-force cosine); pass an
-`index=` and the search runs through the, which is significantly faster. The
-[`retrieval`](retrieval/) package wraps all of this: build an `ImageIndexIVFFlat`
-or `ImageIndexIVFPQ` over your encoding map and hand it to an `ImageRetriever`.
+`score`. The store does the heavy lifting: it builds a FAISS index (IVF-Flat or
+IVF-PQ) over the gallery embeddings, and `store.retrieve_top_k_similar(...)` (or the
+[`ImageRetriever`](retrieval/) façade) runs the search through it.
 
 ## Evaluation
 
