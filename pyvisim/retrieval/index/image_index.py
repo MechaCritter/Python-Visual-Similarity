@@ -191,11 +191,15 @@ class ImageIndexIVFPQ(ImageIndex):
             raise ValueError(
                 f"'m' ({self._m}) must divide the vector dimensionality ({self.dim})."
             )
-        min_train = 2**self._nbits
+        min_train = 39 * (2**self._nbits)
         if num_vectors < min_train:
             raise ValueError(
                 f"IVF-PQ with nbits={self._nbits} needs at least {min_train} "
-                f"indexed vectors to train the product quantizer, got {num_vectors}."
+                f"indexed vectors for reliable PQ codebook training "
+                f"(FAISS recommends ~39 points per "
+                f"centroid; and given 2 ** nbits = {2**self._nbits}) "
+                f"centroids, one would need 39 * {2**self._nbits} = {39 * (2**self._nbits)} "
+                f"vectors. Got {num_vectors} vectors instead."
             )
 
         quantizer = self._make_quantizer()
