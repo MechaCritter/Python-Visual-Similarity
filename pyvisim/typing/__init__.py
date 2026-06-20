@@ -14,6 +14,7 @@ from .numeric import (
     UInt8NumpyArray,
     _to_image_list,
 )
+from .store import EmbeddingStore
 
 __all__ = [
     "MatLike",
@@ -27,5 +28,6 @@ __all__ = [
     "SimilarityFunc",
     "Encoder",
     "SearchIndex",
+    "EmbeddingStore",
     "_to_image_list",
 ]
