@@ -33,6 +33,34 @@ def gallery_paths(
 
 
 @pytest.fixture(scope="module")
+def large_gallery_paths(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> list[str]:
+    """160 corner-rich images for IVF-PQ tests that need many training vectors.
+
+    :param tmp_path_factory: pytest's session temp-directory factory.
+    :returns: 160 ``.png`` paths, enough for ``nbits=2`` IVF-PQ training
+        (requires ``39 * 2**2 = 156`` vectors).
+    """
+    rng = np.random.default_rng(0)
+    directory = tmp_path_factory.mktemp("ivf_pq_gallery")
+    base = np.zeros((256, 256), dtype=np.uint8)
+    for row in range(0, 256, 16):
+        for col in range(0, 256, 16):
+            if (row // 16 + col // 16) % 2 == 0:
+                base[row : row + 16, col : col + 16] = 255
+    paths: list[str] = []
+    for i in range(160):
+        noise = rng.integers(-10, 11, size=base.shape, dtype=np.int16)
+        img = np.clip(base.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+        rgb = np.stack([img, img, img], axis=-1)
+        path = directory / f"img_{i}.png"
+        Image.fromarray(rgb).save(path)
+        paths.append(str(path))
+    return paths
+
+
+@pytest.fixture(scope="module")
 def store(
     gallery_paths: list[str],
     learned_vlad_encoder: VLADEncoder,
@@ -170,14 +198,14 @@ def test_inner_product_embeddings_are_normalized(
 
 
 def test_ivf_pq_store_builds_and_searches(
-    gallery_paths: list[str], learned_vlad_encoder: VLADEncoder
+    large_gallery_paths: list[str], learned_vlad_encoder: VLADEncoder
 ) -> None:
-    """An IVF-PQ store builds, searches and survives a save/load round-trip."""
+    """An IVF-PQ store builds and searches correctly."""
     store = InMemoryImageEmbeddingStore(
-        gallery_paths,
+        large_gallery_paths,
         learned_vlad_encoder,
         "ivf-pq",
-        index_params={"nlist": 4, "nprobe": 4, "m": 8, "nbits": 4},
+        index_params={"nlist": 4, "nprobe": 4, "m": 8, "nbits": 2},
     )
     scores, ids = store.search(store.embeddings[:2], k=3)
     assert scores.shape == (2, 3)

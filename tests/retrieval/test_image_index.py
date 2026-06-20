@@ -183,13 +183,13 @@ def test_nprobe_out_of_range_raises() -> None:
 
 def test_ivfpq_search_and_cluster_centers() -> None:
     """IVF-PQ builds, searches and exposes its coarse centroids."""
-    paths, vectors = _random_gallery(num=64, dim=16)
-    index = ImageIndexIVFPQ(paths, vectors, nlist=4, nprobe=4, m=4, nbits=4)
+    paths, vectors = _random_gallery(num=256, dim=16)
+    index = ImageIndexIVFPQ(paths, vectors, nlist=4, nprobe=4, m=4, nbits=2)
     scores, ids = index.search(vectors[:3], k=5)
     assert scores.shape == (3, 5)
     assert ids.shape == (3, 5)
     assert index.cluster_centers.shape == (4, 16)
-    assert (index.m, index.nbits) == (4, 4)
+    assert (index.m, index.nbits) == (4, 2)
 
 
 def test_ivfpq_m_must_divide_dim_raises() -> None:
