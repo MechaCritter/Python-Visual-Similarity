@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.5.1"
+version = "0.6.0"
 description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
 readme = "README.md"
 license = "MIT"
