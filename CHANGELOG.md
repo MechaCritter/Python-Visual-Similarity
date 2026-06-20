@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.6.0] - 2026-06-20
+
+### Added
+- `InMemoryImageEmbeddingStore` (in `pyvisim.image_store`): the new gallery object.
+  Give it image paths, an encoder, and an index type, and it encodes everything,
+  builds a FAISS index, and searches itself:
+
+  ```python
+  from pyvisim.image_store import InMemoryImageEmbeddingStore
+
+  store = InMemoryImageEmbeddingStore(
+      gallery_paths, encoder, "ivf-flat",
+      quantizer="inner_product", index_params={"nlist": 100, "nprobe": 8},
+  )
+  results = store.retrieve_top_k_similar(query_images, k=5)
+  ```
+
+  It saves to a single `.safetensors` file (embeddings, paths, index config and the
+  fully serialised encoder) and `load_from_disk` rebuilds it without re-encoding.
+- `index_type` strings select the index structure: `"ivf-flat"` and `"ivf-pq"` work
+  today; `"hnsw"` and `"int8"` are sketched for a future release and raise
+  `NotImplementedError` for now.
+- Encoders and `Pipeline` gained `to_dict`/`from_dict`, and there's a new
+  `EmbeddingStore` protocol in `pyvisim.typing`.
+
+### Changed
+- `retrieve_top_k_similar(query_images, store, k=5)` now takes a store and searches
+  through its index. `top_k_map` and `top_k_accuracy` take a store too, instead of a
+  separate `(encoding_map, encoder)` pair.
+- `ImageRetriever` now wraps a store: `ImageRetriever(store)`.
+- The image indexes take the gallery as `(paths, vectors)` rather than a mapping, and
+  the trained FAISS index is now the single owner of the vectors. Read them back with
+  `index.reconstruct()` (or `store.embeddings`) instead of keeping a second copy.
+
+### Breaking
+- ⚠️ `ImageEncodingMap` is gone. Build an `InMemoryImageEmbeddingStore` from your image
+  paths instead of a `{path: vector}` mapping.
+- ⚠️ `Encoder.generate_encoding_map(...)` and `Pipeline.generate_encoding_map(...)` are
+  removed. Pass the paths straight to `InMemoryImageEmbeddingStore`.
+- ⚠️ `retrieve_top_k_similar` dropped its `dataset`/`encoder`/`index` arguments (and the
+  brute-force path); pass a store. The same applies to `top_k_map`/`top_k_accuracy`.
+
 ## [v0.5.1] - 2026-06-19
 
 ## Fixed
