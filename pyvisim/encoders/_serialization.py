@@ -20,7 +20,7 @@ from safetensors.numpy import save_file
 
 from ..typing import NumpyArray
 
-#: Metadata key under which the JSON skeleton is stored in the safetensors file.
+#: Metadata key under which the encoder JSON skeleton is stored.
 _METADATA_KEY = "pyvisim_encoder"
 
 
@@ -79,6 +79,50 @@ def _tensors_to_arrays(obj: Any, tensors: dict[str, NumpyArray]) -> Any:
     return obj
 
 
+def save_state(
+    state: dict[str, Any], path: str | pathlib.Path, metadata_key: str
+) -> None:
+    """
+    Write a JSON-safe state dictionary to a safetensors file.
+
+    Every ``__ndarray__`` node found anywhere in ``state`` (as produced by the
+    clustering models' ``to_dict``) is extracted into a binary tensor, while the
+    surrounding structure is stored as a single JSON blob under ``metadata_key``.
+
+    :param state: JSON-safe description (may contain ``__ndarray__`` nodes).
+    :param path: Destination file path.
+    :param metadata_key: Metadata key under which the JSON skeleton is stored.
+    """
+    tensors: dict[str, NumpyArray] = {}
+    skeleton = _arrays_to_tensors(state, tensors, [0])
+    save_file(tensors, str(path), metadata={metadata_key: json.dumps(skeleton)})
+
+
+def load_state(path: str | pathlib.Path, metadata_key: str) -> dict[str, Any]:
+    """
+    Read a JSON-safe state dictionary written by :func:`save_state`.
+
+    :param path: Path to the safetensors file.
+    :param metadata_key: Metadata key the JSON skeleton was stored under.
+    :return: The reconstructed state, with arrays restored to ``numpy.ndarray``.
+    :raises ValueError: If the file cannot be read or lacks ``metadata_key``.
+    """
+    try:
+        with safe_open(str(path), framework="numpy") as handle:
+            metadata = handle.metadata() or {}
+            raw_skeleton = metadata.get(metadata_key)
+            if raw_skeleton is None:
+                raise ValueError(f"File {path} is missing the {metadata_key!r} key.")
+            tensors = {key: handle.get_tensor(key) for key in handle.keys()}
+            skeleton = json.loads(raw_skeleton)
+    except (SafetensorError, json.JSONDecodeError, OSError) as error:
+        raise ValueError(f"File {path} could not be read as a pyvisim file.") from error
+    state = _tensors_to_arrays(skeleton, tensors)
+    if not isinstance(state, dict):
+        raise ValueError(f"File {path} does not hold a state dictionary.")
+    return state
+
+
 def save_encoder_state(state: dict[str, Any], path: pathlib.Path) -> None:
     """
     Write an encoder state dictionary to a ``.encoder`` safetensors file.
@@ -87,9 +131,7 @@ def save_encoder_state(state: dict[str, Any], path: pathlib.Path) -> None:
         nodes produced by the clustering models' ``to_dict``).
     :param path: Destination file path.
     """
-    tensors: dict[str, NumpyArray] = {}
-    skeleton = _arrays_to_tensors(state, tensors, [0])
-    save_file(tensors, str(path), metadata={_METADATA_KEY: json.dumps(skeleton)})
+    save_state(state, path, _METADATA_KEY)
 
 
 def load_encoder_state(path: pathlib.Path) -> dict[str, Any]:
@@ -101,16 +143,6 @@ def load_encoder_state(path: pathlib.Path) -> dict[str, Any]:
     :raises ValueError: If the file is not a valid ``.encoder`` file.
     """
     try:
-        with safe_open(str(path), framework="numpy") as handle:
-            metadata = handle.metadata() or {}
-            raw_skeleton = metadata.get(_METADATA_KEY)
-            if raw_skeleton is None:
-                raise ValueError(f"File {path} is not a valid .encoder file.")
-            tensors = {key: handle.get_tensor(key) for key in handle.keys()}
-            skeleton = json.loads(raw_skeleton)
-    except (SafetensorError, json.JSONDecodeError, OSError) as error:
+        return load_state(path, _METADATA_KEY)
+    except ValueError as error:
         raise ValueError(f"File {path} is not a valid .encoder file.") from error
-    state = _tensors_to_arrays(skeleton, tensors)
-    if not isinstance(state, dict):
-        raise ValueError(f"File {path} is not a valid .encoder file.")
-    return state

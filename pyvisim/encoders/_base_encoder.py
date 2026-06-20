@@ -2,7 +2,7 @@ import abc
 import pathlib
 import warnings
 from enum import Enum
-from typing import ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 from sklearn.exceptions import NotFittedError
@@ -448,24 +448,26 @@ class ImageEncoderBase(SimilarityMetric):
         """
         return cls.load_from_disk(pretrained.path)
 
-    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+    def to_dict(self) -> dict[str, Any]:
         """
-        Saves the learned state of this encoder to a ``.encoder`` file.
+        Serialises the learned encoder into a JSON-safe state dictionary.
 
+        The returned mapping describes the encoder class, its clustering model,
+        optional PCA, normalization hyperparameters, similarity metric and
+        feature extractor. Arrays are kept as ``__ndarray__`` nodes so the
+        whole dictionary can be embedded inside a larger state (e.g. an
+        :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`).
 
-        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
-        :return: The path of the written file.
+        :return: A JSON-safe encoder description suitable for
+            :meth:`from_dict`.
         :raises NotFittedError: If the clustering model is missing or not fitted.
         """
         if self._clustering_model is None or not self._clustering_model.is_fitted:
             raise NotFittedError(
-                "Cannot save an encoder whose clustering model is not fitted. "
-                "Call 'learn' first."
+                "Cannot serialise an encoder whose clustering model is not "
+                "fitted. Call 'learn' first."
             )
-        path = pathlib.Path(path)
-        if path.suffix != _ENCODER_FILE_SUFFIX:
-            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
-        state = {
+        return {
             "format_version": _ENCODER_FILE_FORMAT_VERSION,
             "encoder_class": type(self).__name__,
             "clustering_model": self._clustering_model.to_dict(),
@@ -478,7 +480,49 @@ class ImageEncoderBase(SimilarityMetric):
             "similarity_func": self._similarity_func_name,
             "feature_extractor": self._feature_extractor.to_dict(),
         }
-        save_encoder_state(state, path)
+
+    @classmethod
+    def from_dict(cls: type[_EncoderT], state: dict[str, Any]) -> _EncoderT:
+        """
+        Rebuilds an encoder from a dictionary produced by :meth:`to_dict`.
+
+        The caller is responsible for dispatching ``state["encoder_class"]`` to
+        the matching encoder class; this method trusts that ``cls`` is correct.
+
+        :param state: A JSON-safe encoder description from :meth:`to_dict`.
+        :return: A ready-to-use encoder instance.
+        """
+        encoder = cls(
+            feature_extractor=feature_extractor_from_dict(state["feature_extractor"]),
+            similarity_func=state["similarity_func"],
+            power_norm_weight=state["power_norm_weight"],
+            norm_order=state["norm_order"],
+            epsilon=state["epsilon"],
+            flatten=state["flatten"],
+            raise_error_when_pca_incompatible=state[
+                "raise_error_when_pca_incompatible"
+            ],
+        )
+        if state["pca"] is not None:
+            encoder._set_pca(PCA.from_dict(state["pca"]))
+        encoder._set_clustering_model(
+            cls._clustering_model_cls.from_dict(state["clustering_model"])
+        )
+        return encoder
+
+    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+        """
+        Saves the learned state of this encoder to a ``.encoder`` file.
+
+
+        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
+        :return: The path of the written file.
+        :raises NotFittedError: If the clustering model is missing or not fitted.
+        """
+        path = pathlib.Path(path)
+        if path.suffix != _ENCODER_FILE_SUFFIX:
+            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
+        save_encoder_state(self.to_dict(), path)
         return path
 
     @classmethod
@@ -504,23 +548,7 @@ class ImageEncoderBase(SimilarityMetric):
                 f"File {path} was saved by {state['encoder_class']}. "
                 f"Load it with {state['encoder_class']}.load_from_disk instead."
             )
-        encoder = cls(
-            feature_extractor=feature_extractor_from_dict(state["feature_extractor"]),
-            similarity_func=state["similarity_func"],
-            power_norm_weight=state["power_norm_weight"],
-            norm_order=state["norm_order"],
-            epsilon=state["epsilon"],
-            flatten=state["flatten"],
-            raise_error_when_pca_incompatible=state[
-                "raise_error_when_pca_incompatible"
-            ],
-        )
-        if state["pca"] is not None:
-            encoder._set_pca(PCA.from_dict(state["pca"]))
-        encoder._set_clustering_model(
-            cls._clustering_model_cls.from_dict(state["clustering_model"])
-        )
-        return encoder
+        return cls.from_dict(state)
 
     @abc.abstractmethod
     def encode(

@@ -1,4 +1,5 @@
 import logging
+from typing import Any, cast
 
 import numpy as np
 
@@ -12,6 +13,9 @@ from ..typing import (
 )
 from ._base_encoder import ImageEncoderBase
 from .utils import iter_images
+
+#: On-disk format version of the serialised pipeline state.
+_PIPELINE_FORMAT_VERSION = 1
 
 
 class Pipeline(SimilarityMetric):
@@ -49,6 +53,42 @@ class Pipeline(SimilarityMetric):
                 raise ValueError(
                     f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}"
                 )
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialises the pipeline into a JSON-safe state dictionary.
+
+        Each member encoder is serialised with its own
+        :meth:`~pyvisim.encoders.ImageEncoderBase.to_dict`, so every encoder
+        must be fitted.
+
+        :return: A JSON-safe pipeline description suitable for
+            :meth:`from_dict`.
+        :raises NotFittedError: If any member encoder is not fitted.
+        """
+        return {
+            "format_version": _PIPELINE_FORMAT_VERSION,
+            "encoder_class": type(self).__name__,
+            "encoders": [encoder.to_dict() for encoder in self.encoders],
+            "similarity_func": self._similarity_func_name,
+        }
+
+    @classmethod
+    def from_dict(cls, state: dict[str, Any]) -> "Pipeline":
+        """
+        Rebuilds a pipeline from a dictionary produced by :meth:`to_dict`.
+
+        :param state: A JSON-safe pipeline description from :meth:`to_dict`.
+        :return: A ready-to-use :class:`Pipeline` instance.
+        """
+        # Imported lazily to avoid an import cycle with the encoder registry.
+        from ._reconstruct import encoder_from_dict
+
+        encoders = [
+            cast(ImageEncoderBase, encoder_from_dict(encoder_state))
+            for encoder_state in state["encoders"]
+        ]
+        return cls(encoders, similarity_func=state["similarity_func"])
 
     def encode(
         self,

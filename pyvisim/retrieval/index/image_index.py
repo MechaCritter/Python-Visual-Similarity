@@ -214,3 +214,119 @@ class ImageIndexIVFPQ(ImageIndex):
         index.add(self._vectors)
         index.nprobe = self._nprobe
         return index
+
+
+class ImageIndexHNSW(ImageIndex):
+    """
+    Hierarchical Navigable Small World (HNSW) graph index.
+
+    HNSW builds a multi-layer proximity graph over the gallery and walks it
+    greedily at query time, giving fast and accurate approximate search without
+    a training step.
+
+    .. note::
+        This index is sketched for an upcoming release and is **not yet
+        implemented**: constructing it raises :class:`NotImplementedError`.
+
+    Detail
+    ------
+    Check out this documentation if you are interested in the algorithm
+    details:
+
+    - https://www.pinecone.io/learn/series/faiss/hnsw/
+
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
+    :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"``.
+    :param m: Number of neighbours stored per node in the graph.
+    :param ef_construction: Breadth of the search used while building the graph.
+    :param ef_search: Breadth of the search used at query time.
+    """
+
+    def __init__(
+        self,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
+        *,
+        quantizer: Quantizer = "l2",
+        m: int = 32,
+        ef_construction: int = 40,
+        ef_search: int = 16,
+    ) -> None:
+        self._m = int(m)
+        self._ef_construction = int(ef_construction)
+        self._ef_search = int(ef_search)
+        super().__init__(paths, vectors, quantizer=quantizer)
+
+    @property
+    def cluster_centers(self) -> Float32NumpyArray:
+        """Unavailable: HNSW is a graph index without coarse centroids."""
+        raise NotImplementedError(
+            "ImageIndexHNSW is planned for a future release and is not yet implemented."
+        )
+
+    def _learn_index(self) -> Any:
+        """
+        Build the HNSW graph index (planned for a future release).
+
+        :raises NotImplementedError: Always; this index is not yet implemented.
+        """
+        raise NotImplementedError(
+            "ImageIndexHNSW is planned for a future release and is not yet implemented."
+        )
+
+
+class ImageIndexScalarQuantizer(ImageIndex):
+    """
+    Flat index with scalar-quantized (e.g. 8-bit integer) gallery vectors.
+
+    A scalar quantizer compresses every vector component independently to a
+    small integer type, roughly quartering the memory of ``int8`` storage while
+    keeping search exhaustive within the compressed space.
+
+    .. note::
+        This index is sketched for an upcoming release and is **not yet
+        implemented**: constructing it raises :class:`NotImplementedError`.
+
+    Detail
+    ------
+    Check out this documentation if you are interested in the algorithm
+    details:
+
+    - https://github.com/facebookresearch/faiss/wiki/Faiss-indexes#scalar-quantizer
+
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
+    :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"``.
+    :param qtype: Scalar-quantizer component type, e.g. ``"8bit"``.
+    """
+
+    def __init__(
+        self,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
+        *,
+        quantizer: Quantizer = "l2",
+        qtype: str = "8bit",
+    ) -> None:
+        self._qtype = str(qtype)
+        super().__init__(paths, vectors, quantizer=quantizer)
+
+    @property
+    def cluster_centers(self) -> Float32NumpyArray:
+        """Unavailable: a flat scalar-quantizer index has no coarse centroids."""
+        raise NotImplementedError(
+            "ImageIndexScalarQuantizer is planned for a future release and is "
+            "not yet implemented."
+        )
+
+    def _learn_index(self) -> Any:
+        """
+        Build the scalar-quantizer index (planned for a future release).
+
+        :raises NotImplementedError: Always; this index is not yet implemented.
+        """
+        raise NotImplementedError(
+            "ImageIndexScalarQuantizer is planned for a future release and is "
+            "not yet implemented."
+        )
