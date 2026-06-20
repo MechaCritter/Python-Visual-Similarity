@@ -1,5 +1,3 @@
-"""Image-path to encoding-vector mappings."""
+"""In-memory image embedding storage and retrieval."""
 
-from .image_store import ImageEncodingMap
-
-__all__ = ["ImageEncodingMap"]
+__all__: list[str] = []

@@ -53,7 +53,7 @@ class ImageRetriever:
         """
         return retrieve_top_k_similar(
             query_images,
-            self._index.encoding_map,
+            None,
             self._encoder,
             k=k,
             index=self._index,

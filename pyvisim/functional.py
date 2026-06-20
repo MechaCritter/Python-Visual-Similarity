@@ -10,12 +10,12 @@ nearest-neighbour search to that accelerated index.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import NamedTuple
 
 import numpy as np
 
 from ._utils import cosine_similarity
-from .image_store import ImageEncodingMap
 from .typing import Encoder, FloatNumpyArray, ImageInput, IntNumpyArray, SearchIndex
 
 __all__ = ["Candidate", "retrieve_top_k_similar"]
@@ -36,7 +36,7 @@ class Candidate(NamedTuple):
 
 def retrieve_top_k_similar(
     query_images: ImageInput,
-    dataset: ImageEncodingMap,
+    dataset: Mapping[str, FloatNumpyArray] | None,
     encoder: Encoder,
     k: int = 5,
     *,
@@ -52,14 +52,16 @@ def retrieve_top_k_similar(
 
     :param query_images: A single image or a batch/iterable of images to use as
         queries. Anything accepted by ``encoder.encode`` is valid.
-    :param dataset: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping
-        gallery image paths to their feature vectors.
+    :param dataset: A ``{image_path: feature_vector}`` mapping for the gallery.
+        Required for the brute-force path; may be ``None`` when ``index`` is
+        provided, since the index supplies its own gallery.
     :param encoder: Encoder used to turn the query images into feature vectors.
     :param k: Number of top similar gallery images to return per query.
     :param index: Optional accelerated search index built over ``dataset``. When
         provided, its ids must align with ``dataset`` insertion order.
     :return: One ranked list of :class:`Candidate` matches per query image, in
         the same order as ``query_images``.
+    :raises ValueError: If neither ``dataset`` nor ``index`` is provided.
     """
     # ``encoder.encode`` returns one row per query image, in input order, so the
     # whole batch is searched at once: both the cosine matmul and FAISS are far
@@ -70,19 +72,21 @@ def retrieve_top_k_similar(
     if query_matrix.shape[0] == 0:
         return []
 
-    if index is None:
+    if index is not None:
+        scores, ids = index.search(query_matrix, k)
+        gallery_paths = index.paths
+    elif dataset is not None:
         scores, ids = _brute_force_search(query_matrix, dataset, k)
         gallery_paths = list(dataset.keys())
     else:
-        scores, ids = index.search(query_matrix, k)
-        gallery_paths = index.paths
+        raise ValueError("Either 'dataset' or 'index' must be provided.")
 
     return _assemble_results(gallery_paths, scores, ids)
 
 
 def _brute_force_search(
     query_matrix: FloatNumpyArray,
-    dataset: ImageEncodingMap,
+    dataset: Mapping[str, FloatNumpyArray],
     k: int,
 ) -> tuple[FloatNumpyArray, IntNumpyArray]:
     """

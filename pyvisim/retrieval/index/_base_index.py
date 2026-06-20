@@ -2,24 +2,24 @@
 Abstract interface for the image indexes.
 
 This module defines :class:`ImageIndex`, the base class shared by every
-accelerated image index. A concrete index turns an
-:class:`~pyvisim.image_store.ImageEncodingMap` into a trained FAISS index upon
-construction (via the :meth:`ImageIndex._learn_index` hook) and exposes a
-batched :meth:`ImageIndex.search`. Subclasses pick the index structure (e.g.
-IVF-Flat, IVF-PQ); this base handles the shared concerns: validating the
-metric, materialising the gallery matrix, optionally L2-normalising it for
+accelerated image index. A concrete index turns a gallery of embedding vectors
+(paired with their image paths) into a trained FAISS index upon construction
+(via the :meth:`ImageIndex._learn_index` hook) and exposes a batched
+:meth:`ImageIndex.search`. Subclasses pick the index structure (e.g. IVF-Flat,
+IVF-PQ); this base handles the shared concerns: validating the metric,
+materialising the gallery matrix, optionally L2-normalising it for
 inner-product search, and mapping FAISS ids back to image paths.
 """
 
 from __future__ import annotations
 
 import abc
+from collections.abc import Sequence
 from typing import Any, Literal, cast
 
 import faiss
 import numpy as np
 
-from ...image_store import ImageEncodingMap
 from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
 #: Supported quantizer/metric choices, mapped to their FAISS metric constant.
@@ -36,18 +36,23 @@ class ImageIndex(abc.ABC):
     """
     Abstract base for all image indexes.
 
-    :param encoding_map: Gallery mapping of image path to feature vector. Its
-        insertion order defines the integer ids used by the index.
+    :param paths: Gallery image paths, in the same order as ``vectors``. Their
+        order defines the integer ids used by the index.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``. Row ``i`` is the
+        encoding of ``paths[i]``.
     :param quantizer: Distance metric to build the index for. ``"l2"`` uses
         Euclidean distance; ``"inner_product"`` uses the dot product and the
         gallery vectors are L2-normalised first, so it ranks by cosine
         similarity.
-    :raises ValueError: If ``quantizer`` is unknown or ``encoding_map`` is empty.
+    :raises ValueError: If ``quantizer`` is unknown, the gallery is empty, the
+        vectors are not a 2-D matrix, or ``paths`` and ``vectors`` differ in
+        length.
     """
 
     def __init__(
         self,
-        encoding_map: ImageEncodingMap,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
         *,
         quantizer: Quantizer = "l2",
     ) -> None:
@@ -56,25 +61,30 @@ class ImageIndex(abc.ABC):
                 f"Unsupported quantizer {quantizer!r}. Supported quantizers are: "
                 f"{sorted(_METRICS)}."
             )
-        if len(encoding_map) == 0:
-            raise ValueError("Cannot build an index from an empty ImageEncodingMap.")
 
-        self._encoding_map = encoding_map
+        # Copy into a fresh contiguous float32 matrix so the in-place
+        # normalisation below never mutates the caller's embeddings.
+        gallery = np.array(vectors, dtype=np.float32)
+        if gallery.ndim != 2:
+            raise ValueError(
+                "Gallery encodings must form a 2-D (num_vectors, dim) matrix."
+            )
+        if gallery.shape[0] == 0:
+            raise ValueError("Cannot build an index from an empty gallery.")
+        if len(paths) != gallery.shape[0]:
+            raise ValueError(
+                f"Number of paths ({len(paths)}) must match the number of "
+                f"gallery vectors ({gallery.shape[0]})."
+            )
+
         self._quantizer: Quantizer = quantizer
         self._metric = _METRICS[quantizer]
-        self._paths: list[str] = list(encoding_map.keys())
+        self._paths: list[str] = list(paths)
 
-        vectors = np.ascontiguousarray(
-            np.asarray(list(encoding_map.values()), dtype=np.float32)
-        )
-        if vectors.ndim != 2:
-            raise ValueError(
-                "Gallery encodings must all share one dimensionality to be indexed."
-            )
         if quantizer == "inner_product":
             # Normalise before adding so dot-product search ranks by cosine.
-            faiss.normalize_L2(vectors)
-        self._vectors: Float32NumpyArray = vectors
+            faiss.normalize_L2(gallery)
+        self._vectors: Float32NumpyArray = np.ascontiguousarray(gallery)
 
         self._index: Any = self._learn_index()
 
@@ -100,11 +110,6 @@ class ImageIndex(abc.ABC):
     def index(self) -> Any:
         """The underlying trained index."""
         return self._index
-
-    @property
-    def encoding_map(self) -> ImageEncodingMap:
-        """The gallery :class:`~pyvisim.image_store.ImageEncodingMap`."""
-        return self._encoding_map
 
     @property
     def paths(self) -> list[str]:

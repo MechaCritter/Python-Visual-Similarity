@@ -8,16 +8,20 @@ into ``nlist`` Voronoi cells and probe ``nprobe`` of them per query:
   is exact within the probed cells.
 - :class:`ImageIndexIVFPQ` compresses the vectors with product quantization,
   trading a little accuracy for a much smaller memory footprint.
+
+Two further index structures, :class:`ImageIndexHNSW` and
+:class:`ImageIndexScalarQuantizer`, are sketched for upcoming releases and
+currently raise :class:`NotImplementedError` when constructed.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 import faiss
 
-from ...image_store import ImageEncodingMap
-from ...typing import Float32NumpyArray
+from ...typing import Float32NumpyArray, FloatNumpyArray
 from ._base_index import ImageIndex, Quantizer
 
 
@@ -32,7 +36,8 @@ class ImageIndexIVFFlat(ImageIndex):
 
     - https://milvus.io/ai-quick-reference/how-do-inverted-file-ivf-indexes-work-in-vector-databases-and-what-role-do-clustering-centroids-play-in-the-search-process
 
-    :param encoding_map: Gallery mapping of image path to feature vector.
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
     :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"`` (see
         :class:`~pyvisim.retrieval.ImageIndex`).
     :param nlist: Number of Voronoi cells to partition the gallery into.
@@ -42,7 +47,8 @@ class ImageIndexIVFFlat(ImageIndex):
 
     def __init__(
         self,
-        encoding_map: ImageEncodingMap,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
         *,
         quantizer: Quantizer = "l2",
         nlist: int = 100,
@@ -50,7 +56,7 @@ class ImageIndexIVFFlat(ImageIndex):
     ) -> None:
         self._nlist = int(nlist)
         self._nprobe = int(nprobe)
-        super().__init__(encoding_map, quantizer=quantizer)
+        super().__init__(paths, vectors, quantizer=quantizer)
 
     @property
     def nlist(self) -> int:
@@ -112,7 +118,8 @@ class ImageIndexIVFPQ(ImageIndex):
 
     - https://www.pinecone.io/learn/series/faiss/product-quantization/
 
-    :param encoding_map: Gallery mapping of image path to feature vector.
+    :param paths: Gallery image paths, in the same order as ``vectors``.
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
     :param quantizer: Distance metric, ``"l2"`` or ``"inner_product"`` (see
         :class:`~pyvisim.retrieval.ImageIndex`).
     :param nlist: Number of Voronoi cells to partition the gallery into.
@@ -128,7 +135,8 @@ class ImageIndexIVFPQ(ImageIndex):
 
     def __init__(
         self,
-        encoding_map: ImageEncodingMap,
+        paths: Sequence[str],
+        vectors: FloatNumpyArray,
         *,
         quantizer: Quantizer = "l2",
         nlist: int = 100,
@@ -140,7 +148,7 @@ class ImageIndexIVFPQ(ImageIndex):
         self._nprobe = int(nprobe)
         self._m = int(m)
         self._nbits = int(nbits)
-        super().__init__(encoding_map, quantizer=quantizer)
+        super().__init__(paths, vectors, quantizer=quantizer)
 
     @property
     def nlist(self) -> int:

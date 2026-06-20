@@ -7,7 +7,6 @@ import pytest
 from PIL import Image
 
 from pyvisim.functional import Candidate, retrieve_top_k_similar
-from pyvisim.image_store import ImageEncodingMap
 from pyvisim.retrieval import ImageIndexIVFFlat
 from pyvisim.typing import FloatNumpyArray, ImageInput, UInt8NumpyArray
 
@@ -45,7 +44,9 @@ class FlattenEncoder:
 @pytest.fixture
 def gallery(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap]:
+) -> tuple[
+    list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+]:
     """Materialize random RGB images on disk and encode them into a gallery.
 
     :param tmp_path_factory: pytest's temp-directory factory.
@@ -62,17 +63,17 @@ def gallery(
         arrays.append(array)
         paths.append(str(path))
     encoder = FlattenEncoder()
-    encoding_map = ImageEncodingMap(
-        {
-            path: encoder.encode(array)[0]
-            for path, array in zip(paths, arrays, strict=True)
-        }
-    )
+    encoding_map = {
+        path: encoder.encode(array)[0]
+        for path, array in zip(paths, arrays, strict=True)
+    }
     return arrays, paths, encoder, encoding_map
 
 
 def test_returns_one_ranked_list_per_query_in_order(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[
+        list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+    ],
 ) -> None:
     """Each query maps to its own ranked list, in input order."""
     arrays, paths, encoder, encoding_map = gallery
@@ -84,7 +85,9 @@ def test_returns_one_ranked_list_per_query_in_order(
 
 
 def test_single_image_returns_single_row(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[
+        list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+    ],
 ) -> None:
     """A single image (not wrapped in a list) yields a one-row result."""
     arrays, paths, encoder, encoding_map = gallery
@@ -94,7 +97,9 @@ def test_single_image_returns_single_row(
 
 
 def test_candidates_carry_path_and_score(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[
+        list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+    ],
 ) -> None:
     """Every result entry is a :class:`Candidate` with a path and a score."""
     arrays, _, encoder, encoding_map = gallery
@@ -106,7 +111,9 @@ def test_candidates_carry_path_and_score(
 
 
 def test_k_limits_number_of_candidates(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[
+        list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+    ],
 ) -> None:
     """No query returns more than ``k`` candidates."""
     arrays, _, encoder, encoding_map = gallery
@@ -115,7 +122,9 @@ def test_k_limits_number_of_candidates(
 
 
 def test_brute_force_scores_are_descending(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[
+        list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+    ],
 ) -> None:
     """Brute-force cosine results are ordered most-similar first."""
     arrays, _, encoder, encoding_map = gallery
@@ -125,12 +134,15 @@ def test_brute_force_scores_are_descending(
 
 
 def test_index_path_recovers_self_as_top_match(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[
+        list[UInt8NumpyArray], list[str], FlattenEncoder, dict[str, FloatNumpyArray]
+    ],
 ) -> None:
     """Searching through an index returns the query image itself first."""
     arrays, paths, encoder, encoding_map = gallery
+    vectors = np.stack([encoding_map[path] for path in paths])
     index = ImageIndexIVFFlat(
-        encoding_map, quantizer="inner_product", nlist=2, nprobe=2
+        paths, vectors, quantizer="inner_product", nlist=2, nprobe=2
     )
     results = retrieve_top_k_similar(
         [arrays[2], arrays[7]], encoding_map, encoder, k=3, index=index

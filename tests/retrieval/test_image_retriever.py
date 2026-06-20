@@ -7,7 +7,6 @@ import pytest
 from PIL import Image
 
 from pyvisim.functional import Candidate
-from pyvisim.image_store import ImageEncodingMap
 from pyvisim.retrieval import ImageIndexIVFFlat, ImageRetriever
 from pyvisim.typing import FloatNumpyArray, ImageInput, UInt8NumpyArray
 
@@ -57,14 +56,9 @@ def retriever(
         arrays.append(array)
         paths.append(str(path))
     encoder = FlattenEncoder()
-    encoding_map = ImageEncodingMap(
-        {
-            path: encoder.encode(array)[0]
-            for path, array in zip(paths, arrays, strict=True)
-        }
-    )
+    vectors = np.stack([encoder.encode(array)[0] for array in arrays])
     index = ImageIndexIVFFlat(
-        encoding_map, quantizer="inner_product", nlist=2, nprobe=2
+        paths, vectors, quantizer="inner_product", nlist=2, nprobe=2
     )
     return arrays, paths, ImageRetriever(index, encoder)
 

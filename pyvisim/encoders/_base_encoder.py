@@ -1,13 +1,10 @@
 import abc
 import pathlib
 import warnings
-from collections.abc import Callable, Iterable, Iterator, MutableSequence
 from enum import Enum
-from functools import wraps
-from typing import Any, ClassVar, TypeVar, cast
+from typing import ClassVar, TypeVar
 
 import numpy as np
-from PIL import Image, UnidentifiedImageError
 from sklearn.exceptions import NotFittedError
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
@@ -15,7 +12,6 @@ from .._config import MODEL_FILES_PATH, setup_logging
 from .._utils import get_similarity_func
 from ..clustering import PCA, ClusteringModelBase
 from ..features._features import RootSIFT, feature_extractor_from_dict
-from ..image_store import ImageEncodingMap
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -52,25 +48,7 @@ _ENCODER_STATE_KEYS = frozenset(
 )
 
 
-MethodT = TypeVar("MethodT", bound=Callable[..., Any])
 _EncoderT = TypeVar("_EncoderT", bound="ImageEncoderBase")
-
-
-def _tupleize_first_arg(func: MethodT) -> MethodT:  # noqa: UP047
-    """
-    # TODO: currently, the param 'image_paths' param is hardcoded. This should be more general
-    # to be able to handle any variable name
-    Pass this to the "encode" and "generate_encoding_map" methods to
-    convert the input to a tuple so that it can be hashed by the lru_cache.
-    """
-
-    @wraps(func)
-    def wrapper(self: Any, image_paths: Any, /, *args: Any, **kwargs: Any) -> Any:
-        if isinstance(image_paths, (Iterator, MutableSequence)):
-            image_paths = tuple(image_paths)
-        return func(self, image_paths, *args, **kwargs)
-
-    return cast(MethodT, wrapper)
 
 
 class _PretrainedModels(Enum):
@@ -543,97 +521,6 @@ class ImageEncoderBase(SimilarityMetric):
             cls._clustering_model_cls.from_dict(state["clustering_model"])
         )
         return encoder
-
-    @_tupleize_first_arg
-    def generate_encoding_map(
-        self,
-        image_paths: Iterable[str],
-        /,
-        *,
-        skip_errors: bool = False,
-    ) -> ImageEncodingMap:
-        """
-        Build an :class:`~pyvisim.image_store.ImageEncodingMap` from image paths.
-
-        The returned object is a ``{image_path: encoded_vector}`` mapping.
-        The result behaves like a regular dictionary: access the encoding for a path
-        by simply:
-
-        ```python
-        image_path = "path/to/image.jpg"
-        encoding = encoding_map[image_path]
-        ```
-
-        :param image_paths: Iterable of image file paths. Duplicates are
-            dropped, keeping the first occurrence.
-        :param skip_errors: If ``True``, images that cannot be read or encoded
-            are skipped with a warning instead of aborting.
-        :return: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping each
-                image path to the descriptor vector of the corresponding image.
-        :raises TypeError: If any provided path is not a string.
-        :raises FileNotFoundError: If an image file is missing (and
-            ``skip_errors`` is ``False``).
-        :raises ValueError: If an image cannot be decoded (and ``skip_errors``
-            is ``False``).
-        """
-        encodings = self._encode_paths(image_paths, skip_errors)
-        return ImageEncodingMap(encodings)
-
-    def _encode_paths(
-        self,
-        image_paths: Iterable[str],
-        skip_errors: bool,
-    ) -> dict[str, FloatNumpyArray]:
-        """
-        Encode every path, dropping duplicates and validating their type.
-
-        :param image_paths: Iterable of image file paths to encode.
-        :param skip_errors: If ``True``, unreadable images are skipped with a
-            warning instead of raising.
-        :return: A ``{image_path: encoding}`` dictionary in input order.
-        :raises TypeError: If any provided path is not a string.
-        """
-        encodings: dict[str, FloatNumpyArray] = {}
-        failures: list[str] = []
-        for path in image_paths:
-            if not isinstance(path, str):
-                raise TypeError(
-                    f"Image paths must be strings, got {type(path).__name__}."
-                )
-            if path in encodings:
-                continue
-            try:
-                encodings[path] = self._encode_path(path)
-            except (FileNotFoundError, ValueError, OSError):
-                if not skip_errors:
-                    raise
-                failures.append(path)
-
-        if failures:
-            warnings.warn(
-                f"Skipped {len(failures)} image(s) that could not be encoded.",
-                FutureWarning,
-                stacklevel=3,
-            )
-        return encodings
-
-    def _encode_path(self, path: str) -> FloatNumpyArray:
-        """
-        Open one image and return its flattened encoding.
-
-        :param path: Filesystem path of the image to encode.
-        :return: The flattened encoding vector for the image.
-        :raises FileNotFoundError: If the image file is missing.
-        :raises ValueError: If the image cannot be decoded.
-        """
-        try:
-            with Image.open(path) as image:
-                rgb_image = np.asarray(image.convert("RGB"))
-        except FileNotFoundError:
-            raise  # already clear and specific; let it propagate
-        except (UnidentifiedImageError, OSError) as exc:
-            raise ValueError(f"Could not read image {path!r}: {exc}") from exc
-        return self.encode(rgb_image).flatten()
 
     @abc.abstractmethod
     def encode(

@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 import torch
-from PIL import Image
 
 from pyvisim.encoders import FisherVectorEncoder, Pipeline, VLADEncoder
-from pyvisim.image_store import ImageEncodingMap
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -103,27 +100,6 @@ def test_similarity_score_shape(
     scores = pipeline.similarity_score(images1, images2)
     assert scores.shape == (2, 1)
     assert scores.dtype == np.float32
-
-
-def test_generate_encoding_map(
-    pipeline: Pipeline,
-    tmp_path: Path,
-    category_train_images_flat: list[np.ndarray],
-) -> None:
-    """``generate_encoding_map`` returns an equal-length :class:`ImageEncodingMap`."""
-    paths = []
-    for index in (0, 1):
-        gray = category_train_images_flat[index]
-        rgb = np.stack([gray, gray, gray], axis=-1)
-        path = str(tmp_path / f"img_{index}.png")
-        Image.fromarray(rgb).save(path)
-        paths.append(path)
-
-    encoding_map = pipeline.generate_encoding_map(paths)
-    assert isinstance(encoding_map, ImageEncodingMap)
-    assert set(encoding_map) == set(paths)
-    lengths = {np.asarray(vector).shape[0] for vector in encoding_map.values()}
-    assert len(lengths) == 1
 
 
 def test_repr(pipeline: Pipeline) -> None:
