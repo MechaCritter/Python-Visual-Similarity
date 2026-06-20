@@ -7,7 +7,8 @@ import pytest
 from PIL import Image
 
 from pyvisim.functional import Candidate
-from pyvisim.retrieval import ImageIndexIVFFlat, ImageRetriever
+from pyvisim.image_store import InMemoryImageEmbeddingStore
+from pyvisim.retrieval import ImageRetriever
 from pyvisim.typing import FloatNumpyArray, ImageInput, UInt8NumpyArray
 
 #: Number of gallery images materialized for the tests.
@@ -55,20 +56,22 @@ def retriever(
         Image.fromarray(array).save(path)
         arrays.append(array)
         paths.append(str(path))
-    encoder = FlattenEncoder()
-    vectors = np.stack([encoder.encode(array)[0] for array in arrays])
-    index = ImageIndexIVFFlat(
-        paths, vectors, quantizer="inner_product", nlist=2, nprobe=2
+    store = InMemoryImageEmbeddingStore(
+        paths,
+        FlattenEncoder(),
+        "ivf-flat",
+        quantizer="inner_product",
+        index_params={"nlist": 2, "nprobe": 2},
     )
-    return arrays, paths, ImageRetriever(index, encoder)
+    return arrays, paths, ImageRetriever(store)
 
 
-def test_index_property_returns_the_index(
+def test_store_property_returns_the_store(
     retriever: tuple[list[UInt8NumpyArray], list[str], ImageRetriever],
 ) -> None:
-    """The retriever exposes the index it was built with."""
+    """The retriever exposes the store it was built with."""
     _, _, machine = retriever
-    assert isinstance(machine.index, ImageIndexIVFFlat)
+    assert isinstance(machine.store, InMemoryImageEmbeddingStore)
 
 
 def test_retrieve_returns_ordered_lists_of_candidates(

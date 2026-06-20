@@ -80,22 +80,27 @@ class ImageIndex(abc.ABC):
         self._quantizer: Quantizer = quantizer
         self._metric = _METRICS[quantizer]
         self._paths: list[str] = list(paths)
+        self._dim = int(gallery.shape[1])
 
         if quantizer == "inner_product":
             # Normalise before adding so dot-product search ranks by cosine.
             faiss.normalize_L2(gallery)
-        self._vectors: Float32NumpyArray = np.ascontiguousarray(gallery)
 
-        self._index: Any = self._learn_index()
+        # The trained FAISS index is the sole owner of the gallery vectors; the
+        # ``gallery`` matrix is dropped once the index has copied it in, so the
+        # embeddings are kept in memory only once (see :meth:`reconstruct`).
+        self._index: Any = self._learn_index(np.ascontiguousarray(gallery))
 
     @abc.abstractmethod
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: Float32NumpyArray) -> Any:
         """
-        Build and train the index over :attr:`_vectors`.
+        Build and train the index over the gallery vectors.
 
-        Called once during construction. Implementations train the index,
-        add every gallery vector and return the ready-to-search index.
+        Called once during construction. Implementations train the index, add
+        every gallery vector and return the ready-to-search index. The
+        ``vectors`` argument is not retained by the base class.
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :return: The trained index instance.
         """
         ...
@@ -124,7 +129,23 @@ class ImageIndex(abc.ABC):
     @property
     def dim(self) -> int:
         """Dimensionality of the indexed feature vectors."""
-        return int(self._vectors.shape[1])
+        return self._dim
+
+    def reconstruct(self) -> Float32NumpyArray:
+        """
+        Reconstruct the gallery embedding matrix from the trained index.
+
+        The vectors are read back from FAISS, so no separate copy of the
+        gallery is kept in memory. For an inner-product index they come back
+        L2-normalised (the form in which they were indexed); for a lossy index
+        such as IVF-PQ they are the decompressed approximation.
+
+        :return: The gallery embeddings, shape ``(N, D)``, in path order.
+        """
+        ivf = faiss.extract_index_ivf(self._index)
+        ivf.make_direct_map()
+        vectors = self._index.reconstruct_n(0, self._index.ntotal)
+        return cast(Float32NumpyArray, np.asarray(vectors, dtype=np.float32))
 
     def __len__(self) -> int:
         return len(self._paths)

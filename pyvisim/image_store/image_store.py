@@ -15,6 +15,7 @@ from PIL import Image, UnidentifiedImageError
 
 from ..encoders._reconstruct import encoder_from_dict, encoder_to_dict
 from ..encoders._serialization import load_state, save_state
+from ..functional import Candidate, retrieve_top_k_similar
 from ..retrieval.index import (
     ImageIndex,
     ImageIndexHNSW,
@@ -23,7 +24,7 @@ from ..retrieval.index import (
     ImageIndexScalarQuantizer,
 )
 from ..retrieval.index._base_index import Quantizer
-from ..typing import Encoder, Float32NumpyArray, IntNumpyArray
+from ..typing import Encoder, Float32NumpyArray, ImageInput, IntNumpyArray
 
 #: Index-type strings mapped to the index class that implements them.
 _INDEX_REGISTRY: dict[str, type[ImageIndex]] = {
@@ -93,8 +94,9 @@ class InMemoryImageEmbeddingStore:
 
         paths, embeddings = _encode_image_paths(image_paths, encoder, skip_errors)
         self._paths = paths
-        self._embeddings = embeddings
-        self._index = self._build_index()
+        # Only the index retains the gallery vectors; the local ``embeddings``
+        # matrix is released once the index has copied it in.
+        self._index = self._build_index(embeddings)
 
     @classmethod
     def _from_components(
@@ -123,20 +125,22 @@ class InMemoryImageEmbeddingStore:
         store._quantizer = quantizer
         store._index_params = dict(index_params)
         store._paths = list(paths)
-        store._embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
-        store._index = store._build_index()
+        store._index = store._build_index(
+            np.ascontiguousarray(embeddings, dtype=np.float32)
+        )
         return store
 
-    def _build_index(self) -> ImageIndex:
+    def _build_index(self, embeddings: Float32NumpyArray) -> ImageIndex:
         """
         Build the configured index over the gallery embeddings.
 
+        :param embeddings: The ``(N, D)`` gallery matrix to index.
         :return: A trained :class:`~pyvisim.retrieval.ImageIndex`.
         """
         index_cls = _INDEX_REGISTRY[self._index_type]
         return index_cls(
             self._paths,
-            self._embeddings,
+            embeddings,
             quantizer=self._quantizer,
             **self._index_params,
         )
@@ -148,8 +152,15 @@ class InMemoryImageEmbeddingStore:
 
     @property
     def embeddings(self) -> Float32NumpyArray:
-        """The ``(N, D)`` gallery embedding matrix."""
-        return self._embeddings
+        """
+        The ``(N, D)`` gallery embedding matrix, reconstructed from the index.
+
+        The vectors are read back from the index on each access, so no separate
+        copy is held in memory. For an ``"inner_product"`` store they come back
+        L2-normalised, and for a lossy index (``"ivf-pq"``) they are the
+        decompressed approximation.
+        """
+        return self._index.reconstruct()
 
     @property
     def encoder(self) -> Encoder:
@@ -179,7 +190,7 @@ class InMemoryImageEmbeddingStore:
     @property
     def dim(self) -> int:
         """Dimensionality of the gallery embeddings."""
-        return int(self._embeddings.shape[1])
+        return self._index.dim
 
     def __len__(self) -> int:
         return len(self._paths)
@@ -209,6 +220,25 @@ class InMemoryImageEmbeddingStore:
         """
         return self._index.search(query_vectors, k)
 
+    def retrieve_top_k_similar(
+        self,
+        query_images: ImageInput,
+        k: int = 5,
+    ) -> list[list[Candidate]]:
+        """
+        Return the top-k most similar gallery images for each query image.
+
+        The query images are encoded with this store's encoder and matched
+        against the gallery through its accelerated index.
+
+        :param query_images: A single image or a batch/iterable of images to use
+            as queries. Anything accepted by the store's encoder is valid.
+        :param k: Number of top similar gallery images to return per query.
+        :return: One ranked list of :class:`~pyvisim.functional.Candidate`
+            matches per query image, in the same order as ``query_images``.
+        """
+        return retrieve_top_k_similar(query_images, self, k)
+
     def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
         """
         Persist the store to a single ``.safetensors`` file.
@@ -230,6 +260,7 @@ class InMemoryImageEmbeddingStore:
         if not os.path.isdir(parent):
             raise OSError(f"Destination directory does not exist: {parent!r}.")
 
+        embeddings = self.embeddings
         state: dict[str, Any] = {
             "format_version": _STORE_FORMAT_VERSION,
             "store_class": type(self).__name__,
@@ -239,9 +270,9 @@ class InMemoryImageEmbeddingStore:
             "paths": list(self._paths),
             "embeddings": {
                 "__ndarray__": True,
-                "data": self._embeddings,
-                "dtype": str(self._embeddings.dtype),
-                "shape": list(self._embeddings.shape),
+                "data": embeddings,
+                "dtype": str(embeddings.dtype),
+                "shape": list(embeddings.shape),
                 "order": "C",
             },
             "encoder": encoder_to_dict(self._encoder),

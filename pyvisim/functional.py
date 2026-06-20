@@ -3,20 +3,17 @@ Functional building blocks shared across pyvisim's retrieval pipeline.
 
 This module hosts :func:`retrieve_top_k_similar`, the single entry point used to
 rank a gallery against one or more query images, and the :class:`Candidate` it
-returns. The function works either by brute force (comparing every gallery
-vector) or, when given a :class:`pyvisim.typing.SearchIndex`, by delegating the
-nearest-neighbour search to that accelerated index.
+returns. The search is delegated to the accelerated index held by the
+:class:`~pyvisim.typing.EmbeddingStore` it is given.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import NamedTuple
 
 import numpy as np
 
-from ._utils import cosine_similarity
-from .typing import Encoder, FloatNumpyArray, ImageInput, IntNumpyArray, SearchIndex
+from .typing import EmbeddingStore, FloatNumpyArray, ImageInput, IntNumpyArray
 
 __all__ = ["Candidate", "retrieve_top_k_similar"]
 
@@ -26,8 +23,8 @@ class Candidate(NamedTuple):
 
     :param path: Path of the matched gallery image.
     :param score: Similarity (or distance) of the match to the query. Higher
-        means more similar for the brute-force and inner-product metrics; for an
-        L2 index it is a distance, where lower means more similar.
+        means more similar for the inner-product metric; for an L2 index it is a
+        distance, where lower means more similar.
     """
 
     path: str
@@ -36,73 +33,34 @@ class Candidate(NamedTuple):
 
 def retrieve_top_k_similar(
     query_images: ImageInput,
-    dataset: Mapping[str, FloatNumpyArray] | None,
-    encoder: Encoder,
+    store: EmbeddingStore,
     k: int = 5,
-    *,
-    index: SearchIndex | None = None,
 ) -> list[list[Candidate]]:
     """
     Return the top-k most similar gallery images for each query image.
 
-    Each query image is encoded with ``encoder`` and matched against the
-    ``dataset`` gallery. When ``index`` is ``None`` the search is done by brute
-    force using cosine similarity; otherwise the nearest-neighbour search is
-    delegated to ``index``, which accelerates the search significantly.
+    Each query image is encoded with the store's encoder and matched against the
+    gallery through the store's accelerated index.
 
     :param query_images: A single image or a batch/iterable of images to use as
-        queries. Anything accepted by ``encoder.encode`` is valid.
-    :param dataset: A ``{image_path: feature_vector}`` mapping for the gallery.
-        Required for the brute-force path; may be ``None`` when ``index`` is
-        provided, since the index supplies its own gallery.
-    :param encoder: Encoder used to turn the query images into feature vectors.
+        queries. Anything accepted by the store's encoder is valid.
+    :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
+        (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery.
     :param k: Number of top similar gallery images to return per query.
-    :param index: Optional accelerated search index built over ``dataset``. When
-        provided, its ids must align with ``dataset`` insertion order.
     :return: One ranked list of :class:`Candidate` matches per query image, in
         the same order as ``query_images``.
-    :raises ValueError: If neither ``dataset`` nor ``index`` is provided.
     """
     # ``encoder.encode`` returns one row per query image, in input order, so the
-    # whole batch is searched at once: both the cosine matmul and FAISS are far
-    # faster on one ``(M, D)`` matrix than on a per-query loop.
-    query_matrix = np.asarray(encoder.encode(query_images))
+    # whole batch is searched at once: FAISS is far faster on one ``(M, D)``
+    # matrix than on a per-query loop.
+    query_matrix = np.asarray(store.encoder.encode(query_images))
     if query_matrix.ndim == 1:
         query_matrix = query_matrix.reshape(1, -1)
     if query_matrix.shape[0] == 0:
         return []
 
-    if index is not None:
-        scores, ids = index.search(query_matrix, k)
-        gallery_paths = index.paths
-    elif dataset is not None:
-        scores, ids = _brute_force_search(query_matrix, dataset, k)
-        gallery_paths = list(dataset.keys())
-    else:
-        raise ValueError("Either 'dataset' or 'index' must be provided.")
-
-    return _assemble_results(gallery_paths, scores, ids)
-
-
-def _brute_force_search(
-    query_matrix: FloatNumpyArray,
-    dataset: Mapping[str, FloatNumpyArray],
-    k: int,
-) -> tuple[FloatNumpyArray, IntNumpyArray]:
-    """
-    Rank a gallery against a batch of query vectors using cosine similarity.
-
-    :param query_matrix: Query feature vectors of shape ``(M, D)``.
-    :param dataset: Gallery mapping of path to feature vector.
-    :param k: Number of top matches to return per query.
-    :return: A ``(scores, ids)`` tuple of ``(M, k)`` arrays, sorted by
-        descending similarity, where ``ids`` index into ``dataset`` order.
-    """
-    gallery = np.asarray(list(dataset.values()))
-    similarities = cosine_similarity(query_matrix, gallery)  # (M, N)
-    top_ids = np.argsort(-similarities, axis=1)[:, :k]  # (M, k)
-    top_scores = np.take_along_axis(similarities, top_ids, axis=1)
-    return top_scores, top_ids
+    scores, ids = store.search(query_matrix, k)
+    return _assemble_results(store.paths, scores, ids)
 
 
 def _assemble_results(

@@ -102,7 +102,7 @@ def test_inner_product_normalizes_gallery_vectors() -> None:
     """Inner-product indexes L2-normalise the gallery before indexing."""
     paths, vectors = _random_gallery(num=40, dim=8)
     index = ImageIndexIVFFlat(paths, vectors, quantizer="inner_product", nlist=4)
-    norms = np.linalg.norm(index._vectors, axis=1)
+    norms = np.linalg.norm(index.reconstruct(), axis=1)
     assert np.allclose(norms, 1.0, atol=1e-5)
 
 
@@ -118,8 +118,15 @@ def test_l2_leaves_gallery_vectors_unnormalized() -> None:
     """L2 indexes keep the raw gallery vectors."""
     paths, vectors = _random_gallery(num=40, dim=8)
     index = ImageIndexIVFFlat(paths, vectors, quantizer="l2", nlist=4)
-    norms = np.linalg.norm(index._vectors, axis=1)
+    norms = np.linalg.norm(index.reconstruct(), axis=1)
     assert not np.allclose(norms, 1.0)
+
+
+def test_reconstruct_recovers_l2_gallery_exactly() -> None:
+    """An IVF-Flat L2 index reconstructs the original gallery vectors exactly."""
+    paths, vectors = _random_gallery(num=40, dim=8)
+    index = ImageIndexIVFFlat(paths, vectors, quantizer="l2", nlist=4)
+    assert np.allclose(index.reconstruct(), vectors, atol=1e-6)
 
 
 # Cluster centers

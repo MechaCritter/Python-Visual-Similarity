@@ -73,15 +73,16 @@ class ImageIndexIVFFlat(ImageIndex):
         """Coordinates of the ``nlist`` cell centroids, shape ``(nlist, D)``."""
         return self._coarse_centroids()
 
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
         """
         Build, train and populate the IVF-Flat index.
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :return: The trained FAISS ``IndexIVFFlat``.
         :raises ValueError: If ``nlist`` exceeds the gallery size or ``nprobe``
             is not within ``[1, nlist]``.
         """
-        num_vectors = self._vectors.shape[0]
+        num_vectors = vectors.shape[0]
         if not 1 <= self._nlist <= num_vectors:
             raise ValueError(
                 f"'nlist' must be between 1 and the number of indexed vectors "
@@ -95,8 +96,8 @@ class ImageIndexIVFFlat(ImageIndex):
 
         quantizer = self._make_quantizer()
         index = faiss.IndexIVFFlat(quantizer, self.dim, self._nlist, self._metric)
-        index.train(self._vectors)
-        index.add(self._vectors)
+        index.train(vectors)
+        index.add(vectors)
         index.nprobe = self._nprobe
         return index
 
@@ -175,16 +176,17 @@ class ImageIndexIVFPQ(ImageIndex):
         """Coordinates of the ``nlist`` cell centroids, shape ``(nlist, D)``."""
         return self._coarse_centroids()
 
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
         """
         Build, train and populate the IVF-PQ index.
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :return: The trained FAISS ``IndexIVFPQ``.
         :raises ValueError: If ``nlist`` exceeds the gallery size, ``nprobe`` is
             not within ``[1, nlist]``, ``m`` does not divide the dimensionality,
             or the gallery has fewer than ``2 ** nbits`` vectors.
         """
-        num_vectors = self._vectors.shape[0]
+        num_vectors = vectors.shape[0]
         if not 1 <= self._nlist <= num_vectors:
             raise ValueError(
                 f"'nlist' must be between 1 and the number of indexed vectors "
@@ -210,8 +212,8 @@ class ImageIndexIVFPQ(ImageIndex):
         index = faiss.IndexIVFPQ(
             quantizer, self.dim, self._nlist, self._m, self._nbits, self._metric
         )
-        index.train(self._vectors)
-        index.add(self._vectors)
+        index.train(vectors)
+        index.add(vectors)
         index.nprobe = self._nprobe
         return index
 
@@ -265,10 +267,11 @@ class ImageIndexHNSW(ImageIndex):
             "ImageIndexHNSW is planned for a future release and is not yet implemented."
         )
 
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
         """
         Build the HNSW graph index (planned for a future release).
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :raises NotImplementedError: Always; this index is not yet implemented.
         """
         raise NotImplementedError(
@@ -320,10 +323,11 @@ class ImageIndexScalarQuantizer(ImageIndex):
             "not yet implemented."
         )
 
-    def _learn_index(self) -> Any:
+    def _learn_index(self, vectors: FloatNumpyArray) -> Any:
         """
         Build the scalar-quantizer index (planned for a future release).
 
+        :param vectors: The contiguous ``(N, D)`` gallery matrix to index.
         :raises NotImplementedError: Always; this index is not yet implemented.
         """
         raise NotImplementedError(
