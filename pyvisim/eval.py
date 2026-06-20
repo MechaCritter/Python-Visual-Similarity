@@ -7,8 +7,7 @@ from collections.abc import Iterable
 import numpy as np
 
 from ._utils import cosine_similarity
-from .image_store import ImageEncodingMap
-from .typing import Encoder, MatLike
+from .typing import EmbeddingStore, MatLike
 
 __all__ = ["top_k_map", "top_k_accuracy"]
 
@@ -16,9 +15,8 @@ __all__ = ["top_k_map", "top_k_accuracy"]
 def top_k_map(
     images: Iterable[MatLike],
     image_labels: Iterable[int],
-    encoding_map: ImageEncodingMap,
+    store: EmbeddingStore,
     path_labels_dict: dict[str, int],
-    encoder: Encoder,
     k: int | None = None,
 ) -> float:
     """
@@ -27,16 +25,16 @@ def top_k_map(
 
     :param images: Query images.
     :param image_labels: Corresponding labels for the query images.
-    :param encoding_map: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping image paths to feature vectors.
+    :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
+        (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
+        embeddings and the encoder.
     :param path_labels_dict: dict {img_path: label}
-    :param encoder: Object with `encode(img)
     :param k: Number of top results to consider.
     :return: mAP
     """
-    all_vectors, all_paths = (
-        np.array(list(encoding_map.values())),
-        list(encoding_map.keys()),
-    )
+    all_vectors = np.asarray(store.embeddings)
+    all_paths = store.paths
+    encoder = store.encoder
 
     APs = []
     for query_img, true_label in zip(images, image_labels, strict=True):
@@ -75,9 +73,8 @@ def top_k_map(
 def top_k_accuracy(
     images: Iterable[MatLike],
     image_labels: Iterable[int],
-    encoding_map: ImageEncodingMap,
+    store: EmbeddingStore,
     path_labels_dict: dict[str, int],
-    encoder: Encoder,
     k: int,
 ) -> float:
     """
@@ -87,16 +84,16 @@ def top_k_accuracy(
 
     :param images: Query images.
     :param image_labels: List of true labels for each query image.
-    :param encoding_map: An :class:`~pyvisim.image_store.ImageEncodingMap` mapping image paths to feature vectors.
+    :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
+        (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
+        embeddings and the encoder.
     :param path_labels_dict: dict {path: label}.
-    :param encoder: An object with `encode(img) -> np.ndarray`.
     :param k: Number of top results to check for a correct match.
     :return: Top-k accuracy (float) in the range [0, 1].
     """
-    all_paths, all_vectors = (
-        list(encoding_map.keys()),
-        np.array(list(encoding_map.values())),
-    )
+    all_paths = store.paths
+    all_vectors = np.asarray(store.embeddings)
+    encoder = store.encoder
     correct_count = 0
     num_images = 0
 

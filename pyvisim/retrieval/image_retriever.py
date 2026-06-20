@@ -1,41 +1,39 @@
 """
-Image retrieval machine over an accelerated index.
+Image retrieval façade over an embedding store.
 
-This module defines :class:`ImageRetriever`, a thin façade that pairs an
-:class:`~pyvisim.retrieval.ImageIndex` with the gallery and encoder it was built
-from. It exposes a single :meth:`ImageRetriever.retrieve_top_k_similar` method
-that ranks the gallery against one or more query images.
+This module defines :class:`ImageRetriever`, a thin wrapper around an
+:class:`~pyvisim.typing.EmbeddingStore` (typically an
+:class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`). It exposes a single
+:meth:`ImageRetriever.retrieve_top_k_similar` method that ranks the store's
+gallery against one or more query images.
 """
 
 from __future__ import annotations
 
 from ..functional import Candidate, retrieve_top_k_similar
-from ..typing import Encoder, ImageInput
-from .index import ImageIndex
+from ..typing import EmbeddingStore, Encoder, ImageInput
 
 
 class ImageRetriever:
     """
     Retrieve the most similar gallery images for a set of query images.
 
-    :param index: The accelerated index to search against.
-    :param encoder: Encoder used to turn the query images into feature vectors.
-        It should match the one used to build the gallery encodings.
+    :param store: The embedding store to search against. It already bundles the
+        gallery embeddings, their paths, the encoder and the accelerated index.
     """
 
-    def __init__(self, index: ImageIndex, encoder: Encoder) -> None:
-        self._index = index
-        self._encoder = encoder
+    def __init__(self, store: EmbeddingStore) -> None:
+        self._store = store
 
     @property
-    def index(self) -> ImageIndex:
-        """The underlying :class:`~pyvisim.retrieval.ImageIndex`."""
-        return self._index
+    def store(self) -> EmbeddingStore:
+        """The underlying :class:`~pyvisim.typing.EmbeddingStore`."""
+        return self._store
 
     @property
     def encoder(self) -> Encoder:
         """The encoder used to turn query images into feature vectors."""
-        return self._encoder
+        return self._store.encoder
 
     def retrieve_top_k_similar(
         self,
@@ -51,10 +49,4 @@ class ImageRetriever:
         :return: One ranked list of :class:`~pyvisim.functional.Candidate`
             matches per query image, in the same order as ``query_images``.
         """
-        return retrieve_top_k_similar(
-            query_images,
-            self._index.encoding_map,
-            self._encoder,
-            k=k,
-            index=self._index,
-        )
+        return retrieve_top_k_similar(query_images, self._store, k)

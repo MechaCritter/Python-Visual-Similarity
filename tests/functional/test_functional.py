@@ -7,8 +7,7 @@ import pytest
 from PIL import Image
 
 from pyvisim.functional import Candidate, retrieve_top_k_similar
-from pyvisim.image_store import ImageEncodingMap
-from pyvisim.retrieval import ImageIndexIVFFlat
+from pyvisim.image_store import InMemoryImageEmbeddingStore
 from pyvisim.typing import FloatNumpyArray, ImageInput, UInt8NumpyArray
 
 #: Number of gallery images materialized for the tests.
@@ -45,11 +44,11 @@ class FlattenEncoder:
 @pytest.fixture
 def gallery(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap]:
-    """Materialize random RGB images on disk and encode them into a gallery.
+) -> tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore]:
+    """Materialize random RGB images on disk and index them into a store.
 
     :param tmp_path_factory: pytest's temp-directory factory.
-    :returns: a tuple ``(arrays, paths, encoder, encoding_map)``.
+    :returns: a tuple ``(arrays, paths, store)``.
     """
     directory = tmp_path_factory.mktemp("functional_gallery")
     rng = np.random.default_rng(0)
@@ -61,22 +60,22 @@ def gallery(
         Image.fromarray(array).save(path)
         arrays.append(array)
         paths.append(str(path))
-    encoder = FlattenEncoder()
-    encoding_map = ImageEncodingMap(
-        {
-            path: encoder.encode(array)[0]
-            for path, array in zip(paths, arrays, strict=True)
-        }
+    store = InMemoryImageEmbeddingStore(
+        paths,
+        FlattenEncoder(),
+        "ivf-flat",
+        quantizer="inner_product",
+        index_params={"nlist": 2, "nprobe": 2},
     )
-    return arrays, paths, encoder, encoding_map
+    return arrays, paths, store
 
 
 def test_returns_one_ranked_list_per_query_in_order(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore],
 ) -> None:
     """Each query maps to its own ranked list, in input order."""
-    arrays, paths, encoder, encoding_map = gallery
-    results = retrieve_top_k_similar([arrays[2], arrays[5]], encoding_map, encoder, k=3)
+    arrays, paths, store = gallery
+    results = retrieve_top_k_similar([arrays[2], arrays[5]], store, k=3)
     assert isinstance(results, list)
     assert len(results) == 2
     assert results[0][0].path == paths[2]
@@ -84,21 +83,21 @@ def test_returns_one_ranked_list_per_query_in_order(
 
 
 def test_single_image_returns_single_row(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore],
 ) -> None:
     """A single image (not wrapped in a list) yields a one-row result."""
-    arrays, paths, encoder, encoding_map = gallery
-    results = retrieve_top_k_similar(arrays[1], encoding_map, encoder, k=2)
+    arrays, paths, store = gallery
+    results = retrieve_top_k_similar(arrays[1], store, k=2)
     assert len(results) == 1
     assert results[0][0].path == paths[1]
 
 
 def test_candidates_carry_path_and_score(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore],
 ) -> None:
     """Every result entry is a :class:`Candidate` with a path and a score."""
-    arrays, _, encoder, encoding_map = gallery
-    results = retrieve_top_k_similar(arrays[0], encoding_map, encoder, k=3)
+    arrays, _, store = gallery
+    results = retrieve_top_k_similar(arrays[0], store, k=3)
     for candidate in results[0]:
         assert isinstance(candidate, Candidate)
         assert isinstance(candidate.path, str)
@@ -106,34 +105,29 @@ def test_candidates_carry_path_and_score(
 
 
 def test_k_limits_number_of_candidates(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+    gallery: tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore],
 ) -> None:
     """No query returns more than ``k`` candidates."""
-    arrays, _, encoder, encoding_map = gallery
-    results = retrieve_top_k_similar(arrays[:3], encoding_map, encoder, k=4)
+    arrays, _, store = gallery
+    results = retrieve_top_k_similar(arrays[:3], store, k=4)
     assert all(len(row) <= 4 for row in results)
 
 
-def test_brute_force_scores_are_descending(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+def test_inner_product_scores_are_descending(
+    gallery: tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore],
 ) -> None:
-    """Brute-force cosine results are ordered most-similar first."""
-    arrays, _, encoder, encoding_map = gallery
-    results = retrieve_top_k_similar(arrays[4], encoding_map, encoder, k=5)
+    """Inner-product results are ordered most-similar first."""
+    arrays, _, store = gallery
+    results = retrieve_top_k_similar(arrays[4], store, k=5)
     scores = [candidate.score for candidate in results[0]]
     assert scores == sorted(scores, reverse=True)
 
 
-def test_index_path_recovers_self_as_top_match(
-    gallery: tuple[list[UInt8NumpyArray], list[str], FlattenEncoder, ImageEncodingMap],
+def test_store_method_matches_functional(
+    gallery: tuple[list[UInt8NumpyArray], list[str], InMemoryImageEmbeddingStore],
 ) -> None:
-    """Searching through an index returns the query image itself first."""
-    arrays, paths, encoder, encoding_map = gallery
-    index = ImageIndexIVFFlat(
-        encoding_map, quantizer="inner_product", nlist=2, nprobe=2
-    )
-    results = retrieve_top_k_similar(
-        [arrays[2], arrays[7]], encoding_map, encoder, k=3, index=index
-    )
-    assert results[0][0].path == paths[2]
-    assert results[1][0].path == paths[7]
+    """The store's own method delegates to the functional entry point."""
+    arrays, _, store = gallery
+    via_function = retrieve_top_k_similar(arrays[7], store, k=3)
+    via_method = store.retrieve_top_k_similar(arrays[7], k=3)
+    assert [c.path for c in via_function[0]] == [c.path for c in via_method[0]]
