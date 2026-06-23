@@ -11,7 +11,8 @@ from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import MODEL_FILES_PATH, setup_logging
 from .._utils import get_similarity_func
 from ..clustering import PCA, ClusteringModelBase
-from ..features._features import RootSIFT, feature_extractor_from_dict
+from ..features._registry import feature_extractor_from_dict
+from ..features._root_sift import RootSIFT
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
