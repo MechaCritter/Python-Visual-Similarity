@@ -33,22 +33,6 @@ _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool
     #
     # However, (2, 1) might not be True!!
 }
-_ENCODER_STATE_KEYS = frozenset(
-    {
-        "encoder_class",
-        "clustering_model",
-        "pca",
-        "power_norm_weight",
-        "norm_order",
-        "epsilon",
-        "flatten",
-        "raise_error_when_pca_incompatible",
-        "similarity_func",
-        "feature_extractor",
-    }
-)
-
-
 _ClusteringEncoderT = TypeVar("_ClusteringEncoderT", bound="ClusteringBasedEncoder")
 
 
@@ -183,6 +167,7 @@ class ImageEncoderBase(SimilarityMetric):
         """The name of the configured similarity metric (e.g. ``"cosine"``)."""
         return self._similarity_func_name
 
+    @abc.abstractmethod
     @abc.abstractmethod
     def encode(
         self,
@@ -328,6 +313,22 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
                                         than the PCA model's output size, an Error will be raised"""
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
+
+    #: Keys that a serialised state must contain to be a valid encoder file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "encoder_class",
+            "clustering_model",
+            "pca",
+            "power_norm_weight",
+            "norm_order",
+            "epsilon",
+            "flatten",
+            "raise_error_when_pca_incompatible",
+            "similarity_func",
+            "feature_extractor",
+        }
+    )
 
     def __init__(
         self,
@@ -683,7 +684,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             was saved by a different encoder class.
         """
         state = load_encoder_state(pathlib.Path(path))
-        if not _ENCODER_STATE_KEYS.issubset(state):
+        if not cls._STATE_KEYS.issubset(state):
             raise ValueError(f"File {path} is not a valid .encoder file.")
         # TODO: in the future, verify format version by checking
         # compatibility via _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
