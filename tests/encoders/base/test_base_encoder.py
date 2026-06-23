@@ -12,7 +12,7 @@ from sklearn.exceptions import NotFittedError
 
 from pyvisim.clustering import PCA
 from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
-from pyvisim.encoders._base_encoder import ImageEncoderBase
+from pyvisim.encoders._base_encoder import ClusteringBasedEncoder
 from pyvisim.features import Lambda, RootSIFT
 
 if TYPE_CHECKING:
@@ -51,7 +51,7 @@ def test_similarity_func_rejects_unknown_name() -> None:
 # §3.2 ImageEncoderBase shared behaviour (exercised via VLADEncoder)
 
 
-class _NoModelEncoder(ImageEncoderBase):
+class _NoModelEncoder(ClusteringBasedEncoder):
     """Minimal concrete encoder used to test the "no clustering model" path."""
 
     def encode(self, images: Iterable[np.ndarray], flatten: bool = True) -> np.ndarray:
