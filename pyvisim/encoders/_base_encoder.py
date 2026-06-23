@@ -25,9 +25,9 @@ from .utils import iter_images
 setup_logging()
 
 _ENCODER_FILE_SUFFIX = ".encoder"
-_ENCODER_FILE_FORMAT_VERSION = 1
-_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
-    # TODO: when the next _ENCODER_FILE_FORMAT_VERSION comes, check if
+_CLUSERING_ENCODER_FILE_FORMAT_VERSION = 1
+_CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
+    # TODO: when the next _CLUSERING_ENCODER_FILE_FORMAT_VERSION comes, check if
     # it's forward / backward compatible, then add entries like:
     # (1, 2): True,  # version 1 can read files from version 2
     #
@@ -610,7 +610,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
                 "fitted. Call 'learn' first."
             )
         return {
-            "format_version": _ENCODER_FILE_FORMAT_VERSION,
+            "format_version": _CLUSERING_ENCODER_FILE_FORMAT_VERSION,
             "encoder_class": type(self).__name__,
             "clustering_model": self._clustering_model.to_dict(),
             "pca": self._pca.to_dict() if self._pca is not None else None,
@@ -686,7 +686,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
         if not _ENCODER_STATE_KEYS.issubset(state):
             raise ValueError(f"File {path} is not a valid .encoder file.")
         # TODO: in the future, verify format version by checking
-        # compatibility via _ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
+        # compatibility via _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
         if state["encoder_class"] != cls.__name__:
             raise ValueError(
                 f"File {path} was saved by {state['encoder_class']}. "
