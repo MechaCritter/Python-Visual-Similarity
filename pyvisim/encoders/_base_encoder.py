@@ -147,6 +147,12 @@ class ImageEncoderBase(SimilarityMetric):
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     """
 
+    #: Keys a serialised state must contain to be a valid encoder file.
+    #: Subclasses extend this with their own required keys.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"encoder_class", "similarity_func"}
+    )
+
     def __init__(self, similarity_func: str = "cosine"):
         # Set important attributes via setters to trigger error handling
         self._similarity_func: SimilarityFunc
@@ -254,6 +260,46 @@ class ImageEncoderBase(SimilarityMetric):
         vector2 = self.encode(images2, dims=dims, value_range=value_range)
         result = self.similarity_func(vector1, vector2)
         return np.asarray(result, dtype=np.float32)
+
+    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+        """
+        Saves the serialised state of this encoder to a ``.encoder`` file.
+
+        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
+        :return: The path of the written file.
+        :raises NotFittedError: If the encoder is not ready to be serialised
+            (see :meth:`to_dict`).
+        """
+        path = pathlib.Path(path)
+        if path.suffix != _ENCODER_FILE_SUFFIX:
+            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
+        save_encoder_state(self.to_dict(), path)
+        return path
+
+    @classmethod
+    def load_from_disk(
+        cls: type[_EncoderT],
+        path: str | pathlib.Path,
+    ) -> _EncoderT:
+        """
+        Loads an encoder previously saved with :meth:`save_to_disk`.
+
+        :param path: Path to the ``.encoder`` file.
+        :return: A ready-to-use encoder instance.
+        :raises ValueError: If the file is not a valid ``.encoder`` file or
+            was saved by a different encoder class.
+        """
+        state = load_encoder_state(pathlib.Path(path))
+        if not cls._STATE_KEYS.issubset(state):
+            raise ValueError(f"File {path} is not a valid .encoder file.")
+        # TODO: in the future, verify the file's format version against the
+        # class-specific compatibility table before reconstructing.
+        if state["encoder_class"] != cls.__name__:
+            raise ValueError(
+                f"File {path} was saved by {state['encoder_class']}. "
+                f"Load it with {state['encoder_class']}.load_from_disk instead."
+            )
+        return cls.from_dict(state)
 
     def __repr__(self) -> str:
         return (
@@ -681,46 +727,6 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             cls._clustering_model_cls.from_dict(state["clustering_model"])
         )
         return encoder
-
-    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
-        """
-        Saves the learned state of this encoder to a ``.encoder`` file.
-
-
-        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
-        :return: The path of the written file.
-        :raises NotFittedError: If the clustering model is missing or not fitted.
-        """
-        path = pathlib.Path(path)
-        if path.suffix != _ENCODER_FILE_SUFFIX:
-            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
-        save_encoder_state(self.to_dict(), path)
-        return path
-
-    @classmethod
-    def load_from_disk(
-        cls: type[_ClusteringEncoderT],
-        path: str | pathlib.Path,
-    ) -> _ClusteringEncoderT:
-        """
-        Loads an encoder previously saved with :meth:`save_to_disk`.
-
-        :param path: Path to the ``.encoder`` file.
-        :return: A ready-to-use encoder instance.
-        :raises ValueError: If the file is not a valid ``.encoder`` file or
-            was saved by a different encoder class.
-        """
-        state = load_encoder_state(pathlib.Path(path))
-        if not cls._STATE_KEYS.issubset(state):
-            raise ValueError(f"File {path} is not a valid .encoder file.")
-        # TODO: in the future, verify format version by checking
-        # compatibility via _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
-        if state["encoder_class"] != cls.__name__:
-            raise ValueError(
-                f"File {path} was saved by {state['encoder_class']}. "
-                f"Load it with {state['encoder_class']}.load_from_disk instead."
-            )
-        return cls.from_dict(state)
 
     def __repr__(self) -> str:
         n_clusters = (

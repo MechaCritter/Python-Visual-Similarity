@@ -1,5 +1,5 @@
 import logging
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 
@@ -29,6 +29,11 @@ class Pipeline(ImageEncoderBase):
     """
 
     _logger = logging.getLogger("Pipeline")
+
+    #: Keys a serialised state must contain to be a valid pipeline file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"encoder_class", "encoders", "similarity_func"}
+    )
 
     def __init__(
         self,
