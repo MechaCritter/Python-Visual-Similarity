@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from .._errors import InvalidImageError
-from ..features._features import grayscale_dims
+from ..features._utils import grayscale_dims
 from ..typing import ImageInput, UInt8NumpyArray, _to_image_list
 
 
