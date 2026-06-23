@@ -33,6 +33,7 @@ _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool
     #
     # However, (2, 1) might not be True!!
 }
+_EncoderT = TypeVar("_EncoderT", bound="ImageEncoderBase")
 _ClusteringEncoderT = TypeVar("_ClusteringEncoderT", bound="ClusteringBasedEncoder")
 
 
@@ -168,6 +169,32 @@ class ImageEncoderBase(SimilarityMetric):
         return self._similarity_func_name
 
     @abc.abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialises this encoder into a JSON-safe state dictionary.
+
+        Every concrete encoder must define how it serialises itself. The
+        returned mapping has to contain at least the keys listed in
+        :attr:`_STATE_KEYS` (notably ``"encoder_class"``) so that
+        :meth:`load_from_disk` can validate the file and dispatch it to the
+        right class. Arrays may be embedded as ``__ndarray__`` nodes; the
+        serialization layer stores them as binary tensors.
+
+        :return: A JSON-safe encoder description suitable for :meth:`from_dict`.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    def from_dict(cls: type[_EncoderT], state: dict[str, Any]) -> _EncoderT:
+        """
+        Rebuilds an encoder from a dictionary produced by :meth:`to_dict`.
+
+        :param state: A JSON-safe encoder description from :meth:`to_dict`.
+        :return: A ready-to-use encoder instance.
+        """
+        raise NotImplementedError
+
     @abc.abstractmethod
     def encode(
         self,
