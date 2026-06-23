@@ -6,8 +6,8 @@ from .._base_classes import FeatureExtractorBase
 from .._config import MODEL_FILES_PATH
 from ..clustering import PCA, ClusteringModelBase, GaussianMixtureModel
 from ..encoders._base_encoder import (
+    ClusteringBasedEncoder,
     GMMWeights,
-    ImageEncoderBase,
     _PretrainedEncoder,
 )
 from ..typing import (
@@ -44,7 +44,7 @@ class PretrainedFisher(_PretrainedEncoder):
     )
 
 
-class FisherVectorEncoder(ImageEncoderBase):
+class FisherVectorEncoder(ClusteringBasedEncoder):
     """
     This class serves as an encoder that transforms input images into Fisher Vector descriptors.
 

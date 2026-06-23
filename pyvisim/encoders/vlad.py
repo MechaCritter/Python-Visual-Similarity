@@ -6,7 +6,7 @@ from .._base_classes import FeatureExtractorBase
 from .._config import MODEL_FILES_PATH
 from ..clustering import PCA, ClusteringModelBase, KMeans
 from ..encoders._base_encoder import (
-    ImageEncoderBase,
+    ClusteringBasedEncoder,
     KMeansWeights,
     _PretrainedEncoder,
 )
@@ -39,7 +39,7 @@ class PretrainedVLAD(_PretrainedEncoder):
     )
 
 
-class VLADEncoder(ImageEncoderBase):
+class VLADEncoder(ClusteringBasedEncoder):
     """
     This class encodes images into VLAD descriptor vectors
     using a chosen feature extractor and a K-Means clustering model,

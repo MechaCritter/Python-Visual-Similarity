@@ -25,31 +25,16 @@ from .utils import iter_images
 setup_logging()
 
 _ENCODER_FILE_SUFFIX = ".encoder"
-_ENCODER_FILE_FORMAT_VERSION = 1
-_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
-    # TODO: when the next _ENCODER_FILE_FORMAT_VERSION comes, check if
+_CLUSERING_ENCODER_FILE_FORMAT_VERSION = 1
+_CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
+    # TODO: when the next _CLUSERING_ENCODER_FILE_FORMAT_VERSION comes, check if
     # it's forward / backward compatible, then add entries like:
     # (1, 2): True,  # version 1 can read files from version 2
     #
     # However, (2, 1) might not be True!!
 }
-_ENCODER_STATE_KEYS = frozenset(
-    {
-        "encoder_class",
-        "clustering_model",
-        "pca",
-        "power_norm_weight",
-        "norm_order",
-        "epsilon",
-        "flatten",
-        "raise_error_when_pca_incompatible",
-        "similarity_func",
-        "feature_extractor",
-    }
-)
-
-
 _EncoderT = TypeVar("_EncoderT", bound="ImageEncoderBase")
+_ClusteringEncoderT = TypeVar("_ClusteringEncoderT", bound="ClusteringBasedEncoder")
 
 
 class _PretrainedModels(Enum):
@@ -148,8 +133,232 @@ class _PretrainedEncoder(Enum):
 
 class ImageEncoderBase(SimilarityMetric):
     """
-    Base class for image encoders. An image encoder is a class that
-    generates a vector representation of an image. Subclasses use a combination of:
+    Base class for all image encoders. An image encoder generates a vector
+    representation of an image which can be used for indexing, retrieval,
+    clustering or classification tasks.
+
+    This base only knows how to encode images into vectors (:meth:`encode`) and
+    how to compare those vectors with a similarity function. Subclasses add the
+    machinery they need on top of that, e.g. a feature extractor
+    (:class:`FeatureBasedEncoder`) or a clustering model
+    (:class:`ClusteringBasedEncoder`).
+
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    """
+
+    #: Keys a serialised state must contain to be a valid encoder file.
+    #: Subclasses extend this with their own required keys.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"encoder_class", "similarity_func"}
+    )
+
+    def __init__(self, similarity_func: str = "cosine"):
+        # Set important attributes via setters to trigger error handling
+        self._similarity_func: SimilarityFunc
+        self._similarity_func_name: str
+        self.similarity_func = similarity_func
+
+    @property
+    def similarity_func(self) -> SimilarityFunc:
+        """The resolved similarity function callable."""
+        return self._similarity_func
+
+    @similarity_func.setter
+    def similarity_func(self, name: str) -> None:
+        self._similarity_func = get_similarity_func(name)
+        self._similarity_func_name = name
+
+    @property
+    def similarity_func_name(self) -> str:
+        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
+        return self._similarity_func_name
+
+    @abc.abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialises this encoder into a JSON-safe state dictionary.
+
+        Every concrete encoder must define how it serialises itself. The
+        returned mapping has to contain at least the keys listed in
+        :attr:`_STATE_KEYS` (notably ``"encoder_class"``) so that
+        :meth:`load_from_disk` can validate the file and dispatch it to the
+        right class. Arrays may be embedded as ``__ndarray__`` nodes; the
+        serialization layer stores them as binary tensors.
+
+        :return: A JSON-safe encoder description suitable for :meth:`from_dict`.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    def from_dict(cls: type[_EncoderT], state: dict[str, Any]) -> _EncoderT:
+        """
+        Rebuilds an encoder from a dictionary produced by :meth:`to_dict`.
+
+        :param state: A JSON-safe encoder description from :meth:`to_dict`.
+        :return: A ready-to-use encoder instance.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def encode(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> FloatNumpyArray:
+        """
+        Encodes one or more images into a batch of vector representations.
+
+        Each image is normalized to a canonical ``uint8`` ``(H, W, C)`` array
+        before feature extraction, so NumPy arrays, torch tensors and other
+        array-like inputs are all accepted. When a batch axis is present (via
+        ``dims``), every image in the batch is encoded.
+
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images. Consider using an iterator for large datasets.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: vector representations of the given images
+        """
+        raise NotImplementedError
+
+    def similarity_score(
+        self,
+        images1: ImageInput,
+        images2: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> Float32NumpyArray:
+        """
+        Computes vector encodings for two images and calculates the similarity score between them.
+
+        :param images1: First (batch of) image(s) as ``MatLike``.
+        :param images2: Second (batch of) image(s) as ``MatLike``.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: Similarity matrix between the two image batches.
+        """
+        vector1 = self.encode(images1, dims=dims, value_range=value_range)
+        vector2 = self.encode(images2, dims=dims, value_range=value_range)
+        result = self.similarity_func(vector1, vector2)
+        return np.asarray(result, dtype=np.float32)
+
+    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+        """
+        Saves the serialised state of this encoder to a ``.encoder`` file.
+
+        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
+        :return: The path of the written file.
+        :raises NotFittedError: If the encoder is not ready to be serialised
+            (see :meth:`to_dict`).
+        """
+        path = pathlib.Path(path)
+        if path.suffix != _ENCODER_FILE_SUFFIX:
+            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
+        save_encoder_state(self.to_dict(), path)
+        return path
+
+    @classmethod
+    def load_from_disk(
+        cls: type[_EncoderT],
+        path: str | pathlib.Path,
+    ) -> _EncoderT:
+        """
+        Loads an encoder previously saved with :meth:`save_to_disk`.
+
+        :param path: Path to the ``.encoder`` file.
+        :return: A ready-to-use encoder instance.
+        :raises ValueError: If the file is not a valid ``.encoder`` file or
+            was saved by a different encoder class.
+        """
+        state = load_encoder_state(pathlib.Path(path))
+        if not cls._STATE_KEYS.issubset(state):
+            raise ValueError(f"File {path} is not a valid .encoder file.")
+        # TODO: in the future, verify the file's format version against the
+        # class-specific compatibility table before reconstructing.
+        if state["encoder_class"] != cls.__name__:
+            raise ValueError(
+                f"File {path} was saved by {state['encoder_class']}. "
+                f"Load it with {state['encoder_class']}.load_from_disk instead."
+            )
+        return cls.from_dict(state)
+
+    def __repr__(self) -> str:
+        return (
+            self.__class__.__name__ + f"(similarity_func={self.similarity_func_name})"
+        )
+
+
+class FeatureBasedEncoder(ImageEncoderBase):
+    """
+    Base class for encoders that derive their vector representation from local
+    features extracted by a :class:`~pyvisim.features.FeatureExtractorBase`
+    (e.g. SIFT, SURF or deep features).
+
+    :param feature_extractor: Feature extractor instance (should implement
+        ``__call__``). Defaults to :class:`~pyvisim.features.RootSIFT`.
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    """
+
+    def __init__(
+        self,
+        feature_extractor: FeatureExtractorBase | None = None,
+        similarity_func: str = "cosine",
+    ):
+        self._feature_extractor: FeatureExtractorBase
+        super().__init__(similarity_func=similarity_func)
+        self.feature_extractor = (
+            feature_extractor if feature_extractor is not None else RootSIFT()
+        )
+
+    @property
+    def feature_extractor(self) -> FeatureExtractorBase:
+        return self._feature_extractor
+
+    @feature_extractor.setter
+    def feature_extractor(self, feature_extractor: FeatureExtractorBase) -> None:
+        self._validate_feature_extractor(feature_extractor)
+        self._feature_extractor = feature_extractor
+
+    def _validate_feature_extractor(
+        self, feature_extractor: FeatureExtractorBase
+    ) -> None:
+        """
+        Validates a candidate feature extractor before it is stored.
+
+        :param feature_extractor: Feature extractor to validate.
+        :raises TypeError: If ``feature_extractor`` is not a
+            :class:`~pyvisim.features.FeatureExtractorBase` instance.
+        """
+        if not isinstance(feature_extractor, FeatureExtractorBase):
+            raise TypeError(
+                f"feature_extractor must be an instance of FeatureExtractorBase, not {type(feature_extractor)}"
+            )
+
+
+class ClusteringBasedEncoder(FeatureBasedEncoder):
+    """
+    Base class for image encoders that aggregate local features with a
+    clustering model. Subclasses (VLAD and Fisher Vector) use a combination of:
 
     - A feature extractor: Extract local features from an image (e.g. SIFT, SURF, or Deep Features).
     - A clustering model (K-Means for VLAD or GMM for Fisher Vector): aggregates local features to their
@@ -178,6 +387,22 @@ class ImageEncoderBase(SimilarityMetric):
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
 
+    #: Keys that a serialised state must contain to be a valid encoder file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "encoder_class",
+            "clustering_model",
+            "pca",
+            "power_norm_weight",
+            "norm_order",
+            "epsilon",
+            "flatten",
+            "raise_error_when_pca_incompatible",
+            "similarity_func",
+            "feature_extractor",
+        }
+    )
+
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
@@ -194,11 +419,8 @@ class ImageEncoderBase(SimilarityMetric):
         raise_error_when_pca_incompatible: bool = True,
     ):
         # Set important attributes via setters to trigger error handling
-        self._feature_extractor: FeatureExtractorBase
         self._clustering_model: ClusteringModelBase | None = None
         self._pca: PCA | None = None
-        self._similarity_func: SimilarityFunc
-        self._similarity_func_name: str
 
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
@@ -206,9 +428,10 @@ class ImageEncoderBase(SimilarityMetric):
         self.flatten = flatten
         self.raise_error_when_pca_incompatible = raise_error_when_pca_incompatible
 
-        self.similarity_func = similarity_func
-        self.feature_extractor = (
-            feature_extractor if feature_extractor is not None else RootSIFT()
+        # The feature extractor setter validates against the (currently unset)
+        # PCA / clustering model, so both must already exist as ``None`` above.
+        super().__init__(
+            feature_extractor=feature_extractor, similarity_func=similarity_func
         )
 
         if weights is not None:
@@ -246,16 +469,24 @@ class ImageEncoderBase(SimilarityMetric):
             self._clustering_model_cls.from_dict(clustering_state["clustering_model"])
         )
 
-    @property
-    def feature_extractor(self) -> FeatureExtractorBase:
-        return self._feature_extractor
+    def _validate_feature_extractor(
+        self, feature_extractor: FeatureExtractorBase
+    ) -> None:
+        """
+        Validates a candidate feature extractor against the configured PCA or
+        clustering model before it is stored.
 
-    @feature_extractor.setter
-    def feature_extractor(self, feature_extractor: FeatureExtractorBase) -> None:
-        if not isinstance(feature_extractor, FeatureExtractorBase):
-            raise TypeError(
-                f"feature_extractor must be an instance of FeatureExtractorBase, not {type(feature_extractor)}"
-            )
+        In addition to the type check performed by the base class, the feature
+        extractor output size must match the input size of the fitted PCA (if
+        any) or otherwise the fitted clustering model.
+
+        :param feature_extractor: Feature extractor to validate.
+        :raises TypeError: If ``feature_extractor`` is not a
+            :class:`~pyvisim.features.FeatureExtractorBase` instance.
+        :raises RuntimeError: If its output size is incompatible with the
+            fitted PCA or clustering model.
+        """
+        super()._validate_feature_extractor(feature_extractor)
         if self._pca is not None and self._pca.is_fitted:
             if feature_extractor.output_dim != self._pca.n_features_in:
                 raise RuntimeError(
@@ -269,22 +500,6 @@ class ImageEncoderBase(SimilarityMetric):
                         f"Feature Extractor outputs shape {feature_extractor.output_dim}, "
                         f"But clustering model accepts input dim {self._clustering_model.n_features_in}"
                     )
-        self._feature_extractor = feature_extractor
-
-    @property
-    def similarity_func(self) -> SimilarityFunc:
-        """The resolved similarity function callable."""
-        return self._similarity_func
-
-    @similarity_func.setter
-    def similarity_func(self, name: str) -> None:
-        self._similarity_func = get_similarity_func(name)
-        self._similarity_func_name = name
-
-    @property
-    def similarity_func_name(self) -> str:
-        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
-        return self._similarity_func_name
 
     @property
     def clustering_model(self) -> ClusteringModelBase | None:
@@ -434,8 +649,8 @@ class ImageEncoderBase(SimilarityMetric):
 
     @classmethod
     def from_pretrained(
-        cls: type[_EncoderT], pretrained: _PretrainedEncoder
-    ) -> _EncoderT:
+        cls: type[_ClusteringEncoderT], pretrained: _PretrainedEncoder
+    ) -> _ClusteringEncoderT:
         """
         Loads a bundled pretrained encoder.
 
@@ -469,7 +684,7 @@ class ImageEncoderBase(SimilarityMetric):
                 "fitted. Call 'learn' first."
             )
         return {
-            "format_version": _ENCODER_FILE_FORMAT_VERSION,
+            "format_version": _CLUSERING_ENCODER_FILE_FORMAT_VERSION,
             "encoder_class": type(self).__name__,
             "clustering_model": self._clustering_model.to_dict(),
             "pca": self._pca.to_dict() if self._pca is not None else None,
@@ -483,7 +698,9 @@ class ImageEncoderBase(SimilarityMetric):
         }
 
     @classmethod
-    def from_dict(cls: type[_EncoderT], state: dict[str, Any]) -> _EncoderT:
+    def from_dict(
+        cls: type[_ClusteringEncoderT], state: dict[str, Any]
+    ) -> _ClusteringEncoderT:
         """
         Rebuilds an encoder from a dictionary produced by :meth:`to_dict`.
 
@@ -510,106 +727,6 @@ class ImageEncoderBase(SimilarityMetric):
             cls._clustering_model_cls.from_dict(state["clustering_model"])
         )
         return encoder
-
-    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
-        """
-        Saves the learned state of this encoder to a ``.encoder`` file.
-
-
-        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
-        :return: The path of the written file.
-        :raises NotFittedError: If the clustering model is missing or not fitted.
-        """
-        path = pathlib.Path(path)
-        if path.suffix != _ENCODER_FILE_SUFFIX:
-            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
-        save_encoder_state(self.to_dict(), path)
-        return path
-
-    @classmethod
-    def load_from_disk(
-        cls: type[_EncoderT],
-        path: str | pathlib.Path,
-    ) -> _EncoderT:
-        """
-        Loads an encoder previously saved with :meth:`save_to_disk`.
-
-        :param path: Path to the ``.encoder`` file.
-        :return: A ready-to-use encoder instance.
-        :raises ValueError: If the file is not a valid ``.encoder`` file or
-            was saved by a different encoder class.
-        """
-        state = load_encoder_state(pathlib.Path(path))
-        if not _ENCODER_STATE_KEYS.issubset(state):
-            raise ValueError(f"File {path} is not a valid .encoder file.")
-        # TODO: in the future, verify format version by checking
-        # compatibility via _ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY
-        if state["encoder_class"] != cls.__name__:
-            raise ValueError(
-                f"File {path} was saved by {state['encoder_class']}. "
-                f"Load it with {state['encoder_class']}.load_from_disk instead."
-            )
-        return cls.from_dict(state)
-
-    @abc.abstractmethod
-    def encode(
-        self,
-        images: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
-        """
-        Encodes one or more images into a batch of vector representations.
-
-        Each image is normalized to a canonical ``uint8`` ``(H, W, C)`` array
-        before feature extraction, so NumPy arrays, torch tensors and other
-        array-like inputs are all accepted. When a batch axis is present (via
-        ``dims``), every image in the batch is encoded.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images. Consider using an iterator for large datasets.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: vector representations of the given images
-        """
-        raise NotImplementedError
-
-    def similarity_score(
-        self,
-        images1: ImageInput,
-        images2: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> Float32NumpyArray:
-        """
-        Computes vector encodings for two images and calculates the similarity score between them.
-
-        :param images1: First (batch of) image(s) as ``MatLike``.
-        :param images2: Second (batch of) image(s) as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: Similarity matrix between the two image batches.
-        """
-        vector1 = self.encode(images1, dims=dims, value_range=value_range)
-        vector2 = self.encode(images2, dims=dims, value_range=value_range)
-        result = self.similarity_func(vector1, vector2)
-        return np.asarray(result, dtype=np.float32)
 
     def __repr__(self) -> str:
         n_clusters = (
