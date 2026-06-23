@@ -1,15 +1,11 @@
 import logging
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from .._base_classes import SimilarityMetric
-from .._utils import get_similarity_func
 from ..typing import (
-    Float32NumpyArray,
     FloatNumpyArray,
     ImageInput,
-    SimilarityFunc,
 )
 from ._base_encoder import ImageEncoderBase
 from .utils import iter_images
@@ -18,10 +14,10 @@ from .utils import iter_images
 _PIPELINE_FORMAT_VERSION = 1
 
 
-class Pipeline(SimilarityMetric):
+class Pipeline(ImageEncoderBase):
     """
     A pipeline for computing feature vectors using a set of
-    descriptor-based encoders (e.g., VLAD, Fisher, etc.).
+    encoders.
 
     Currently, all vectors computed using the Encoders listed
     will always be flattened, because different Encoders also
@@ -34,6 +30,11 @@ class Pipeline(SimilarityMetric):
 
     _logger = logging.getLogger("Pipeline")
 
+    #: Keys a serialised state must contain to be a valid pipeline file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"encoder_class", "encoders", "similarity_func"}
+    )
+
     def __init__(
         self,
         encoders: list[ImageEncoderBase],
@@ -41,7 +42,7 @@ class Pipeline(SimilarityMetric):
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
-        self.similarity_func = similarity_func
+        super().__init__(similarity_func=similarity_func)
 
     def _check_valid_encoders(self, encoders: list[ImageEncoderBase]) -> None:
         """
@@ -120,58 +121,20 @@ class Pipeline(SimilarityMetric):
         image_list = list(iter_images(images, dims=dims, value_range=value_range))
         all_encodings = []
         for metric in self.encoders:
-            a = metric.flatten  # each encoder has to be flattened to be usable here. Saving the original state temporarily
-            metric.flatten = True
+            # Each encoder has to be flattened to be usable here. Encoders that
+            # do not expose a ``flatten`` flag are assumed to already emit flat
+            # ``(num_imgs, feature_dim)`` encodings.
+            has_flatten = hasattr(metric, "flatten")
+            if has_flatten:
+                original_flatten = metric.flatten  # type: ignore[attr-defined]
+                metric.flatten = True  # type: ignore[attr-defined]
             encodings = metric.encode(
                 image_list
             )  # Each of size (num_imgs, feature_dim)
             all_encodings.append(encodings)
-            metric.flatten = a
+            if has_flatten:
+                metric.flatten = original_flatten  # type: ignore[attr-defined]
         return np.hstack(all_encodings)
-
-    @property
-    def similarity_func(self) -> SimilarityFunc:
-        """The resolved similarity function callable."""
-        return self._similarity_func
-
-    @similarity_func.setter
-    def similarity_func(self, name: str) -> None:
-        self._similarity_func = get_similarity_func(name)
-        self._similarity_func_name = name
-
-    @property
-    def similarity_func_name(self) -> str:
-        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
-        return self._similarity_func_name
-
-    def similarity_score(
-        self,
-        images1: ImageInput,
-        images2: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> Float32NumpyArray:
-        """
-        Computes vector encodings for two images and calculates the similarity score between them.
-
-        :param images1: First (batch of) image(s) as ``MatLike``.
-        :param images2: Second (batch of) image(s) as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: Similarity matrix between the two image batches.
-        """
-        vector1 = self.encode(images1, dims=dims, value_range=value_range)
-        vector2 = self.encode(images2, dims=dims, value_range=value_range)
-        result = self.similarity_func(vector1, vector2)
-        return np.asarray(result, dtype=np.float32)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
     #     """
