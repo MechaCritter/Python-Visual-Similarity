@@ -2,10 +2,10 @@ from typing import cast
 
 import cv2
 import numpy as np
-import torch
 from sklearn.metrics.pairwise import cosine_similarity as cs
 from sklearn.metrics.pairwise import euclidean_distances, manhattan_distances
 
+from .lazy_import import is_tensor
 from .typing import (
     Float64NumpyArray,
     FloatNumpyArray,
@@ -38,7 +38,7 @@ def _as_2d_array(value: FloatNumpyArray) -> FloatNumpyArray:
     :param value: A NumPy array or a torch tensor.
     :return: A 2-D NumPy array of shape ``(N, D)``.
     """
-    if isinstance(value, torch.Tensor):
+    if is_tensor(value):
         value = value.cpu().numpy()
     return value.reshape(1, -1) if value.ndim == 1 else value
 
