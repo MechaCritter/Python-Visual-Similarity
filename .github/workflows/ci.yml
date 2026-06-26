@@ -86,7 +86,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group test
+        run: uv sync --group test --extra nn
 
       - name: Run pytest with coverage
         run: uv run --group test pytest -m "not slow"
@@ -115,7 +115,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group test
+        run: uv sync --group test --extra nn
 
       - name: Run slow tests
         run: uv run --group test pytest -m "slow"
