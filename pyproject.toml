@@ -53,6 +53,7 @@ include = ["pyvisim", "pyvisim.*"]
 pyvisim = [
     "res/model_files/*.encoder",
     "res/logging_config.yaml",
+    "py.typed",
 ]
 
 # Dependencies groups to isolate test env from production env
