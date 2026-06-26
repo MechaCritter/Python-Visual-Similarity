@@ -5,13 +5,22 @@ from multiprocessing import Process
 import requests
 import scipy
 from platformdirs import user_cache_dir
-from torch.utils.data import Dataset
-from torchvision import transforms
 from tqdm import tqdm
 
 from pyvisim._config import setup_logging
 from pyvisim._utils import read_image_rgb
+from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
+
+# OxfordFlowerDataset subclasses torch.utils.data.Dataset, so torch and
+# torchvision (the ``nn`` extra) are required to even define it. They are
+# imported lazily so importing pyvisim never requires them; importing this
+# module raises an actionable ImportError when they are missing.
+with OptionalImport(package="torch", extra="nn") as _torch_import:
+    from torch.utils.data import Dataset
+    from torchvision import transforms
+
+_torch_import.check()
 
 setup_logging()
 
