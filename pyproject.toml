@@ -99,6 +99,7 @@ plugins = ["numpy.typing.mypy_plugin"]
 [[tool.mypy.overrides]]
 module = [
   "faiss.*",
+  "open_clip.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",
