@@ -108,6 +108,7 @@ have any suggestions or questions!
 2. **Deep Learning Embeddings**  
    - Generate VLAD or Fisher vectors from neural network embeddings, e.g., VGG16 or other models.
    - Enhance your deep learning pipeline by leveraging traditional encoding methods on top of CNN features.
+   - Or skip the aggregation entirely and use `CLIPEncoder` for ready-made CLIP embeddings (`pip install "pyvisim[nn]"`).
 
 3. **Image Clustering**  
    - Cluster images based on their similarities to group them by category or content. An example and benchmarking
@@ -129,6 +130,13 @@ To use the library, you can simply install it via pip:
 ```bash
 pip install pyvisim
 ```
+
+If you want to use the `CLIPEncoder`, you need to install the `nn` extra:
+
+```bash
+pip install "pyvisim[nn]"
+```
+
 or clone the repository and install it locally:
 
 ```bash
