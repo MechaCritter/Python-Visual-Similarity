@@ -21,9 +21,6 @@ from .utils import iter_images
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
 
-_torch_import.check()
-
-
 with OptionalImport(package="open_clip_torch", extra="nn") as _open_clip_import:
     import open_clip
 
@@ -110,6 +107,7 @@ class CLIPEncoder(ImageEncoderBase):
         normalize: bool = True,
         similarity_func: str = "cosine",
     ) -> None:
+        _torch_import.check()
         _open_clip_import.check()
         super().__init__(similarity_func=similarity_func)
         self._model_name = model_name
