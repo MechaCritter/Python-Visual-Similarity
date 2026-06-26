@@ -43,6 +43,13 @@ dependencies = [
 #   uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 # Replace cu124 with the CUDA version matching your system (e.g. cu121, cu118).
 
+# Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
+[project.optional-dependencies]
+# Neural-network encoders (e.g. CLIPEncoder) built on top of open_clip.
+nn = [
+    "open_clip_torch",
+]
+
 [project.urls]
 Homepage = "https://github.com/MechaCritter/Python-Visual-Similarity"
 
@@ -93,6 +100,7 @@ plugins = ["numpy.typing.mypy_plugin"]
 [[tool.mypy.overrides]]
 module = [
   "faiss.*",
+  "open_clip.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",
