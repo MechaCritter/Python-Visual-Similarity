@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `CLIPEncoder` (in `pyvisim.encoders`): a pretrained-CLIP image encoder built on
+  open_clip. It maps an image straight to a CLIP embedding, so there's no feature
+  extractor, clustering model, or `learn` step. Embeddings are L2-normalized by default,
+  and it plugs into the usual `similarity_score` / `save_to_disk` / `load_from_disk`
+  machinery.
+
+  ```python
+  from pyvisim.encoders import CLIPEncoder
+
+  clip = CLIPEncoder(model_name="ViT-B-32", pretrained="laion2b_s34b_b79k")
+  embeddings = clip.encode(images)
+  ```
+
+  Saving stores only the model identifiers (`model_name`, `pretrained` tag, etc.), not
+  the weights, so `.encoder` files stay tiny and open_clip re-fetches the weights on load.
+- `nn` optional extra (`pip install "pyvisim[nn]"`) that pulls in `open_clip_torch` for
+  the neural-network encoders. open_clip is imported lazily, so importing `pyvisim` never
+  requires it; you only hit the error (with an install hint) when you build a
+  `CLIPEncoder` without it installed.
+
 ## [0.6.0] - 2026-06-20
 
 ### Added

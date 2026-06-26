@@ -2,12 +2,14 @@
 
 ## Overview
 The "encoders" module is responsible for computing image similarities, or more precisely the vector representations of visual content in
-images which can be used for tasks such as indexing, retrieval, clustering, and classification of images. The encoders in this module utilize
+images which can be used for tasks such as indexing, retrieval, clustering, and classification of images. Most encoders in this module utilize
 a combination of feature extraction techniques, clustering models, and a certain similarity function to generate these vector representations,
-depending on the specific implementation of the encoder.
-This module currently contains three core components:
+depending on the specific implementation of the encoder. The CLIP encoder is the exception: it is a pretrained neural network that maps an
+image directly to an embedding.
+This module currently contains these core components:
 - VLAD (Vector of Locally Aggregated Descriptors) Encoder
 - Fisher Vector Encoder
+- CLIP Encoder
 - Similarity Metric Pipeline
 
 ALl the feature extraction classes/methods are implemented in the `features` module.
@@ -64,6 +66,27 @@ why `load_from_disk` only needs the path.
 pyvisim also ships pretrained encoders. Load one with `VLADEncoder.from_pretrained(PretrainedVLAD.X)` or
 `FisherVectorEncoder.from_pretrained(PretrainedFisher.X)`. The older `weights=KMeansWeights.X` / `weights=GMMWeights.X`
 constructor argument is deprecated and will be removed in `1.0.0`.
+
+## CLIP Encoder
+The `CLIPEncoder` wraps a pretrained [open_clip](https://github.com/mlfoundations/open_clip) model and maps each image
+straight to a CLIP embedding, so there is no feature extractor, clustering model, or `learn` step. `open_clip` is a
+heavyweight dependency, so it ships as the optional `nn` extra and is imported lazily: importing `pyvisim` never requires
+it, and the error (with an install hint) only shows up if you actually build a `CLIPEncoder` without it installed.
+
+```bash
+pip install "pyvisim[nn]"
+```
+
+```python
+from pyvisim.encoders import CLIPEncoder
+
+clip = CLIPEncoder(model_name="ViT-B-32", pretrained="laion2b_s34b_b79k")
+embeddings = clip.encode(images)  # (num_images, D); L2-normalized by default
+```
+
+The weights download on first use and are cached by open_clip. Saving stores only the model identifiers (not the
+weights), so `.encoder` files stay tiny and `load_from_disk` re-fetches the weights to reproduce the original encodings.
+See [the CLIP docs](../../docs/encoders/clip.md) for the full rundown.
 
 ## Similarity Metric Pipeline
 The _Pipeline_ class is designed to handle multiple encoders simultaneously to compute feature vectors. It takes
