@@ -19,10 +19,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import faiss
-
+from ...lazy_import import OptionalImport
 from ...typing import Float32NumpyArray, FloatNumpyArray
 from ._base_index import ImageIndex, Quantizer
+
+# faiss ships in the ``search`` extra and is imported lazily (see _base_index).
+# Every index is built through ImageIndex.__init__, which raises the actionable
+# ImportError before any faiss symbol below is touched.
+with OptionalImport(package="faiss", extra="search"):
+    import faiss
 
 
 class ImageIndexIVFFlat(ImageIndex):

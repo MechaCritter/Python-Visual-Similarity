@@ -33,7 +33,6 @@ dependencies = [
     "scipy",
     "tqdm",
     "requests",
-    "faiss-cpu",
 ]
 
 # To install PyTorch with CUDA support instead of the CPU-only default:
@@ -50,6 +49,11 @@ nn = [
     "torchvision",
     "torchaudio",
     "open_clip_torch",
+]
+# Accelerated nearest-neighbour search and retrieval (ImageIndex,
+# InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.
+search = [
+    "faiss-cpu",
 ]
 
 [project.urls]
