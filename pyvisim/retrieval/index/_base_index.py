@@ -22,9 +22,6 @@ import numpy as np
 from ...lazy_import import OptionalImport
 from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
-# faiss ships in the ``search`` extra (``pip install "pyvisim[search]"``) and is
-# imported lazily, so importing pyvisim never requires it. The actionable
-# ImportError is raised when an index is constructed without faiss installed.
 with OptionalImport(package="faiss", extra="search") as _faiss_import:
     import faiss
 

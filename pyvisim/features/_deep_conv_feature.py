@@ -12,9 +12,6 @@ from ..lazy_import import OptionalImport
 from ..typing import Float32NumpyArray, MatLike
 from ._utils import _check_output_shape, _to_single_image
 
-# torch and torchvision ship in the ``nn`` extra (``pip install "pyvisim[nn]"``)
-# and are imported lazily, so importing pyvisim never requires them. The
-# actionable ImportError is raised when a DeepConvFeature is constructed.
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms

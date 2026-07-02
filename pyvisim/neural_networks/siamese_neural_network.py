@@ -5,10 +5,6 @@ from .._utils import cosine_similarity
 from ..lazy_import import OptionalImport
 from ..typing import MatLike, NumpyArray
 
-# SiameseNeuralNetwork subclasses torch.nn.Module, so torch (the ``nn`` extra)
-# is required to even define it. torch is imported lazily so importing pyvisim
-# never requires it; importing this module raises an actionable ImportError
-# when torch is missing.
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
 
