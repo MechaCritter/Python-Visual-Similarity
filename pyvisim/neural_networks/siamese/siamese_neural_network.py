@@ -16,19 +16,16 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 
 _torch_import.check()
 
-#: Standard ImageNet preprocessing applied to every input image.
-_IMAGENET_TRANSFORM = transforms.Compose(
-    [
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ]
-)
-
 
 class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     """
-    Siamese neural network for image similarity.
+    Siamese neural network for image similarity, proposed in
+    `Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
+    by Learning an Invariant Mapping`.
+
+    #TODO: this is currently the Implementation originating from
+    the paper [2]. Before the release, add the implementation from
+    paper [1] as well, and allow the user to choose between the two.
 
     Two images are passed through the same shared-weight ``backbone`` and
     projection ``head`` to produce embeddings, which are L2-normalized so that
@@ -52,6 +49,8 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     :param embedding_dim: Dimensionality of the projected embedding space.
     :param similarity_func: Callable used to score two embeddings; defaults to
         cosine similarity.
+    :param transform: processing transform applied to every input image. If
+        ``None``, the default ImageNet preprocessing is used.
     :param device: Device on which the model is placed.
     """
 
@@ -60,11 +59,18 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         backbone: torch.nn.Module | None = None,
         embedding_dim: int = 128,
         similarity_func: SimilarityFunc = cosine_similarity,
+        transform: transforms.Compose | None = None,
         device: str | torch.device = "cpu",
     ):
         super().__init__()
         self.device = torch.device(device)
         self._backbone = backbone if backbone is not None else ResNetBackbone()
+
+        if transform is not None:
+            self._transform = transform
+        else:
+            self._transform = self._get_imagenet_transform(self._backbone)
+
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
         self.similarity_func = similarity_func
@@ -84,6 +90,36 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         embeddings = self._head(features)
         embeddings = torch.nn.functional.normalize(embeddings, dim=1)
         return embeddings
+
+    @staticmethod
+    def _get_imagenet_transform(backbone: torch.nn.Module) -> transforms.Compose:
+        """
+        Returns the preprocessing transform for the given backbone.
+
+        NOTE
+        ----
+        This assumes that the backbone trained on ImageNet.
+
+        :param backbone: The backbone network.
+        :return: A torchvision transform that resizes, normalizes, and converts
+            images to tensors.
+        """
+        if isinstance(backbone, ResNetBackbone):
+            return transforms.Compose(
+                [
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225],
+                    ),
+                ]
+            )
+        else:
+            raise ValueError(
+                f"Unsupported backbone type: {type(backbone)}. Please provide a custom transform."
+            )
 
     def _preprocess(
         self,
@@ -113,7 +149,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         arr = (arr * 255).astype(np.uint8)
         pil_image = Image.fromarray(arr).convert("RGB")
 
-        return cast(torch.Tensor, _IMAGENET_TRANSFORM(pil_image))
+        return cast(torch.Tensor, self._transform(pil_image))
 
     @torch.no_grad()
     def encode(
