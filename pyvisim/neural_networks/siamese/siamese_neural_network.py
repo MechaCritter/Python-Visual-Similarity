@@ -217,3 +217,4 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
                 f"Expected new_head to have in_features equal to {self._backbone.output_dim}, got {new_head.in_features}"
             )
         self._head = new_head
+        self._head.to(self.device)
