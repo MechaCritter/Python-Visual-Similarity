@@ -17,8 +17,8 @@ and the Siamese Neural Networks.
 
 ## Table of Contents
 
-1. [Why **pyvisim**](#why-pyvisim)
-2. [Installation](#installation)
+1. [Installation](#installation)
+2. [Why **pyvisim**](#why-pyvisim)
 3. [Pretrained Models](#pretrained-models)
 4. [Contributing](#contributing)
 5. [Get in Touch](#get-in-touch)
@@ -38,6 +38,37 @@ For a technical deep-dive into the library internals, see the [developer documen
 > The first stable release will have the version tag `v1.0.0` and will come approximately by the
 > end of `August 2026`.
 
+## Installation
+
+To use the library, you can simply install it via pip:
+
+```bash
+```bash
+pip install pyvisim
+# For deep learning features and the OxfordFlowerDataset
+pip install "pyvisim[nn]"
+# For image search feature
+pip install "pyvisim[search]"
+```
+```
+
+or clone the repository and install it locally:
+
+```bash
+git clone https://github.com/MechaCritter/Python-Visual-Similarity.git
+cd Python-Visual-Similarity
+pip install .
+```
+Note that the *notebooks are only available if you clone the repository.*
+
+All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</ref>, for which I
+have created a custom dataset class. To use this class, import it as follows:
+
+```python
+from pyvisim.datasets import OxfordFlowerDataset
+```
+For more details on the dataset, please refer to the [documentation](pyvisim/datasets/README.md).
+
 ## Why `pyvisim`?
 
 `pyvisim` is designed to provide a simple and efficient way to compare images.
@@ -50,7 +81,7 @@ With just a few lines of code, you can compute the similarity score between two 
 
 ```python
 from pyvisim.encoders import VLADEncoder, PretrainedVLAD
-from pyvisim.datasets import OxfordFlowerDataset
+from pyvisim.datasets import OxfordFlowerDataset  # needs "nn" extra: install with `pip install "pyvisim[nn]"`
 
 # Load images from the Oxford Flower Dataset. Has to be NumPy Images!
 dataset = OxfordFlowerDataset()
@@ -125,37 +156,6 @@ have any suggestions or questions!
 5. **Siamese Network (Coming Soon!)**  
    - Train a neural network to learn a similarity function directly from pairs/triples of images.  
    - Possible use cases include face recognition, signature verification, or any image-based identity matching.
-
-## Installation
-
-To use the library, you can simply install it via pip:
-
-```bash
-```bash
-pip install pyvisim
-# For deep learning features and the OxfordFlowerDataset
-pip install "pyvisim[nn]"
-# For image search feature
-pip install "pyvisim[search]"
-```
-```
-
-or clone the repository and install it locally:
-
-```bash
-git clone https://github.com/MechaCritter/Python-Visual-Similarity.git
-cd Python-Visual-Similarity
-pip install .
-```
-Note that the *notebooks are only available if you clone the repository.*
-
-All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</ref>, for which I
-have created a custom dataset class. To use this class, import it as follows:
-
-```python
-from pyvisim.datasets import OxfordFlowerDataset
-```
-For more details on the dataset, please refer to the [documentation](pyvisim/datasets/README.md).
 
 ## Pretrained Models
 
