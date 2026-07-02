@@ -1,18 +1,36 @@
+from __future__ import annotations
+
 import warnings
 from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-import torch
-from torchvision import transforms
-from torchvision.models import VGG16_Weights, vgg16
 
 from .._base_classes import FeatureExtractorBase
 from .._config import setup_logging
+from ..lazy_import import OptionalImport
 from ..typing import Float32NumpyArray, MatLike
 from ._utils import _check_output_shape, _to_single_image
 
+with OptionalImport(package="torch", extra="nn") as _torch_import:
+    import torch
+    from torchvision import transforms
+    from torchvision.models import VGG16_Weights, vgg16
+
 setup_logging()
+
+
+def _resolve_device(device: str | None) -> str:
+    """
+    Resolve a requested device, auto-selecting CUDA when available.
+
+    :param device: ``"cuda"``, ``"cpu"`` or ``None`` to auto-select.
+    :return: The chosen device string. ``None`` becomes ``"cuda"`` when a CUDA
+        device is available, otherwise ``"cpu"``.
+    """
+    if device is None:
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    return device
 
 
 #: Maps a backbone identifier to a builder. The builder takes a ``pretrained``
@@ -143,7 +161,8 @@ class DeepConvFeature(FeatureExtractorBase):
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`
                        to see the ordering or use -1 for the last conv layer.
     :param spatial_encoding: If True, appends (x/W, y/H) to each descriptor.
-    :param device: 'cpu' or 'cuda'. Where to run the model.
+    :param device: 'cpu' or 'cuda'. Where to run the model. Defaults to
+                   ``None``, which auto-selects 'cuda' when available, else 'cpu'.
     :param transform: Optional torchvision.transforms.Compose. Default includes `to_tensor`, `resize(224, 224)`,
                         and normalization with ImageNet stats.
 
@@ -166,11 +185,12 @@ class DeepConvFeature(FeatureExtractorBase):
         target_submodule: str | None = None,
         layer_index: int = -1,
         spatial_encoding: bool = True,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        device: str | None = None,
         transform: transforms.Compose = None,
         **kwargs: Any,
     ):
         super().__init__()
+        _torch_import.check()
         backbone = self._resolve_deprecated_model(backbone, kwargs)
         # Track whether a rebuildable (torchvision-default) model is used: when
         # serialising, such a model is rebuilt from torchvision on load (no
@@ -181,7 +201,7 @@ class DeepConvFeature(FeatureExtractorBase):
         self._target_submodule = target_submodule
         self.layer_index = layer_index
         self.spatial_encoding = spatial_encoding
-        self.device = device
+        self.device = _resolve_device(device)
         self.transform = transform
         if self.transform is None:
             self.transform = transforms.Compose(
@@ -288,7 +308,7 @@ class DeepConvFeature(FeatureExtractorBase):
         return config
 
     @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> "DeepConvFeature":
+    def _from_config(cls, config: dict[str, Any]) -> DeepConvFeature:
         """
         Rebuild a :class:`DeepConvFeature` from a serialised configuration.
 
@@ -301,7 +321,9 @@ class DeepConvFeature(FeatureExtractorBase):
         :return: A reconstructed deep feature extractor.
         :raises ValueError: If the stored model architecture is not known and
             cannot be rebuilt automatically.
+        :raises ImportError: If the optional torch dependency is not installed.
         """
+        _torch_import.check()
         arch = config["model_arch"]
         default_model = config.get("default_model", True)
         device = config.get("device", "cpu")

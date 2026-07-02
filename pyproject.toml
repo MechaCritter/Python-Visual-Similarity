@@ -31,12 +31,8 @@ dependencies = [
     "safetensors",
     "scikit-learn",
     "scipy",
-    "torch",
-    "torchvision",
-    "torchaudio",
     "tqdm",
     "requests",
-    "faiss-cpu",
 ]
 
 # To install PyTorch with CUDA support instead of the CPU-only default:
@@ -45,9 +41,19 @@ dependencies = [
 
 # Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
 [project.optional-dependencies]
-# Neural-network encoders (e.g. CLIPEncoder) built on top of open_clip.
+# Deep-learning features and encoders (DeepConvFeature, CLIPEncoder, the
+# datasets and neural_networks modules) built on top of torch / torchvision /
+# open_clip.
 nn = [
+    "torch",
+    "torchvision",
+    "torchaudio",
     "open_clip_torch",
+]
+# Accelerated nearest-neighbour search and retrieval (ImageIndex,
+# InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.
+search = [
+    "faiss-cpu",
 ]
 
 [project.urls]

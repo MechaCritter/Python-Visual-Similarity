@@ -1,10 +1,10 @@
 from collections.abc import Iterable, Iterator
 
 import numpy as np
-import torch
 
 from .._errors import InvalidImageError
 from ..features._utils import grayscale_dims
+from ..lazy_import import is_tensor
 from ..typing import ImageInput, UInt8NumpyArray, _to_image_list
 
 
@@ -34,11 +34,11 @@ def iter_images(
     :return: An iterator over ``uint8`` images of shape ``(H, W[, C])``.
     :raises InvalidImageError: If a string/bytes object is passed as an image.
     """
-    if not isinstance(images, (np.ndarray, torch.Tensor, Iterable)):
+    if not (isinstance(images, (np.ndarray, Iterable)) or is_tensor(images)):
         raise InvalidImageError(
             f"Expected image array(s), but got a {type(images).__name__} object."
         )
-    if isinstance(images, (np.ndarray, torch.Tensor)):
+    if isinstance(images, np.ndarray) or is_tensor(images):
         yield from _to_image_list(images, dims, value_range)
         return
     if isinstance(images, Iterable):

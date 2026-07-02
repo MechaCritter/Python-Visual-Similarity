@@ -2,6 +2,10 @@
 
 File: [`_features.py`](../../pyvisim/features/_features.py)
 
+> [!NOTE]
+> Requires extra: `nn` (`pip install "pyvisim[nn]"`)
+
+
 Extracts local descriptors from the convolutional feature map of a neural network
 (default VGG16). Each spatial location in the chosen conv layer becomes one descriptor,
 giving a CNN-based alternative to SIFT that plugs into the same encoders.

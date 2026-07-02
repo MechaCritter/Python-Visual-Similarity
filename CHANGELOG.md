@@ -18,10 +18,23 @@
 
   Saving stores only the model identifiers (`model_name`, `pretrained` tag, etc.), not
   the weights, so `.encoder` files stay tiny and open_clip re-fetches the weights on load.
-- `nn` optional extra (`pip install "pyvisim[nn]"`) that pulls in `open_clip_torch` for
-  the neural-network encoders. open_clip is imported lazily, so importing `pyvisim` never
-  requires it; you only hit the error (with an install hint) when you build a
-  `CLIPEncoder` without it installed.
+- `nn` optional extra (`pip install "pyvisim[nn]"`) now pulls in the whole deep-learning
+  stack: `torch`, `torchvision`, `torchaudio` and `open_clip_torch`. It covers
+  `DeepConvFeature` (VGG16 deep features), `CLIPEncoder`, and the `datasets` and
+  `neural_networks` modules. Everything is imported lazily, so importing `pyvisim` never
+  requires it; you only hit the error (with an install hint) the first time you actually
+  build one of these without it installed.
+- `search` optional extra (`pip install "pyvisim[search]"`) that pulls in `faiss-cpu` for
+  the retrieval / image-store stack: `InMemoryImageEmbeddingStore`, `ImageRetriever` and
+  the `ImageIndex*` classes. faiss is imported lazily too, so you only need it when you
+  build a store or an index.
+
+### Breaking
+- ⚠️ `pip install pyvisim` no longer installs torch or faiss. The base install now covers
+  the SIFT/RootSIFT encoders only. Install `[nn]` for deep features and CLIP, `[search]`
+  for the image store and retrieval, or `pip install "pyvisim[nn,search]"` for everything.
+  Heads up: the VGG16 pretrained encoders (`OXFORD102_K256_VGG16*`) build a
+  `DeepConvFeature`, so they now need the `nn` extra.
 
 ## [0.6.0] - 2026-06-20
 

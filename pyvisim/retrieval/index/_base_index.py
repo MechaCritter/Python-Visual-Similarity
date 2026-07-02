@@ -17,19 +17,33 @@ import abc
 from collections.abc import Sequence
 from typing import Any, Literal, cast
 
-import faiss
 import numpy as np
 
+from ...lazy_import import OptionalImport
 from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
-#: Supported quantizer/metric choices, mapped to their FAISS metric constant.
-_METRICS: dict[str, int] = {
-    "l2": faiss.METRIC_L2,
-    "inner_product": faiss.METRIC_INNER_PRODUCT,
-}
+with OptionalImport(package="faiss", extra="search") as _faiss_import:
+    import faiss
+
+#: Supported quantizer/metric choices accepted by the ``quantizer`` argument.
+_SUPPORTED_QUANTIZERS = ("l2", "inner_product")
 
 #: Literal alias for the accepted ``quantizer`` argument.
 Quantizer = Literal["l2", "inner_product"]
+
+
+def _faiss_metric(quantizer: Quantizer) -> int:
+    """
+    Map a quantizer name to its FAISS metric constant.
+
+    :param quantizer: ``"l2"`` or ``"inner_product"``.
+    :return: The matching FAISS metric constant.
+    """
+    metrics: dict[str, int] = {
+        "l2": faiss.METRIC_L2,
+        "inner_product": faiss.METRIC_INNER_PRODUCT,
+    }
+    return metrics[quantizer]
 
 
 class ImageIndex(abc.ABC):
@@ -47,6 +61,8 @@ class ImageIndex(abc.ABC):
     :raises ValueError: If ``quantizer`` is unknown, the gallery is empty, the
         vectors are not a 2-D matrix, or ``paths`` and ``vectors`` differ in
         length.
+    :raises ImportError: If the optional ``faiss`` dependency (the ``search``
+        extra) is not installed.
     """
 
     def __init__(
@@ -56,10 +72,11 @@ class ImageIndex(abc.ABC):
         *,
         quantizer: Quantizer = "l2",
     ) -> None:
-        if quantizer not in _METRICS:
+        _faiss_import.check()
+        if quantizer not in _SUPPORTED_QUANTIZERS:
             raise ValueError(
                 f"Unsupported quantizer {quantizer!r}. Supported quantizers are: "
-                f"{sorted(_METRICS)}."
+                f"{sorted(_SUPPORTED_QUANTIZERS)}."
             )
 
         # Copy into a fresh contiguous float32 matrix so the in-place
@@ -78,7 +95,7 @@ class ImageIndex(abc.ABC):
             )
 
         self._quantizer: Quantizer = quantizer
-        self._metric = _METRICS[quantizer]
+        self._metric = _faiss_metric(quantizer)
         self._paths: list[str] = list(paths)
         self._dim = int(gallery.shape[1])
 
