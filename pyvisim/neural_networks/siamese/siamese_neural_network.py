@@ -43,20 +43,19 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     Computer Society Conference on Computer Vision and Pattern Recognition
     (CVPR), Vol. 2, 1735-1742. https://doi.org/10.1109/CVPR.2006.100
 
-    :param backbone: Feature-extraction network exposing an ``output_dim``
-        attribute (e.g. a ResNet-18 with its final layer removed). Defaults to a
-        pretrained :class:`ResNetBackbone` when ``None``.
+    :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
     :param embedding_dim: Dimensionality of the projected embedding space.
     :param similarity_func: Callable used to score two embeddings; defaults to
         cosine similarity.
     :param transform: processing transform applied to every input image. If
-        ``None``, the default ImageNet preprocessing is used.
+        ``None``, the default ImageNet preprocessing is used depending
+        on the backbone. See :meth:`_get_imagenet_transform`.
     :param device: Device on which the model is placed.
     """
 
     def __init__(
         self,
-        backbone: torch.nn.Module | None = None,
+        backbone: str = "resnet18",
         embedding_dim: int = 128,
         similarity_func: SimilarityFunc = cosine_similarity,
         transform: transforms.Compose | None = None,
@@ -64,12 +63,12 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     ):
         super().__init__()
         self.device = torch.device(device)
-        self._backbone = backbone if backbone is not None else ResNetBackbone()
+        self._backbone = self._get_backbone(backbone)
 
         if transform is not None:
             self._transform = transform
         else:
-            self._transform = self._get_imagenet_transform(self._backbone)
+            self._transform = self._get_imagenet_transform(backbone)
 
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
@@ -92,7 +91,23 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         return embeddings
 
     @staticmethod
-    def _get_imagenet_transform(backbone: torch.nn.Module) -> transforms.Compose:
+    def _get_backbone(backbone: str) -> torch.nn.Module:
+        """
+        Returns the backbone network corresponding to the given name.
+
+        :param backbone: Name of the backbone network.
+        :return: A PyTorch module implementing the backbone.
+        :raises ValueError: If ``backbone`` is not recognized.
+        """
+        if backbone == "resnet18":
+            return ResNetBackbone(pretrained=True)
+        else:
+            raise ValueError(
+                f"Unsupported backbone type: {type(backbone)}. Please provide a custom backbone."
+            )
+
+    @staticmethod
+    def _get_imagenet_transform(backbone: str) -> transforms.Compose:
         """
         Returns the preprocessing transform for the given backbone.
 
@@ -100,11 +115,11 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         ----
         This assumes that the backbone trained on ImageNet.
 
-        :param backbone: The backbone network.
+        :param backbone: The name of the backbone network.
         :return: A torchvision transform that resizes, normalizes, and converts
             images to tensors.
         """
-        if isinstance(backbone, ResNetBackbone):
+        if backbone == "resnet18":
             return transforms.Compose(
                 [
                     transforms.Resize(256),
