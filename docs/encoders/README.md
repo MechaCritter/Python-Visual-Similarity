@@ -22,7 +22,8 @@ pass at construction, then fit it in `learn`. Trained encoders are saved and
 restored with `save_to_disk` / `load_from_disk`; the older pretrained-weight enums
 in [weights.md](weights.md) still work but are deprecated. `CLIPEncoder` skips the
 `learn` step entirely (its weights are already pretrained) and needs the `nn`
-extra: `pip install "pyvisim[nn]"`.
+extra: `pip install "pyvisim[nn]"`. The same extra is required for the VGG16
+`DeepConvFeature` extractor.
 
 ## VLAD vs Fisher Vector
 

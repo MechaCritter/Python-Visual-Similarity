@@ -3,6 +3,9 @@
 File: [`pyvisim/image_store/__init__.py`](../pyvisim/image_store/__init__.py)
 (Implementation: [`pyvisim/image_store/image_store.py`](../pyvisim/image_store/image_store.py))
 
+> [!NOTE]
+> Requires extra: `search` (`pip install "pyvisim[search]"`)
+
 `InMemoryImageEmbeddingStore` is the gallery object the retrieval pipeline is built
 around. You give it a list of image paths, an encoder, and the kind of index you want;
 it encodes every image, builds a FAISS index over the embeddings, and from then on you
