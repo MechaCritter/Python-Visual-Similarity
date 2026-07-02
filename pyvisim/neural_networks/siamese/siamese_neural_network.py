@@ -41,6 +41,11 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     [1] Koch, G., Zemel, R., & Salakhutdinov, R. (2015). Siamese Neural Networks
     for One-shot Image Recognition. ICML Deep Learning Workshop.
 
+    [2] Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
+    by Learning an Invariant Mapping. In Proceedings of the 2006 IEEE
+    Computer Society Conference on Computer Vision and Pattern Recognition
+    (CVPR), Vol. 2, 1735-1742. https://doi.org/10.1109/CVPR.2006.100
+
     :param backbone: Feature-extraction network exposing an ``output_dim``
         attribute (e.g. a ResNet-18 with its final layer removed). Defaults to a
         pretrained :class:`ResNetBackbone` when ``None``.
