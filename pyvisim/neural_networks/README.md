@@ -44,8 +44,8 @@ This architecture further helps to achieve:
 1. **Siamese Neural Networks for One-shot Image Recognition**
 https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf
 
-2. **Dimensionality Reduction by Learning an Invariant Mapping**
-https://arxiv.org/abs/2004.11362
+2. **Dimensionality Reduction by Learning an Invariant Mapping** (Hadsell, Chopra, & LeCun, 2006)
+http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
 3. **Deep Residual Learning for Image Recognition**
 https://arxiv.org/abs/1512.03385
