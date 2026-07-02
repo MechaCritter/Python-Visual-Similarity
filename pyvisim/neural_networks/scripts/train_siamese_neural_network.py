@@ -3,46 +3,17 @@ import random
 from typing import Any
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
-from torchvision import models, transforms
+from torchvision import transforms
 
-from ..datasets import OxfordFlowerDataset
-from .losses import ContrastiveLoss
-from .siamese_neural_network import SiameseNeuralNetwork
+from ...datasets import OxfordFlowerDataset
+from ..losses import ContrastiveLoss
+from ..siamese import ResNetBackbone, SiameseNeuralNetwork
 
 SEED = 42
 random.seed(SEED)
 torch.manual_seed(SEED)
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-class ResNetBackbone(nn.Module):
-    """
-    ResNet-18 backbone with its final fully-connected layer removed.
-
-    The classification head is stripped so the network outputs raw features;
-    ``output_dim`` reports their dimensionality (512 for ResNet-18).
-
-    :param pretrained: Whether to load the default ImageNet-pretrained weights.
-    """
-
-    def __init__(self, pretrained: bool = True) -> None:
-        super().__init__()
-        weights = models.ResNet18_Weights.DEFAULT if pretrained else None
-        base = models.resnet18(weights=weights)
-        self.features = nn.Sequential(*list(base.children())[:-1])
-        self.output_dim = base.fc.in_features
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Extracts flattened backbone features.
-
-        :param x: Input image tensor of shape (batch, channels, H, W).
-        :return: Feature tensor of shape (batch, output_dim).
-        """
-        x = self.features(x)
-        return x.flatten(1)
 
 
 # Dataset returns uint8 HWC numpy arrays, so we convert via PIL.

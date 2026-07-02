@@ -3,11 +3,12 @@ from typing import cast
 import numpy as np
 from PIL import Image
 
-from .._base_classes import SimilarityMetric
-from .._utils import cosine_similarity
-from ..encoders.utils import iter_images
-from ..lazy_import import OptionalImport
-from ..typing import FloatNumpyArray, ImageInput, MatLike, SimilarityFunc
+from ..._base_classes import SimilarityMetric
+from ..._utils import cosine_similarity
+from ...encoders.utils import iter_images
+from ...lazy_import import OptionalImport
+from ...typing import FloatNumpyArray, ImageInput, MatLike, SimilarityFunc
+from .backbones import ResNetBackbone
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
@@ -41,7 +42,8 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     for One-shot Image Recognition. ICML Deep Learning Workshop.
 
     :param backbone: Feature-extraction network exposing an ``output_dim``
-        attribute (e.g. a ResNet-18 with its final layer removed).
+        attribute (e.g. a ResNet-18 with its final layer removed). Defaults to a
+        pretrained :class:`ResNetBackbone` when ``None``.
     :param embedding_dim: Dimensionality of the projected embedding space.
     :param similarity_func: Callable used to score two embeddings; defaults to
         cosine similarity.
@@ -50,15 +52,15 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
 
     def __init__(
         self,
-        backbone: torch.nn.Module,
-        embedding_dim: int,
+        backbone: torch.nn.Module | None = None,
+        embedding_dim: int = 128,
         similarity_func: SimilarityFunc = cosine_similarity,
         device: str | torch.device = "cpu",
     ):
         super().__init__()
         self.device = torch.device(device)
-        self._backbone = backbone
-        output_dim = cast(int, backbone.output_dim)
+        self._backbone = backbone if backbone is not None else ResNetBackbone()
+        output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
         self.similarity_func = similarity_func
         self.to(self.device)
