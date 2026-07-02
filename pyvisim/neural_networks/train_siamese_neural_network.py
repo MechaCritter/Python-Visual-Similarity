@@ -277,6 +277,7 @@ def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
     :param img_path_a: Path to the first image.
     :param img_path_b: Path to the second image.
     """
+    import numpy as np
     from PIL import Image
 
     backbone = ResNetBackbone(pretrained=False)
@@ -287,9 +288,9 @@ def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
     model.load_state_dict(ckpt["model"])
     print(f"Loaded checkpoint from epoch {ckpt['epoch']}")
 
-    img_a = Image.open(img_path_a).convert("RGB")
-    img_b = Image.open(img_path_b).convert("RGB")
-    score = model.similarity_score(img_a, img_b)
+    img_a = np.asarray(Image.open(img_path_a).convert("RGB"))
+    img_b = np.asarray(Image.open(img_path_b).convert("RGB"))
+    score = float(model.similarity_score(img_a, img_b).item())
     print(f"Similarity: {score:.4f}  (range -1 to 1, higher = more similar)")
 
 

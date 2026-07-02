@@ -5,14 +5,24 @@ from PIL import Image
 
 from .._base_classes import SimilarityMetric
 from .._utils import cosine_similarity
+from ..encoders.utils import iter_images
 from ..lazy_import import OptionalImport
-from ..typing import FloatNumpyArray, MatLike, SimilarityFunc
+from ..typing import FloatNumpyArray, ImageInput, MatLike, SimilarityFunc
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
 
 _torch_import.check()
+
+#: Standard ImageNet preprocessing applied to every input image.
+_IMAGENET_TRANSFORM = transforms.Compose(
+    [
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
 
 
 class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
@@ -68,107 +78,115 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         embeddings = torch.nn.functional.normalize(embeddings, dim=1)
         return embeddings
 
-    def preprocess(
+    def _preprocess(
         self,
-        image: MatLike | Image.Image,
+        image: MatLike,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0, 255),
     ) -> torch.Tensor:
         """
         Preprocesses an image into a model-ready tensor.
 
-        Array inputs are rescaled from ``value_range`` to ``[0, 1]`` and routed
+        The input is rescaled from ``value_range`` to ``[0, 1]`` and routed
         through PIL; the image is then resized to 224x224 and normalized with
         the standard ImageNet statistics.
 
-        :param image: Input image as a PIL image or ``MatLike`` array.
-        :param dims: Channel layout for array input, ``"HWC"`` (height x width x
+        :param image: Input image as a ``MatLike`` array.
+        :param dims: Channel layout of the input, ``"HWC"`` (height x width x
             channels) or ``"CHW"`` (channels x height x width).
         :param value_range: The ``(low, high)`` range the input values live in.
         :return: A normalized image tensor of shape (channels, 224, 224).
         """
-        if not isinstance(image, Image.Image):
-            arr = np.asarray(image, dtype=np.float32)
-            if dims.upper() == "CHW":
-                arr = arr.transpose(1, 2, 0)
-            lo, hi = value_range
-            arr = (arr - lo) / (hi - lo + 1e-8)
-            arr = np.clip(arr, 0, 1)
-            arr = (arr * 255).astype(np.uint8)
-            image = Image.fromarray(arr)
+        arr = np.asarray(image, dtype=np.float32)
+        if dims.upper() == "CHW":
+            arr = arr.transpose(1, 2, 0)
+        lo, hi = value_range
+        arr = (arr - lo) / (hi - lo + 1e-8)
+        arr = np.clip(arr, 0, 1)
+        arr = (arr * 255).astype(np.uint8)
+        pil_image = Image.fromarray(arr).convert("RGB")
 
-        image = image.convert("RGB")
-
-        transform = transforms.Compose(
-            [
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        )
-        tensor: torch.Tensor = transform(image)
-        return tensor
+        return cast(torch.Tensor, _IMAGENET_TRANSFORM(pil_image))
 
     @torch.no_grad()
     def encode(
         self,
-        image: MatLike | Image.Image,
+        images: ImageInput,
+        *,
         dims: str = "HWC",
-        value_range: tuple[float, float] = (0, 255),
+        value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Encodes a single image into its embedding vector.
+        Encodes one or more images into a batch of embedding vectors.
 
-        The model is switched to eval mode so that ``BatchNorm`` and ``Dropout``
-        behave correctly during inference, and the previous training state is
-        restored afterwards so the training loop is not disrupted.
+        All images are preprocessed, stacked into a single batch and passed
+        through the network in one forward pass. The model is switched to eval
+        mode so that ``BatchNorm`` and ``Dropout`` behave correctly during
+        inference, and the previous training state is restored afterwards so
+        the training loop is not disrupted.
 
-        :param image: Input image as a PIL image or ``MatLike`` array.
-        :param dims: Channel layout of the input, ``"HWC"`` or ``"CHW"``.
-        :param value_range: The ``(low, high)`` range the input values live in.
-        :return: The image embedding as a 1-D NumPy array.
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: ``(N, embedding_dim)`` array holding one L2-normalized
+            embedding per input image.
+        :raises ValueError: If ``images`` contains no image.
         """
         was_training = self.training
         self.eval()
         try:
-            x = self.preprocess(image, dims=dims, value_range=value_range)
-            x = x.unsqueeze(0).to(self.device)
-            embedding = self.forward(x)
-            return cast(FloatNumpyArray, embedding.cpu().numpy().squeeze())
+            tensors = [
+                self._preprocess(image)
+                for image in iter_images(images, dims=dims, value_range=value_range)
+            ]
+            if not tensors:
+                raise ValueError("Expected at least one image to encode, got none.")
+            batch = torch.stack(tensors).to(self.device)
+            embeddings = self.forward(batch)
+            return cast(FloatNumpyArray, embeddings.cpu().numpy())
         finally:
             if was_training:
                 self.train()
 
-    def similarity_score(  # type: ignore[override]
+    def similarity_score(
         self,
-        image_a: MatLike | Image.Image,
-        image_b: MatLike | Image.Image,
-        dims_a: str = "HWC",
-        dims_b: str = "HWC",
-        value_range: tuple[float, float] = (0, 255),
-    ) -> float:
+        image1: ImageInput,
+        image2: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> FloatNumpyArray:
         """
-        Computes the similarity between two images.
+        Computes the similarity matrix between two image batches.
 
-        .. note::
-            This overrides :meth:`SimilarityMetric.similarity_score` with a
-            pairwise, scalar-returning signature: it accepts a separate channel
-            layout for each image and returns a single ``float`` score rather
-            than a similarity matrix.
+        Both inputs are encoded with :meth:`encode` and the resulting embedding
+        batches are scored with ``similarity_func``.
 
-        :param image_a: First image as a PIL image or ``MatLike`` array.
-        :param image_b: Second image as a PIL image or ``MatLike`` array.
-        :param dims_a: Channel layout of ``image_a``, ``"HWC"`` or ``"CHW"``.
-        :param dims_b: Channel layout of ``image_b``, ``"HWC"`` or ``"CHW"``.
-        :param value_range: The ``(low, high)`` range the input values live in.
-        :return: The similarity score produced by ``similarity_func``.
+        :param image1: First (batch of) image(s) as ``MatLike``.
+        :param image2: Second (batch of) image(s) as ``MatLike``.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: Similarity matrix of shape ``(N, M)`` produced by
+            ``similarity_func``.
         """
-        emb_a = self.encode(image=image_a, dims=dims_a, value_range=value_range)
-        emb_b = self.encode(image=image_b, dims=dims_b, value_range=value_range)
-        score = self.similarity_func(emb_a, emb_b)
-        return float(score.item())
+        embeddings1 = self.encode(image1, dims=dims, value_range=value_range)
+        embeddings2 = self.encode(image2, dims=dims, value_range=value_range)
+        return np.asarray(self.similarity_func(embeddings1, embeddings2))
 
     @property
     def head(self) -> torch.nn.Module:
