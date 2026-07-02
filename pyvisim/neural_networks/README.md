@@ -1,8 +1,10 @@
 # Siamese Neural Network for Image Similarity
+
 A PyTorch implementation of a **Siamese Neural Network (SNN)** for image similarity. This implementation supports image embedding generation, similarity scoring, and end-to-end training on the Oxford Flowers dataset using a ResNet-18 backbone.
 
 
 ## Overview
+
 Siamese Neural Networks are designed to learn a meaningful embedding space where:
 
 * Similar images are mapped close together.
@@ -26,13 +28,17 @@ Embedding A + Embedding B
 ```
 
 The siamese neural network implementation consists of:
+
 1. **Backbone Network**:
+
 A feature extraction network (e.g., ResNet-18).
 
 2. **Projection Head**:
+
 A fully connected layer that projects backbone features into a lower-dimensional embedding space.
 
 3. **Embedding Normalization**:
+
 L2 normalization is applied to embeddings.
 
 This architecture further helps to achieve:
@@ -41,6 +47,7 @@ This architecture further helps to achieve:
 * Efficient cosine similarity computation
 
 ## References
+
 1. **Siamese Neural Networks for One-shot Image Recognition**
 https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf
 
