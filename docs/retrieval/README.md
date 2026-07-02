@@ -2,6 +2,9 @@
 
 File: [`pyvisim/retrieval/__init__.py`](../../pyvisim/retrieval/__init__.py)
 
+> [!NOTE]
+> Requires extra: `search` (`pip install "pyvisim[search]"`)
+
 The `retrieval` package finds the images in a gallery that look most like a query
 image. The gallery is an
 [`InMemoryImageEmbeddingStore`](../image_store.md), which builds a FAISS index over
