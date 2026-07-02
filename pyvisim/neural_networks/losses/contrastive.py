@@ -22,11 +22,14 @@ class ContrastiveLoss(torch.nn.Module):
     for One-shot Image Recognition. ICML Deep Learning Workshop.
 
     :param margin: Distance beyond which dissimilar pairs incur no loss.
+    :raises ValueError: If ``margin`` is not strictly positive.
     """
 
     def __init__(self, margin: float = 1.0) -> None:
         _torch_import.check()
         super().__init__()
+        if margin <= 0:
+            raise ValueError(f"margin must be > 0, got {margin}.")
         self.margin = margin
 
     def forward(
@@ -41,9 +44,30 @@ class ContrastiveLoss(torch.nn.Module):
             pairs, shape (batch,).
         :return: The scalar loss averaged over the batch.
         """
+        self._validate_inputs(emb_a, emb_b, labels)
         distance = torch.nn.functional.pairwise_distance(emb_a, emb_b)
         loss = 0.5 * (
             labels * distance.pow(2)
             + (1 - labels) * torch.clamp(self.margin - distance, min=0).pow(2)
         )
         return loss.mean()
+
+    @staticmethod
+    def _validate_inputs(
+        emb_a: torch.Tensor, emb_b: torch.Tensor, labels: torch.Tensor
+    ) -> None:
+        """Check shape consistency and binary labels.
+
+        :raises ValueError: If validation fails.
+        """
+        if emb_a.shape != emb_b.shape:
+            raise ValueError(
+                f"Embedding shapes differ: {emb_a.shape} vs {emb_b.shape}."
+            )
+        if labels.shape[0] != emb_a.shape[0]:
+            raise ValueError(
+                f"Batch size mismatch: {labels.shape[0]} labels for "
+                f"{emb_a.shape[0]} embedding pairs."
+            )
+        if not torch.all((labels == 0) | (labels == 1)):
+            raise ValueError("labels must contain only 0 and 1.")
