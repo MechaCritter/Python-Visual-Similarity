@@ -47,13 +47,13 @@ rescaled into the canonical ``[0, 255]`` range.
 """
 
 from collections.abc import Callable, Iterable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import numpy.typing as npt
-import torch
 
 from .._errors import InvalidImageError
+from ..lazy_import import is_tensor
 
 #: Generic NumPy array of any dtype.
 NumpyArray = npt.NDArray[np.generic]
@@ -74,7 +74,14 @@ SimilarityFunc = Callable[[FloatNumpyArray, FloatNumpyArray], FloatNumpyArray]
 
 #: Anything that can be turned into a numerical NumPy array: a NumPy array, a
 #: PyTorch tensor, or any array-like object (e.g. nested lists of numbers).
-MatLike = torch.Tensor | npt.ArrayLike
+#: ``torch.Tensor`` is part of the union only when torch (the ``nn`` extra) is
+#: installed; without torch the alias collapses to ``npt.ArrayLike`` at runtime.
+if TYPE_CHECKING:
+    import torch
+
+    MatLike = torch.Tensor | npt.ArrayLike
+else:
+    MatLike = npt.ArrayLike
 
 #: A single image or a collection of images. Either one ``MatLike`` object
 #: (optionally carrying a batch axis) or an iterable of ``MatLike`` images.
@@ -93,7 +100,7 @@ def _to_ndarray(data: MatLike) -> NumpyArray:
     :return: The data as a NumPy array.
     :raises InvalidImageError: If the data cannot be turned into a numeric array.
     """
-    if isinstance(data, torch.Tensor):
+    if is_tensor(data):
         return data.detach().cpu().numpy()
     if isinstance(data, np.ndarray):
         array = data

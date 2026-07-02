@@ -1,10 +1,14 @@
 from collections.abc import Callable
 
-import torch
-
 from .._base_classes import SimilarityMetric
 from .._utils import cosine_similarity
+from ..lazy_import import OptionalImport
 from ..typing import MatLike, NumpyArray
+
+with OptionalImport(package="torch", extra="nn") as _torch_import:
+    import torch
+
+_torch_import.check()
 
 
 class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):

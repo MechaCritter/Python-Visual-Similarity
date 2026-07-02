@@ -10,7 +10,6 @@ requires it: the actionable :class:`ImportError` is raised only when a
 from typing import Any
 
 import numpy as np
-import torch
 from PIL import Image
 
 from .._config import setup_logging
@@ -18,6 +17,9 @@ from ..lazy_import import OptionalImport
 from ..typing import Float32NumpyArray, ImageInput, UInt8NumpyArray
 from ._base_encoder import ImageEncoderBase
 from .utils import iter_images
+
+with OptionalImport(package="torch", extra="nn") as _torch_import:
+    import torch
 
 with OptionalImport(package="open_clip_torch", extra="nn") as _open_clip_import:
     import open_clip
@@ -105,6 +107,7 @@ class CLIPEncoder(ImageEncoderBase):
         normalize: bool = True,
         similarity_func: str = "cosine",
     ) -> None:
+        _torch_import.check()
         _open_clip_import.check()
         super().__init__(similarity_func=similarity_func)
         self._model_name = model_name
