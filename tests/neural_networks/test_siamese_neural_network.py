@@ -343,7 +343,7 @@ def test_custom_similarity_func_is_used() -> None:
     assert np.array_equal(score, np.full((1, 1), 0.5))
 
 
-# §7 head property and setter
+# §7 head and backbone properties (read-only by design)
 
 
 def test_head_property_returns_current_head(model: SiameseNeuralNetwork) -> None:
@@ -352,34 +352,33 @@ def test_head_property_returns_current_head(model: SiameseNeuralNetwork) -> None
     assert model.head.out_features == 4
 
 
-def test_head_setter_rejects_non_module(model: SiameseNeuralNetwork) -> None:
-    """Assigning a non-module raises ``ValueError``."""
-    with pytest.raises(ValueError, match="torch.nn.Module"):
-        model.head = 42  # type: ignore[assignment]
-
-
-def test_head_setter_rejects_mismatched_in_features(
+def test_backbone_property_returns_current_backbone(
     model: SiameseNeuralNetwork,
 ) -> None:
-    """A head whose ``in_features`` differs from the backbone output raises."""
-    with pytest.raises(ValueError, match="in_features equal to 3"):
-        model.head = torch.nn.Linear(5, 4)
+    """The property exposes the feature-extraction backbone module."""
+    assert isinstance(model.backbone, MeanBackbone)
 
 
-def test_head_setter_replaces_head(model: SiameseNeuralNetwork) -> None:
-    """A matching head is installed and used by subsequent forward passes."""
-    model.head = torch.nn.Linear(3, 8)
-    embeddings = model.encode(make_random_rgb_image(seed=1))
-    assert embeddings.shape == (1, 8)
+def test_head_is_read_only(model: SiameseNeuralNetwork) -> None:
+    """Assigning to ``head`` raises instead of silently registering a module.
+
+    ``torch.nn.Module.__setattr__`` would otherwise register the value as an
+    orphan ``head`` submodule whose parameters get optimized but never used.
+    """
+    original_head = model.head
+    with pytest.raises(AttributeError):
+        model.head = torch.nn.Linear(3, 8)  # type: ignore[misc]
+    assert "head" not in model._modules
+    assert model.head is original_head
 
 
-def test_head_setter_accepts_module_without_in_features(
-    model: SiameseNeuralNetwork,
-) -> None:
-    """Heads without an ``in_features`` attribute (e.g. Sequential) are allowed."""
-    model.head = torch.nn.Sequential(torch.nn.Linear(3, 6))
-    embeddings = model.encode(make_random_rgb_image(seed=1))
-    assert embeddings.shape == (1, 6)
+def test_backbone_is_read_only(model: SiameseNeuralNetwork) -> None:
+    """Assigning to ``backbone`` raises instead of silently registering a module."""
+    original_backbone = model.backbone
+    with pytest.raises(AttributeError):
+        model.backbone = MeanBackbone()  # type: ignore[misc]
+    assert "backbone" not in model._modules
+    assert model.backbone is original_backbone
 
 
 # §8 device handling

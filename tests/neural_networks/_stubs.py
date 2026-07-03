@@ -99,9 +99,9 @@ def build_stub_model(
 def install_head(model: SiameseNeuralNetwork, head: torch.nn.Module) -> None:
     """Install a projection head on the model's private ``_head`` attribute.
 
-    The public ``head`` property setter is currently bypassed for module
-    values by ``torch.nn.Module.__setattr__`` (see the dedicated head-setter
-    tests), so tests that merely need a controlled head install it directly.
+    The public ``head`` property is read-only by design (see the dedicated
+    read-only property tests), so tests that need a controlled head install
+    it directly on the private attribute.
 
     :param model: The model to modify.
     :param head: The replacement projection head.

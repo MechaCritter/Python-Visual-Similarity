@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
 from PIL import Image
@@ -78,6 +78,29 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
         self.similarity_func = similarity_func
         self.to(self.device)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Sets an attribute, routing property assignments through the property.
+
+        NOTE
+        ----
+        Since :class:`torch.nn.Module` overrides ``__setattr__`` and registers
+        any ``torch.nn.Module`` value directly in ``self._modules``, assigning
+        to a read-only property such as ``head`` would silently register an
+        orphan submodule instead of failing. Routing assignments to class-level
+        properties through ``property.__set__`` restores standard Python
+        semantics. Hence, this override was necessary.
+
+        :param name: Name of the attribute to set.
+        :param value: Value to assign.
+        :raises AttributeError: If ``name`` is a read-only property.
+        """
+        descriptor = getattr(type(self), name, None)
+        if isinstance(descriptor, property):
+            descriptor.__set__(self, value)
+            return
+        super().__setattr__(name, value)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -254,30 +277,11 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         return np.asarray(self.similarity_func(embeddings1, embeddings2))
 
     @property
+    def backbone(self) -> torch.nn.Module:
+        """The shared feature-extraction backbone (read-only)."""
+        return self._backbone
+
+    @property
     def head(self) -> torch.nn.Module:
         """The projection head mapping backbone features to embeddings."""
         return self._head
-
-    @head.setter
-    def head(self, new_head: torch.nn.Module) -> None:
-        """
-        Replaces the projection head.
-
-        :param new_head: The replacement head. If it exposes an ``in_features``
-            attribute (e.g. :class:`torch.nn.Linear`), it must match the
-            backbone's ``output_dim``.
-        :raises ValueError: If ``new_head`` is not a :class:`torch.nn.Module` or
-            its ``in_features`` does not match the backbone's ``output_dim``.
-        """
-        if not isinstance(new_head, torch.nn.Module):
-            raise ValueError(
-                f"Expected new_head to be an instance of torch.nn.Module, got {type(new_head)}"
-            )
-
-        in_features = getattr(new_head, "in_features", None)
-        if in_features is not None and in_features != self._backbone.output_dim:
-            raise ValueError(
-                f"Expected new_head to have in_features equal to {self._backbone.output_dim}, got {new_head.in_features}"
-            )
-        self._head = new_head
-        self._head.to(self.device)
