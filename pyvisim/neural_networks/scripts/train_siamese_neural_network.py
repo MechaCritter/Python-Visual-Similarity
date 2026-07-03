@@ -60,6 +60,7 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
     :param purpose: Dataset split to draw from (e.g. ``"train"``).
     :param transform: Transform applied to each image.
     :param pos_fraction: Fraction of sampled pairs that are positive.
+    :raises ValueError: If the split contains fewer than two classes.
     """
 
     def __init__(
@@ -76,9 +77,8 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
             self._label_to_indices.setdefault(label, []).append(idx)
 
         self._labels_list = list(self._label_to_indices.keys())
-        assert len(self._labels_list) >= 2, (
-            "Need >= 2 classes for contrastive training."
-        )
+        if len(self._labels_list) < 2:
+            raise ValueError("Need >= 2 classes for contrastive training.")
 
     def __len__(self) -> int:
         return len(self._base)

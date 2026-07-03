@@ -128,7 +128,7 @@ def test_pairs_require_at_least_two_classes(
     monkeypatch.setattr(
         ts, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
     )
-    with pytest.raises(AssertionError, match=">= 2 classes"):
+    with pytest.raises(ValueError, match=">= 2 classes"):
         ts.OxfordSiamesePairs("train", transform=ts.VAL_TF)
 
 
