@@ -66,7 +66,6 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         pretrained_backbone: bool = True,
     ):
         super().__init__()
-        self.device = torch.device(device)
         self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)
 
         if transform is not None:
@@ -77,7 +76,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
         self.similarity_func = similarity_func
-        self.to(self.device)
+        self.to(torch.device(device))
 
     def __setattr__(self, name: str, value: Any) -> None:
         """
@@ -276,6 +275,16 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
         embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
         return np.asarray(self.similarity_func(embeddings1, embeddings2))
+
+    @property
+    def device(self) -> torch.device:
+        """
+        The device the model's parameters live on (read-only).
+
+        Derived from the parameters themselves rather than cached, so it stays
+        correct after the user moves the model with ``model.to(...)``.
+        """
+        return next(self.parameters()).device
 
     @property
     def backbone(self) -> torch.nn.Module:
