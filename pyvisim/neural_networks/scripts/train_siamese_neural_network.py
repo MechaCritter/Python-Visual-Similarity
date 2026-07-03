@@ -89,8 +89,9 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
         return tensor
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        _, label_a, _ = self._base[idx]
-        img_a = self._get_tensor(idx)
+        label_a = self._base.labels[idx]
+        image, _, _ = self._base[idx]
+        img_a = self.transform(image)
 
         if random.random() < self.pos_fraction:
             # Positive: another image of the same class.
