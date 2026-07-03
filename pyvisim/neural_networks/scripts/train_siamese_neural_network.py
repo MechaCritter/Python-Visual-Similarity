@@ -64,10 +64,10 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
         self.transform = transform
         self.pos_fraction = pos_fraction
 
-        # Build a label -> list[index] map for fast pair mining.
+        # Build a label -> list[index] map for fast pair mining. Labels are
+        # read directly; indexing the base dataset would decode every image.
         self._label_to_indices: dict[int, list[int]] = {}
-        for idx in range(len(self._base)):
-            _, label, _ = self._base[idx]
+        for idx, label in enumerate(self._base.labels):
             self._label_to_indices.setdefault(label, []).append(idx)
 
         self._labels_list = list(self._label_to_indices.keys())
