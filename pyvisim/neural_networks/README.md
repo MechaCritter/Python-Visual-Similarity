@@ -69,7 +69,7 @@ image2, *_ = dataset[1]
 
 model = SiameseNeuralNetwork(backbone="resnet18", embedding_dim=128, device="cuda")
 
-score = model.similarity_score(image1, image2).items()
+score = model.similarity_score(image1, image2).item()  # (1, 1) matrix -> Python float
 print(f"Similarity: {score:.4f}")
 ```
 
