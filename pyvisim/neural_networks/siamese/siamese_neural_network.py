@@ -54,6 +54,8 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``SiameseNeuralNetwork`` from a checkpoint,
         set this to ``False`` to avoid downloading the weights again.
+    :raises ValueError: If ``embedding_dim`` is not a positive integer, or if
+        ``backbone`` is not a supported backbone name.
     """
 
     def __init__(
@@ -66,6 +68,10 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         pretrained_backbone: bool = True,
     ):
         super().__init__()
+        if embedding_dim <= 0:
+            raise ValueError(
+                f"embedding_dim must be a positive integer, got {embedding_dim}."
+            )
         self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)
 
         if transform is not None:
@@ -184,12 +190,20 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
             channels) or ``"CHW"`` (channels x height x width).
         :param value_range: The ``(low, high)`` range the input values live in.
         :return: A normalized image tensor of shape (channels, 224, 224).
+        :raises ValueError: If ``dims`` is not ``"HWC"`` or ``"CHW"``, or if
+            ``value_range`` does not satisfy ``low < high``.
         """
-        arr = np.asarray(image, dtype=np.float32)
-        if dims.upper() == "CHW":
-            arr = arr.transpose(1, 2, 0)
+        layout = dims.upper()
+        if layout not in ("HWC", "CHW"):
+            raise ValueError(f"dims must be 'HWC' or 'CHW', got {dims!r}.")
         lo, hi = value_range
-        arr = (arr - lo) / (hi - lo + 1e-8)
+        if hi <= lo:
+            raise ValueError(f"value_range must satisfy low < high, got {value_range}.")
+
+        arr = np.asarray(image, dtype=np.float32)
+        if layout == "CHW":
+            arr = arr.transpose(1, 2, 0)
+        arr = (arr - lo) / (hi - lo)
         arr = np.clip(arr, 0, 1)
         arr = (arr * 255).astype(np.uint8)
         pil_image = Image.fromarray(arr).convert("RGB")
