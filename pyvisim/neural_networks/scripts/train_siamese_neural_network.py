@@ -22,10 +22,14 @@ _NORMALIZE = transforms.Normalize(
     std=[0.229, 0.224, 0.225],
 )
 
+# The Resize(256) + CenterCrop(224) geometry mirrors the model's default
+# inference transform (SiameseNeuralNetwork._get_imagenet_transform), so the
+# network is trained and evaluated on the same crop distribution.
 TRAIN_TF = transforms.Compose(
     [
         transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
         transforms.ToTensor(),
@@ -36,7 +40,8 @@ TRAIN_TF = transforms.Compose(
 VAL_TF = transforms.Compose(
     [
         transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         _NORMALIZE,
     ]
