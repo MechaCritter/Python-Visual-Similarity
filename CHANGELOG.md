@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-03
+
 ### Added
 - `CLIPEncoder` (in `pyvisim.encoders`): a pretrained-CLIP image encoder built on
   open_clip. It maps an image straight to a CLIP embedding, so there's no feature
