@@ -133,13 +133,13 @@ def test_short_training_on_subset_reduces_loss(
     assert losses[-1] < losses[0]
 
 
-def test_encode_flower_images(
+def test_embed_flower_images(
     model: SiameseNeuralNetwork, flower_subset: OxfordFlowerDataset
 ) -> None:
-    """Real flower images encode to unit-norm embedding rows."""
+    """Real flower images embed to unit-norm embedding rows."""
     indices = (0, 1, len(flower_subset) // 2, len(flower_subset) - 1)
     images = [flower_subset[index][0] for index in indices]
-    embeddings = model.encode(images)
+    embeddings = model.embed(images)
     assert embeddings.shape == (4, EMBEDDING_DIM)
     norms = np.linalg.norm(embeddings, axis=1)
     assert np.allclose(norms, 1.0, atol=1e-5)

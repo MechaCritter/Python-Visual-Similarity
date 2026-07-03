@@ -50,7 +50,7 @@ def test_get_backbone_rejects_unknown_name() -> None:
 def test_non_pretrained_backbone_builds_without_weights() -> None:
     """``pretrained_backbone=False`` builds a real ResNet-18 without weights."""
     model = SiameseNeuralNetwork(embedding_dim=8, pretrained_backbone=False)
-    embeddings = model.encode(make_random_rgb_image(seed=1))
+    embeddings = model.embed(make_random_rgb_image(seed=1))
     assert embeddings.shape == (1, 8)
 
 
@@ -141,7 +141,7 @@ def test_forward_applies_head_before_normalizing() -> None:
     assert torch.allclose(embedding, expected, atol=1e-6)
 
 
-# §4 encode: shapes, layouts and value ranges
+# §4 embed: shapes, layouts and value ranges
 
 
 @pytest.fixture
@@ -154,96 +154,94 @@ def model() -> SiameseNeuralNetwork:
     return build_stub_model(MeanBackbone(), embedding_dim=4)
 
 
-def test_encode_single_image_shape_and_norm(model: SiameseNeuralNetwork) -> None:
-    """One HWC image encodes to a single unit-norm float32 row."""
-    embeddings = model.encode(make_random_rgb_image(seed=1))
+def test_embed_single_image_shape_and_norm(model: SiameseNeuralNetwork) -> None:
+    """One HWC image embeds to a single unit-norm float32 row."""
+    embeddings = model.embed(make_random_rgb_image(seed=1))
     assert embeddings.shape == (1, 4)
     assert embeddings.dtype == np.float32
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx(1.0, abs=1e-5)
 
 
-def test_encode_list_of_images(model: SiameseNeuralNetwork) -> None:
-    """A list of N images encodes to an ``(N, embedding_dim)`` batch."""
+def test_embed_list_of_images(model: SiameseNeuralNetwork) -> None:
+    """A list of N images embeds to an ``(N, embedding_dim)`` batch."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2, 3)]
-    embeddings = model.encode(images)
+    embeddings = model.embed(images)
     assert embeddings.shape == (3, 4)
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx([1.0] * 3, abs=1e-5)
 
 
-def test_encode_batch_matches_single_encoding(model: SiameseNeuralNetwork) -> None:
-    """Batched encoding equals encoding each image individually."""
+def test_embed_batch_matches_single_encoding(model: SiameseNeuralNetwork) -> None:
+    """Batched embedding equals embedding each image individually."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2, 3)]
-    batched = model.encode(images)
-    single = model.encode(images[0])
+    batched = model.embed(images)
+    single = model.embed(images[0])
     assert np.allclose(batched[0], single[0], atol=1e-6)
 
 
-def test_encode_bhwc_array_matches_list(model: SiameseNeuralNetwork) -> None:
+def test_embed_bhwc_array_matches_list(model: SiameseNeuralNetwork) -> None:
     """A stacked BHWC array yields the same embeddings as a list of images."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2)]
-    from_list = model.encode(images)
-    from_batch = model.encode(np.stack(images), dims="BHWC")
+    from_list = model.embed(images)
+    from_batch = model.embed(np.stack(images), dims="BHWC")
     assert np.array_equal(from_list, from_batch)
 
 
-def test_encode_chw_matches_hwc(model: SiameseNeuralNetwork) -> None:
+def test_embed_chw_matches_hwc(model: SiameseNeuralNetwork) -> None:
     """The same image in CHW layout yields the same embedding as in HWC."""
     image = make_random_rgb_image(seed=7)
-    from_hwc = model.encode(image)
-    from_chw = model.encode(image.transpose(2, 0, 1), dims="CHW")
+    from_hwc = model.embed(image)
+    from_chw = model.embed(image.transpose(2, 0, 1), dims="CHW")
     assert np.array_equal(from_hwc, from_chw)
 
 
-def test_encode_unit_value_range_matches_uint8(model: SiameseNeuralNetwork) -> None:
-    """A float image in [0, 1] encodes identically to its uint8 counterpart."""
+def test_embed_unit_value_range_matches_uint8(model: SiameseNeuralNetwork) -> None:
+    """A float image in [0, 1] embeds identically to its uint8 counterpart."""
     checker = np.zeros((8, 8, 3), dtype=np.uint8)
     checker[::2, ::2] = 255
-    from_uint8 = model.encode(checker)
-    from_float = model.encode(
-        checker.astype(np.float64) / 255.0, value_range=(0.0, 1.0)
-    )
+    from_uint8 = model.embed(checker)
+    from_float = model.embed(checker.astype(np.float64) / 255.0, value_range=(0.0, 1.0))
     assert np.array_equal(from_uint8, from_float)
 
 
-def test_encode_grayscale_image(model: SiameseNeuralNetwork) -> None:
-    """A single-channel image is promoted to RGB and encoded normally."""
+def test_embed_grayscale_image(model: SiameseNeuralNetwork) -> None:
+    """A single-channel image is promoted to RGB and embedded normally."""
     gray = np.full((16, 16), 100, dtype=np.uint8)
-    embeddings = model.encode(gray, dims="HW")
+    embeddings = model.embed(gray, dims="HW")
     assert embeddings.shape == (1, 4)
 
 
-def test_encode_empty_input_raises(model: SiameseNeuralNetwork) -> None:
+def test_embed_empty_input_raises(model: SiameseNeuralNetwork) -> None:
     """An empty image collection raises ``ValueError``."""
     with pytest.raises(ValueError, match="at least one image"):
-        model.encode([])
+        model.embed([])
 
 
-def test_encode_rejects_string_input(model: SiameseNeuralNetwork) -> None:
+def test_embed_rejects_string_input(model: SiameseNeuralNetwork) -> None:
     """A string is not an image and raises ``InvalidImageError``."""
     with pytest.raises(InvalidImageError):
-        model.encode("not-an-image.jpg")
+        model.embed("not-an-image.jpg")
 
 
-def test_encode_is_deterministic(model: SiameseNeuralNetwork) -> None:
-    """Encoding the same image twice yields identical embeddings."""
+def test_embed_is_deterministic(model: SiameseNeuralNetwork) -> None:
+    """Embedding the same image twice yields identical embeddings."""
     image = make_random_rgb_image(seed=5)
-    assert np.array_equal(model.encode(image), model.encode(image))
+    assert np.array_equal(model.embed(image), model.embed(image))
 
 
-def test_encode_restores_training_mode(model: SiameseNeuralNetwork) -> None:
-    """``encode`` runs in eval mode but restores the previous training state."""
+def test_embed_restores_training_mode(model: SiameseNeuralNetwork) -> None:
+    """``embed`` runs in eval mode but restores the previous training state."""
     model.train()
-    model.encode(make_solid_rgb_image(value=10))
+    model.embed(make_solid_rgb_image(value=10))
     assert model.training is True
     model.eval()
-    model.encode(make_solid_rgb_image(value=10))
+    model.embed(make_solid_rgb_image(value=10))
     assert model.training is False
 
 
-# §5 encode: mathematical correctness through the full public path
+# §5 embed: mathematical correctness through the full public path
 
 
-def test_encode_of_uniform_image_is_uniform_unit_vector() -> None:
+def test_embed_of_uniform_image_is_uniform_unit_vector() -> None:
     """A constant image maps to the constant unit vector ``1/sqrt(D)``.
 
     With a plain ``ToTensor`` transform, a 2x2 uniform image becomes 12 equal
@@ -256,12 +254,12 @@ def test_encode_of_uniform_image_is_uniform_unit_vector() -> None:
         transform=transforms.Compose([transforms.ToTensor()]),
     )
     install_head(model, make_identity_head(12))
-    embeddings = model.encode(make_solid_rgb_image(value=51, size=2))
+    embeddings = model.embed(make_solid_rgb_image(value=51, size=2))
     assert embeddings.shape == (1, 12)
     assert np.allclose(embeddings, 1.0 / math.sqrt(12.0), atol=1e-6)
 
 
-def test_encode_preserves_pixel_ratios() -> None:
+def test_embed_preserves_pixel_ratios() -> None:
     """Pixel intensities 30 and 40 embed as the 3:4 pattern of unit norm.
 
     A 1x2 image with pixel values 30 and 40 flattens channel-major to
@@ -275,7 +273,7 @@ def test_encode_preserves_pixel_ratios() -> None:
     )
     install_head(model, make_identity_head(6))
     image = np.array([[[30, 30, 30], [40, 40, 40]]], dtype=np.uint8)
-    embeddings = model.encode(image)
+    embeddings = model.embed(image)
     expected = np.array([3.0, 4.0] * 3) / (5.0 * math.sqrt(3.0))
     assert np.allclose(embeddings[0], expected, atol=1e-6)
 
@@ -315,7 +313,7 @@ def test_similarity_equals_embedding_dot_product(
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4)]
     score = model.similarity_score(batch_a, batch_b)
-    expected = model.encode(batch_a) @ model.encode(batch_b).T
+    expected = model.embed(batch_a) @ model.embed(batch_b).T
     assert np.allclose(score, expected, atol=1e-5)
 
 
@@ -385,10 +383,10 @@ def test_backbone_is_read_only(model: SiameseNeuralNetwork) -> None:
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-def test_encode_on_cuda_returns_cpu_numpy() -> None:
+def test_embed_on_cuda_returns_cpu_numpy() -> None:
     """A CUDA model still returns NumPy embeddings on the host."""
     model = build_stub_model(MeanBackbone(), embedding_dim=4, device="cuda")
     assert model.device.type == "cuda"
-    embeddings = model.encode(make_random_rgb_image(seed=1))
+    embeddings = model.embed(make_random_rgb_image(seed=1))
     assert isinstance(embeddings, np.ndarray)
     assert embeddings.shape == (1, 4)

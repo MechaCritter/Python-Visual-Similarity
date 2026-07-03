@@ -198,7 +198,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         return cast(torch.Tensor, self._transform(pil_image))
 
     @torch.no_grad()
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,
@@ -206,7 +206,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Encodes one or more images into a batch of embedding vectors.
+        Embeds one or more images into a batch of embedding vectors.
 
         All images are preprocessed, stacked into a single batch and passed
         through the network in one forward pass. The model is switched to eval
@@ -273,8 +273,8 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         :return: Similarity matrix of shape ``(N, M)`` produced by
             ``similarity_func``.
         """
-        embeddings1 = self.encode(image1, dims=dims, value_range=value_range)
-        embeddings2 = self.encode(image2, dims=dims, value_range=value_range)
+        embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
+        embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
         return np.asarray(self.similarity_func(embeddings1, embeddings2))
 
     @property
