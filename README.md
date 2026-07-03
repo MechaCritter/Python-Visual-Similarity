@@ -43,13 +43,11 @@ For a technical deep-dive into the library internals, see the [developer documen
 To use the library, you can simply install it via pip:
 
 ```bash
-```bash
 pip install pyvisim
 # For deep learning features and the OxfordFlowerDataset
 pip install "pyvisim[nn]"
 # For image search feature
 pip install "pyvisim[search]"
-```
 ```
 
 or clone the repository and install it locally:
