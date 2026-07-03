@@ -237,7 +237,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
                 for image in iter_images(images, dims=dims, value_range=value_range)
             ]
             if not tensors:
-                raise ValueError("Expected at least one image to encode, got none.")
+                raise ValueError("Expected at least one image to embed, got none.")
             batch = torch.stack(tensors).to(self.device)
             embeddings = self.forward(batch)
             return cast(FloatNumpyArray, embeddings.cpu().numpy())
@@ -256,7 +256,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         """
         Computes the similarity matrix between two image batches.
 
-        Both inputs are encoded with :meth:`encode` and the resulting embedding
+        Both inputs are encoded with :meth:`embed` and the resulting embedding
         batches are scored with ``similarity_func``.
 
         :param image1: First (batch of) image(s) as ``MatLike``.
