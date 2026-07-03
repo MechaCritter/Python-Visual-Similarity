@@ -8,7 +8,7 @@ from torchvision import transforms
 
 from ...datasets import OxfordFlowerDataset
 from ..losses import ContrastiveLoss
-from ..siamese import ResNetBackbone, SiameseNeuralNetwork
+from ..siamese import SiameseNeuralNetwork
 
 SEED = 42
 random.seed(SEED)
@@ -193,11 +193,11 @@ def train() -> None:
     print(f"Train pairs: {len(train_ds):,}  |  Val pairs: {len(val_ds):,}")
     print(f"Flower classes: {len(train_ds._labels_list)}")
 
-    backbone = ResNetBackbone(pretrained=True)
     model = SiameseNeuralNetwork(
-        backbone=backbone,
+        backbone="resnet18",
         embedding_dim=CONFIG["embedding_dim"],
         device=device,
+        pretrained_backbone=True,
     )
 
     criterion = ContrastiveLoss(margin=CONFIG["margin"])
@@ -251,9 +251,11 @@ def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
     import numpy as np
     from PIL import Image
 
-    backbone = ResNetBackbone(pretrained=False)
     model = SiameseNeuralNetwork(
-        backbone=backbone, embedding_dim=CONFIG["embedding_dim"], device=device
+        backbone="resnet18",
+        embedding_dim=CONFIG["embedding_dim"],
+        device=device,
+        pretrained_backbone=False,
     )
     ckpt = torch.load(checkpoint, map_location=device)
     model.load_state_dict(ckpt["model"])
