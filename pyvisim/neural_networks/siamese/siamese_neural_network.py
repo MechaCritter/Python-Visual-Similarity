@@ -51,6 +51,9 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         ``None``, the default ImageNet preprocessing is used depending
         on the backbone. See :meth:`_get_imagenet_transform`.
     :param device: Device on which the model is placed.
+    :param pretrained_backbone: Whether to use a backbone pretrained on
+        ImageNet. If you are loading the ``SiameseNeuralNetwork`` from a checkpoint,
+        set this to ``False`` to avoid downloading the weights again.
     """
 
     def __init__(
@@ -60,10 +63,11 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         similarity_func: SimilarityFunc = cosine_similarity,
         transform: transforms.Compose | None = None,
         device: str | torch.device = "cpu",
+        pretrained_backbone: bool = True,
     ):
         super().__init__()
         self.device = torch.device(device)
-        self._backbone = self._get_backbone(backbone)
+        self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)
 
         if transform is not None:
             self._transform = transform
@@ -91,16 +95,17 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         return embeddings
 
     @staticmethod
-    def _get_backbone(backbone: str) -> torch.nn.Module:
+    def _get_backbone(backbone: str, pretrained: bool) -> torch.nn.Module:
         """
         Returns the backbone network corresponding to the given name.
 
         :param backbone: Name of the backbone network.
+        :param pretrained: Whether to use a pretrained backbone.
         :return: A PyTorch module implementing the backbone.
         :raises ValueError: If ``backbone`` is not recognized.
         """
         if backbone == "resnet18":
-            return ResNetBackbone(pretrained=True)
+            return ResNetBackbone(pretrained=pretrained)
         else:
             raise ValueError(
                 f"Unsupported backbone type: {type(backbone)}. Please provide a custom backbone."
@@ -119,12 +124,14 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         :return: A torchvision transform that resizes, normalizes, and converts
             images to tensors.
         """
+        # The backbone of ResNet-18 as it was trained on ImageNet. Reference:
+        # https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
         if backbone == "resnet18":
             return transforms.Compose(
                 [
                     transforms.Resize(256),
                     transforms.CenterCrop(224),
-                    transforms.ToTensor(),
+                    transforms.ToTensor(),  # this also rescales the pixel values to [0, 1]
                     transforms.Normalize(
                         mean=[0.485, 0.456, 0.406],
                         std=[0.229, 0.224, 0.225],
