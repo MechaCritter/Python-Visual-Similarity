@@ -1,6 +1,7 @@
 import os
 import random
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Protocol
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -14,6 +15,20 @@ SEED = 42
 random.seed(SEED)
 torch.manual_seed(SEED)
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+class _RandomSource(Protocol):
+    """
+    Minimal random interface for pair sampling.
+
+    Satisfied by both the :mod:`random` module (used for fresh per-epoch
+    sampling in workers) and a :class:`random.Random` instance (used to
+    precompute a fixed pair set).
+    """
+
+    def random(self) -> float: ...
+
+    def choice(self, seq: Sequence[int]) -> int: ...
 
 
 def _seed_worker(worker_id: int) -> None:
@@ -77,11 +92,22 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
     :param purpose: Dataset split to draw from (e.g. ``"train"``).
     :param transform: Transform applied to each image.
     :param pos_fraction: Fraction of sampled pairs that are positive.
+    :param deterministic: If ``True``, the full pair set is sampled once at
+        construction time with a fixed seed and reused for every access, so the
+        dataset yields the same pairs on every epoch. Use this for validation,
+        where a fresh random pair set each epoch would make the validation loss
+        (and thus best-checkpoint selection) noisy. If ``False`` (default),
+        partners are resampled on every access for fresh per-epoch training
+        pairs.
     :raises ValueError: If the split contains fewer than two classes.
     """
 
     def __init__(
-        self, purpose: str, transform: transforms.Compose, pos_fraction: float = 0.5
+        self,
+        purpose: str,
+        transform: transforms.Compose,
+        pos_fraction: float = 0.5,
+        deterministic: bool = False,
     ) -> None:
         self._base = OxfordFlowerDataset(transform=None, purpose=purpose)
         self.transform = transform
@@ -97,6 +123,16 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
         if len(self._labels_list) < 2:
             raise ValueError("Need >= 2 classes for contrastive training.")
 
+        # A fixed pair set decouples the validation loss from sampling noise.
+        # A local RNG keeps it reproducible and independent of the global
+        # random state that per-worker seeding perturbs (see _seed_worker).
+        self._pairs: list[tuple[int, int]] | None = None
+        if deterministic:
+            rng = random.Random(SEED)
+            self._pairs = [
+                self._sample_partner(idx, rng) for idx in range(len(self._base))
+            ]
+
     def __len__(self) -> int:
         return len(self._base)
 
@@ -105,24 +141,34 @@ class OxfordSiamesePairs(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]
         tensor: torch.Tensor = self.transform(image)
         return tensor
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        label_a = self._base.labels[idx]
-        image, _, _ = self._base[idx]
-        img_a = self.transform(image)
+    def _sample_partner(self, idx: int, rng: _RandomSource) -> tuple[int, int]:
+        """
+        Samples a partner index and pair label for the image at ``idx``.
 
-        if random.random() < self.pos_fraction:
+        :param idx: Index of the anchor image in the base dataset.
+        :param rng: Random source for the positive/negative coin flip and the
+            partner choice.
+        :return: A ``(partner_index, pair_label)`` tuple, where ``pair_label``
+            is ``1`` for a positive (same-class) pair and ``0`` for a negative
+            (cross-class) one.
+        """
+        label_a = self._base.labels[idx]
+        if rng.random() < self.pos_fraction:
             # Positive: another image of the same class.
             same_indices = [i for i in self._label_to_indices[label_a] if i != idx]
-            idx_b = random.choice(same_indices) if same_indices else idx
-            pair_label = 1
-        else:
-            # Negative: an image from a different class.
-            neg_label = random.choice(
-                [lbl for lbl in self._labels_list if lbl != label_a]
-            )
-            idx_b = random.choice(self._label_to_indices[neg_label])
-            pair_label = 0
+            idx_b = rng.choice(same_indices) if same_indices else idx
+            return idx_b, 1
+        # Negative: an image from a different class.
+        neg_label = rng.choice([lbl for lbl in self._labels_list if lbl != label_a])
+        idx_b = rng.choice(self._label_to_indices[neg_label])
+        return idx_b, 0
 
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        img_a = self._get_tensor(idx)
+        if self._pairs is not None:
+            idx_b, pair_label = self._pairs[idx]
+        else:
+            idx_b, pair_label = self._sample_partner(idx, random)
         img_b = self._get_tensor(idx_b)
         return img_a, img_b, torch.tensor(pair_label, dtype=torch.float32)
 
@@ -196,7 +242,7 @@ def train() -> None:
     os.makedirs(CONFIG["checkpoint_dir"], exist_ok=True)
 
     train_ds = OxfordSiamesePairs("train", transform=TRAIN_TF)
-    val_ds = OxfordSiamesePairs("validation", transform=VAL_TF)
+    val_ds = OxfordSiamesePairs("validation", transform=VAL_TF, deterministic=True)
 
     train_loader = DataLoader(
         train_ds,
