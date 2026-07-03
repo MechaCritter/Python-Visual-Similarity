@@ -16,6 +16,23 @@ torch.manual_seed(SEED)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def _seed_worker(worker_id: int) -> None:
+    """
+    Reseeds the :mod:`random` module inside a DataLoader worker process.
+
+    DataLoader workers are forked from the main process, so they inherit its
+    :mod:`random` state and would otherwise draw identical pair samples across
+    workers (and re-draw the same stream every epoch once respawned). PyTorch
+    hands each worker a distinct ``torch`` seed per epoch; this propagates it
+    into the :mod:`random` module so the coin flips and partner choices are
+    fresh per worker and per epoch.
+
+    :param worker_id: Index of the worker process (required by the
+        ``worker_init_fn`` interface; unused here).
+    """
+    random.seed(torch.initial_seed() % 2**32)
+
+
 # Dataset returns uint8 HWC numpy arrays, so we convert via PIL.
 _NORMALIZE = transforms.Normalize(
     mean=[0.485, 0.456, 0.406],
@@ -187,6 +204,7 @@ def train() -> None:
         shuffle=True,
         num_workers=CONFIG["num_workers"],
         pin_memory=True,
+        worker_init_fn=_seed_worker,
     )
     val_loader = DataLoader(
         val_ds,
