@@ -131,7 +131,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
             return ResNetBackbone(pretrained=pretrained)
         else:
             raise ValueError(
-                f"Unsupported backbone type: {type(backbone)}. Please provide a custom backbone."
+                f"Unsupported backbone: {backbone!r}. Supported backbones: 'resnet18'."
             )
 
     @staticmethod
@@ -163,7 +163,8 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
             )
         else:
             raise ValueError(
-                f"Unsupported backbone type: {type(backbone)}. Please provide a custom transform."
+                f"Unsupported backbone: {backbone!r}; no default ImageNet transform "
+                f"is available. Supported backbones: 'resnet18'."
             )
 
     def _preprocess(
