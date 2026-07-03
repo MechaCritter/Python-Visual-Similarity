@@ -31,7 +31,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     projection ``head`` to produce embeddings, which are L2-normalized so that
     cosine similarity reduces to a dot product. The network is trained so that
     similar images map to nearby embeddings and dissimilar images map far apart
-    (see :class:`pyvisim.neural_networks.ContrastiveLoss`).
+    (see :class:`pyvisim.neural_networks.losses.ContrastiveLoss`).
 
     References:
     ===========
