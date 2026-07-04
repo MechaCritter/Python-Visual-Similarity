@@ -21,7 +21,7 @@ pyvisim/
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── retrieval/           image indexes + ImageRetriever
 ├── datasets/            OxfordFlowerDataset
-└── neural_networks/     Siamese network (planned, not yet implemented)
+└── neural_networks/     SiameseNeuralNetwork, ContrastiveLoss, training script
 ```
 
 Per-area docs:
@@ -34,7 +34,7 @@ Per-area docs:
 - [Features](features/): how local descriptors are extracted from an image.
 - [Retrieval](retrieval/): search indexes and the `ImageRetriever` façade for fast
   top-k image search over a store.
-- [Neural networks](neural_networks/): planned Siamese network.
+- [Neural networks](neural_networks/): the Siamese network for learned image similarity.
 - [Dataset](dataset/): the bundled Oxford Flowers dataset class.
 
 ## The core pipeline
