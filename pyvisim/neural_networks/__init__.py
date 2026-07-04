@@ -1,3 +1,3 @@
-from .siamese_neural_network import SiameseNeuralNetwork
+from .siamese import SiameseNeuralNetwork
 
 __all__ = ["SiameseNeuralNetwork"]
