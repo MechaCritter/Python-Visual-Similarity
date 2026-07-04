@@ -18,7 +18,6 @@ from torchvision import transforms
 
 from pyvisim._errors import InvalidImageError
 from pyvisim.neural_networks import SiameseNeuralNetwork
-from pyvisim.typing import FloatNumpyArray
 
 from ._stubs import (
     FlattenBackbone,
@@ -326,19 +325,26 @@ def test_similarity_is_symmetric(model: SiameseNeuralNetwork) -> None:
     assert np.allclose(forward_score, backward_score.T, atol=1e-6)
 
 
-def test_custom_similarity_func_is_used() -> None:
-    """A user-provided similarity function replaces the cosine default."""
-
-    def constant_score(x: FloatNumpyArray, y: FloatNumpyArray) -> FloatNumpyArray:
-        return np.full((x.shape[0], y.shape[0]), 0.5)
+def test_named_similarity_func_is_resolved_and_used() -> None:
+    """A named metric replaces the cosine default and is applied when scoring."""
+    from pyvisim._utils import get_similarity_func
 
     model = build_stub_model(
-        MeanBackbone(), embedding_dim=4, similarity_func=constant_score
+        MeanBackbone(), embedding_dim=4, similarity_func="euclidean"
     )
-    score = model.similarity_score(
-        make_random_rgb_image(seed=1), make_random_rgb_image(seed=2)
-    )
-    assert np.array_equal(score, np.full((1, 1), 0.5))
+
+    image1 = make_random_rgb_image(seed=1)
+    image2 = make_random_rgb_image(seed=2)
+    embeddings1 = model.embed(image1)
+    embeddings2 = model.embed(image2)
+    expected = np.asarray(get_similarity_func("euclidean")(embeddings1, embeddings2))
+    assert np.allclose(model.similarity_score(image1, image2), expected)
+
+
+def test_unknown_similarity_func_raises() -> None:
+    """An unrecognised similarity metric name raises ``ValueError``."""
+    with pytest.raises(ValueError, match="Unsupported similarity function"):
+        build_stub_model(MeanBackbone(), embedding_dim=4, similarity_func="bogus")
 
 
 # §7 head and backbone properties (read-only by design)

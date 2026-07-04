@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 from ..._base_classes import SimilarityMetric
-from ..._utils import cosine_similarity
+from ..._utils import get_similarity_func
 from ...encoders.utils import iter_images
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput, MatLike, SimilarityFunc
@@ -45,8 +45,9 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
 
     :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
     :param embedding_dim: Dimensionality of the projected embedding space.
-    :param similarity_func: Callable used to score two embeddings; defaults to
-        cosine similarity.
+    :param similarity_func: Name of the built-in similarity metric used to score
+        two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
+        or ``"manhattan"``.
     :param transform: processing transform applied to every input image. If
         ``None``, the default ImageNet preprocessing is used depending
         on the backbone. See :meth:`_get_imagenet_transform`.
@@ -54,15 +55,16 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``SiameseNeuralNetwork`` from a checkpoint,
         set this to ``False`` to avoid downloading the weights again.
-    :raises ValueError: If ``embedding_dim`` is not a positive integer, or if
-        ``backbone`` is not a supported backbone name.
+    :raises ValueError: If ``embedding_dim`` is not a positive integer, if
+        ``backbone`` is not a supported backbone name, or if ``similarity_func``
+        is not a supported similarity metric.
     """
 
     def __init__(
         self,
         backbone: str = "resnet18",
         embedding_dim: int = 128,
-        similarity_func: SimilarityFunc = cosine_similarity,
+        similarity_func: str = "cosine",
         transform: transforms.Compose | None = None,
         device: str | torch.device = "cpu",
         pretrained_backbone: bool = True,
@@ -81,6 +83,7 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
 
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
+        self._similarity_func: SimilarityFunc
         self.similarity_func = similarity_func
         self.to(torch.device(device))
 
@@ -289,6 +292,22 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
         embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
         return np.asarray(self.similarity_func(embeddings1, embeddings2))
+
+    @property
+    def similarity_func(self) -> SimilarityFunc:
+        """The resolved similarity function callable."""
+        return self._similarity_func
+
+    @similarity_func.setter
+    def similarity_func(self, name: str) -> None:
+        """
+        Resolves and stores a built-in similarity metric by name.
+
+        :param name: One of ``"cosine"``, ``"euclidean"``, ``"l1"`` or
+            ``"manhattan"``.
+        :raises ValueError: If ``name`` is not a supported similarity metric.
+        """
+        self._similarity_func = get_similarity_func(name)
 
     @property
     def device(self) -> torch.device:
