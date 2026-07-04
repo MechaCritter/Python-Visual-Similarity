@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0] - 2026-07-04
 
 ### Added
 - Siamese network for image similarity (in `pyvisim.neural_networks`), replacing the earlier
