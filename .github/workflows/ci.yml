@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - "**"
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.10"
@@ -94,6 +96,7 @@ jobs:
   # 4: slow integration tests
   slow-tests:
     name: "Slow tests (${{ matrix.os }})"
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-slow')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
