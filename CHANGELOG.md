@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+- Siamese network for image similarity (in `pyvisim.neural_networks`), replacing the earlier
+  sketch. `SiameseNeuralNetwork` wraps a ResNet-18 backbone plus a projection head and hands
+  back L2-normalized embeddings, so you can score two images with `similarity_score` or pull the
+  raw vectors with `embed`:
+
+  ```python
+  from pyvisim.neural_networks import SiameseNeuralNetwork
+
+  model = SiameseNeuralNetwork(backbone="resnet18", embedding_dim=128)
+  score = model.similarity_score(image1, image2)  # cosine similarity in [-1, 1]
+  ```
+
+  Fine-tune it on labelled pairs with `ContrastiveLoss` (from `pyvisim.neural_networks.losses`),
+  or just run the bundled Oxford Flowers training script:
+  `python -m pyvisim.neural_networks.scripts.train_siamese_neural_network`. Needs the `nn` extra
+  (`pip install "pyvisim[nn]"`).
+
 ## [0.7.0] - 2026-07-03
 
 ### Added
