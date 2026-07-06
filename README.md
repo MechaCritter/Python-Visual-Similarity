@@ -75,7 +75,7 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 
 With just a few lines of code, you can compute the similarity score between two images using the VLAD encoder:
 
-#### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD)
+#### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD) <ref>[5]</ref>
 
 ```python
 from pyvisim.encoders import VLADEncoder, PretrainedVLAD
