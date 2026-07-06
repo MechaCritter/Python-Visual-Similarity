@@ -12,8 +12,8 @@
 
 # Welcome to `pyvisim`!
 
-`pyvisim` is a Python library for computing image similarities using the encoders Fisher Vectors, VLAD
-and the Siamese Neural Networks.
+`pyvisim` is a Python library for computing image similarities using image encoders 
+and neural networks.
 
 ## Table of Contents
 
@@ -75,7 +75,7 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 
 With just a few lines of code, you can compute the similarity score between two images using the VLAD encoder:
 
-#### Example: Compute Similarity Score Using VLAD
+#### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD)
 
 ```python
 from pyvisim.encoders import VLADEncoder, PretrainedVLAD
