@@ -1,6 +1,11 @@
-# Siamese Neural Network for Image Similarity
+# Neural Networks for Image Similarity
 
-A PyTorch implementation of a **Siamese Neural Network (SNN)** for image similarity. This implementation supports image embedding generation, similarity scoring, and end-to-end training on the Oxford Flowers dataset using a ResNet-18 backbone.
+This module ships two PyTorch models:
+
+* A **Siamese Neural Network (SNN)**: image embedding generation, similarity scoring, and
+  end-to-end training on the Oxford Flowers dataset using a ResNet-18 backbone.
+* A **CLIP embedder** (`ClipEmbedder`): OpenAI's pretrained CLIP, jit-loaded straight from
+  the official checkpoints. See [CLIP Embedder](#clip-embedder) below.
 
 
 ## Overview
@@ -125,6 +130,35 @@ model = SiameseNeuralNetwork(embedding_dim=128, pretrained_backbone=False)
 model.load_state_dict(torch.load("checkpoints/best.pt")["model"])
 ```
 
+## CLIP Embedder
+
+`ClipEmbedder` gives you pretrained CLIP embeddings without any training step. It downloads
+one of OpenAI's official TorchScript checkpoints on first use, verifies it against the
+SHA-256 digest OpenAI publishes for it, and loads it with `torch.jit.load`. No CLIP
+modelling code or third-party CLIP library is involved.
+
+```python
+from pyvisim.neural_networks import ClipEmbedder
+
+embedder = ClipEmbedder("ViT-B/32")  # also: "ViT-B/16", "ViT-L/14"
+embeddings = embedder.embed(images)  # (num_images, 512); L2-normalized by default
+score = embedder.similarity_score(image1, image2)  # cosine similarity by default
+```
+
+A few things worth knowing:
+
+* Supported variants are `ViT-B/32` (512-dim, the default), `ViT-B/16` (512-dim) and
+  `ViT-L/14` (768-dim). The variant names follow OpenAI's naming.
+* Checkpoints are cached in `~/.cache/clip`, the same directory `open_clip` and OpenAI's
+  `clip` package use, so weights you already downloaded with either library are reused.
+  Pass `cache_dir=...` to cache somewhere else.
+* The cached file is re-hashed on every load. If it got corrupted, you get a warning and a
+  fresh, verified download instead of a broken model.
+* Preprocessing matches the reference implementation: bicubic resize of the shortest side
+  to 224, center crop, and normalization with the CLIP training-set statistics.
+* The model runs in `float32` on both CPU and CUDA, so embeddings are reproducible and
+  match what open_clip produces at its default precision.
+
 ## References
 
 1. **Siamese Neural Networks for One-shot Image Recognition**
@@ -135,3 +169,6 @@ http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
 3. **Deep Residual Learning for Image Recognition**
 https://arxiv.org/abs/1512.03385
+
+4. **Learning Transferable Visual Models From Natural Language Supervision** (Radford et al., 2021)
+https://arxiv.org/abs/2103.00020

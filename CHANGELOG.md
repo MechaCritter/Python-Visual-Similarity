@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- CLIP moved from `pyvisim.encoders` into `pyvisim.neural_networks` and dropped the
+  open_clip dependency entirely. The new `ClipEmbedder` jit-loads OpenAI's official
+  TorchScript checkpoints (`ViT-B/32`, `ViT-B/16` or `ViT-L/14`) directly. Every download
+  and every cache hit is verified against the SHA-256 digest OpenAI publishes for the
+  checkpoint, and files land in `~/.cache/clip`, so weights you already pulled via
+  open_clip or OpenAI's `clip` package are reused.
+
+  ```python
+  from pyvisim.neural_networks import ClipEmbedder
+
+  embedder = ClipEmbedder("ViT-B/32")
+  embeddings = embedder.embed(images)  # (num_images, 512); L2-normalized by default
+  score = embedder.similarity_score(image1, image2)
+  ```
+
+### Breaking
+- ⚠️ `CLIPEncoder` is gone. Use `ClipEmbedder` instead: the method is `embed()` (like
+  `SiameseNeuralNetwork`), not `encode()`, and it takes an OpenAI variant name
+  (`"ViT-B/32"`) instead of `model_name`/`pretrained`. CLIP `.encoder` files can no longer
+  be loaded; just construct the embedder with the variant you want.
+- ⚠️ The `nn` extra no longer installs `open_clip_torch`. If your own code imports
+  `open_clip`, install it yourself.
+
 ## [0.8.0] - 2026-07-04
 
 ### Added
