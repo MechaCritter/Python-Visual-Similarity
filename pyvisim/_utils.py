@@ -1,7 +1,7 @@
 from typing import cast
 
-import cv2
 import numpy as np
+from PIL import Image, UnidentifiedImageError
 from sklearn.metrics.pairwise import cosine_similarity as cs
 from sklearn.metrics.pairwise import euclidean_distances, manhattan_distances
 
@@ -22,10 +22,12 @@ def read_image_rgb(path: str) -> UInt8NumpyArray:
     :return: Image as a NumPy array (H, W, C) in RGB order.
     :raises FileNotFoundError: If the image cannot be read from the given path.
     """
-    image = cv2.imread(path)
-    if image is None:
-        raise FileNotFoundError(f"Could not read image at '{path}'.")
-    return cast(UInt8NumpyArray, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    try:
+        with Image.open(path) as image:
+            rgb_image = image.convert("RGB")
+    except (FileNotFoundError, UnidentifiedImageError, OSError) as error:
+        raise FileNotFoundError(f"Could not read image at '{path}'.") from error
+    return cast(UInt8NumpyArray, np.asarray(rgb_image))
 
 
 def _as_2d_array(value: FloatNumpyArray) -> FloatNumpyArray:
