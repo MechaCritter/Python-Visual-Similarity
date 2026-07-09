@@ -30,7 +30,6 @@ dependencies = [
     "PyYAML",
     "safetensors",
     "scikit-learn",
-    "scipy",
     "tqdm",
     "requests",
 ]
@@ -83,6 +82,7 @@ fmt = [
 test = [
     "pytest",
     "pytest-cov",
+    "scipy",
 ]
 
 [tool.mypy]
@@ -107,7 +107,6 @@ plugins = ["numpy.typing.mypy_plugin"]
 module = [
   "faiss.*",
   "open_clip.*",
-  "scipy.*",
   "sklearn.*",
   "torchvision.*",
   "tqdm.*",
