@@ -84,6 +84,11 @@ test = [
     "pytest-cov",
     "scipy",
 ]
+docs = [
+    "sphinx",
+    "myst-parser",
+    "furo",
+]
 
 [tool.mypy]
 python_version = "3.10"
