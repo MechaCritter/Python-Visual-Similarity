@@ -12,8 +12,10 @@
 
 # Welcome to `pyvisim`!
 
-`pyvisim` is a Python library for computing image similarities using image encoders 
+`pyvisim` is a Python library for computing image similarities using image encoders
 and neural networks.
+
+📚 **Documentation**: <https://mechacritter.github.io/Python-Visual-Similarity/>
 
 ## Table of Contents
 
@@ -26,7 +28,9 @@ and neural networks.
 7. [License](#license)
 8. [References](#references)
 
-For a technical deep-dive into the library internals, see the [developer documentation](docs/overview.md).
+For a technical deep-dive into the library internals and the full API reference, see the
+[hosted documentation](https://mechacritter.github.io/Python-Visual-Similarity/) (also
+available in this repository as the [developer documentation](docs/overview.md)).
 
 ## Status
 
