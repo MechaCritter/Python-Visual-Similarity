@@ -1,8 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [UNRELEASED]
 
 ### Changed
+- Rolled out lib's own `.mat` loader to replace `scipy.io.loadmat`, so that
+the `scipy` dependency could be dropped completely. Added test to verify
+that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
+- `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
+to be as little dependent on OpenCV as possible.
+- Rolled out lib's own `.mat` loader to replace `scipy.io.loadmat`, so that
+the `scipy` dependency could be dropped completely. Added test to verify
+that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
+- `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
+to be as little dependent on OpenCV as possible.
 - CLIP moved from `pyvisim.encoders` into `pyvisim.neural_networks` and dropped the
   open_clip dependency entirely. The new `ClipEmbedder` jit-loads OpenAI's official
   TorchScript checkpoints (`ViT-B/32`, `ViT-B/16` or `ViT-L/14`) directly. Every download
