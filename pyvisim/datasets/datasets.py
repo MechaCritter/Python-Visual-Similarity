@@ -1,5 +1,6 @@
 import logging
 import os
+from functools import partial
 from multiprocessing import Process
 
 import requests
@@ -189,6 +190,31 @@ def _check_data_integrity() -> bool:
     return True
 
 
+#: Local destination of the downloaded Oxford Flowers image archive.
+_IMAGE_ARCHIVE_FILE = os.path.join(_DATASET_ROOT, "images.tgz")
+
+download_images = partial(
+    _download_and_process_file,
+    _FILES_FLOWER_DATA["images"],
+    _IMAGE_ARCHIVE_FILE,
+    _DATASET_ROOT,
+)
+
+download_label = partial(
+    _download_and_process_file,
+    _FILES_FLOWER_DATA["labels"],
+    _IMAGE_LABEL_FILE,
+    _DATASET_ROOT,
+)
+
+download_setid = partial(
+    _download_and_process_file,
+    _FILES_FLOWER_DATA["setid"],
+    _SETID_FILE,
+    _DATASET_ROOT,
+)
+
+
 def download_oxford_flowers_data() -> None:
     """
     Downloads the 102 flowers dataset and organizes it into the desired structure,
@@ -197,17 +223,12 @@ def download_oxford_flowers_data() -> None:
     logger.info("Starting download process for Oxford Flowers.")
     os.makedirs(_DATASET_ROOT, exist_ok=True)
 
-    processes = []
-    for name, url in _FILES_FLOWER_DATA.items():
-        file_path = os.path.join(_DATASET_ROOT, f"{name}{os.path.splitext(url)[-1]}")
-        p = Process(
-            target=_download_and_process_file, args=(url, file_path, _DATASET_ROOT)
-        )
-        processes.append(p)
-        p.start()
-
-    for p in processes:
-        p.join()
+    downloaders = (download_images, download_label, download_setid)
+    processes = [Process(target=download) for download in downloaders]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
 
     logger.info("Oxford Flowers dataset downloaded and processed successfully.")
 
