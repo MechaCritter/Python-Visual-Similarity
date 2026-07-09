@@ -3,6 +3,9 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import importlib.metadata
+import importlib.util
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -10,21 +13,63 @@ project = "pyvisim"
 copyright = "2026, Nhat Huy Vu"
 author = "Nhat Huy Vu"
 
-version = "0.8.0"
-release = "0.8.0"
+release = importlib.metadata.version("pyvisim")
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
+    "myst_parser",
+]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 language = "en"
 
+# The narrative pages included from docs/ link to repository source files
+# (e.g. ../pyvisim/encoders/vlad.py), which have no HTML equivalent.
+suppress_warnings = ["myst.xref_missing"]
+
+# -- Autodoc -------------------------------------------------------------------
+
+# The 'nn' and 'search' extras are not required to build the documentation:
+# any optional dependency that is missing from the environment is mocked so
+# that autodoc can still import every module.
+autodoc_mock_imports = [
+    module
+    for module in ("torch", "torchvision", "torchaudio", "open_clip", "faiss")
+    if importlib.util.find_spec(module) is None
+]
+
+autodoc_member_order = "groupwise"
+autodoc_typehints = "description"
+autodoc_default_options = {
+    "members": True,
+    "show-inheritance": True,
+}
+
+# -- MyST (Markdown) -----------------------------------------------------------
+
+myst_enable_extensions = ["colon_fence"]
+# Generate anchors for headings so links such as 'weights.md#section' resolve.
+myst_heading_anchors = 3
+
+# -- Intersphinx ---------------------------------------------------------------
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "sklearn": ("https://scikit-learn.org/stable/", None),
+    "torch": ("https://docs.pytorch.org/docs/stable/", None),
+}
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
-html_static_path = ["_static"]
+html_theme = "furo"
+html_title = f"pyvisim {release}"

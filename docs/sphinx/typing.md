@@ -1,0 +1,2 @@
+```{include} ../typing.md
+```
