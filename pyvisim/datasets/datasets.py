@@ -3,12 +3,12 @@ import os
 from multiprocessing import Process
 
 import requests
-import scipy
 from platformdirs import user_cache_dir
 from tqdm import tqdm
 
 from pyvisim._config import setup_logging
 from pyvisim._utils import read_image_rgb
+from pyvisim.datasets._matloader import load_mat
 from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
 
@@ -147,7 +147,7 @@ def _check_data_integrity() -> bool:
         logger.warning(f"Label file not found at {_IMAGE_LABEL_FILE}.")
         return False
     try:
-        mat_data = scipy.io.loadmat(_IMAGE_LABEL_FILE)
+        mat_data = load_mat(_IMAGE_LABEL_FILE)
         labels = mat_data["labels"].squeeze().tolist()
         if len(labels) != OXFORD_NUM_IMAGES:
             logger.warning(f"Expected {OXFORD_NUM_IMAGES} labels, got {len(labels)}.")
@@ -160,7 +160,7 @@ def _check_data_integrity() -> bool:
         logger.warning(f"setid.mat not found at {_SETID_FILE}.")
         return False
     try:
-        mat_data = scipy.io.loadmat(_SETID_FILE)
+        mat_data = load_mat(_SETID_FILE)
         tstid = mat_data["tstid"].squeeze().tolist()  # len 6149
         valid = mat_data["valid"].squeeze().tolist()  # len 1020
         trnid = mat_data["trnid"].squeeze().tolist()  # len 1020
@@ -253,7 +253,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         :param labels_file: Path to the .mat file with labels.
         :return: List of labels.
         """
-        mat_data = scipy.io.loadmat(labels_file)
+        mat_data = load_mat(labels_file)
         return [int(label) for label in mat_data["labels"].squeeze()]
 
     def _load_image_paths(self) -> list[str]:
@@ -272,7 +272,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         :param set_id_file: Path to the .mat file with set IDs.
         :return: Tuple of train, validation, and test IDs.
         """
-        mat_data = scipy.io.loadmat(set_id_file)
+        mat_data = load_mat(set_id_file)
         train_ids = (
             mat_data["tstid"].flatten().tolist()
         )  # Swaps train and test, since test contains significantly more images
