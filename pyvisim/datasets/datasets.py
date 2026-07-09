@@ -1,14 +1,15 @@
 import logging
 import os
+from functools import partial
 from multiprocessing import Process
 
 import requests
-import scipy
 from platformdirs import user_cache_dir
 from tqdm import tqdm
 
 from pyvisim._config import setup_logging
 from pyvisim._utils import read_image_rgb
+from pyvisim.datasets._matloader import load_mat
 from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
 
@@ -147,7 +148,7 @@ def _check_data_integrity() -> bool:
         logger.warning(f"Label file not found at {_IMAGE_LABEL_FILE}.")
         return False
     try:
-        mat_data = scipy.io.loadmat(_IMAGE_LABEL_FILE)
+        mat_data = load_mat(_IMAGE_LABEL_FILE)
         labels = mat_data["labels"].squeeze().tolist()
         if len(labels) != OXFORD_NUM_IMAGES:
             logger.warning(f"Expected {OXFORD_NUM_IMAGES} labels, got {len(labels)}.")
@@ -160,7 +161,7 @@ def _check_data_integrity() -> bool:
         logger.warning(f"setid.mat not found at {_SETID_FILE}.")
         return False
     try:
-        mat_data = scipy.io.loadmat(_SETID_FILE)
+        mat_data = load_mat(_SETID_FILE)
         tstid = mat_data["tstid"].squeeze().tolist()  # len 6149
         valid = mat_data["valid"].squeeze().tolist()  # len 1020
         trnid = mat_data["trnid"].squeeze().tolist()  # len 1020
@@ -189,6 +190,31 @@ def _check_data_integrity() -> bool:
     return True
 
 
+#: Local destination of the downloaded Oxford Flowers image archive.
+_IMAGE_ARCHIVE_FILE = os.path.join(_DATASET_ROOT, "images.tgz")
+
+download_images = partial(
+    _download_and_process_file,
+    _FILES_FLOWER_DATA["images"],
+    _IMAGE_ARCHIVE_FILE,
+    _DATASET_ROOT,
+)
+
+download_label = partial(
+    _download_and_process_file,
+    _FILES_FLOWER_DATA["labels"],
+    _IMAGE_LABEL_FILE,
+    _DATASET_ROOT,
+)
+
+download_setid = partial(
+    _download_and_process_file,
+    _FILES_FLOWER_DATA["setid"],
+    _SETID_FILE,
+    _DATASET_ROOT,
+)
+
+
 def download_oxford_flowers_data() -> None:
     """
     Downloads the 102 flowers dataset and organizes it into the desired structure,
@@ -197,17 +223,12 @@ def download_oxford_flowers_data() -> None:
     logger.info("Starting download process for Oxford Flowers.")
     os.makedirs(_DATASET_ROOT, exist_ok=True)
 
-    processes = []
-    for name, url in _FILES_FLOWER_DATA.items():
-        file_path = os.path.join(_DATASET_ROOT, f"{name}{os.path.splitext(url)[-1]}")
-        p = Process(
-            target=_download_and_process_file, args=(url, file_path, _DATASET_ROOT)
-        )
-        processes.append(p)
-        p.start()
-
-    for p in processes:
-        p.join()
+    downloaders = (download_images, download_label, download_setid)
+    processes = [Process(target=download) for download in downloaders]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
 
     logger.info("Oxford Flowers dataset downloaded and processed successfully.")
 
@@ -253,7 +274,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         :param labels_file: Path to the .mat file with labels.
         :return: List of labels.
         """
-        mat_data = scipy.io.loadmat(labels_file)
+        mat_data = load_mat(labels_file)
         return [int(label) for label in mat_data["labels"].squeeze()]
 
     def _load_image_paths(self) -> list[str]:
@@ -272,7 +293,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         :param set_id_file: Path to the .mat file with set IDs.
         :return: Tuple of train, validation, and test IDs.
         """
-        mat_data = scipy.io.loadmat(set_id_file)
+        mat_data = load_mat(set_id_file)
         train_ids = (
             mat_data["tstid"].flatten().tolist()
         )  # Swaps train and test, since test contains significantly more images
