@@ -8,10 +8,11 @@ Two models live here:
   a shared backbone (currently only supports `ResNet-18`) and a projection head, L2-normalizes the resulting embeddings, and
   trains them with a contrastive loss so similar images land close together and dissimilar ones
   end up far apart.
-* **`ClipEmbedder`**, OpenAI's pretrained CLIP loaded straight from the official
-  TorchScript checkpoints (`ViT-B/32`, `ViT-B/16` or `ViT-L/14`). Downloads are
-  verified against the published SHA-256 digests and cached, and there's no
-  training step: call `embed(images)` and you get L2-normalized embeddings back.
+* **`ClipEmbedder`**, pretrained CLIP embeddings from pyvisim's own implementation of
+  the CLIP image towers. Weights come as safetensors files from the Hugging Face Hub,
+  with open_clip-style variant names and pretrained tags (`"ViT-B-32"` + `"openai"`,
+  `"laion2b_s34b_b79k"`, ...; 67 combinations supported). There's no training step:
+  call `embed(images)` and you get L2-normalized embeddings back.
 
 Everything here needs the `nn` extra: `pip install "pyvisim[nn]"`.
 

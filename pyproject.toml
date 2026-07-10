@@ -42,11 +42,13 @@ dependencies = [
 [project.optional-dependencies]
 # Deep-learning features and models (DeepConvFeature, the datasets and
 # neural_networks modules, including ClipEmbedder) built on top of
-# torch / torchvision.
+# torch / torchvision. huggingface_hub downloads the pretrained CLIP
+# checkpoints from the Hugging Face Hub.
 nn = [
     "torch",
     "torchvision",
     "torchaudio",
+    "huggingface_hub",
 ]
 # Accelerated nearest-neighbour search and retrieval (ImageIndex,
 # InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.

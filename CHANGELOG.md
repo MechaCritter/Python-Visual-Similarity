@@ -8,32 +8,38 @@ the `scipy` dependency could be dropped completely. Added test to verify
 that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
 - `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
 to be as little dependent on OpenCV as possible.
-- Rolled out lib's own `.mat` loader to replace `scipy.io.loadmat`, so that
-the `scipy` dependency could be dropped completely. Added test to verify
-that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
-- `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
-to be as little dependent on OpenCV as possible.
 - CLIP moved from `pyvisim.encoders` into `pyvisim.neural_networks` and dropped the
-  open_clip dependency entirely. The new `ClipEmbedder` jit-loads OpenAI's official
-  TorchScript checkpoints (`ViT-B/32`, `ViT-B/16` or `ViT-L/14`) directly. Every download
-  and every cache hit is verified against the SHA-256 digest OpenAI publishes for the
-  checkpoint, and files land in `~/.cache/clip`, so weights you already pulled via
-  open_clip or OpenAI's `clip` package are reused.
+  open_clip dependency entirely. The new `ClipEmbedder` runs pyvisim's own implementation
+  of the CLIP image towers (Vision Transformer and modified ResNet) and loads pretrained
+  safetensors weights from the Hugging Face Hub — verified numerically equivalent to
+  open_clip's image embeddings. Variant names and pretrained tags follow open_clip:
+  67 (variant, tag) combinations across 30 variant names are supported (every open_clip
+  variant with a standard CLIP image tower and open_clip-format safetensors on the Hub),
+  from `RN50` and `ViT-B-32` up to `ViT-g-14`/`ViT-bigG-14`, with weights by OpenAI,
+  LAION, DataComp and Meta (MetaCLIP, incl. MetaCLIP-2 worldwide). Enumerate them with
+  `pyvisim.neural_networks.clip.available_variants()` / `available_pretrained(variant)`.
+  Only the image tower is loaded, always in `float32`; QuickGELU-trained checkpoints
+  (like all `"openai"` ones) automatically get the QuickGELU activation. Downloads are
+  integrity-checked by huggingface_hub and land in the standard Hugging Face cache
+  (`~/.cache/huggingface/hub`), so weights already pulled via open_clip's Hub downloads
+  are reused.
 
   ```python
   from pyvisim.neural_networks import ClipEmbedder
 
-  embedder = ClipEmbedder("ViT-B/32")
+  embedder = ClipEmbedder("ViT-B-32", pretrained="openai")  # "ViT-B/32" works too
   embeddings = embedder.embed(images)  # (num_images, 512); L2-normalized by default
   score = embedder.similarity_score(image1, image2)
   ```
 
 ### Breaking
 - ⚠️ `CLIPEncoder` is gone. Use `ClipEmbedder` instead: the method is `embed()` (like
-  `SiameseNeuralNetwork`), not `encode()`, and it takes an OpenAI variant name
-  (`"ViT-B/32"`) instead of `model_name`/`pretrained`. CLIP `.encoder` files can no longer
-  be loaded; just construct the embedder with the variant you want.
-- ⚠️ The `nn` extra no longer installs `open_clip_torch`. If your own code imports
+  `SiameseNeuralNetwork`), not `encode()`, and it takes open_clip-style `variant` and
+  `pretrained` arguments (`ClipEmbedder("ViT-B-32", pretrained="openai")`). CLIP
+  `.encoder` files can no longer be loaded; just construct the embedder with the
+  variant you want.
+- ⚠️ The `nn` extra no longer installs `open_clip_torch`; it now installs
+  `huggingface_hub` (for the checkpoint downloads) instead. If your own code imports
   `open_clip`, install it yourself.
 
 ## [0.8.0] - 2026-07-04

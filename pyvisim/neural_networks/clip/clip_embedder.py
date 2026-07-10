@@ -1,20 +1,18 @@
-"""CLIP image embedder loaded straight from OpenAI's official checkpoints.
+"""CLIP image embedder built on pyvisim's own CLIP implementation.
 
-The embedder downloads OpenAI's original TorchScript archives (see
-:mod:`._checkpoints`), verifies them against their published SHA-256 digests
-and loads them with :func:`torch.jit.load`, so no CLIP modelling code or
-third-party CLIP library is needed. The TorchScript graph-patching helpers
-that retarget the archives to the requested device are adapted from OpenAI's
-reference implementation at https://github.com/openai/CLIP (MIT license,
-Copyright (c) 2021 OpenAI).
+The embedder pairs the image towers implemented in :mod:`._model` with
+pretrained safetensors weights downloaded from the Hugging Face Hub (see
+:mod:`._registry`), so no third-party CLIP library is needed. Every variant
+of open_clip's registry whose image tower is a standard CLIP Vision
+Transformer or modified ResNet -- including all original OpenAI models -- is
+supported.
 
 :mod:`torch` and :mod:`torchvision` are optional dependencies installed by
 the ``nn`` extra (``pip install "pyvisim[nn]"``).
 """
 
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
 from PIL import Image
@@ -30,21 +28,21 @@ from ...typing import (
     SimilarityFunc,
     UInt8NumpyArray,
 )
-from ._checkpoints import fetch_checkpoint, get_checkpoint_spec
+from ._registry import (
+    CheckpointSpec,
+    VisionConfig,
+    fetch_checkpoint,
+    get_checkpoint_spec,
+    get_model_config,
+)
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
 
+    from ._model import build_vision_model, load_vision_weights
+
 _torch_import.check()
-
-#: Channel statistics of the dataset CLIP was trained on, as published by
-#: OpenAI and mirrored by open_clip's ``OPENAI_DATASET_MEAN`` / ``_STD``.
-_OPENAI_DATASET_MEAN = (0.48145466, 0.4578275, 0.40821073)
-_OPENAI_DATASET_STD = (0.26862954, 0.26130258, 0.27577711)
-
-#: TorchScript dtype constant for ``float16`` in ``aten::to`` nodes.
-_HALF_DTYPE_CONSTANT = 5
 
 
 def _resolve_device(device: str | None) -> str:
@@ -61,164 +59,61 @@ def _resolve_device(device: str | None) -> str:
     return device
 
 
-def _node_value(node: Any, key: str) -> Any:
+def _build_preprocess(
+    config: VisionConfig, spec: CheckpointSpec
+) -> "transforms.Compose":
     """
-    Read an attribute of a TorchScript graph node, dispatching on its kind.
+    Build the CLIP inference preprocessing pipeline of a checkpoint.
 
-    :param node: A ``torch._C.Node`` from a TorchScript graph.
-    :param key: Name of the node attribute to read.
-    :return: The attribute value.
-    """
-    selector = node.kindOf(key)
-    return getattr(node, selector)(key)
+    Matches the transform open_clip builds for the checkpoint: a bicubic
+    resize (of the shortest side plus a center crop, or of both sides for
+    ``"squash"`` checkpoints), conversion to a ``[0, 1]`` tensor and
+    normalization with the checkpoint's channel statistics.
 
-
-def _module_graphs(module: Any) -> list[Any]:
-    """
-    Collect the TorchScript graphs owned by a module or script method.
-
-    Plain (non-scripted) modules own no graphs and yield an empty list, so
-    the patch helpers below are safe to apply to any module tree.
-
-    :param module: A module or script method to inspect.
-    :return: The graphs to patch.
-    """
-    try:
-        graphs = [module.graph] if hasattr(module, "graph") else []
-    except RuntimeError:
-        graphs = []
-    if hasattr(module, "forward1"):
-        graphs.append(module.forward1.graph)
-    return graphs
-
-
-def _patch_device(model: Any, device: str) -> None:
-    """
-    Rewrite hard-coded ``cuda`` device constants in the TorchScript graphs.
-
-    OpenAI's checkpoints were traced on a CUDA machine, so their graphs
-    contain literal ``cuda`` device constants that break inference on any
-    other device.
-
-    :param model: The loaded TorchScript CLIP model.
-    :param device: Device string the constants are rewritten to.
-    """
-    device_holder = torch.jit.trace(  # type: ignore[no-untyped-call]
-        lambda: torch.ones([]).to(torch.device(device)), example_inputs=[]
-    )
-    device_node = [
-        node
-        for node in device_holder.graph.findAllNodes("prim::Constant")
-        if "Device" in repr(node)
-    ][-1]
-
-    def patch(module: Any) -> None:
-        for graph in _module_graphs(module):
-            for node in graph.findAllNodes("prim::Constant"):
-                if "value" in node.attributeNames() and str(
-                    _node_value(node, "value")
-                ).startswith("cuda"):
-                    node.copyAttributes(device_node)
-
-    model.apply(patch)
-    patch(model.encode_image)
-    patch(model.encode_text)
-
-
-def _patch_float(model: Any) -> None:
-    """
-    Rewrite hard-coded half-precision casts to ``float32`` and cast the model.
-
-    The traced graphs cast activations to ``float16``, which is only suited
-    to CUDA execution and loses precision; the embedder runs the model in
-    ``float32`` on every device, matching the default precision open_clip
-    uses when it builds a model from the ``openai`` checkpoints.
-
-    :param model: The loaded TorchScript CLIP model.
-    """
-    float_holder = torch.jit.trace(  # type: ignore[no-untyped-call]
-        lambda: torch.ones([]).float(), example_inputs=[]
-    )
-    float_input = list(float_holder.graph.findNode("aten::to").inputs())[1]
-    float_node = float_input.node()
-
-    def patch(module: Any) -> None:
-        for graph in _module_graphs(module):
-            for node in graph.findAllNodes("aten::to"):
-                inputs = list(node.inputs())
-                # The dtype can be the second or third argument of aten::to().
-                for index in (1, 2):
-                    if _node_value(inputs[index].node(), "value") == (
-                        _HALF_DTYPE_CONSTANT
-                    ):
-                        inputs[index].node().copyAttributes(float_node)
-
-    model.apply(patch)
-    patch(model.encode_image)
-    patch(model.encode_text)
-    model.float()
-
-
-def _load_jit_model(path: Path, device: str) -> "torch.jit.ScriptModule":
-    """
-    Load an OpenAI TorchScript CLIP archive and prepare it for a device.
-
-    The archive is loaded onto the CPU, its graphs are retargeted to
-    ``device`` and its baked-in half-precision casts are patched to
-    ``float32`` before the weights are converted and moved. The model runs
-    in ``float32`` on every device, so embeddings are precise and
-    reproducible and match what open_clip produces at its default precision.
-
-    :param path: Path of the verified TorchScript archive.
-    :param device: Device the model is prepared for (``"cpu"`` or ``"cuda"``).
-    :return: The ready-to-use model in eval mode.
-    """
-    model = torch.jit.load(  # type: ignore[no-untyped-call]
-        str(path), map_location="cpu"
-    ).eval()
-    _patch_device(model, device)
-    _patch_float(model)
-    return cast("torch.jit.ScriptModule", model.to(device))
-
-
-def _build_preprocess(image_size: int) -> "transforms.Compose":
-    """
-    Build the CLIP inference preprocessing pipeline.
-
-    Matches the transform OpenAI's reference implementation and open_clip use
-    for the ``openai`` checkpoints: bicubic resize of the shortest side to
-    ``image_size``, center crop, conversion to a ``[0, 1]`` tensor and
-    normalization with the CLIP training-set channel statistics.
-
-    :param image_size: Side length in pixels of the square model input.
+    :param config: Architecture description carrying the input size.
+    :param spec: Checkpoint metadata carrying the normalization statistics
+        and resize mode.
     :return: The composed torchvision transform.
     """
-    return transforms.Compose(
-        [
+    size = config.image_size
+    if spec.resize_mode == "squash":
+        resize: list[transforms.Compose | object] = [
             transforms.Resize(
-                image_size, interpolation=transforms.InterpolationMode.BICUBIC
-            ),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=_OPENAI_DATASET_MEAN, std=_OPENAI_DATASET_STD),
+                (size, size), interpolation=transforms.InterpolationMode.BICUBIC
+            )
         ]
+    else:
+        resize = [
+            transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.CenterCrop(size),
+        ]
+    return transforms.Compose(
+        [*resize, transforms.ToTensor(), transforms.Normalize(spec.mean, spec.std)]
     )
 
 
 class ClipEmbedder(SimilarityMetric):
     """
-    Embeds images with an official pretrained OpenAI CLIP model.
+    Embeds images with a pretrained CLIP model.
 
-    The TorchScript checkpoint of the requested ``variant`` is downloaded
-    from OpenAI's public bucket on first use, cached, verified against its
-    published SHA-256 digest and loaded with :func:`torch.jit.load` (see
-    :func:`pyvisim.neural_networks.clip.fetch_checkpoint`). :meth:`embed`
-    runs images through the image tower of the model and returns one
-    embedding per image; embeddings are L2-normalized by default so they can
-    be compared directly with a dot product or the cosine similarity metric.
+    The safetensors checkpoint of the requested ``variant`` and
+    ``pretrained`` tag is downloaded from the Hugging Face Hub on first use
+    and cached (see :func:`pyvisim.neural_networks.clip.fetch_checkpoint`);
+    only the image tower is loaded, and it always runs in ``float32``.
+    :meth:`embed` returns one embedding per image; embeddings are
+    L2-normalized by default so they can be compared directly with a dot
+    product or the cosine similarity metric.
 
-    :param variant: Official OpenAI CLIP variant name. One of ``"ViT-B/32"``
-        (default), ``"ViT-B/16"`` or ``"ViT-L/14"``.
+    Variant names and pretrained tags follow open_clip, e.g.
+    ``ClipEmbedder("ViT-B-32", pretrained="laion2b_s34b_b79k")``. OpenAI-style
+    variant spellings (``"ViT-B/32"``) are accepted as aliases. See
+    :func:`pyvisim.neural_networks.clip.available_variants` and
+    :func:`pyvisim.neural_networks.clip.available_pretrained` for the
+    supported combinations.
+
+    :param variant: CLIP variant name (default ``"ViT-B-32"``).
+    :param pretrained: Pretrained tag naming the weights (default
+        ``"openai"``, the original OpenAI checkpoint of the variant).
     :param device: Device to run the model on (``"cpu"`` or ``"cuda"``).
         Defaults to ``"cuda"`` when a CUDA device is available, else
         ``"cpu"``. The model runs in ``float32`` on either device.
@@ -227,14 +122,16 @@ class ClipEmbedder(SimilarityMetric):
     :param similarity_func: Name of the built-in similarity metric used to
         score two embeddings. One of ``"cosine"`` (default), ``"euclidean"``,
         ``"l1"`` or ``"manhattan"``.
-    :param cache_dir: Directory the checkpoint is cached in. Defaults to
-        ``~/.cache/clip``, the directory also used by ``open_clip`` and
-        OpenAI's ``clip`` package, so existing downloads are reused.
-    :raises ValueError: If ``variant`` or ``similarity_func`` is not
-        supported.
-    :raises pyvisim._errors.ChecksumMismatchError: If the downloaded
-        checkpoint fails its SHA-256 integrity check.
-    :raises requests.RequestException: If the checkpoint download fails.
+    :param cache_dir: Directory of the Hugging Face Hub cache the checkpoint
+        is stored in. Defaults to the standard Hub cache
+        (``~/.cache/huggingface/hub``), so weights already downloaded via
+        open_clip's Hub downloads are reused.
+    :raises ValueError: If ``variant``, ``pretrained`` or
+        ``similarity_func`` is not supported, or the checkpoint does not
+        match the architecture.
+    :raises ImportError: If the ``nn`` extra is not installed.
+    :raises huggingface_hub.errors.HfHubHTTPError: If the checkpoint
+        download fails.
 
     References:
     ===========
@@ -247,28 +144,38 @@ class ClipEmbedder(SimilarityMetric):
 
     def __init__(
         self,
-        variant: str = "ViT-B/32",
+        variant: str = "ViT-B-32",
+        pretrained: str = "openai",
         *,
         device: str | None = None,
         normalize: bool = True,
         similarity_func: str = "cosine",
         cache_dir: str | Path | None = None,
     ) -> None:
-        self._spec = get_checkpoint_spec(variant)
-        self._variant = variant
+        self._config = get_model_config(variant)
+        self._spec = get_checkpoint_spec(variant, pretrained)
+        self._variant = variant.replace("/", "-")
+        self._pretrained = pretrained
         self._normalize = normalize
         self._device = _resolve_device(device)
         self._similarity_func: SimilarityFunc
         self._similarity_func_name: str
         self.similarity_func = similarity_func
-        checkpoint_path = fetch_checkpoint(variant, cache_dir=cache_dir)
-        self._model = _load_jit_model(checkpoint_path, self._device)
-        self._transform = _build_preprocess(self._spec.image_size)
+        checkpoint_path = fetch_checkpoint(variant, pretrained, cache_dir=cache_dir)
+        model = build_vision_model(self._config, quick_gelu=self._spec.quick_gelu)
+        load_vision_weights(model, checkpoint_path)
+        self._model = model.eval().to(self._device)
+        self._transform = _build_preprocess(self._config, self._spec)
 
     @property
     def variant(self) -> str:
-        """The official OpenAI CLIP variant name (e.g. ``"ViT-B/32"``)."""
+        """The CLIP variant name in open_clip spelling (e.g. ``"ViT-B-32"``)."""
         return self._variant
+
+    @property
+    def pretrained(self) -> str:
+        """The pretrained tag naming the loaded weights (e.g. ``"openai"``)."""
+        return self._pretrained
 
     @property
     def device(self) -> str:
@@ -283,12 +190,12 @@ class ClipEmbedder(SimilarityMetric):
     @property
     def embedding_dim(self) -> int:
         """Dimensionality of the embeddings produced by :meth:`embed`."""
-        return self._spec.embedding_dim
+        return self._config.embed_dim
 
     @property
     def image_size(self) -> int:
         """Side length in pixels of the square model input."""
-        return self._spec.image_size
+        return self._config.image_size
 
     @property
     def similarity_func(self) -> SimilarityFunc:
@@ -320,18 +227,6 @@ class ClipEmbedder(SimilarityMetric):
         """
         pil_image = Image.fromarray(image).convert("RGB")
         return cast(torch.Tensor, self._transform(pil_image))
-
-    def _encode_image(self, batch: "torch.Tensor") -> "torch.Tensor":
-        """
-        Run a preprocessed batch through the image tower of the model.
-
-        :param batch: Preprocessed image tensor of shape ``(N, 3, H, W)``.
-        :return: Raw image embeddings of shape ``(N, embedding_dim)``.
-        """
-        encode_image = cast(
-            Callable[["torch.Tensor"], "torch.Tensor"], self._model.encode_image
-        )
-        return encode_image(batch)
 
     @torch.no_grad()
     def embed(
@@ -370,7 +265,7 @@ class ClipEmbedder(SimilarityMetric):
         if not tensors:
             raise ValueError("Expected at least one image to embed, got none.")
         batch = torch.stack(tensors).to(self._device)
-        features = self._encode_image(batch)
+        features = self._model(batch)
         if self._normalize:
             features = features / features.norm(dim=-1, keepdim=True)
         return np.asarray(features.float().cpu().numpy(), dtype=np.float32)
@@ -410,6 +305,7 @@ class ClipEmbedder(SimilarityMetric):
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(variant={self._variant}, "
-            f"device={self._device}, normalize={self._normalize}, "
+            f"pretrained={self._pretrained}, device={self._device}, "
+            f"normalize={self._normalize}, "
             f"similarity_func={self._similarity_func_name})"
         )
