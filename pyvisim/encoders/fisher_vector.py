@@ -77,9 +77,9 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
-    References:
-    ==========
-    [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
+    .. rubric:: References
+
+    - [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
 
     _clustering_model_cls = GaussianMixtureModel
