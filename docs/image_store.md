@@ -1,4 +1,4 @@
-# pyvisim.image_store
+# Image Store
 
 File: [`pyvisim/image_store/__init__.py`](../pyvisim/image_store/__init__.py)
 (Implementation: [`pyvisim/image_store/image_store.py`](../pyvisim/image_store/image_store.py))
