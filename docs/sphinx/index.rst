@@ -6,7 +6,7 @@ neural networks.
 
 ``pyvisim`` computes image similarity by turning images into fixed-size
 vectors and comparing those vectors with a similarity function. Start with
-the :doc:`developer overview <overview>` for the big picture, then drill
+:doc:`getting started <getting_started>` for the big picture, then drill
 into the per-module pages, each of which documents the public classes
 together with all of their public methods.
 
@@ -14,8 +14,7 @@ together with all of their public methods.
    :maxdepth: 2
    :caption: Getting started
 
-   overview
-   typing
+   getting_started
 
 .. toctree::
    :maxdepth: 2
