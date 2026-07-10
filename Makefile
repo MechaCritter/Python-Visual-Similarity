@@ -1,4 +1,4 @@
-.PHONY: test-types test-unit fmt
+.PHONY: test-types test-unit fmt docs
 
 # Strict mypy type-checking ('nn' installs torch; 'search' installs faiss)
 test-types:
@@ -15,3 +15,8 @@ test-slow:
 fmt:
 	uv run --group fmt ruff check --fix .
 	uv run --group fmt ruff format .
+
+# Build the Sphinx HTML documentation for local review (same flags as CI);
+# open docs/sphinx/_build/html/index.html afterwards
+docs:
+	uv run --group docs --extra nn --extra search sphinx-build -W -b html docs/sphinx docs/sphinx/_build/html
