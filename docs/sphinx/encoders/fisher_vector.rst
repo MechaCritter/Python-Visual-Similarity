@@ -1,11 +1,10 @@
-```{include} ../../encoders/fisher_vector.md
-```
+.. include:: ../../encoders/fisher_vector.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.encoders.FisherVectorEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-```

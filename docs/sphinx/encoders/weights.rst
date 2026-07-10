@@ -1,9 +1,9 @@
-```{include} ../../encoders/weights.md
-```
+.. include:: ../../encoders/weights.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.encoders.KMeansWeights
    :members:
    :undoc-members:
@@ -27,4 +27,3 @@
    :undoc-members:
    :inherited-members: Enum
    :show-inheritance:
-```

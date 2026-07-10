@@ -1,9 +1,9 @@
-```{include} ../../clustering/README.md
-```
+.. include:: ../../clustering/README.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.clustering.KMeans
    :members:
    :inherited-members:
@@ -18,4 +18,3 @@
    :members:
    :inherited-members:
    :show-inheritance:
-```

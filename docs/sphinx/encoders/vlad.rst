@@ -1,11 +1,10 @@
-```{include} ../../encoders/vlad.md
-```
+.. include:: ../../encoders/vlad.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.encoders.VLADEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-```

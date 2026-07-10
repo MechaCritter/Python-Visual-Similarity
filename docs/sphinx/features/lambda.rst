@@ -1,12 +1,11 @@
-```{include} ../../features/lambda.md
-```
+.. include:: ../../features/lambda.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.features.Lambda
    :members:
    :inherited-members:
    :special-members: __call__
    :show-inheritance:
-```

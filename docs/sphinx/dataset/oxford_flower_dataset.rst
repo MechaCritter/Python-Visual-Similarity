@@ -1,11 +1,10 @@
-```{include} ../../dataset/oxford_flower_dataset.md
-```
+.. include:: ../../dataset/oxford_flower_dataset.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.datasets.OxfordFlowerDataset
    :members:
    :inherited-members: Dataset, Generic
    :show-inheritance:
-```

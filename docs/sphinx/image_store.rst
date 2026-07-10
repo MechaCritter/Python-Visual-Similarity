@@ -1,11 +1,10 @@
-```{include} ../image_store.md
-```
+.. include:: ../image_store.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.image_store.InMemoryImageEmbeddingStore
    :members:
    :inherited-members:
    :show-inheritance:
-```

@@ -55,6 +55,9 @@ autodoc_default_options = {
 
 # -- MyST (Markdown) -----------------------------------------------------------
 
+# The Sphinx sources are reStructuredText; myst_parser is only needed to parse
+# the narrative Markdown pages under docs/ that are pulled in via
+# '.. include:: ... :parser: myst_parser.sphinx_'.
 myst_enable_extensions = ["colon_fence"]
 # Generate anchors for headings so links such as 'weights.md#section' resolve.
 myst_heading_anchors = 3

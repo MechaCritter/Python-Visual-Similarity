@@ -1,11 +1,10 @@
-```{include} ../../encoders/pipeline.md
-```
+.. include:: ../../encoders/pipeline.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.encoders.Pipeline
    :members:
    :inherited-members:
    :show-inheritance:
-```

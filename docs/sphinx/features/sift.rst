@@ -1,12 +1,11 @@
-```{include} ../../features/sift.md
-```
+.. include:: ../../features/sift.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.features.SIFT
    :members:
    :inherited-members:
    :special-members: __call__
    :show-inheritance:
-```

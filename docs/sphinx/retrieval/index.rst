@@ -1,9 +1,9 @@
-```{include} ../../retrieval/README.md
-```
+.. include:: ../../retrieval/README.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.retrieval.ImageIndex
    :members:
    :inherited-members:
@@ -33,4 +33,3 @@
    :members:
    :inherited-members:
    :show-inheritance:
-```

@@ -1,12 +1,11 @@
-```{include} ../../features/rootsift.md
-```
+.. include:: ../../features/rootsift.md
+   :parser: myst_parser.sphinx_
 
-## API reference
+API reference
+-------------
 
-```{eval-rst}
 .. autoclass:: pyvisim.features.RootSIFT
    :members:
    :inherited-members:
    :special-members: __call__
    :show-inheritance:
-```
