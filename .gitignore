@@ -182,3 +182,6 @@ tests/debug/
 # Files to keep in the ignored folders
 !res/images/
 !pyvisim/res/
+
+# Local, uncommitted logging config for development
+logger_config.yaml.local
