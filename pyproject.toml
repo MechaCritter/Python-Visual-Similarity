@@ -39,14 +39,15 @@ dependencies = [
 
 # Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
 [project.optional-dependencies]
-# Deep-learning features and encoders (DeepConvFeature, CLIPEncoder, the
-# datasets and neural_networks modules) built on top of torch / torchvision /
-# open_clip.
+# Deep-learning features and models (DeepConvFeature, the datasets and
+# neural_networks modules, including ClipEmbedder) built on top of
+# torch / torchvision. huggingface_hub downloads the pretrained CLIP
+# checkpoints from the Hugging Face Hub.
 nn = [
     "torch",
     "torchvision",
     "torchaudio",
-    "open_clip_torch",
+    "huggingface_hub",
 ]
 # Accelerated nearest-neighbour search and retrieval (ImageIndex,
 # InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.
@@ -110,7 +111,6 @@ plugins = ["numpy.typing.mypy_plugin"]
 [[tool.mypy.overrides]]
 module = [
   "faiss.*",
-  "open_clip.*",
   "sklearn.*",
   "torchvision.*",
   "tqdm.*",
