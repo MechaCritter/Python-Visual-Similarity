@@ -27,7 +27,6 @@ dependencies = [
     "Pillow",
     "opencv-python",
     "platformdirs",
-    "PyYAML",
     "safetensors",
     "scikit-learn",
     "tqdm",
@@ -110,7 +109,6 @@ module = [
   "sklearn.*",
   "torchvision.*",
   "tqdm.*",
-  "yaml.*",
 ]
 ignore_missing_imports = true
 
