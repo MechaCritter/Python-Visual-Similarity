@@ -244,7 +244,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
 
     :param transform: Transformations to apply to the images.
     :param purpose: Purpose of the dataset ('train', 'test', 'validation'). You
-    can also pass a list such as ['train', 'validation'] to get a combined dataset.
+        can also pass a list such as ['train', 'validation'] to get a combined dataset.
     """
 
     def __init__(
