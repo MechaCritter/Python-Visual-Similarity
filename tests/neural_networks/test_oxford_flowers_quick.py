@@ -21,6 +21,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, Subset
 
+import pyvisim.neural_networks.scripts._pairs as pair_data
 import pyvisim.neural_networks.scripts.train_siamese_neural_network as ts
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.neural_networks import ContrastiveSiameseNetwork
@@ -66,7 +67,9 @@ def pair_dataset(flower_subset: OxfordFlowerDataset) -> ts.OxfordSiamesePairs:
     :param flower_subset: The reduced flower dataset.
     :return: An ``OxfordSiamesePairs`` over the subset.
     """
-    with mock.patch.object(ts, "OxfordFlowerDataset", return_value=flower_subset):
+    with mock.patch.object(
+        pair_data, "OxfordFlowerDataset", return_value=flower_subset
+    ):
         return ts.OxfordSiamesePairs("train", transform=ts.VAL_TF)
 
 

@@ -18,6 +18,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
+import pyvisim.neural_networks.scripts._pairs as pair_data
 import pyvisim.neural_networks.scripts.train_siamese_neural_network as ts
 from pyvisim.neural_networks import ContrastiveSiameseNetwork
 from pyvisim.neural_networks.losses import ContrastiveLoss
@@ -39,14 +40,14 @@ _LABELS = [1, 1, 2, 2]
 
 @pytest.fixture
 def fake_flowers(monkeypatch: pytest.MonkeyPatch) -> FakeFlowerDataset:
-    """Patch the script's ``OxfordFlowerDataset`` with a 4-image fake.
+    """Patch the pair pipeline's ``OxfordFlowerDataset`` with a 4-image fake.
 
     :param monkeypatch: pytest's monkeypatch fixture.
     :return: The fake dataset instance the script will receive.
     """
     fake = FakeFlowerDataset(_IMAGES, _LABELS)
     monkeypatch.setattr(
-        ts, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
+        pair_data, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
     )
     return fake
 
@@ -112,7 +113,7 @@ def test_single_member_class_pairs_with_itself(
     """A positive pair for a singleton class falls back to the image itself."""
     fake = FakeFlowerDataset(_IMAGES[:3], [1, 2, 2])
     monkeypatch.setattr(
-        ts, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
+        pair_data, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
     )
     pairs = ts.OxfordSiamesePairs("train", transform=ts.VAL_TF, pos_fraction=1.0)
     _, img_b, label = pairs[0]
@@ -126,7 +127,7 @@ def test_pairs_require_at_least_two_classes(
     """A base dataset with a single class is rejected."""
     fake = FakeFlowerDataset(_IMAGES[:2], [1, 1])
     monkeypatch.setattr(
-        ts, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
+        pair_data, "OxfordFlowerDataset", lambda transform=None, purpose="train": fake
     )
     with pytest.raises(ValueError, match=">= 2 classes"):
         ts.OxfordSiamesePairs("train", transform=ts.VAL_TF)

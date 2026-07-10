@@ -145,20 +145,34 @@ logits = classifier(img_a, img_b)  # one logit per pair
 loss = criterion(logits, labels)  # labels: 1 = same class, 0 = different
 ```
 
-There's a ready-to-run script that trains the contrastive variant on the Oxford Flowers
-dataset. It mines positive/negative pairs, trains with `AdamW` + cosine annealing, and
-checkpoints the best model to `checkpoints/best.pt`:
+There are ready-to-run scripts that train each variant on the Oxford Flowers dataset. Both
+mine positive/negative pairs the same way and train with `AdamW` + cosine annealing; the
+contrastive script checkpoints the best model to `checkpoints/best.pt`, the pairwise one to
+`checkpoints_pairwise/best.pt`:
 
 ```bash
+# Contrastive variant (Hadsell et al., 2006)
 python -m pyvisim.neural_networks.scripts.train_siamese_neural_network
+
+# Pairwise variant (Koch et al., 2015)
+python -m pyvisim.neural_networks.scripts.train_pairwise_siamese_network
 ```
 
-To score two images with a trained checkpoint, reach for the script's `demo` helper:
+To score two images with a trained checkpoint, reach for the scripts' `demo` helpers:
 
 ```python
-from pyvisim.neural_networks.scripts.train_siamese_neural_network import demo
+from pyvisim.neural_networks.scripts import (
+    train_pairwise_siamese_network,
+    train_siamese_neural_network,
+)
 
-demo("checkpoints/best.pt", "flower_a.jpg", "flower_b.jpg")
+# Prints the cosine similarity in [-1, 1].
+train_siamese_neural_network.demo("checkpoints/best.pt", "flower_a.jpg", "flower_b.jpg")
+
+# Prints the same-class probability in (0, 1).
+train_pairwise_siamese_network.demo(
+    "checkpoints_pairwise/best.pt", "flower_a.jpg", "flower_b.jpg"
+)
 ```
 
 Loading a checkpoint back into a model yourself? Pass `pretrained_backbone=False` so you
