@@ -57,6 +57,7 @@ class VLADEncoder(ClusteringBasedEncoder):
     You can use euclidean distance, manhattan distance, etc. as the similarity function.
 
     The encoding can be used for indexing, retrieval, clustering or classification tasks.
+
     :param feature_extractor: Feature extractor instance (should implement __call__).
         Defaults to RootSIFT.
     :param weights: Pretrained K-Means weights to load (deprecated).
@@ -75,11 +76,11 @@ class VLADEncoder(ClusteringBasedEncoder):
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
 
-    References:
-    ==========
-    [1] Relja Arandjelović and Andrew Zisserman, 'All About VLAD', Department of Engineering Science, University of Oxford.
-    [2] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of Engineering Science, University of Oxford.
-    [3] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
+    .. rubric:: References
+
+    - [1] Relja Arandjelović and Andrew Zisserman, 'All About VLAD', Department of Engineering Science, University of Oxford.
+    - [2] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of Engineering Science, University of Oxford.
+    - [3] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
 
     _clustering_model_cls = KMeans

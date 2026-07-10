@@ -1,4 +1,4 @@
-# pyvisim.retrieval
+# Retrieval Utilities
 
 File: [`pyvisim/retrieval/__init__.py`](../../pyvisim/retrieval/__init__.py)
 
