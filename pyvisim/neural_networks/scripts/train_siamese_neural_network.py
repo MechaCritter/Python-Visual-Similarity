@@ -9,7 +9,7 @@ from torchvision import transforms
 
 from ...datasets import OxfordFlowerDataset
 from ..losses import ContrastiveLoss
-from ..siamese import SiameseNeuralNetwork
+from ..siamese import ContrastiveSiameseNetwork
 
 SEED = 42
 random.seed(SEED)
@@ -55,7 +55,7 @@ _NORMALIZE = transforms.Normalize(
 )
 
 # The Resize(256) + CenterCrop(224) geometry mirrors the model's default
-# inference transform (SiameseNeuralNetwork._get_imagenet_transform), so the
+# inference transform (ContrastiveSiameseNetwork._get_imagenet_transform), so the
 # network is trained and evaluated on the same crop distribution.
 TRAIN_TF = transforms.Compose(
     [
@@ -187,7 +187,7 @@ CONFIG: dict[str, Any] = {
 
 
 def run_epoch(
-    model: SiameseNeuralNetwork,
+    model: ContrastiveSiameseNetwork,
     loader: DataLoader[tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
     criterion: ContrastiveLoss,
     optimizer: torch.optim.Optimizer,
@@ -263,7 +263,7 @@ def train() -> None:
     print(f"Train pairs: {len(train_ds):,}  |  Val pairs: {len(val_ds):,}")
     print(f"Flower classes: {len(train_ds._labels_list)}")
 
-    model = SiameseNeuralNetwork(
+    model = ContrastiveSiameseNetwork(
         backbone="resnet18",
         embedding_dim=CONFIG["embedding_dim"],
         device=device,
@@ -321,7 +321,7 @@ def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
     import numpy as np
     from PIL import Image
 
-    model = SiameseNeuralNetwork(
+    model = ContrastiveSiameseNetwork(
         backbone="resnet18",
         embedding_dim=CONFIG["embedding_dim"],
         device=device,

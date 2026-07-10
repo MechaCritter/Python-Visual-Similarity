@@ -19,7 +19,7 @@ from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
 import pyvisim.neural_networks.scripts.train_siamese_neural_network as ts
-from pyvisim.neural_networks import SiameseNeuralNetwork
+from pyvisim.neural_networks import ContrastiveSiameseNetwork
 from pyvisim.neural_networks.losses import ContrastiveLoss
 
 from ._stubs import (
@@ -151,7 +151,7 @@ def _unit_vector_loader() -> DataLoader[tuple[torch.Tensor, ...]]:
     return DataLoader(dataset, batch_size=2, shuffle=False)
 
 
-def _normalizing_model() -> SiameseNeuralNetwork:
+def _normalizing_model() -> ContrastiveSiameseNetwork:
     """Model whose forward pass is exactly L2 normalization of 2-vectors.
 
     :return: Stub model on the script's device with an identity head.
@@ -279,7 +279,7 @@ def test_train_writes_checkpoints(
     orchestration: pair loaders, epoch loop, and checkpointing.
     """
     monkeypatch.setattr(
-        SiameseNeuralNetwork,
+        ContrastiveSiameseNetwork,
         "_get_backbone",
         staticmethod(lambda backbone, pretrained: MeanBackbone()),
     )
@@ -313,7 +313,7 @@ def test_demo_prints_similarity(
 ) -> None:
     """``demo`` loads a checkpoint and prints a similarity in ``[-1, 1]``."""
     monkeypatch.setattr(
-        SiameseNeuralNetwork,
+        ContrastiveSiameseNetwork,
         "_get_backbone",
         staticmethod(lambda backbone, pretrained: MeanBackbone()),
     )

@@ -1,4 +1,4 @@
-"""Unit tests for :class:`pyvisim.neural_networks.SiameseNeuralNetwork`.
+"""Unit tests for :class:`pyvisim.neural_networks.ContrastiveSiameseNetwork`.
 
 The model resolves backbone *names* to pretrained networks, so these tests
 install tiny deterministic stub backbones (see :mod:`._stubs`) instead: the
@@ -10,6 +10,7 @@ Flowers tests.
 from __future__ import annotations
 
 import math
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -17,7 +18,7 @@ import torch
 from torchvision import transforms
 
 from pyvisim._errors import InvalidImageError
-from pyvisim.neural_networks import SiameseNeuralNetwork
+from pyvisim.neural_networks import ContrastiveSiameseNetwork
 
 from ._stubs import (
     FlattenBackbone,
@@ -35,20 +36,20 @@ from ._stubs import (
 def test_unknown_backbone_name_raises() -> None:
     """An unrecognised backbone name raises ``ValueError`` at construction."""
     with pytest.raises(ValueError, match="Unsupported backbone"):
-        SiameseNeuralNetwork(backbone="alexnet")
+        ContrastiveSiameseNetwork(backbone="alexnet")
 
 
 def test_get_backbone_rejects_unknown_name() -> None:
     """The backbone resolver raises ``ValueError`` for unknown names."""
     with pytest.raises(ValueError, match="Unsupported backbone"):
-        SiameseNeuralNetwork._get_backbone(
+        ContrastiveSiameseNetwork._get_backbone(
             "definitely-not-a-backbone", pretrained=False
         )
 
 
 def test_non_pretrained_backbone_builds_without_weights() -> None:
     """``pretrained_backbone=False`` builds a real ResNet-18 without weights."""
-    model = SiameseNeuralNetwork(embedding_dim=8, pretrained_backbone=False)
+    model = ContrastiveSiameseNetwork(embedding_dim=8, pretrained_backbone=False)
     embeddings = model.embed(make_random_rgb_image(seed=1))
     assert embeddings.shape == (1, 8)
 
@@ -82,7 +83,7 @@ def test_imagenet_transform_for_resnet18() -> None:
     Resize to 256, center-crop to 224, convert to tensor and normalize with
     the ImageNet channel statistics.
     """
-    transform = SiameseNeuralNetwork._get_imagenet_transform("resnet18")
+    transform = ContrastiveSiameseNetwork._get_imagenet_transform("resnet18")
     steps = transform.transforms
     assert [type(step) for step in steps] == [
         transforms.Resize,
@@ -99,7 +100,7 @@ def test_imagenet_transform_for_resnet18() -> None:
 def test_imagenet_transform_unknown_backbone_raises() -> None:
     """Requesting the default transform for an unknown backbone raises."""
     with pytest.raises(ValueError, match="Unsupported backbone"):
-        SiameseNeuralNetwork._get_imagenet_transform("alexnet")
+        ContrastiveSiameseNetwork._get_imagenet_transform("alexnet")
 
 
 # §3 forward: mathematical correctness on trivial examples
@@ -144,7 +145,7 @@ def test_forward_applies_head_before_normalizing() -> None:
 
 
 @pytest.fixture
-def model() -> SiameseNeuralNetwork:
+def model() -> ContrastiveSiameseNetwork:
     """A small deterministic model for image-level tests.
 
     :return: Model with a :class:`MeanBackbone` and a 4-dim embedding space.
@@ -153,7 +154,7 @@ def model() -> SiameseNeuralNetwork:
     return build_stub_model(MeanBackbone(), embedding_dim=4)
 
 
-def test_embed_single_image_shape_and_norm(model: SiameseNeuralNetwork) -> None:
+def test_embed_single_image_shape_and_norm(model: ContrastiveSiameseNetwork) -> None:
     """One HWC image embeds to a single unit-norm float32 row."""
     embeddings = model.embed(make_random_rgb_image(seed=1))
     assert embeddings.shape == (1, 4)
@@ -161,7 +162,7 @@ def test_embed_single_image_shape_and_norm(model: SiameseNeuralNetwork) -> None:
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx(1.0, abs=1e-5)
 
 
-def test_embed_list_of_images(model: SiameseNeuralNetwork) -> None:
+def test_embed_list_of_images(model: ContrastiveSiameseNetwork) -> None:
     """A list of N images embeds to an ``(N, embedding_dim)`` batch."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2, 3)]
     embeddings = model.embed(images)
@@ -169,7 +170,7 @@ def test_embed_list_of_images(model: SiameseNeuralNetwork) -> None:
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx([1.0] * 3, abs=1e-5)
 
 
-def test_embed_batch_matches_single_encoding(model: SiameseNeuralNetwork) -> None:
+def test_embed_batch_matches_single_encoding(model: ContrastiveSiameseNetwork) -> None:
     """Batched embedding equals embedding each image individually."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2, 3)]
     batched = model.embed(images)
@@ -177,7 +178,7 @@ def test_embed_batch_matches_single_encoding(model: SiameseNeuralNetwork) -> Non
     assert np.allclose(batched[0], single[0], atol=1e-6)
 
 
-def test_embed_bhwc_array_matches_list(model: SiameseNeuralNetwork) -> None:
+def test_embed_bhwc_array_matches_list(model: ContrastiveSiameseNetwork) -> None:
     """A stacked BHWC array yields the same embeddings as a list of images."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2)]
     from_list = model.embed(images)
@@ -185,7 +186,7 @@ def test_embed_bhwc_array_matches_list(model: SiameseNeuralNetwork) -> None:
     assert np.array_equal(from_list, from_batch)
 
 
-def test_embed_chw_matches_hwc(model: SiameseNeuralNetwork) -> None:
+def test_embed_chw_matches_hwc(model: ContrastiveSiameseNetwork) -> None:
     """The same image in CHW layout yields the same embedding as in HWC."""
     image = make_random_rgb_image(seed=7)
     from_hwc = model.embed(image)
@@ -193,7 +194,7 @@ def test_embed_chw_matches_hwc(model: SiameseNeuralNetwork) -> None:
     assert np.array_equal(from_hwc, from_chw)
 
 
-def test_embed_unit_value_range_matches_uint8(model: SiameseNeuralNetwork) -> None:
+def test_embed_unit_value_range_matches_uint8(model: ContrastiveSiameseNetwork) -> None:
     """A float image in [0, 1] embeds identically to its uint8 counterpart."""
     checker = np.zeros((8, 8, 3), dtype=np.uint8)
     checker[::2, ::2] = 255
@@ -202,32 +203,32 @@ def test_embed_unit_value_range_matches_uint8(model: SiameseNeuralNetwork) -> No
     assert np.array_equal(from_uint8, from_float)
 
 
-def test_embed_grayscale_image(model: SiameseNeuralNetwork) -> None:
+def test_embed_grayscale_image(model: ContrastiveSiameseNetwork) -> None:
     """A single-channel image is promoted to RGB and embedded normally."""
     gray = np.full((16, 16), 100, dtype=np.uint8)
     embeddings = model.embed(gray, dims="HW")
     assert embeddings.shape == (1, 4)
 
 
-def test_embed_empty_input_raises(model: SiameseNeuralNetwork) -> None:
+def test_embed_empty_input_raises(model: ContrastiveSiameseNetwork) -> None:
     """An empty image collection raises ``ValueError``."""
     with pytest.raises(ValueError, match="at least one image"):
         model.embed([])
 
 
-def test_embed_rejects_string_input(model: SiameseNeuralNetwork) -> None:
+def test_embed_rejects_string_input(model: ContrastiveSiameseNetwork) -> None:
     """A string is not an image and raises ``InvalidImageError``."""
     with pytest.raises(InvalidImageError):
         model.embed("not-an-image.jpg")
 
 
-def test_embed_is_deterministic(model: SiameseNeuralNetwork) -> None:
+def test_embed_is_deterministic(model: ContrastiveSiameseNetwork) -> None:
     """Embedding the same image twice yields identical embeddings."""
     image = make_random_rgb_image(seed=5)
     assert np.array_equal(model.embed(image), model.embed(image))
 
 
-def test_embed_restores_training_mode(model: SiameseNeuralNetwork) -> None:
+def test_embed_restores_training_mode(model: ContrastiveSiameseNetwork) -> None:
     """``embed`` runs in eval mode but restores the previous training state."""
     model.train()
     model.embed(make_solid_rgb_image(value=10))
@@ -280,7 +281,9 @@ def test_embed_preserves_pixel_ratios() -> None:
 # §6 similarity_score
 
 
-def test_similarity_of_identical_images_is_one(model: SiameseNeuralNetwork) -> None:
+def test_similarity_of_identical_images_is_one(
+    model: ContrastiveSiameseNetwork,
+) -> None:
     """Cosine similarity of an image with itself is 1."""
     image = make_random_rgb_image(seed=11)
     score = model.similarity_score(image, image.copy())
@@ -288,7 +291,7 @@ def test_similarity_of_identical_images_is_one(model: SiameseNeuralNetwork) -> N
     assert score[0, 0] == pytest.approx(1.0, abs=1e-5)
 
 
-def test_similarity_matrix_shape(model: SiameseNeuralNetwork) -> None:
+def test_similarity_matrix_shape(model: ContrastiveSiameseNetwork) -> None:
     """Two batches of sizes N and M produce an ``(N, M)`` similarity matrix."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
@@ -296,7 +299,7 @@ def test_similarity_matrix_shape(model: SiameseNeuralNetwork) -> None:
     assert score.shape == (2, 3)
 
 
-def test_similarity_scores_bounded_by_one(model: SiameseNeuralNetwork) -> None:
+def test_similarity_scores_bounded_by_one(model: ContrastiveSiameseNetwork) -> None:
     """Cosine similarities of unit embeddings lie in ``[-1, 1]``."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
@@ -306,7 +309,7 @@ def test_similarity_scores_bounded_by_one(model: SiameseNeuralNetwork) -> None:
 
 
 def test_similarity_equals_embedding_dot_product(
-    model: SiameseNeuralNetwork,
+    model: ContrastiveSiameseNetwork,
 ) -> None:
     """On L2-normalized embeddings, cosine similarity is the dot product."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
@@ -316,7 +319,7 @@ def test_similarity_equals_embedding_dot_product(
     assert np.allclose(score, expected, atol=1e-5)
 
 
-def test_similarity_is_symmetric(model: SiameseNeuralNetwork) -> None:
+def test_similarity_is_symmetric(model: ContrastiveSiameseNetwork) -> None:
     """Swapping the inputs transposes the cosine similarity matrix."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
@@ -350,20 +353,20 @@ def test_unknown_similarity_func_raises() -> None:
 # §7 head and backbone properties (read-only by design)
 
 
-def test_head_property_returns_current_head(model: SiameseNeuralNetwork) -> None:
+def test_head_property_returns_current_head(model: ContrastiveSiameseNetwork) -> None:
     """The property exposes the projection head module."""
     assert isinstance(model.head, torch.nn.Linear)
     assert model.head.out_features == 4
 
 
 def test_backbone_property_returns_current_backbone(
-    model: SiameseNeuralNetwork,
+    model: ContrastiveSiameseNetwork,
 ) -> None:
     """The property exposes the feature-extraction backbone module."""
     assert isinstance(model.backbone, MeanBackbone)
 
 
-def test_head_is_read_only(model: SiameseNeuralNetwork) -> None:
+def test_head_is_read_only(model: ContrastiveSiameseNetwork) -> None:
     """Assigning to ``head`` raises instead of silently registering a module.
 
     ``torch.nn.Module.__setattr__`` would otherwise register the value as an
@@ -376,7 +379,7 @@ def test_head_is_read_only(model: SiameseNeuralNetwork) -> None:
     assert model.head is original_head
 
 
-def test_backbone_is_read_only(model: SiameseNeuralNetwork) -> None:
+def test_backbone_is_read_only(model: ContrastiveSiameseNetwork) -> None:
     """Assigning to ``backbone`` raises instead of silently registering a module."""
     original_backbone = model.backbone
     with pytest.raises(AttributeError):
@@ -396,3 +399,26 @@ def test_embed_on_cuda_returns_cpu_numpy() -> None:
     embeddings = model.embed(make_random_rgb_image(seed=1))
     assert isinstance(embeddings, np.ndarray)
     assert embeddings.shape == (1, 4)
+
+
+# §9 deprecated SiameseNeuralNetwork alias
+
+
+def test_deprecated_alias_warns_and_builds_contrastive_network() -> None:
+    """``SiameseNeuralNetwork`` emits a ``FutureWarning`` and stays compatible.
+
+    The alias must construct a fully functional contrastive network so that
+    code written against the old name keeps working until the alias is
+    removed.
+    """
+    from pyvisim.neural_networks import SiameseNeuralNetwork
+
+    with mock.patch.object(
+        SiameseNeuralNetwork,
+        "_get_backbone",
+        staticmethod(lambda name, *args, **kwargs: MeanBackbone()),
+    ):
+        with pytest.warns(FutureWarning, match="ContrastiveSiameseNetwork"):
+            model = SiameseNeuralNetwork(embedding_dim=4)
+    assert isinstance(model, ContrastiveSiameseNetwork)
+    assert model.embed(make_random_rgb_image(seed=1)).shape == (1, 4)
