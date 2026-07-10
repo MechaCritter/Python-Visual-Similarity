@@ -1,16 +1,16 @@
 # Encoders
 
 An encoder turns an image into a single fixed-size vector you can use for
-retrieval, clustering, and classification. Two families live here: the
-clustering-based encoders (VLAD, Fisher Vector) that extract local descriptors and
-aggregate them against a learned visual vocabulary, and `CLIPEncoder`, which runs
-the image through a pretrained CLIP network end to end.
+retrieval, clustering, and classification. The encoders here are the
+clustering-based ones (VLAD, Fisher Vector) that extract local descriptors and
+aggregate them against a learned visual vocabulary. If you want end-to-end CLIP
+embeddings instead, reach for `ClipEmbedder` in
+[`pyvisim.neural_networks`](../neural_networks/README.md).
 
 | Object | File | Aggregation model | Output size |
 |--------|------|-------------------|-------------|
 | [`VLADEncoder`](vlad.md) | [`vlad.py`](../../pyvisim/encoders/vlad.py) | KMeans | `K * D` |
 | [`FisherVectorEncoder`](fisher_vector.md) | [`fisher_vector.py`](../../pyvisim/encoders/fisher_vector.py) | Gaussian Mixture Model | `2 * K * D + K` |
-| [`CLIPEncoder`](clip.md) | [`clip.py`](../../pyvisim/encoders/clip.py) | n/a (pretrained CLIP) | model-defined (512 for `ViT-B-32`) |
 | [`Pipeline`](pipeline.md) | [`pipeline.py`](../../pyvisim/encoders/pipeline.py) | n/a (composes encoders) | sum of members |
 
 where `K` is the number of clusters and `D` is the local descriptor dimension.
@@ -20,10 +20,8 @@ encoders build their aggregation model from the
 [`pyvisim.clustering`](../clustering/README.md) package using the parameters you
 pass at construction, then fit it in `learn`. Trained encoders are saved and
 restored with `save_to_disk` / `load_from_disk`; the older pretrained-weight enums
-in [weights.md](weights.md) still work but are deprecated. `CLIPEncoder` skips the
-`learn` step entirely (its weights are already pretrained) and needs the `nn`
-extra: `pip install "pyvisim[nn]"`. The same extra is required for the VGG16
-`DeepConvFeature` extractor.
+in [weights.md](weights.md) still work but are deprecated. The VGG16
+`DeepConvFeature` extractor needs the `nn` extra: `pip install "pyvisim[nn]"`.
 
 ## VLAD vs Fisher Vector
 
