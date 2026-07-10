@@ -142,8 +142,9 @@ have any suggestions or questions!
 2. **Deep Learning Embeddings**  
    - Generate VLAD or Fisher vectors from neural network embeddings, e.g., VGG16 or other models.
    - Enhance your deep learning pipeline by leveraging traditional encoding methods on top of CNN features.
-   - Or skip the aggregation entirely and use `CLIPEncoder` for ready-made CLIP embeddings.
-   - The VGG16 deep-feature path (`DeepConvFeature`) and `CLIPEncoder` both need the `nn`
+   - Or skip the aggregation entirely and use `ClipEmbedder` (in `pyvisim.neural_networks`)
+   for ready-made CLIP embeddings, loaded straight from OpenAI's official checkpoints.
+   - The VGG16 deep-feature path (`DeepConvFeature`) and `ClipEmbedder` both need the `nn`
    extra: `pip install "pyvisim[nn]"`.
 
 3. **Image Clustering**  
