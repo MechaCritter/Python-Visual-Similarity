@@ -1,5 +1,9 @@
+Pretrained encoders
+===================
+
 .. include:: ../../encoders/weights.md
    :parser: myst_parser.sphinx_
+   :start-line: 1
 
 API reference
 -------------

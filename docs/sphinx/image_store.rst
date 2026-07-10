@@ -1,5 +1,9 @@
+pyvisim.image_store
+===================
+
 .. include:: ../image_store.md
    :parser: myst_parser.sphinx_
+   :start-line: 1
 
 API reference
 -------------

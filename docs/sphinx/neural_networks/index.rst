@@ -1,5 +1,9 @@
+Neural networks
+===============
+
 .. include:: ../../neural_networks/README.md
    :parser: myst_parser.sphinx_
+   :start-line: 1
 
 API reference
 -------------
