@@ -1,6 +1,12 @@
-# Siamese Neural Network for Image Similarity
+# Neural Networks for Image Similarity
 
-A PyTorch implementation of a **Siamese Neural Network (SNN)** for image similarity. This implementation supports image embedding generation, similarity scoring, and end-to-end training on the Oxford Flowers dataset using a ResNet-18 backbone.
+This module ships two PyTorch models:
+
+* A **Siamese Neural Network (SNN)**: image embedding generation, similarity scoring, and
+  end-to-end training on the Oxford Flowers dataset using a ResNet-18 backbone.
+* A **CLIP embedder** (`ClipEmbedder`): pretrained CLIP embeddings from pyvisim's own CLIP
+  implementation, with safetensors weights fetched from the Hugging Face Hub. See
+  [CLIP Embedder](#clip-embedder) below.
 
 
 ## Overview
@@ -125,6 +131,43 @@ model = SiameseNeuralNetwork(embedding_dim=128, pretrained_backbone=False)
 model.load_state_dict(torch.load("checkpoints/best.pt")["model"])
 ```
 
+## CLIP Embedder
+
+`ClipEmbedder` gives you pretrained CLIP embeddings without any training step. The CLIP
+image towers (Vision Transformer and modified ResNet) are implemented right here in
+pyvisim, and the pretrained weights are downloaded as safetensors files from the
+Hugging Face Hub on first use. No third-party CLIP library is involved.
+
+```python
+from pyvisim.neural_networks import ClipEmbedder
+
+embedder = ClipEmbedder("ViT-B-32", pretrained="openai")
+embeddings = embedder.embed(images)  # (num_images, 512); L2-normalized by default
+score = embedder.similarity_score(image1, image2)  # cosine similarity by default
+```
+
+A few things worth knowing:
+
+* Variant names and pretrained tags follow open_clip: 67 (variant, tag) combinations
+  across 30 variant names are supported, from `RN50`/`ViT-B-32` up to `ViT-g-14` and
+  `ViT-bigG-14`, with weights by OpenAI (`"openai"`), LAION (`"laion2b_s34b_b79k"`, ...),
+  DataComp (`"datacomp_xl_s13b_b90k"`, ...) and Meta (`"metaclip_fullcc"`, ...). That is
+  every open_clip variant whose image tower is a standard CLIP ViT or ResNet and whose
+  Hub repository publishes open_clip-format safetensors weights. Enumerate them with
+  `pyvisim.neural_networks.clip.available_variants()` and `available_pretrained(variant)`.
+  OpenAI-style spellings (`"ViT-B/32"`) are accepted as aliases.
+* Only the image tower is loaded — the text tower's weights are skipped entirely.
+* Checkpoints land in the standard Hugging Face cache (`~/.cache/huggingface/hub`), the
+  same place open_clip's Hub downloads go, so weights you already pulled that way are
+  reused. Every download is integrity-checked by huggingface_hub. Pass `cache_dir=...`
+  to cache somewhere else.
+* Preprocessing matches open_clip per checkpoint: bicubic resize plus center crop (or a
+  squashing resize where the checkpoint calls for it) and normalization with the
+  checkpoint's channel statistics.
+* The model runs in `float32` on both CPU and CUDA, so embeddings are reproducible and
+  match what open_clip produces at its default precision. QuickGELU-trained checkpoints
+  (like all `"openai"` ones) are automatically built with the QuickGELU activation.
+
 ## References
 
 1. **Siamese Neural Networks for One-shot Image Recognition**
@@ -135,3 +178,6 @@ http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
 3. **Deep Residual Learning for Image Recognition**
 https://arxiv.org/abs/1512.03385
+
+4. **Learning Transferable Visual Models From Natural Language Supervision** (Radford et al., 2021)
+https://arxiv.org/abs/2103.00020
