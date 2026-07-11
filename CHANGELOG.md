@@ -2,7 +2,20 @@
 
 ## [UNRELEASED]
 
+### Added
+- New `pyvisim.distance` module with pyvisim's own pure-NumPy pairwise metrics:
+  `cosine_similarity`, `euclidean_distances` and `manhattan_distances`. They keep
+  scikit-learn's numerical tricks (float64 upcast and the dot-product expansion for
+  Euclidean, zero-safe norms divided out of the result in place for cosine, chunked
+  broadcasting with a configurable `working_memory_bytes` budget for Manhattan) and
+  are verified against the scikit-learn reference in the test suite, including
+  `slow`-marked stress tests on a 100000 x 10000 gallery (size overridable via
+  `PYVISIM_TEST_LARGE_ROWS` / `PYVISIM_TEST_LARGE_FEATURES`).
+
 ### Changed
+- The distance metrics behind `similarity_func` no longer wrap
+  `sklearn.metrics.pairwise`; they now resolve to the implementations in
+  `pyvisim.distance`. Same names, same results.
 - Rolled out lib's own `.mat` loader to replace `scipy.io.loadmat`, so that
 the `scipy` dependency could be dropped completely. Added test to verify
 that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
