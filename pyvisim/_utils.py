@@ -2,9 +2,8 @@ from typing import cast
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
-from sklearn.metrics.pairwise import cosine_similarity as cs
-from sklearn.metrics.pairwise import euclidean_distances, manhattan_distances
 
+from . import distance
 from .lazy_import import is_tensor
 from .typing import (
     Float64NumpyArray,
@@ -45,7 +44,7 @@ def _as_2d_array(value: FloatNumpyArray) -> FloatNumpyArray:
     return value.reshape(1, -1) if value.ndim == 1 else value
 
 
-def cosine_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArray:
+def cosine_similarity_2d(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArray:
     """
     Compute the pairwise cosine similarity between two matrices.
 
@@ -63,10 +62,12 @@ def cosine_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArr
             f"Cosine similarity requires at least 2 features. Got {x.shape[-1]} features for x and {y.shape[-1]} features for y."
         )
 
-    return np.asarray(cs(x, y))
+    return distance.cosine_similarity(x, y)
 
 
-def euclidean_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArray:
+def euclidean_similarity_2d(
+    x: FloatNumpyArray, y: FloatNumpyArray
+) -> Float64NumpyArray:
     """
     Compute the pairwise Euclidean (L2) distance between two matrices.
 
@@ -76,10 +77,12 @@ def euclidean_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64Numpy
     :param y: Second matrix of shape ``(M, D)`` (or ``(D,)``).
     :return: Euclidean distance matrix of shape ``(N, M)``.
     """
-    return np.asarray(euclidean_distances(_as_2d_array(x), _as_2d_array(y)))
+    return distance.euclidean_distances(_as_2d_array(x), _as_2d_array(y))
 
 
-def manhattan_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArray:
+def manhattan_similarity_2d(
+    x: FloatNumpyArray, y: FloatNumpyArray
+) -> Float64NumpyArray:
     """
     Compute the pairwise Manhattan (L1) distance between two matrices.
 
@@ -90,16 +93,16 @@ def manhattan_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64Numpy
     :param y: Second matrix of shape ``(M, D)`` (or ``(D,)``).
     :return: Manhattan distance matrix of shape ``(N, M)``.
     """
-    return np.asarray(manhattan_distances(_as_2d_array(x), _as_2d_array(y)))
+    return distance.manhattan_distances(_as_2d_array(x), _as_2d_array(y))
 
 
 #: Mapping of supported similarity-function names to their implementations.
 #: ``"l1"`` and ``"manhattan"`` are aliases of the same metric.
 SIMILARITY_FUNCTIONS: dict[str, SimilarityFunc] = {
-    "cosine": cosine_similarity,
-    "euclidean": euclidean_similarity,
-    "l1": manhattan_similarity,
-    "manhattan": manhattan_similarity,
+    "cosine": cosine_similarity_2d,
+    "euclidean": euclidean_similarity_2d,
+    "l1": manhattan_similarity_2d,
+    "manhattan": manhattan_similarity_2d,
 }
 
 
