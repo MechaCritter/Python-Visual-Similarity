@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from ._utils import cosine_similarity
+from ._utils import cosine_similarity_2d
 from .typing import EmbeddingStore, MatLike
 
 __all__ = ["top_k_map", "top_k_accuracy"]
@@ -42,7 +42,7 @@ def top_k_map(
         if query_vec.ndim == 1:
             query_vec = query_vec.reshape(1, -1)
 
-        sims = cosine_similarity(query_vec, all_vectors)[0]
+        sims = cosine_similarity_2d(query_vec, all_vectors)[0]
 
         # Sort by descending similarity
         sorted_idx = np.argsort(-sims)
@@ -103,7 +103,7 @@ def top_k_accuracy(
         if q_vec.ndim == 1:
             q_vec = q_vec.reshape(1, -1)
 
-        sims = cosine_similarity(q_vec, all_vectors)[0]
+        sims = cosine_similarity_2d(q_vec, all_vectors)[0]
         sorted_idx = np.argsort(-sims)[:k]  # top-k
 
         # Check if any of the top-k share the query's label
