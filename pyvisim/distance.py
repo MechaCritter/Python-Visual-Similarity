@@ -13,8 +13,6 @@ is exposed through the ``similarity_func`` argument of the encoders.
 
 from __future__ import annotations
 
-from typing import cast
-
 import numpy as np
 
 from .typing import Float64NumpyArray, FloatNumpyArray
@@ -45,19 +43,19 @@ def _validate_pairwise_inputs(
     :raises ValueError: If either input is not 2-D or the feature dimensions
         do not match.
     """
-    x = cast(Float64NumpyArray, np.asarray(x, dtype=np.float64))
-    y = cast(Float64NumpyArray, np.asarray(y, dtype=np.float64))
-    if x.ndim != 2 or y.ndim != 2:
+    x64: Float64NumpyArray = np.asarray(x, dtype=np.float64)
+    y64: Float64NumpyArray = np.asarray(y, dtype=np.float64)
+    if x64.ndim != 2 or y64.ndim != 2:
         raise ValueError(
             f"Pairwise metrics expect 2-D arrays of shape (N, D). "
-            f"Got {x.ndim}-D and {y.ndim}-D inputs."
+            f"Got {x64.ndim}-D and {y64.ndim}-D inputs."
         )
-    if x.shape[1] != y.shape[1]:
+    if x64.shape[1] != y64.shape[1]:
         raise ValueError(
-            f"Incompatible feature dimensions: x has {x.shape[1]} features "
-            f"but y has {y.shape[1]}."
+            f"Incompatible feature dimensions: x has {x64.shape[1]} features "
+            f"but y has {y64.shape[1]}."
         )
-    return x, y
+    return x64, y64
 
 
 def _squared_row_norms(x: Float64NumpyArray) -> Float64NumpyArray:
@@ -70,7 +68,8 @@ def _squared_row_norms(x: Float64NumpyArray) -> Float64NumpyArray:
     :param x: Matrix of shape ``(N, D)``.
     :return: Vector of squared row norms of shape ``(N,)``.
     """
-    return cast(Float64NumpyArray, np.einsum("ij,ij->i", x, x))
+    squared_norms: Float64NumpyArray = np.einsum("ij,ij->i", x, x)
+    return squared_norms
 
 
 def _safe_row_norms(x: Float64NumpyArray) -> Float64NumpyArray:
@@ -107,10 +106,10 @@ def cosine_similarity(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArr
     x, y = _validate_pairwise_inputs(x, y)
     x_norms = _safe_row_norms(x)
     y_norms = x_norms if y is x else _safe_row_norms(y)
-    similarities = x @ y.T
+    similarities: Float64NumpyArray = x @ y.T
     similarities /= x_norms[:, np.newaxis]
     similarities /= y_norms[np.newaxis, :]
-    return cast(Float64NumpyArray, similarities)
+    return similarities
 
 
 def euclidean_distances(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyArray:
@@ -137,7 +136,8 @@ def euclidean_distances(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyA
     if y is x:
         # Self-distances are exactly zero by definition.
         np.fill_diagonal(distances, 0.0)
-    return cast(Float64NumpyArray, np.sqrt(distances, out=distances))
+    result: Float64NumpyArray = np.sqrt(distances, out=distances)
+    return result
 
 
 def manhattan_distances(
