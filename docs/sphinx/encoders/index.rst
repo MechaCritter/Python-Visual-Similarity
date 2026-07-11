@@ -11,6 +11,5 @@ Encoders
 
    vlad
    fisher_vector
-   clip
    pipeline
    weights
