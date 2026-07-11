@@ -27,4 +27,5 @@ together with all of their public methods.
    retrieval/index
    dataset/index
    neural_networks/index
+   distance
    functions

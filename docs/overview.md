@@ -10,9 +10,10 @@ pieces fit together so you can extend the library or debug it.
 pyvisim/
 ├── _base_classes.py     Abstract interfaces (SimilarityMetric, FeatureExtractorBase)
 ├── _config.py           Paths and logging setup
-├── _utils.py            cosine_similarity, image IO, clustering + plotting helpers
+├── _utils.py            Image IO + the name-based similarity-function registry
 ├── _errors.py           Custom exceptions
 ├── typing/              Public types and helper methods
+├── distance.py          Pairwise distance metrics (cosine, Euclidean, Manhattan)
 ├── eval.py              Retrieval metrics (mAP, top-k accuracy)
 ├── functional.py        retrieve_top_k_similar
 ├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
@@ -27,6 +28,7 @@ pyvisim/
 Per-area docs:
 
 - [Typing](typing.md): Public types (`MatLike`, `ImageInput`, `Encoder`).
+- [Distance](distance.md): the pairwise metrics that compare encodings.
 - [Encoders](encoders/): how images become vectors.
 - [Image store](image_store.md): the indexed embedding gallery you search.
 - [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
