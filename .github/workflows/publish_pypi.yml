@@ -20,9 +20,9 @@ permissions:
   contents: read
 
 jobs:
-  # Build the source distribution and wheel.
-  build:
-    name: "Build distributions"
+  # Build the source distribution.
+  build-sdist:
+    name: "Build sdist"
     runs-on: ubuntu-latest
 
     steps:
@@ -31,29 +31,57 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Set up Python"
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-
       - name: "Install uv"
-        uses: astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
-      - name: "Build sdist and wheel"
+      - name: "Build sdist"
         # SOURCE_DATE_EPOCH makes builds reproducible (same source -> same bytes).
         run: |
           SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) \
-          uv build
+          uv build --sdist
 
-      - name: "Upload dist artifacts"
+      - name: "Upload sdist artifact"
         uses: actions/upload-artifact@v7
-        id: upload-artifact
         with:
-          name: dist
+          name: dist-sdist
           path: dist/
+          if-no-files-found: error
+          retention-days: 5
+
+  # Build one binary wheel per platform and CPython version (the package
+  # ships a compiled Cython extension, see setup.py). Wheel selection is
+  # configured under [tool.cibuildwheel] in pyproject.toml.
+  build-wheels:
+    name: "Build wheels (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: "Build wheels"
+        run: uvx cibuildwheel --output-dir dist
+
+      - name: "Upload wheel artifacts"
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-wheels-${{ matrix.os }}
+          path: dist/*.whl
           if-no-files-found: error
           retention-days: 5
 
@@ -61,7 +89,7 @@ jobs:
   publish:
     name: "Publish to PyPI"
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build]
+    needs: [build-sdist, build-wheels]
     runs-on: ubuntu-latest
 
     environment:
@@ -75,7 +103,8 @@ jobs:
       - name: "Download dist artifacts"
         uses: actions/download-artifact@v8
         with:
-          name: dist
+          pattern: dist-*
+          merge-multiple: true
           path: dist/
 
       - name: "Publish to PyPI"
@@ -89,7 +118,7 @@ jobs:
   publish-test:
     name: "Publish to Test PyPI (dry run)"
     if: github.event_name == 'workflow_dispatch'
-    needs: [build]
+    needs: [build-sdist, build-wheels]
     runs-on: ubuntu-latest
 
     environment:
@@ -103,7 +132,8 @@ jobs:
       - name: "Download dist artifacts"
         uses: actions/download-artifact@v8
         with:
-          name: dist
+          pattern: dist-*
+          merge-multiple: true
           path: dist/
 
       - name: "Publish to Test PyPI"
