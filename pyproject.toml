@@ -25,10 +25,10 @@ classifiers = [
 dependencies = [
     "numpy",
     "Pillow",
-    "opencv-python-headless",
     "platformdirs",
     "safetensors",
     "scikit-learn",
+    "scipy",
     "tqdm",
     "requests",
 ]
@@ -112,7 +112,7 @@ bench = [
 # publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
-# Skip 32-bit and musl targets: opencv-python ships no wheels for them.
+# Skip 32-bit and musl targets: scipy/scikit-learn ship no wheels for them.
 skip = ["*-musllinux_*", "*_i686", "*-win32"]
 
 [tool.mypy]

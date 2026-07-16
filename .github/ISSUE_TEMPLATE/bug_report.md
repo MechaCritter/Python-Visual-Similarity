@@ -23,11 +23,10 @@ Steps to reproduce the behavior
 If applicable, add screenshots to help explain your problem.
 
 **System Info**
- - OS: 
+ - OS:
 - pyvisim version:
  - torch version (please also state with/without CUDA):
  - scikit-learn version:
- - OpenCV version:
 
 **Additional context**
 Add any other context about the problem here.
