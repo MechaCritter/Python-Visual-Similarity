@@ -76,9 +76,9 @@ class SSIM(DenseMetricBase):
     :param k2: Contrast stabilization constant (default 0.03).
     :param batch_size: Maximum number of image pairs scored per vectorized
         chunk; ``-1`` (default) scores the whole input as one batch.
-    :param num_workers: Number of threads to use for the computation. If ``None``,
-    use the default `PYVISIM_NUM_THREADS` instead (can be overridden by
-    setting os.environ["PYVISIM_NUM_THREADS"]).
+    :param num_workers: Number of threads to use for the computation. If
+        ``None``, use the default ``PYVISIM_NUM_THREADS`` instead (can be
+        overridden by setting ``os.environ["PYVISIM_NUM_THREADS"]``).
     :raises ValueError: If any parameter is outside its valid range.
     """
 
