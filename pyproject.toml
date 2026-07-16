@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 # To install PyTorch with CUDA support instead of the CPU-only default:
-#   uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+#   uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 # Replace cu124 with the CUDA version matching your system (e.g. cu121, cu118).
 
 # Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
@@ -46,7 +46,6 @@ dependencies = [
 nn = [
     "torch",
     "torchvision",
-    "torchaudio",
     "huggingface_hub",
 ]
 # Accelerated nearest-neighbour search and retrieval (ImageIndex,
