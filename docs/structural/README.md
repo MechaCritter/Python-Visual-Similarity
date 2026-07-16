@@ -1,4 +1,35 @@
-# Structural metrics
+# Structural
+
+Contains the metrics `SSIM` and `MSSSIM`, which captures the perceptual similarity of two images. It is used, for example, to test out the quality of image compression or denoising algorithms.
+
+Given two images x and y, `SSIM(x, y)` is defined as:
+
+$$
+\text{SSIM}(x, y) = \underbrace{\left[\frac{2\mu_x \mu_y + C_1}{\mu_x^2 + \mu_y^2 + C_1}\right]}_{\text{luminance}} \cdot \underbrace{\left[\frac{2\sigma_x \sigma_y + C_2}{\sigma_x^2 + \sigma_y^2 + C_2}\right]}_{\text{contrast}} \cdot \underbrace{\left[\frac{\sigma_{xy} + C_3}{\sigma_x \sigma_y + C_3}\right]}_{\text{structure}}
+$$
+
+`MS-SSIM` goes one step further by computing the SSIM at multiple scales. Hence, images are first
+downsampled by half (up to 5 times) and the SSIM is computed at each scale, then aggregated. Given
+two images x and y, `MS-SSIM(x, y)` is defined as:
+
+$$
+\text{MS-SSIM}(x, y) = \left[l_M(x, y)\right]^{\alpha_M} \cdot \prod_{j=1}^{M} \left[c_j(x, y)\right]^{\beta_j} \left[s_j(x, y)\right]^{\gamma_j}
+$$
+
+where $l_j$, $c_j$, $s_j$ are the luminance, contrast, and structure components at scale $j$ (as defined above in the `SSIM` formula), and $\alpha_M, \beta_j, \gamma_j$ are exponents weighting each scale's contribution. In
+`pyvisim`, the default weights, proposed by Wang et al. (2003), are used.
+
+## Usage
+
+```python
+from pyvisim.structural import MSSSIM, SSIM
+
+ssim = SSIM()
+scores = ssim.similarity_score(image1, image2)       # (1, 1) matrix
+
+msssim = MSSSIM(batch_size=4)
+matrix = msssim.similarity_score(gallery, queries)   # (N, M) matrix
+```
 
 <!-- benchmark:begin -->
 ## Benchmark

@@ -4,7 +4,8 @@
 
 ### Added
 - Structural similarity metrics (in `pyvisim.structural`): `SSIM` (Wang et al., 2004) and the
-  multi-scale `MSSSIM` (Wang et al., 2003), implemented in pure NumPy and matching
+  multi-scale `MSSSIM` (Wang et al., 2003), computed by a compiled multithreaded Cython
+  kernel (thread count via `num_workers` or `PYVISIM_NUM_THREADS`) and matching
   scikit-image / torchmetrics respectively. Both score two image batches into an `(N, M)`
   similarity matrix and take a `batch_size` parameter to bound peak memory (`-1` scores the
   whole input as one batch):
