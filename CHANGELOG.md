@@ -1,6 +1,6 @@
 # Changelog
 
-## [UNRELEASED]
+## [0.8.1]
 
 ### Added
 - Structural similarity metrics (in `pyvisim.structural`): `SSIM` (Wang et al., 2004) and the
