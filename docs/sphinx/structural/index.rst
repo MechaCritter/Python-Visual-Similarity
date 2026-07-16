@@ -1,5 +1,5 @@
-Structural metrics
-==================
+Structural
+==========
 
 .. include:: ../../structural/README.md
    :parser: myst_parser.sphinx_
@@ -11,10 +11,8 @@ Benchmark
 
 Accuracy and runtime of both metrics against their reference
 implementations (scikit-image for SSIM, torchmetrics for MS-SSIM) are
-tracked in the auto-generated benchmark section of the
-`structural docs page on GitHub
-<https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/structural/README.md#benchmark>`__,
-refreshed with ``python -m pyvisim.structural.generate_benchmark``.
+tracked in `this file
+<https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/structural/README.md#benchmark>`__.
 
 API reference
 -------------
