@@ -9,7 +9,7 @@ Canonical layout
 =================
 Every image is normalized to a ``uint8`` NumPy array of shape ``(H, W, C)``
 (or ``(H, W)`` for single-channel images) with values in the ``[0, 255]``
-range. SIFT/RootSIFT (OpenCV) and :class:`DeepConvFeature` (torchvision
+range. SIFT/RootSIFT and :class:`DeepConvFeature` (torchvision
 transforms) both expect this representation, so normalizing once keeps the
 downstream code unified.
 

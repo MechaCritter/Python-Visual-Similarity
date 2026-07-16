@@ -2,6 +2,7 @@
 
 import sys
 
+import numpy
 from Cython.Build import cythonize
 from setuptools import Extension, setup
 
@@ -36,7 +37,13 @@ def _extensions() -> list[Extension]:
             ["pyvisim/structural/_kernel/_ssim_kernels.pyx"],
             extra_compile_args=optimize_args + openmp_compile_args,
             extra_link_args=openmp_link_args,
-        )
+        ),
+        Extension(
+            "pyvisim.features._vendored.sift._sift",
+            ["pyvisim/features/_vendored/sift/_sift.pyx"],
+            include_dirs=[numpy.get_include()],
+            extra_compile_args=optimize_args,
+        ),
     ]
 
 

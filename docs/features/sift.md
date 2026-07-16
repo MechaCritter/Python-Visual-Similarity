@@ -1,10 +1,9 @@
 # SIFT
 
-File: [`_features.py`](../../pyvisim/features/_features.py)
+File: [`_sift.py`](../../pyvisim/features/_sift.py)
 
-Scale-Invariant Feature Transform descriptors via OpenCV's `cv2.SIFT`. SIFT was the
-original local descriptor used for VLAD and Fisher Vector encoding, so it is the
-baseline handcrafted extractor here.
+Scale-Invariant Feature Transform descriptors. SIFT was the
+original local descriptor used for VLAD and Fisher Vector encoding.
 
 - `output_dim` is `128` (standard SIFT descriptor length).
 

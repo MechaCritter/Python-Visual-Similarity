@@ -4,6 +4,7 @@
 # --inexact keeps ad-hoc packages in the venv from being pruned.
 build-ext:
 	uv run --group build cythonize -3 pyvisim/structural/_kernel/_ssim_kernels.pyx
+	uv run --group build cythonize -3 pyvisim/features/_vendored/sift/_sift.pyx
 	uv sync --inexact --reinstall-package pyvisim
 
 # Strict mypy type-checking ('nn' installs torch; 'search' installs faiss)
