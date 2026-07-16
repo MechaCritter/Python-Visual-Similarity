@@ -1,5 +1,9 @@
 fail_fast: true
 
+# Vendored third-party code is kept byte-comparable with its upstream source,
+# so no hook may touch anything under a _vendored folder.
+exclude: '/_vendored/'
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

@@ -1,11 +1,9 @@
 # RootSIFT
 
-File: [`_features.py`](../../pyvisim/features/_features.py)
+File: [`_root_sift.py`](../../pyvisim/features/_root_sift.py)
 
 RootSIFT is SIFT with Hellinger-kernel normalization. It is the **default feature
 extractor** for both `VLADEncoder` and `FisherVectorEncoder`.
-
-## What it does differently from SIFT
 
 After computing standard SIFT descriptors, each descriptor is:
 
@@ -14,13 +12,12 @@ After computing standard SIFT descriptors, each descriptor is:
 
 Comparing these transformed vectors with the Euclidean/dot-product operations the
 encoders use is equivalent to comparing the original descriptors under the Hellinger
-kernel. This is a well-established, near-free improvement over raw SIFT for retrieval,
-which is why it is the default.
+kernel.
 
 ## Notes
 
 - `output_dim` is `128`, same as SIFT.
-- Same empty-result handling as SIFT: no keypoints yields an empty `(0, 128)` array.
+- No keypoints yields an empty `(0, 128)` array.
 
 ## References
 
