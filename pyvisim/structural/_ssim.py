@@ -76,6 +76,9 @@ class SSIM(DenseMetricBase):
     :param k2: Contrast stabilization constant (default 0.03).
     :param batch_size: Maximum number of image pairs scored per vectorized
         chunk; ``-1`` (default) scores the whole input as one batch.
+    :param num_workers: Number of threads to use for the computation. If ``None``,
+    use the default `PYVISIM_NUM_THREADS` instead (can be overridden by
+    setting os.environ["PYVISIM_NUM_THREADS"]).
     :raises ValueError: If any parameter is outside its valid range.
     """
 
@@ -86,6 +89,7 @@ class SSIM(DenseMetricBase):
         k1: float = 0.01,
         k2: float = 0.03,
         batch_size: int = 2,
+        num_workers: int | None = None,
     ):
         super().__init__(batch_size=batch_size)
         _validate_window(window_size, sigma)
@@ -97,6 +101,9 @@ class SSIM(DenseMetricBase):
         self._kernel = gaussian_kernel(window_size, sigma)
         # float32 copy for the compiled kernel, cast once instead of per call.
         self._kernel32 = self._kernel.astype(np.float32)
+        self._num_workers = (
+            num_workers if num_workers is not None else get_kernel_threads()
+        )
 
     @property
     def window_size(self) -> int:
@@ -157,7 +164,7 @@ class SSIM(DenseMetricBase):
             self._kernel32,
             c1,
             c2,
-            get_kernel_threads(),
+            self._num_workers,
         )
         map_size = (height - self._window_size + 1) * (width - self._window_size + 1)
         scores: Float64NumpyArray = sum_l_cs.reshape(n_pairs, n_channels).sum(
