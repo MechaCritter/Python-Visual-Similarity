@@ -2,8 +2,8 @@ import math
 
 import numpy as np
 import scipy.ndimage as ndi
-from dtype import img_as_float
-from utils import _supported_float_type, check_nD
+from .dtype import img_as_float
+from .utils import _supported_float_type, check_nD
 
 from ._sift import _local_max, _ori_distances, _update_histogram
 from ._warps import rescale

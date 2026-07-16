@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0"]
+requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -68,6 +68,8 @@ pyvisim = [
     "py.typed",
     "structural/_kernel/*.pyx",
     "structural/_kernel/*.pyi",
+    "features/_vendored/sift/*.pyx",
+    "features/_vendored/sift/*.pxd",
 ]
 
 # Dependencies groups to isolate test env from production env
@@ -130,6 +132,13 @@ check_untyped_defs = true
 exclude = ["^build/", "^dist/", "^\\.venv/", "^venv/"]
 plugins = ["numpy.typing.mypy_plugin"]
 
+# Vendored third-party code is kept byte-comparable with upstream and is not
+# held to this project's typing standards.
+[[tool.mypy.overrides]]
+module = "pyvisim.features._vendored.*"
+ignore_errors = true
+ignore_missing_imports = true
+
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
@@ -143,7 +152,8 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py310"
 line-length = 88
-extend-exclude = ["*.ipynb"]
+# _vendored folders hold third-party code kept byte-comparable with upstream.
+extend-exclude = ["*.ipynb", "_vendored"]
 
 [tool.ruff.lint]
 select = [
@@ -165,7 +175,7 @@ indent-style = "space"
 
 [tool.codespell]
 ignore-words-list = "Commun"
-skip = "./examples"  # jupyter notebooks
+skip = "./examples,*/_vendored/*"  # jupyter notebooks; vendored third-party code
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
