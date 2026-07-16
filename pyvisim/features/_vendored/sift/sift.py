@@ -5,7 +5,6 @@ import scipy.ndimage as ndi
 from dtype import img_as_float
 from utils import _supported_float_type, check_nD
 
-from ...._base_classes import FeatureExtractorBase
 from ._sift import _local_max, _ori_distances, _update_histogram
 from ._warps import rescale
 from .gaussian import gaussian
@@ -99,7 +98,7 @@ def _offsets(grad, hess):
     return np.stack((offset0, offset1, offset2), axis=-1)
 
 
-class SIFT(FeatureExtractorBase):
+class SIFT:
     """SIFT feature detection and descriptor extraction.
 
     Parameters
