@@ -85,7 +85,7 @@ class SSIM(DenseMetricBase):
         sigma: float = 1.5,
         k1: float = 0.01,
         k2: float = 0.03,
-        batch_size: int = -1,
+        batch_size: int = 2,
     ):
         super().__init__(batch_size=batch_size)
         _validate_window(window_size, sigma)
