@@ -59,6 +59,15 @@ pre-commit install
 git switch -c my-branch
 ```
 
+## Cython modules
+
+Some modules are implemented in Cython for performance. If you work on them,
+please run this command to compile them:
+
+```bash
+make build-ext
+```
+
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.
