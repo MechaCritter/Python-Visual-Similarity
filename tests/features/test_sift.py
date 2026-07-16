@@ -1,17 +1,48 @@
+"""Tests for the SIFT feature extractor in :mod:`pyvisim.features`."""
+
+from __future__ import annotations
+
+import io
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
+import requests
+import torch
 from numpy.testing import assert_almost_equal, assert_equal
+from PIL import Image
 
 from pyvisim.features import SIFT
 from pyvisim.features._vendored.sift.dtype import _convert
 
-coin_url = "wget https://gitlab.com/scikit-image/data/-/raw/5c090b56df3988d988ff97928e2ef2d2cbe38e1b/coins.png"
-img = ...  # TODO: fetch image from the url using requests
+if TYPE_CHECKING:
+    from tests.conftest import ImageObj
+
+COINS_URL = (
+    "https://gitlab.com/scikit-image/data/-/raw/"
+    "5c090b56df3988d988ff97928e2ef2d2cbe38e1b/coins.png"
+)
+
+#: Image fixtures of varying sizes; extractors must honour the shape contract
+#: regardless of input size.
+VARYING_SIZE_FIXTURES = ["small_image", "large_image", "non_square_image", "rgb_image"]
 
 
+@pytest.fixture(scope="module")
+def coins_image() -> np.ndarray:
+    """Download the ``coins`` grayscale sample image as a ``uint8`` array."""
+    response = requests.get(COINS_URL, timeout=30)
+    response.raise_for_status()
+    return np.asarray(Image.open(io.BytesIO(response.content)))
+
+
+# Reference tests against the vendored scikit-image implementation
+
+
+@pytest.mark.slow
 @pytest.mark.parametrize("dtype", ["float32", "float64", "uint8", "uint16", "int64"])
-def test_keypoints_sift(dtype):
-    _img = _convert(img, dtype)
+def test_keypoints_sift(coins_image: np.ndarray, dtype: str) -> None:
+    _img = _convert(coins_image, dtype)
     detector_extractor = SIFT()
     detector_extractor.detect_and_extract(_img)
 
@@ -112,8 +143,8 @@ def test_keypoints_sift(dtype):
     )
 
     detector_extractor2 = SIFT()
-    detector_extractor2.detect(img)
-    detector_extractor2.extract(img)
+    detector_extractor2.detect(coins_image)
+    detector_extractor2.extract(coins_image)
     assert_almost_equal(
         detector_extractor.keypoints[:10, 0], detector_extractor2.keypoints[:10, 0]
     )
@@ -122,7 +153,7 @@ def test_keypoints_sift(dtype):
     )
 
 
-def test_descriptor_sift():
+def test_descriptor_sift(coins_image: np.ndarray) -> None:
     detector_extractor = SIFT(n_hist=2, n_ori=4)
     exp_descriptors = np.array(
         [
@@ -157,7 +188,7 @@ def test_descriptor_sift():
         dtype=np.uint8,
     )
 
-    detector_extractor.detect_and_extract(img)
+    detector_extractor.detect_and_extract(coins_image)
 
     assert_equal(exp_descriptors, detector_extractor.descriptors[:10])
 
@@ -170,8 +201,63 @@ def test_descriptor_sift():
     assert keypoints_count == detector_extractor.scales.shape[0]
 
 
-def test_no_descriptors_extracted_sift():
+def test_no_descriptors_extracted_sift() -> None:
     img = np.ones((128, 128))
     detector_extractor = SIFT()
     with pytest.raises(RuntimeError):
         detector_extractor.detect_and_extract(img)
+
+
+# FeatureExtractorBase contract
+
+
+def test_sift_output_dim() -> None:
+    """SIFT descriptors are 128-dimensional."""
+    assert SIFT().output_dim == 128
+
+
+def test_sift_extracts_descriptors(checkerboard_image: ImageObj) -> None:
+    """A corner-rich image yields a non-empty ``(N, 128)`` float32 matrix."""
+    out = SIFT()(checkerboard_image.array)
+    assert out.ndim == 2
+    assert out.shape[1] == 128
+    assert out.shape[0] > 0
+    assert out.dtype == np.float32
+
+
+def test_sift_featureless_returns_empty(solid_image: ImageObj) -> None:
+    """A featureless image yields an empty ``(0, 128)`` array."""
+    assert SIFT()(solid_image.array).shape == (0, 128)
+
+
+def test_sift_stripes_returns_empty(stripes_image: ImageObj) -> None:
+    """A stripe pattern has no SIFT corners, yielding an empty array."""
+    assert SIFT()(stripes_image.array).shape == (0, 128)
+
+
+def test_sift_tiny_returns_empty(tiny_image: ImageObj) -> None:
+    """An 8x8 image is too small for keypoints, yielding an empty array."""
+    assert SIFT()(tiny_image.array).shape == (0, 128)
+
+
+def test_sift_accepts_tensor(checkerboard_image: ImageObj) -> None:
+    """A grayscale torch tensor is accepted and yields the ``(N, 128)`` contract."""
+    tensor = torch.from_numpy(checkerboard_image.array)
+    out = SIFT()(tensor)
+    assert out.ndim == 2
+    assert out.shape[1] == 128
+    assert out.shape[0] > 0
+
+
+def test_sift_repr() -> None:
+    """``repr`` reports the extractor name and its output dimension."""
+    assert repr(SIFT()) == "SIFT(output_dim=128)"
+
+
+@pytest.mark.parametrize("image_fixture", VARYING_SIZE_FIXTURES)
+def test_sift_varying_sizes(request: pytest.FixtureRequest, image_fixture: str) -> None:
+    """SIFT honours the ``(N, 128)`` shape contract across input sizes."""
+    image = request.getfixturevalue(image_fixture).array
+    out = SIFT()(image)
+    assert out.ndim == 2
+    assert out.shape[1] == 128

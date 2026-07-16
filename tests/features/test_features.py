@@ -9,7 +9,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from pyvisim.features import SIFT, DeepConvFeature, Lambda, RootSIFT
+from pyvisim.features import DeepConvFeature, Lambda, RootSIFT
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -30,63 +30,6 @@ def _tiny_conv_model() -> nn.Module:
         nn.ReLU(),
         nn.Conv2d(6, 10, 3, padding=1),
     )
-
-
-# ---------------------------------------------------------------------------
-# SIFT
-# ---------------------------------------------------------------------------
-
-
-def test_sift_output_dim() -> None:
-    """SIFT descriptors are 128-dimensional."""
-    assert SIFT().output_dim == 128
-
-
-def test_sift_extracts_descriptors(checkerboard_image: ImageObj) -> None:
-    """A corner-rich image yields a non-empty ``(N, 128)`` float32 matrix."""
-    out = SIFT()(checkerboard_image.array)
-    assert out.ndim == 2
-    assert out.shape[1] == 128
-    assert out.shape[0] > 0
-    assert out.dtype == np.float32
-
-
-def test_sift_featureless_returns_empty(solid_image: ImageObj) -> None:
-    """A featureless image yields an empty ``(0, 128)`` array."""
-    assert SIFT()(solid_image.array).shape == (0, 128)
-
-
-def test_sift_stripes_returns_empty(stripes_image: ImageObj) -> None:
-    """A stripe pattern has no SIFT corners, yielding an empty array."""
-    assert SIFT()(stripes_image.array).shape == (0, 128)
-
-
-def test_sift_tiny_returns_empty(tiny_image: ImageObj) -> None:
-    """An 8x8 image is too small for keypoints, yielding an empty array."""
-    assert SIFT()(tiny_image.array).shape == (0, 128)
-
-
-def test_sift_accepts_tensor(checkerboard_image: ImageObj) -> None:
-    """A grayscale torch tensor is accepted and yields the ``(N, 128)`` contract."""
-    tensor = torch.from_numpy(checkerboard_image.array)
-    out = SIFT()(tensor)
-    assert out.ndim == 2
-    assert out.shape[1] == 128
-    assert out.shape[0] > 0
-
-
-def test_sift_repr() -> None:
-    """``repr`` reports the extractor name and its output dimension."""
-    assert repr(SIFT()) == "SIFT(output_dim=128)"
-
-
-@pytest.mark.parametrize("image_fixture", VARYING_SIZE_FIXTURES)
-def test_sift_varying_sizes(request: pytest.FixtureRequest, image_fixture: str) -> None:
-    """SIFT honours the ``(N, 128)`` shape contract across input sizes."""
-    image = request.getfixturevalue(image_fixture).array
-    out = SIFT()(image)
-    assert out.ndim == 2
-    assert out.shape[1] == 128
 
 
 # RootSIFT (default extractor)
