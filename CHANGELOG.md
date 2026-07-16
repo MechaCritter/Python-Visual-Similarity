@@ -3,6 +3,18 @@
 ## [UNRELEASED]
 
 ### Added
+- Structural similarity metrics (in `pyvisim.structural`): `SSIM` (Wang et al., 2004) and the
+  multi-scale `MSSSIM` (Wang et al., 2003), implemented in pure NumPy and matching
+  scikit-image / torchmetrics respectively. Both score two image batches into an `(N, M)`
+  similarity matrix and take a `batch_size` parameter to bound peak memory (`-1` scores the
+  whole input as one batch):
+
+  ```python
+  from pyvisim.structural import MSSSIM, SSIM
+
+  scores = SSIM().similarity_score(image1, image2)          # (N, M) matrix in [-1, 1]
+  scores = MSSSIM(batch_size=16).similarity_score(gallery, queries)
+  ```
 - New `pyvisim.distance` module with pyvisim's own pure-NumPy pairwise metrics:
   `cosine_similarity`, `euclidean_distances` and `manhattan_distances`. They keep
   scikit-learn's numerical tricks (float64 upcast and the dot-product expansion for
