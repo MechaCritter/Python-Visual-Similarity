@@ -7,9 +7,11 @@ import pytest
 
 from pyvisim.structural._filters import gaussian_kernel
 from pyvisim.structural._kernel._ssim_kernels import ssim_plane_sums
+from pyvisim.utils.cython_utils import get_kernel_threads
 
 C1 = (0.01 * 255.0) ** 2
 C2 = (0.03 * 255.0) ** 2
+NUM_THREADS = get_kernel_threads()
 
 
 def _random_plane_pair(
@@ -67,7 +69,7 @@ def test_matches_float64_reference() -> None:
     planes1, planes2 = _random_plane_pair()
     kernel = gaussian_kernel(11, 1.5)
     sum_l_cs, sum_cs = ssim_plane_sums(
-        planes1, planes2, kernel.astype(np.float32), C1, C2
+        planes1, planes2, kernel.astype(np.float32), C1, C2, NUM_THREADS
     )
     ref_l_cs, ref_cs = _reference_sums(planes1, planes2, kernel)
     np.testing.assert_allclose(sum_l_cs, ref_l_cs, rtol=1e-4)
@@ -78,7 +80,7 @@ def test_identical_planes_sum_to_map_size_exactly() -> None:
     """Identical inputs give luminance == cs == 1 at every output pixel."""
     planes, _ = _random_plane_pair(height=40, width=52)
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
-    sum_l_cs, sum_cs = ssim_plane_sums(planes, planes, kernel, C1, C2)
+    sum_l_cs, sum_cs = ssim_plane_sums(planes, planes, kernel, C1, C2, NUM_THREADS)
     map_size = float((40 - 11 + 1) * (52 - 11 + 1))
     assert (sum_l_cs == map_size).all()
     assert (sum_cs == map_size).all()
@@ -88,8 +90,8 @@ def test_bitwise_symmetry() -> None:
     """Swapping the two plane batches changes no output bit."""
     planes1, planes2 = _random_plane_pair()
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
-    forward = ssim_plane_sums(planes1, planes2, kernel, C1, C2)
-    backward = ssim_plane_sums(planes2, planes1, kernel, C1, C2)
+    forward = ssim_plane_sums(planes1, planes2, kernel, C1, C2, NUM_THREADS)
+    backward = ssim_plane_sums(planes2, planes1, kernel, C1, C2, NUM_THREADS)
     np.testing.assert_array_equal(forward[0], backward[0])
     np.testing.assert_array_equal(forward[1], backward[1])
 
@@ -98,8 +100,8 @@ def test_repeated_calls_are_bitwise_deterministic() -> None:
     """Two identical calls agree bit for bit despite multithreading."""
     planes1, planes2 = _random_plane_pair(n_planes=5)
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
-    first = ssim_plane_sums(planes1, planes2, kernel, C1, C2)
-    second = ssim_plane_sums(planes1, planes2, kernel, C1, C2)
+    first = ssim_plane_sums(planes1, planes2, kernel, C1, C2, NUM_THREADS)
+    second = ssim_plane_sums(planes1, planes2, kernel, C1, C2, NUM_THREADS)
     np.testing.assert_array_equal(first[0], second[0])
     np.testing.assert_array_equal(first[1], second[1])
 
@@ -108,7 +110,7 @@ def test_single_plane_slices_match_batch() -> None:
     """Each plane is computed independently of its batch neighbours."""
     planes1, planes2 = _random_plane_pair(n_planes=4)
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
-    batch = ssim_plane_sums(planes1, planes2, kernel, C1, C2)
+    batch = ssim_plane_sums(planes1, planes2, kernel, C1, C2, NUM_THREADS)
     for index in range(planes1.shape[0]):
         single = ssim_plane_sums(
             np.ascontiguousarray(planes1[index : index + 1]),
@@ -116,6 +118,7 @@ def test_single_plane_slices_match_batch() -> None:
             kernel,
             C1,
             C2,
+            NUM_THREADS,
         )
         assert single[0][0] == batch[0][index]
         assert single[1][0] == batch[1][index]
@@ -131,7 +134,9 @@ def test_shape_mismatch_raises() -> None:
     planes1, planes2 = _random_plane_pair()
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
     with pytest.raises(ValueError, match="same shape"):
-        ssim_plane_sums(planes1, np.ascontiguousarray(planes2[:, :-1]), kernel, C1, C2)
+        ssim_plane_sums(
+            planes1, np.ascontiguousarray(planes2[:, :-1]), kernel, C1, C2, NUM_THREADS
+        )
 
 
 def test_plane_smaller_than_window_raises() -> None:
@@ -139,4 +144,4 @@ def test_plane_smaller_than_window_raises() -> None:
     planes1, planes2 = _random_plane_pair(height=8, width=8)
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
     with pytest.raises(ValueError, match="smaller than"):
-        ssim_plane_sums(planes1, planes2, kernel, C1, C2)
+        ssim_plane_sums(planes1, planes2, kernel, C1, C2, NUM_THREADS)

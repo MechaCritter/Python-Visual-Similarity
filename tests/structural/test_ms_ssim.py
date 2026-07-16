@@ -180,5 +180,5 @@ def test_repr() -> None:
     metric = MSSSIM(weights=(0.5, 0.5))
     assert repr(metric) == (
         "MSSSIM(weights=(0.5, 0.5), window_size=11, sigma=1.5, "
-        "k1=0.01, k2=0.03, batch_size=-1)"
+        "k1=0.01, k2=0.03, batch_size=2)"
     )

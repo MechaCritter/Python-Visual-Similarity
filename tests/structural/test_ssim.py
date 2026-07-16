@@ -202,5 +202,5 @@ def test_batch_size_setter_validates() -> None:
 def test_repr() -> None:
     """``repr`` reports the metric configuration."""
     assert repr(SSIM()) == (
-        "SSIM(window_size=11, sigma=1.5, k1=0.01, k2=0.03, batch_size=-1)"
+        "SSIM(window_size=11, sigma=1.5, k1=0.01, k2=0.03, batch_size=2)"
     )
