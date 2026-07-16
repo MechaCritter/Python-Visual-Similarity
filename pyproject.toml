@@ -97,9 +97,11 @@ build = [
     "setuptools",
 ]
 # Reference implementations and tooling for notebooks/benchmark_structural.ipynb
+# and pyvisim/structural/generate_benchmark.py
 bench = [
     "scikit-image",
     "torchmetrics",
+    "matplotlib",
     "nbclient",
     "ipykernel",
 ]
@@ -137,6 +139,18 @@ module = [
   "tqdm.*",
 ]
 ignore_missing_imports = true
+
+# Bench-group-only dependencies of generate_benchmark.py: not installed in
+# the type-checking environment, and never analyzed when present locally
+# (skimage pulls in tifffile, whose 3.12-only syntax breaks a 3.10 check).
+[[tool.mypy.overrides]]
+module = [
+  "matplotlib.*",
+  "skimage.*",
+  "torchmetrics.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.ruff]
 target-version = "py310"
