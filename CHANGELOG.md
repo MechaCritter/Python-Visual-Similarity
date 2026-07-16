@@ -3,6 +3,11 @@
 ## [0.8.1]
 
 ### Added
+- `SIFT` now exposes the full set of detector parameters (`upsampling`, `n_octaves`,
+  `n_scales`, `sigma_min`, `c_dog`, `c_edge`, `n_hist`, `n_ori`, ...) as constructor
+  arguments, along with the underlying detector API (`detect`, `extract`,
+  `detect_and_extract` and the `keypoints`/`descriptors`/`positions`/... attributes).
+  `output_dim` is now `n_hist**2 * n_ori` (still `128` with the defaults).
 - Structural similarity metrics (in `pyvisim.structural`): `SSIM` (Wang et al., 2004) and the
   multi-scale `MSSSIM` (Wang et al., 2003), computed by a compiled multithreaded Cython
   kernel (thread count via `num_workers` or `PYVISIM_NUM_THREADS`) and matching
@@ -26,6 +31,13 @@
   `PYVISIM_TEST_LARGE_ROWS` / `PYVISIM_TEST_LARGE_FEATURES`).
 
 ### Changed
+- `SIFT` and `RootSIFT` no longer call OpenCV's `cv2.SIFT`; they now run the pure
+  NumPy/Cython SIFT implementation vendored from scikit-image
+  (`pyvisim/features/_vendored/sift/`, compiled via `make build-ext`).
+  `RootSIFT` subclasses `SIFT` and only adds the Hellinger-kernel normalization.
+  With OpenCV gone, `opencv-python-headless` is removed from the dependencies;
+  `scipy` returns as a direct dependency (the vendored implementation uses
+  `scipy.ndimage`, previously it was only pulled in via scikit-learn).
 - The distance metrics behind `similarity_func` no longer wrap
   `sklearn.metrics.pairwise`; they now resolve to the implementations in
   `pyvisim.distance`. Same names, same results.
