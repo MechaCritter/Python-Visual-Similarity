@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77.0.0", "wheel"]
+requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.8.0"
+version = "0.8.1"
 description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
 readme = "README.md"
 license = "MIT"
@@ -66,6 +66,8 @@ pyvisim = [
     "res/model_files/*.encoder",
     "res/logging_config.yaml",
     "py.typed",
+    "structural/_kernel/*.pyx",
+    "structural/_kernel/*.pyi",
 ]
 
 # Dependencies groups to isolate test env from production env
@@ -89,6 +91,27 @@ docs = [
     "myst-parser",
     "furo",
 ]
+# Regenerating the checked-in C sources of the Cython kernels (make build-ext)
+build = [
+    "cython",
+    "setuptools",
+]
+# Reference implementations and tooling for notebooks/benchmark_structural.ipynb
+# and docs/structural/benchmarks/generate_benchmark.py
+bench = [
+    "scikit-image",
+    "torchmetrics",
+    "matplotlib",
+    "nbclient",
+    "ipykernel",
+]
+
+# Per-platform wheel builds for the compiled Cython extension, run by the
+# publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
+[tool.cibuildwheel]
+build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+# Skip 32-bit and musl targets: opencv-python ships no wheels for them.
+skip = ["*-musllinux_*", "*_i686", "*-win32"]
 
 [tool.mypy]
 python_version = "3.10"

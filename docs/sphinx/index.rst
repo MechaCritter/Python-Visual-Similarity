@@ -28,4 +28,5 @@ together with all of their public methods.
    dataset/index
    neural_networks/index
    distance
+   structural/index
    functions
