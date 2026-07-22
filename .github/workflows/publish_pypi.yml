@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
 
       - name: "Set up Python"
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -113,7 +113,7 @@ jobs:
           path: dist/
 
       - name: "Publish to PyPI"
-        uses: pypa/gh-action-pypi-publish@v1.14.0
+        uses: pypa/gh-action-pypi-publish@v1.14.1
         with:
           attestations: true                     # Cryptographically signs the release
 
@@ -142,7 +142,7 @@ jobs:
           path: dist/
 
       - name: "Publish to Test PyPI"
-        uses: pypa/gh-action-pypi-publish@v1.14.0
+        uses: pypa/gh-action-pypi-publish@v1.14.1
         with:
           repository-url: https://test.pypi.org/legacy/
           attestations: true
