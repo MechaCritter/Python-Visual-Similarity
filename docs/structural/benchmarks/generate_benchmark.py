@@ -1,6 +1,5 @@
 import argparse
 import itertools
-import json
 import os
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -34,6 +33,8 @@ _NOISE_STD = 15.0
 _SECTION_BEGIN = "<!-- benchmark:begin -->"
 _SECTION_END = "<!-- benchmark:end -->"
 
+_IMAGE_BASE_URL = "https://mechacritter.github.io/Python-Visual-Similarity/benchmarks"
+
 # Chart chrome (light mode) and the two fixed series slots, following the
 # validated default dataviz palette: blue = pyvisim, green = baseline.
 _COLOR_PYVISIM = "#2a78d6"
@@ -44,9 +45,6 @@ _INK_SECONDARY = "#52514e"
 _MUTED = "#898781"
 _GRIDLINE = "#e1e0d9"
 _AXIS = "#c3c2b7"
-
-# Packages whose versions are recorded in the results JSON.
-_VERSIONED = ("pyvisim", "numpy", "scikit-image", "torch", "torchmetrics")
 
 #: One sampled image: (base file name, RGB uint8 array).
 _NamedImage = tuple[str, UInt8NumpyArray]
@@ -322,7 +320,7 @@ stacking, scoring).
 
 {_format_runtime_table(runtime)}
 
-![{bench["metric_label"]} median runtime](benchmarks/{bench["slug"]}_runtime_barplot.png)
+![{bench["metric_label"]} median runtime]({_IMAGE_BASE_URL}/{bench["slug"]}_runtime_barplot.png)
 """
 
 
@@ -439,38 +437,19 @@ def _write_outputs(
     seed: int,
     repeats: int,
 ) -> None:
-    """Write the results JSON, the runtime plots and the README section."""
+    """Render the runtime plots and refresh the README section."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    payload: dict[str, object] = {
-        "_generated_by": (
-            f"{_SCRIPT_REF} — do not edit manually, re-run the script instead."
-        ),
-        "config": {
-            "dataset": f"OxfordFlowerDataset (split: {_DATASET_SPLIT})",
-            "seed": seed,
-            "repeats": repeats,
-            "noise_std": _NOISE_STD,
-            "pyvisim_num_threads": _NUM_THREADS,
-            "num_workers": _NUM_WORKERS,
-            "versions": {name: _package_version(name) for name in _VERSIONED},
-        },
-    }
     for bench in benchmarks:
-        slug = cast(str, bench["slug"])
-        payload[slug] = {k: bench[k] for k in ("baseline", "accuracy", "runtime")}
-    json_path = output_dir / "benchmark_results.json"
-    json_path.write_text(json.dumps(payload, indent=2) + "\n")
-    for bench in benchmarks:
+        image_path = output_dir / f"{bench['slug']}_runtime_barplot.png"
         _plot_runtime_barplot(
             cast(dict[str, dict[str, object]], bench["runtime"]),
             cast(str, bench["baseline_label"]),
             f"{bench['metric_label']}: median runtime, pyvisim vs. "
             f"{bench['baseline_label']}",
-            output_dir / f"{bench['slug']}_runtime_barplot.png",
+            image_path,
         )
+        print(f"Wrote {image_path}")
     _inject_section(readme_path, _format_section(benchmarks, seed, repeats))
-    print(f"Wrote {json_path}")
-    print(f"Wrote {output_dir}/{{ssim,ms_ssim}}_runtime_barplot.png")
     print(f"Refreshed the Benchmark section of {readme_path}")
 
 
@@ -484,7 +463,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=_REPO_ROOT / "docs" / "structural" / "benchmarks",
-        help="Directory of the JSON and PNG outputs.",
+        help="Directory the runtime barplot PNGs are written to.",
     )
     parser.add_argument(
         "--readme",

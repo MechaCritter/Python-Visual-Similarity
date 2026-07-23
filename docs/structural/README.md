@@ -79,7 +79,7 @@ stacking, scoring).
 | batch of 4 (16 pairs), 256x256 | `image_07561.jpg`, `image_02145.jpg`, `image_00112.jpg`, `image_07844.jpg` | 51.3 | 171 | 3.3x |
 | batch of 8 (64 pairs), 256x256 | `image_04707.jpg`, `image_06877.jpg`, `image_05021.jpg`, `image_06347.jpg`, `image_00057.jpg`, `image_00507.jpg`, `image_01199.jpg`, `image_03657.jpg` | 207 | 654 | 3.2x |
 
-![SSIM median runtime](benchmarks/ssim_runtime_barplot.png)
+![SSIM median runtime](https://mechacritter.github.io/Python-Visual-Similarity/benchmarks/ssim_runtime_barplot.png)
 
 ### MS-SSIM
 
@@ -116,6 +116,6 @@ stacking, scoring).
 | batch of 4 (16 pairs), 256x256 | `image_00018.jpg`, `image_04460.jpg`, `image_00547.jpg`, `image_08160.jpg` | 122 | 330 | 2.7x |
 | batch of 8 (64 pairs), 256x256 | `image_03502.jpg`, `image_04084.jpg`, `image_05542.jpg`, `image_00609.jpg`, `image_04044.jpg`, `image_07394.jpg`, `image_05554.jpg`, `image_02798.jpg` | 497 | 1,379 | 2.8x |
 
-![MS-SSIM median runtime](benchmarks/ms_ssim_runtime_barplot.png)
+![MS-SSIM median runtime](https://mechacritter.github.io/Python-Visual-Similarity/benchmarks/ms_ssim_runtime_barplot.png)
 
 <!-- benchmark:end -->
