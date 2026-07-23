@@ -1,41 +1,34 @@
 # Encoders
 
 ## Overview
-The "encoders" module is responsible for computing image similarities, or more precisely the vector representations of visual content in
-images which can be used for tasks such as indexing, retrieval, clustering, and classification of images. Most encoders in this module utilize
-a combination of feature extraction techniques, clustering models, and a certain similarity function to generate these vector representations,
-depending on the specific implementation of the encoder.
-This module currently contains these core components:
-- VLAD (Vector of Locally Aggregated Descriptors) Encoder
-- Fisher Vector Encoder
-- Similarity Metric Pipeline
-
-Looking for CLIP? It moved: pretrained CLIP embeddings now live in `pyvisim.neural_networks`
-as `ClipEmbedder` (see the [neural networks README](../neural_networks/README.md)).
-
-ALl the feature extraction classes/methods are implemented in the `features` module.
+This module implements the VLAD and Fisher Vector, which were popular
+image encoding methods before image embeddings became popular. These
+metrics aggregate image descriptors (commonly SIFT) using a clustering
+algorithm to produce a single feature vector representation of the image.
 
 ## VLAD Encoder and Fisher Vector Encoder
-The VLAD (Vector of Locally Aggregated Descriptors) and the Fisher Vector Encoders are two similar implementations of image descriptor
-encoding designed to extract local image descriptors and compute their aggregated representations, but they
-differ in the way they aggregate these descriptors and the underlying clustering methods they use:
+VLAD (Vector of Locally Aggregated Descriptors) and Fisher Vector differ in the
+way they aggregate extracted descriptors descriptors and the underlying clustering methods they use:
 
 - VLAD Encoder: Capture only the first-order statistics of the local features. `KMeans` clustering is used to cluster
   the local features.
   The output has shape (K * D)<sup>[1](#references)</sup>, where K is the number of clusters and D is the
   dimensionality of the local features.
 - Fisher Vector Encoder: Capture both first-order and second-order statistics of the local features.
-  `Gaussian Mixture Model (GMM)` is used to cluster the local features.
-  The output has shape (2 * K * D + K)<sup>[1](#references)</sup> in `scikit-image` implementation (which is also used
-  in this project).
+  A `Gaussian Mixture Model` is used to cluster the local features.
+  The output has shape (2 * K * D + K)<sup>[1](#references)</sup>.
+- For both, `PCA` can be applied at the feature extraction step to reduce the size
+of the final vector. If `PCA` is applied, replace the D in the output shape with the
+number of components.
 
-After the feature extraction step, the local features are aggregated to their respective cluster centers. The final
-encoding matrix is then flattened and normalized to produce the final feature vector representation of the image.
+After the feature extraction step, the local features are aggregated to their
+respective cluster centers. The final encoding matrix is then flattened and
+normalized to produce the final feature vector representation of the image.
 
 ## Configuring Encoders
 
 The encoders build their clustering models internally: VLAD always uses K-Means and the Fisher Vector encoder always
-uses a Gaussian Mixture Model (both implemented in `pyvisim.clustering`).
+uses a Gaussian Mixture Model.
 
 ```python
 from pyvisim.encoders import VLADEncoder, FisherVectorEncoder
@@ -59,14 +52,6 @@ vlad.learn(images)
 path = vlad.save_to_disk("vlad")  # writes vlad.encoder
 vlad = VLADEncoder.load_from_disk(path)
 ```
-
-The `.encoder` file (safetensors) stores everything needed to rebuild the encoder: the fitted clustering model, the
-PCA model, the normalization hyperparameters, the similarity metric and the feature-extractor configuration. That's
-why `load_from_disk` only needs the path.
-
-pyvisim also ships pretrained encoders. Load one with `VLADEncoder.from_pretrained(PretrainedVLAD.X)` or
-`FisherVectorEncoder.from_pretrained(PretrainedFisher.X)`. The older `weights=KMeansWeights.X` / `weights=GMMWeights.X`
-constructor argument is deprecated and will be removed in `1.0.0`.
 
 ## Similarity Metric Pipeline
 The _Pipeline_ class is designed to handle multiple encoders simultaneously to compute feature vectors. It takes

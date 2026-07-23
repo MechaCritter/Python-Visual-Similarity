@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.clustering.KMeans`."""
+"""Tests for :class:`pyvisim.encoders._clustering.KMeans`."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ import numpy as np
 import pytest
 from sklearn.exceptions import NotFittedError
 
-from pyvisim.clustering import KMeans
+from pyvisim.encoders._clustering import KMeans
 
 
 @pytest.fixture
 def fitted_kmeans() -> KMeans:
     """A reproducible ``KMeans(8)`` fitted on ``(200, 5)`` data.
 
-    :returns: a fitted :class:`pyvisim.clustering.KMeans` instance.
+    :returns: a fitted :class:`pyvisim.encoders._clustering.KMeans` instance.
     """
     rng = np.random.default_rng(0)
     model = KMeans(8, random_state=0, n_init=3)

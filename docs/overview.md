@@ -19,7 +19,6 @@ pyvisim/
 ├── functional.py        retrieve_top_k_similar
 ├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
 ├── image_store/         InMemoryImageEmbeddingStore: indexed embedding gallery
-├── clustering/          KMeans, GaussianMixtureModel, PCA
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── retrieval/           image indexes + ImageRetriever
 ├── datasets/            OxfordFlowerDataset
@@ -33,8 +32,6 @@ Per-area docs:
 - [Structural](structural/): SSIM and MSSSIM
 - [Encoders](encoders/): how images become vectors.
 - [Image store](image_store.md): the indexed embedding gallery you search.
-- [Clustering](clustering/): the KMeans, GMM, and PCA models the encoders build their
-  vocabulary with.
 - [Features](features/): how local descriptors are extracted from an image.
 - [Retrieval](retrieval/): search indexes and the `ImageRetriever` façade for fast
   top-k image search over a store.
