@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from sklearn.decomposition import PCA as _SklearnPCA
 
-from ..typing import Float64NumpyArray, FloatNumpyArray
+from ...typing import Float64NumpyArray, FloatNumpyArray
 from ._base_clustering import _SklearnModelBase
 
 
