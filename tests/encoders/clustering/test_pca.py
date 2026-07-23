@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.clustering.PCA`."""
+"""Tests for :class:`pyvisim.encoders._clustering.PCA`."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ import pytest
 from sklearn.decomposition import PCA as SklearnPCA
 from sklearn.exceptions import NotFittedError
 
-from pyvisim.clustering import PCA
+from pyvisim.encoders._clustering import PCA
 
 
 @pytest.fixture
 def fitted_pca() -> PCA:
     """A ``PCA(4)`` fitted on deterministic ``(100, 10)`` data.
 
-    :returns: a fitted :class:`pyvisim.clustering.PCA` instance.
+    :returns: a fitted :class:`pyvisim.encoders._clustering.PCA` instance.
     """
     rng = np.random.default_rng(0)
     model = PCA(4)

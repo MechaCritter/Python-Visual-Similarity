@@ -16,12 +16,11 @@ embeddings instead, reach for `ClipEmbedder` in
 where `K` is the number of clusters and `D` is the local descriptor dimension.
 
 Shared machinery lives in [`ImageEncoderBase`](base_encoder.md). The clustering
-encoders build their aggregation model from the
-[`pyvisim.clustering`](../clustering/README.md) package using the parameters you
-pass at construction, then fit it in `learn`. Trained encoders are saved and
-restored with `save_to_disk` / `load_from_disk`; the older pretrained-weight enums
-in [weights.md](weights.md) still work but are deprecated. The VGG16
-`DeepConvFeature` extractor needs the `nn` extra: `pip install "pyvisim[nn]"`.
+encoders build their aggregation model from the `KMeans`, `GaussianMixtureModel`
+and `PCA` classes bundled inside the encoders package
+(`pyvisim/encoders/_clustering/`) using the parameters you pass at construction, then
+fit it in `learn`. Trained encoders are saved and
+restored with `save_to_disk` / `load_from_disk`.
 
 ## VLAD vs Fisher Vector
 

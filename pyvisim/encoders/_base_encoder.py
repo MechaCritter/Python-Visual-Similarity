@@ -10,7 +10,6 @@ from sklearn.exceptions import NotFittedError
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import MODEL_FILES_PATH, setup_logging
 from .._utils import get_similarity_func
-from ..clustering import PCA, ClusteringModelBase
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
 from ..typing import (
@@ -19,6 +18,7 @@ from ..typing import (
     ImageInput,
     SimilarityFunc,
 )
+from ._clustering import PCA, ClusteringModelBase
 from ._serialization import load_encoder_state, save_encoder_state
 from .utils import iter_images
 
@@ -369,8 +369,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
     The encoding can be used for indexing, retrieval, clustering or classification tasks.
     :param feature_extractor: Feature extractor instance (should implement __call__).
         Defaults to RootSIFT.
-    :param clustering_model: Clustering model (see ``pyvisim.clustering``)
-    used for generating descriptors.
+    :param clustering_model: Clustering model used for generating descriptors.
     :param weights: Pretrained model for clustering. If provided, the clustering model will be loaded from the file,
     and `clustering_model` and `pca` parameters will be ignored.
     :param power_norm_weight: Exponent for power normalization
@@ -379,9 +378,8 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
     :param flatten: Whether to flatten the computed descriptor vector (default: True).
     :param similarity_func: Name of the built-in similarity metric to use. One of
     ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param pca: PCA model (see ``pyvisim.clustering``) for dimensionality reduction
-    (optional). Subclasses build it from the ``pca_params`` dictionary passed to
-    their constructors.
+    :param pca: PCA model for dimensionality reduction (optional). Subclasses build
+    it from the ``pca_params`` dictionary passed to their constructors.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, an Error will be raised"""
 
@@ -554,12 +552,12 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
         Validates and stores the given PCA model.
 
         :param pca: PCA model to validate and store.
-        :raises ValueError: If ``pca`` is not a :class:`~pyvisim.clustering.PCA` instance
-            or its dimensions are incompatible with the feature extractor or clustering model.
+        :raises ValueError: If ``pca`` is not a ``PCA`` instance or its dimensions are
+            incompatible with the feature extractor or clustering model.
         """
         if not isinstance(pca, PCA):
             raise ValueError(
-                f"The PCA model must be an instance of pyvisim.clustering.PCA, not {type(pca)}"
+                f"The PCA model must be an instance of pyvisim.encoders._clustering.PCA, not {type(pca)}"
             )
         if not pca.is_fitted:
             self._pca = pca

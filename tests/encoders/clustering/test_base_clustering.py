@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sklearn.exceptions import NotFittedError
 
-from pyvisim.clustering import PCA, ClusteringModelBase, KMeans
+from pyvisim.encoders._clustering import PCA, ClusteringModelBase, KMeans
 
 
 def test_clustering_base_is_abstract() -> None:

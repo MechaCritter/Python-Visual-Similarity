@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 from sklearn.exceptions import NotFittedError
 
-from pyvisim.clustering import PCA
 from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
 from pyvisim.encoders._base_encoder import ClusteringBasedEncoder
+from pyvisim.encoders._clustering import PCA
 from pyvisim.features import Lambda, RootSIFT
 
 if TYPE_CHECKING:
