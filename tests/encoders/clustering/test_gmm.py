@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.clustering.GaussianMixtureModel`."""
+"""Tests for :class:`pyvisim.encoders._clustering.GaussianMixtureModel`."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ import pytest
 from sklearn.exceptions import NotFittedError
 from sklearn.mixture import GaussianMixture
 
-from pyvisim.clustering import GaussianMixtureModel
+from pyvisim.encoders._clustering import GaussianMixtureModel
 
 
 @pytest.fixture
 def fitted_gmm() -> GaussianMixtureModel:
     """A ``GaussianMixtureModel(4)`` fitted on deterministic ``(300, 5)`` data.
 
-    :returns: a fitted :class:`pyvisim.clustering.GaussianMixtureModel`.
+    :returns: a fitted :class:`pyvisim.encoders._clustering.GaussianMixtureModel`.
     """
     rng = np.random.default_rng(0)
     model = GaussianMixtureModel(4, random_state=0)

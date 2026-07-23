@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
 
-from ..typing import FloatNumpyArray
+from ...typing import FloatNumpyArray
 
 _SklearnModelT = TypeVar("_SklearnModelT", bound="_SklearnModelBase")
 

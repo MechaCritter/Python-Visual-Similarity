@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from sklearn.mixture import GaussianMixture
 
-from ..typing import Float64NumpyArray, FloatNumpyArray
+from ...typing import Float64NumpyArray, FloatNumpyArray
 from ._base_clustering import ClusteringModelBase
 
 

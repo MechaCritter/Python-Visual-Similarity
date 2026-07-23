@@ -12,8 +12,7 @@ A concrete encoder is the combination of:
 
 1. a **feature extractor** (`FeatureExtractorBase`),
 2. an optional **PCA** model,
-3. a **clustering model** (`KMeans` for VLAD, `GaussianMixtureModel` for Fisher; both
-   from [`pyvisim.clustering`](../clustering/README.md)),
+3. a **clustering model** (`KMeans` for VLAD, `GaussianMixtureModel` for Fisher)
 4. a **similarity function**.
 
 The base class wires these together, validates their dimensions, and provides

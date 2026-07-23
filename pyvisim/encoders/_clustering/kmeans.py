@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from sklearn.cluster import KMeans as _SklearnKMeans
 
-from ..typing import FloatNumpyArray, IntNumpyArray
+from ...typing import FloatNumpyArray, IntNumpyArray
 from ._base_clustering import ClusteringModelBase
 
 
