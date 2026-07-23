@@ -44,6 +44,12 @@ def _extensions() -> list[Extension]:
             include_dirs=[numpy.get_include()],
             extra_compile_args=optimize_args,
         ),
+        Extension(
+            "pyvisim.pixelwise._kernel._ssd_kernel",
+            ["pyvisim/pixelwise/_kernel/_ssd_kernel.pyx"],
+            extra_compile_args=optimize_args + openmp_compile_args,
+            extra_link_args=openmp_link_args,
+        ),
     ]
 
 
