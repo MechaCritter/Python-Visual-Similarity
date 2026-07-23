@@ -25,7 +25,6 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Fixed thread budget of every run.
 _NUM_THREADS = 4
-_NUM_WORKERS = 2
 
 _DATASET_SPLIT = "train"
 _NOISE_STD = 15.0
@@ -314,9 +313,8 @@ between the pyvisim score and the baseline score.
 #### Runtime
 
 Median wall-clock time per full scoring call ({bench["metric_label"]} of every
-image in the first gallery against every image in the second). pyvisim
-timings include the whole input pipeline (canonicalization to uint8,
-stacking, scoring).
+image in the first gallery against every image in the second). For a fair comparison,
+GPU is disabled.
 
 {_format_runtime_table(runtime)}
 
@@ -339,7 +337,7 @@ def _format_section(
 
 All images are drawn from the Oxford Flower dataset
 (`{_DATASET_SPLIT}` split, seed {seed}), with a disjoint image subset per
-experiment and per metric. `num_workers={_NUM_WORKERS}`. {repeats} timed
+experiment and per metric. `num_workers={_NUM_THREADS}`. {repeats} timed
 calls after one warm-up.
 
 {metric_sections}
@@ -381,7 +379,7 @@ def _benchmark_ssim(
     repeats: int,
 ) -> dict[str, object]:
     """Benchmark :class:`SSIM` against scikit-image."""
-    metric = SSIM(num_workers=_NUM_WORKERS)
+    metric = SSIM(num_workers=_NUM_THREADS)
     return {
         "metric_label": "SSIM",
         "slug": "ssim",
@@ -412,7 +410,7 @@ def _benchmark_msssim(
             _to_bchw([image_a], np.float64), _to_bchw([image_b], np.float64)
         )
 
-    metric = MSSSIM(num_workers=_NUM_WORKERS)
+    metric = MSSSIM(num_workers=_NUM_THREADS)
     return {
         "metric_label": "MS-SSIM",
         "slug": "ms_ssim",
@@ -487,7 +485,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     """Run every benchmark and write the outputs."""
     args = _parse_args(argv)
     os.environ["PYVISIM_NUM_THREADS"] = str(_NUM_THREADS)
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""  # disable GPU
+    if torch.cuda.is_available():
+        raise RuntimeError("GPU is available. This comparison is not fair.")
     torch.set_num_threads(_NUM_THREADS)
+    if int(torch.get_num_threads()) != int(os.environ["PYVISIM_NUM_THREADS"]):
+        raise RuntimeError(
+            f"torch.get_num_threads()={torch.get_num_threads()} "
+            f"!= PYVISIM_NUM_THREADS={os.environ['PYVISIM_NUM_THREADS']}"
+        )
     rng = np.random.default_rng(args.seed)
     dataset = OxfordFlowerDataset(purpose=_DATASET_SPLIT)
     # Per metric: 8 accuracy images plus the four disjoint runtime groups
