@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+- ⚠️ The clustering models (`KMeans`, `GaussianMixtureModel`, `PCA`,
+  `ClusteringModelBase`) are now internal to the encoders package and moved from
+  `pyvisim.clustering` to `pyvisim.encoders._clustering`.
+
 ## [0.8.2]
 
 ### Added
@@ -17,8 +24,8 @@
   `RootSIFT` subclasses `SIFT` and only adds the Hellinger-kernel normalization.
   With OpenCV gone, `opencv-python-headless` is removed from the dependencies;
   `scipy` returns as a direct dependency (the vendored implementation uses.
- 
-  
+
+
 ### Breaking
 -  Some small numerical changes are expected compared to before regarding the `SIFT`
   and `RootSIFT` comoutation are expected due to the migration. For the user, no
