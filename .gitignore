@@ -186,3 +186,7 @@ tests/debug/
 
 # Local, uncommitted logging config for development
 logger_config.yaml.local
+
+# Generated benchmark artifacts
+docs/*/benchmarks/*.png
+docs/*/benchmarks/*.json
