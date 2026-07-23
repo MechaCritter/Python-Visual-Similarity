@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 import torch
-from sklearn.exceptions import NotFittedError
 
+from pyvisim._errors import NotFittedError
 from pyvisim.encoders import FisherVectorEncoder, KMeansWeights
-from pyvisim.encoders._clustering import GaussianMixtureModel, KMeans
+from pyvisim.encoders._clustering import DiagCovarGaussianMixture, KMeans
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -28,7 +28,7 @@ def fisher_no_pca(category_train_images_flat: list[np.ndarray]) -> FisherVectorE
     :param category_train_images_flat: flattened training images to learn from.
     :returns: a fitted ``FisherVectorEncoder``.
     """
-    encoder = FisherVectorEncoder(n_components=8, gmm_params={"random_state": 0})
+    encoder = FisherVectorEncoder(n_components=8, gmm_params={"rng": 0})
     encoder.learn(category_train_images_flat)
     return encoder
 
@@ -42,8 +42,8 @@ def fisher_pca(category_train_images_flat: list[np.ndarray]) -> FisherVectorEnco
     """
     encoder = FisherVectorEncoder(
         n_components=8,
-        gmm_params={"random_state": 0},
-        pca_params={"n_components": 32, "random_state": 0},
+        gmm_params={"rng": 0},
+        pca_params={"n_components": 32, "rng": 0},
     )
     encoder.learn(category_train_images_flat)
     return encoder
@@ -52,7 +52,7 @@ def fisher_pca(category_train_images_flat: list[np.ndarray]) -> FisherVectorEnco
 def test_clustering_model_type() -> None:
     """Fisher builds a Gaussian mixture clustering model."""
     model = FisherVectorEncoder(n_components=8).clustering_model
-    assert isinstance(model, GaussianMixtureModel)
+    assert isinstance(model, DiagCovarGaussianMixture)
 
 
 def test_n_components_kwargs_collision() -> None:
