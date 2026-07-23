@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
+`pyvisim.structural`) metrics as well as their benchmark scripts asainst
+existing implementations under `docs/pixelwise/benchmarks` and
+`docs/structural/benchmarks`.
+
 ### Breaking
 - ⚠️ The clustering models (`KMeans`, `GaussianMixtureModel`, `PCA`,
   `ClusteringModelBase`) are now internal to the encoders package and moved from
