@@ -7,8 +7,8 @@ from ..typing import (
     FloatNumpyArray,
     ImageInput,
 )
+from ..utils.image_utils import iter_images
 from ._base_encoder import ImageEncoderBase
-from .utils import iter_images
 
 #: On-disk format version of the serialised pipeline state.
 _PIPELINE_FORMAT_VERSION = 1
