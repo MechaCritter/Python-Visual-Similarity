@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
+from typing import TypeVar
 from unittest import mock
 
 import numpy as np
 import torch
 
-from pyvisim.neural_networks import SiameseNeuralNetwork
+from pyvisim.neural_networks import ContrastiveSiameseNetwork, PairwiseSiameseNetwork
+from pyvisim.neural_networks.siamese._base_siamese import SiameseNetworkBase
 from pyvisim.typing import UInt8NumpyArray
+
+_SiameseT = TypeVar("_SiameseT", bound=SiameseNetworkBase)
 
 
 class FlattenBackbone(torch.nn.Module):
@@ -75,28 +80,53 @@ class FakeFlowerDataset:
         return self._images[idx], self.labels[idx], f"/fake/img_{idx}.jpg"
 
 
-def build_stub_model(
-    backbone_module: torch.nn.Module, **kwargs: object
-) -> SiameseNeuralNetwork:
-    """Build a :class:`SiameseNeuralNetwork` running on a stub backbone.
+def _build_stub_network(
+    model_cls: type[_SiameseT], backbone_module: torch.nn.Module, **kwargs: object
+) -> _SiameseT:
+    """Build a Siamese network of the given class running on a stub backbone.
 
-    ``SiameseNeuralNetwork`` only accepts backbone *names* and resolves them
-    to pretrained networks, so the resolver is patched to return the given
-    stub during construction. All other constructor keywords pass through.
+    The networks only accept backbone *names* and resolve them to pretrained
+    networks, so the resolver is patched to return the given stub during
+    construction. All other constructor keywords pass through.
 
+    :param model_cls: Concrete Siamese network class to instantiate.
     :param backbone_module: Module to install as the model's backbone.
-    :param kwargs: Extra keyword arguments for ``SiameseNeuralNetwork``.
+    :param kwargs: Extra keyword arguments for the model constructor.
     :return: A model whose backbone is ``backbone_module``.
     """
     with mock.patch.object(
-        SiameseNeuralNetwork,
+        model_cls,
         "_get_backbone",
         staticmethod(lambda name, *args, **kwargs: backbone_module),
     ):
-        return SiameseNeuralNetwork(**kwargs)  # type: ignore[arg-type]
+        return model_cls(**kwargs)  # type: ignore[arg-type]
 
 
-def install_head(model: SiameseNeuralNetwork, head: torch.nn.Module) -> None:
+def build_stub_model(
+    backbone_module: torch.nn.Module, **kwargs: object
+) -> ContrastiveSiameseNetwork:
+    """Build a :class:`ContrastiveSiameseNetwork` running on a stub backbone.
+
+    :param backbone_module: Module to install as the model's backbone.
+    :param kwargs: Extra keyword arguments for ``ContrastiveSiameseNetwork``.
+    :return: A model whose backbone is ``backbone_module``.
+    """
+    return _build_stub_network(ContrastiveSiameseNetwork, backbone_module, **kwargs)
+
+
+def build_stub_pairwise_model(
+    backbone_module: torch.nn.Module, **kwargs: object
+) -> PairwiseSiameseNetwork:
+    """Build a :class:`PairwiseSiameseNetwork` running on a stub backbone.
+
+    :param backbone_module: Module to install as the model's backbone.
+    :param kwargs: Extra keyword arguments for ``PairwiseSiameseNetwork``.
+    :return: A model whose backbone is ``backbone_module``.
+    """
+    return _build_stub_network(PairwiseSiameseNetwork, backbone_module, **kwargs)
+
+
+def install_head(model: SiameseNetworkBase, head: torch.nn.Module) -> None:
     """Install a projection head on the model's private ``_head`` attribute.
 
     The public ``head`` property is read-only by design (see the dedicated
@@ -107,6 +137,26 @@ def install_head(model: SiameseNeuralNetwork, head: torch.nn.Module) -> None:
     :param head: The replacement projection head.
     """
     model._head = head.to(model.device)
+
+
+def install_scorer(
+    model: PairwiseSiameseNetwork, weights: Sequence[float], bias: float
+) -> None:
+    """Overwrite the scoring layer's parameters with known values.
+
+    The public ``scorer`` property is read-only by design, so the parameters
+    of the existing layer are overwritten in place. With fixed weights the
+    same-class logit ``sum(alpha * |h1 - h2|) + b`` becomes hand-computable.
+
+    :param model: The pairwise model to modify.
+    :param weights: One weight per embedding dimension.
+    :param bias: The scoring layer's bias.
+    """
+    scorer = model.scorer
+    assert isinstance(scorer, torch.nn.Linear)
+    with torch.no_grad():
+        scorer.weight.copy_(torch.tensor([list(weights)], dtype=torch.float32))
+        scorer.bias.fill_(bias)
 
 
 def make_identity_head(dim: int) -> torch.nn.Linear:

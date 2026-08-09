@@ -156,16 +156,21 @@ have any suggestions or questions!
    - Chain various encoders in a single pipeline. An example can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/pipeline.ipynb).
    - Achieve more robust similarity metrics by blending different feature representations.
 
-5. **Siamese Network**  
+5. **Siamese Networks**  
    - Learn a similarity function directly from pairs of images with a Siamese network (needs the `nn` extra: `pip install "pyvisim[nn]"`).
-   - Score two images out of the box, or fine-tune on your own labelled pairs with the bundled
-   `ContrastiveLoss` and training script:
+   - Two variants are available: `ContrastiveSiameseNetwork` compares L2-normalized embeddings with a fixed
+   metric and trains with the bundled `ContrastiveLoss` (Hadsell, Chopra & LeCun, 2006), while
+   `PairwiseSiameseNetwork` learns the comparison itself and returns the probability that two images
+   show the same class (Koch et al., 2015). Both come with a ready-to-run training script:
 
      ```python
-     from pyvisim.neural_networks import SiameseNeuralNetwork
+     from pyvisim.neural_networks import ContrastiveSiameseNetwork, PairwiseSiameseNetwork
 
-     model = SiameseNeuralNetwork(backbone="resnet18", embedding_dim=128)
+     model = ContrastiveSiameseNetwork(backbone="resnet18", embedding_dim=128)
      score = model.similarity_score(image1, image2)  # cosine similarity in [-1, 1]
+
+     classifier = PairwiseSiameseNetwork(backbone="resnet18", embedding_dim=128)
+     probability = classifier.similarity_score(image1, image2)  # P(same class) in (0, 1)
      ```
      See the [neural networks docs](pyvisim/neural_networks/README.md) for more details.
    - Possible use cases include face recognition, signature verification, or any image-based identity matching.
@@ -262,7 +267,6 @@ If you have any questions or just want to say hi, feel free to:
 The features below are planned for future releases:
 
 - With `v1.0.0`, remove the deprecated `weights` constructor argument and the `_CLUSTERING_TO_PCA_MAPPING` internal variable, since they are no longer needed with the new `from_pretrained()` API.
-- Add the one-shot **Siamese network** variant (Koch et al., 2015) alongside the existing contrastive implementation (Hadsell, Chopra & LeCun, 2006).
 - Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
 paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>
 - Add support for **vision transformers** for the `DeepConvFeature` class.

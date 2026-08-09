@@ -1,8 +1,10 @@
-"""Trains a :class:`ContrastiveSiameseNetwork` on Oxford Flowers.
+"""Trains a :class:`PairwiseSiameseNetwork` on Oxford Flowers.
 
-The network embeds both images of a pair and the contrastive loss shapes the
-embedding space directly; see :mod:`.train_pairwise_siamese_network` for the
-parallel script training the pair-classifying variant.
+Parallel to :mod:`.train_siamese_neural_network`, but for the pair-classifying
+variant (Koch et al., 2015) alone: the network scores each ``(img_a, img_b)``
+pair with a same-class logit and learns with binary cross-entropy instead of a
+contrastive loss on embeddings. The paper's L2 regularization term is realised
+by the optimizer's ``weight_decay``.
 """
 
 import os
@@ -12,8 +14,7 @@ from typing import Any
 import torch
 from torch.utils.data import DataLoader
 
-from ..losses import ContrastiveLoss
-from ..siamese import ContrastiveSiameseNetwork
+from ..siamese import PairwiseSiameseNetwork
 from ._pairs import SEED, TRAIN_TF, VAL_TF, OxfordSiamesePairs, seed_worker
 
 random.seed(SEED)
@@ -22,21 +23,20 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 CONFIG: dict[str, Any] = {
     "embedding_dim": 128,
-    "margin": 1.0,
     "lr": 1e-4,
     "weight_decay": 1e-4,
     "batch_size": 32,
     "num_epochs": 20,
     "num_workers": 4,
-    "checkpoint_dir": "checkpoints",
+    "checkpoint_dir": "checkpoints_pairwise",
     "log_every_n": 50,
 }
 
 
 def run_epoch(
-    model: ContrastiveSiameseNetwork,
+    model: PairwiseSiameseNetwork,
     loader: DataLoader[tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
-    criterion: ContrastiveLoss,
+    criterion: torch.nn.BCEWithLogitsLoss,
     optimizer: torch.optim.Optimizer,
     is_train: bool,
     epoch: int,
@@ -44,9 +44,9 @@ def run_epoch(
     """
     Runs one training or evaluation epoch over the pair loader.
 
-    :param model: Siamese neural network being trained or evaluated.
+    :param model: Pairwise Siamese network being trained or evaluated.
     :param loader: Data loader yielding ``(img_a, img_b, label)`` batches.
-    :param criterion: Contrastive loss function.
+    :param criterion: Binary cross-entropy loss on the pair logits.
     :param optimizer: Optimizer used when ``is_train`` is ``True``.
     :param is_train: ``True`` to train (grads enabled), ``False`` to evaluate.
     :param epoch: Current epoch number, used for logging.
@@ -62,9 +62,8 @@ def run_epoch(
             img_b = img_b.to(device)
             labels = labels.to(device)
 
-            emb_a = model(img_a)
-            emb_b = model(img_b)
-            loss = criterion(emb_a, emb_b, labels)
+            logits = model(img_a, img_b)
+            loss = criterion(logits, labels)
 
             if is_train:
                 optimizer.zero_grad()
@@ -85,7 +84,7 @@ def run_epoch(
 
 
 def train() -> None:
-    """Trains the Siamese network on Oxford Flowers, checkpointing the best model."""
+    """Trains the pairwise network on Oxford Flowers, checkpointing the best model."""
     os.makedirs(CONFIG["checkpoint_dir"], exist_ok=True)
 
     train_ds = OxfordSiamesePairs("train", transform=TRAIN_TF)
@@ -110,14 +109,14 @@ def train() -> None:
     print(f"Train pairs: {len(train_ds):,}  |  Val pairs: {len(val_ds):,}")
     print(f"Flower classes: {len(train_ds._labels_list)}")
 
-    model = ContrastiveSiameseNetwork(
+    model = PairwiseSiameseNetwork(
         backbone="resnet18",
         embedding_dim=CONFIG["embedding_dim"],
         device=device,
         pretrained_backbone=True,
     )
 
-    criterion = ContrastiveLoss(margin=CONFIG["margin"])
+    criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=CONFIG["lr"], weight_decay=CONFIG["weight_decay"]
     )
@@ -159,7 +158,7 @@ def train() -> None:
 
 def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
     """
-    Compares two flower images using a trained checkpoint.
+    Classifies whether two flower images show the same class.
 
     :param checkpoint: Path to a checkpoint saved by :func:`train`.
     :param img_path_a: Path to the first image.
@@ -168,7 +167,7 @@ def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
     import numpy as np
     from PIL import Image
 
-    model = ContrastiveSiameseNetwork(
+    model = PairwiseSiameseNetwork(
         backbone="resnet18",
         embedding_dim=CONFIG["embedding_dim"],
         device=device,
@@ -180,8 +179,11 @@ def demo(checkpoint: str, img_path_a: str, img_path_b: str) -> None:
 
     img_a = np.asarray(Image.open(img_path_a).convert("RGB"))
     img_b = np.asarray(Image.open(img_path_b).convert("RGB"))
-    score = float(model.similarity_score(img_a, img_b).item())
-    print(f"Similarity: {score:.4f}  (range -1 to 1, higher = more similar)")
+    probability = float(model.similarity_score(img_a, img_b).item())
+    print(
+        f"Same-class probability: {probability:.4f}  "
+        f"(range 0 to 1, higher = more likely the same class)"
+    )
 
 
 if __name__ == "__main__":

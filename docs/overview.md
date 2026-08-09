@@ -22,7 +22,7 @@ pyvisim/
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── retrieval/           image indexes + ImageRetriever
 ├── datasets/            OxfordFlowerDataset
-└── neural_networks/     SiameseNeuralNetwork, ContrastiveLoss, training script
+└── neural_networks/     ContrastiveSiameseNetwork, ContrastiveLoss, training script
 ```
 
 Per-area docs:
