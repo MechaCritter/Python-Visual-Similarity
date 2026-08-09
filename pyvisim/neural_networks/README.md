@@ -111,9 +111,6 @@ Both methods take a single image, a batched array, or an iterable of images. If 
 aren't HWC `uint8`, tell them the layout and value range with `dims=` and `value_range=` (for
 example `dims="CHW"` for PyTorch-style tensors, or `value_range=(0.0, 1.0)` for floats).
 
-> **Note:** `SiameseNeuralNetwork` is a deprecated alias of `ContrastiveSiameseNetwork` and
-> will be removed in a future release; it emits a `FutureWarning` on construction.
-
 ### Training on your own data
 
 **Contrastive variant.** `ContrastiveLoss` pulls the embeddings of similar pairs together and

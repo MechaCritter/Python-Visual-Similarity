@@ -266,7 +266,7 @@ If you have any questions or just want to say hi, feel free to:
 
 The features below are planned for future releases:
 
-- With `v1.0.0`, remove the deprecated `weights` constructor argument and the `_CLUSTERING_TO_PCA_MAPPING` internal variable, since they are no longer needed with the new `from_pretrained()` API. Also remove the deprecated `SiameseNeuralNetwork` alias of `ContrastiveSiameseNetwork`.
+- With `v1.0.0`, remove the deprecated `weights` constructor argument and the `_CLUSTERING_TO_PCA_MAPPING` internal variable, since they are no longer needed with the new `from_pretrained()` API.
 - Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
 paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>
 - Add support for **vision transformers** for the `DeepConvFeature` class.

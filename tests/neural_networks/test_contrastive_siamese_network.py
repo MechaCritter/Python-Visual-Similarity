@@ -10,7 +10,6 @@ Flowers tests.
 from __future__ import annotations
 
 import math
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -399,26 +398,3 @@ def test_embed_on_cuda_returns_cpu_numpy() -> None:
     embeddings = model.embed(make_random_rgb_image(seed=1))
     assert isinstance(embeddings, np.ndarray)
     assert embeddings.shape == (1, 4)
-
-
-# §9 deprecated SiameseNeuralNetwork alias
-
-
-def test_deprecated_alias_warns_and_builds_contrastive_network() -> None:
-    """``SiameseNeuralNetwork`` emits a ``FutureWarning`` and stays compatible.
-
-    The alias must construct a fully functional contrastive network so that
-    code written against the old name keeps working until the alias is
-    removed.
-    """
-    from pyvisim.neural_networks import SiameseNeuralNetwork
-
-    with mock.patch.object(
-        SiameseNeuralNetwork,
-        "_get_backbone",
-        staticmethod(lambda name, *args, **kwargs: MeanBackbone()),
-    ):
-        with pytest.warns(FutureWarning, match="ContrastiveSiameseNetwork"):
-            model = SiameseNeuralNetwork(embedding_dim=4)
-    assert isinstance(model, ContrastiveSiameseNetwork)
-    assert model.embed(make_random_rgb_image(seed=1)).shape == (1, 4)
