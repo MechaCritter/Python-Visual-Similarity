@@ -4,10 +4,10 @@ from collections.abc import Iterator
 import numpy as np
 
 from .._base_classes import SimilarityMetric
-from ..encoders.utils import iter_images
 from ..features._utils import grayscale_dims
 from ..lazy_import import is_tensor
 from ..typing import Float64NumpyArray, FloatNumpyArray, ImageInput, IntNumpyArray
+from ..utils.image_utils import iter_images
 
 
 def _stack_image_batch(

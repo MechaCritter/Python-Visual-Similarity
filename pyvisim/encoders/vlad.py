@@ -14,8 +14,8 @@ from ..typing import (
     FloatNumpyArray,
     ImageInput,
 )
+from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase, KMeans
-from .utils import iter_images
 
 
 class PretrainedVLAD(_PretrainedEncoder):
