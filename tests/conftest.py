@@ -375,7 +375,7 @@ CATEGORY_TRAIN_SIZE = 10
 
 #: PCA configurations used to parametrize the learned-encoder fixtures: one
 #: variant without PCA and one with PCA reducing descriptors to 32 dimensions.
-PCA_PARAMS = [None, {"n_components": 32, "random_state": 0}]
+PCA_PARAMS = [None, {"n_components": 32, "rng": 0}]
 
 
 def _make_blobs(size: int, seed: int, n_blobs: int = 40) -> np.ndarray:
@@ -490,7 +490,7 @@ def learned_vlad_encoder(
     """
     encoder = VLADEncoder(
         n_clusters=8,
-        kmeans_params={"random_state": 0, "n_init": 3},
+        kmeans_params={"rng": 0},
         pca_params=request.param,
     )
     encoder.learn(category_train_images_flat)
@@ -513,7 +513,7 @@ def learned_fisher_encoder(
     """
     encoder = FisherVectorEncoder(
         n_components=8,
-        gmm_params={"random_state": 0},
+        gmm_params={"rng": 0},
         pca_params=request.param,
     )
     encoder.learn(category_train_images_flat)
