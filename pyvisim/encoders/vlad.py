@@ -14,8 +14,8 @@ from ..typing import (
     FloatNumpyArray,
     ImageInput,
 )
+from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase, KMeans
-from .utils import iter_images
 
 
 class PretrainedVLAD(_PretrainedEncoder):
@@ -62,11 +62,11 @@ class VLADEncoder(ClusteringBasedEncoder):
         Defaults to RootSIFT.
     :param weights: Pretrained K-Means weights to load (deprecated).
     :param n_clusters: Number of K-Means clusters (visual words) to use.
-    :param kmeans_params: Dictionary of additional keyword arguments forwarded
-        verbatim to :class:`sklearn.cluster.KMeans` (e.g. ``{"random_state": 0}``).
-    :param pca_params: Dictionary of keyword arguments for the PCA model used
-        for dimensionality reduction; must include ``n_components``. If omitted,
-        no PCA is applied.
+    :param kmeans_params: Arguments for K-Means during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/vlad.md#k-means-parameters``.
+    :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/pca.md#parameters``.
+    :param power_norm_weight: Exponent for power normalization
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.

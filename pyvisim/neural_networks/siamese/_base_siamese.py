@@ -5,9 +5,9 @@ import numpy as np
 from PIL import Image
 
 from ..._base_classes import SimilarityMetric
-from ...encoders.utils import iter_images
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput, MatLike
+from ...utils.image_utils import iter_images
 from .backbones import ResNetBackbone
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:

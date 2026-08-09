@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from sklearn.exceptions import NotFittedError
 
+from pyvisim._errors import NotFittedError
 from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
 from pyvisim.encoders._base_encoder import ClusteringBasedEncoder
 from pyvisim.encoders._clustering import PCA
@@ -48,6 +48,52 @@ def test_similarity_func_rejects_unknown_name() -> None:
         VLADEncoder(n_clusters=8, similarity_func="dot")
 
 
+# §3.1b loading a clustering model from a scikit-learn estimator
+
+
+def test_load_clustering_model_from_sklearn_vlad() -> None:
+    """A fitted ``sklearn.cluster.KMeans`` becomes VLAD's clustering model."""
+    from sklearn.cluster import KMeans as SklearnKMeans
+
+    rng = np.random.default_rng(0)
+    features = rng.random((300, 128))  # RootSIFT output dimension
+    sklearn_model = SklearnKMeans(n_clusters=8, random_state=0).fit(features)
+    encoder = VLADEncoder(n_clusters=8)
+    encoder.load_clustering_model_from_sklearn(sklearn_model)
+    assert encoder.clustering_model.is_fitted
+    assert np.array_equal(
+        encoder.clustering_model.cluster_centers, sklearn_model.cluster_centers_
+    )
+
+
+def test_load_clustering_model_from_sklearn_dim_mismatch_raises() -> None:
+    """An estimator fitted on the wrong feature size is rejected."""
+    from sklearn.cluster import KMeans as SklearnKMeans
+
+    rng = np.random.default_rng(0)
+    sklearn_model = SklearnKMeans(n_clusters=8, random_state=0).fit(
+        rng.random((300, 16))
+    )
+    encoder = VLADEncoder(n_clusters=8)
+    with pytest.raises(RuntimeError, match="has to match"):
+        encoder.load_clustering_model_from_sklearn(sklearn_model)
+
+
+def test_load_clustering_model_from_sklearn_fisher() -> None:
+    """A fitted diagonal ``GaussianMixture`` becomes Fisher's clustering model."""
+    from sklearn.mixture import GaussianMixture as SklearnGaussianMixture
+
+    rng = np.random.default_rng(0)
+    features = rng.random((300, 128))  # RootSIFT output dimension
+    sklearn_model = SklearnGaussianMixture(
+        n_components=8, covariance_type="diag", random_state=0
+    ).fit(features)
+    encoder = FisherVectorEncoder(n_components=8)
+    encoder.load_clustering_model_from_sklearn(sklearn_model)
+    assert encoder.clustering_model.is_fitted
+    assert np.array_equal(encoder.clustering_model.means, sklearn_model.means_)
+
+
 # §3.2 ImageEncoderBase shared behaviour (exercised via VLADEncoder)
 
 
@@ -66,7 +112,7 @@ def learned_vlad(category_train_images_flat: list[np.ndarray]) -> VLADEncoder:
     :param category_train_images_flat: flattened training images to learn from.
     :returns: a fitted ``VLADEncoder``.
     """
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
+    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
     encoder.learn(category_train_images_flat)
     return encoder
 
@@ -103,7 +149,7 @@ def test_learn_bad_dim_reduction_factor_zero(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """A zero ``dim_reduction_factor`` raises ``ValueError``."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
+    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
     with pytest.raises(ValueError, match="must be a positive integer"):
         encoder.learn(category_train_images_flat, dim_reduction_factor=0)
 
@@ -112,7 +158,7 @@ def test_learn_bad_dim_reduction_factor_negative(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """A negative ``dim_reduction_factor`` raises ``ValueError``."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
+    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
     with pytest.raises(ValueError, match="must be a positive integer"):
         encoder.learn(category_train_images_flat, dim_reduction_factor=-2)
 
@@ -121,7 +167,7 @@ def test_learn_with_dim_reduction_factor_builds_pca(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """A ``dim_reduction_factor`` builds and fits a PCA halving the dimension."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
+    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
     encoder.learn(category_train_images_flat, dim_reduction_factor=2)
     assert isinstance(encoder.pca, PCA)
     assert encoder.pca.is_fitted is True
@@ -132,7 +178,7 @@ def test_feature_extractor_pca_dim_mismatch_raises(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """Assigning an extractor whose output dim mismatches the fitted PCA raises."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
+    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
     encoder.learn(category_train_images_flat, dim_reduction_factor=2)  # PCA in=128
     with pytest.raises(RuntimeError):
         encoder.feature_extractor = Lambda(

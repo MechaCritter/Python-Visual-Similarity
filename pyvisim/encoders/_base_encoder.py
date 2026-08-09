@@ -5,10 +5,10 @@ from enum import Enum
 from typing import Any, ClassVar, TypeVar
 
 import numpy as np
-from sklearn.exceptions import NotFittedError
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
 from .._config import MODEL_FILES_PATH, setup_logging
+from .._errors import NotFittedError
 from .._utils import get_similarity_func
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
@@ -18,9 +18,9 @@ from ..typing import (
     ImageInput,
     SimilarityFunc,
 )
+from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase
 from ._serialization import load_encoder_state, save_encoder_state
-from .utils import iter_images
 
 setup_logging()
 
@@ -644,6 +644,37 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             features = self._pca.transform(features)
             print("   - New dimension after PCA reduction:", self._pca.n_components)
         self._clustering_model.fit(features)
+
+    def load_clustering_model_from_sklearn(self, model: Any) -> None:
+        """
+        Replaces this encoder's clustering model with one created from a
+        scikit-learn estimator.
+
+        The estimator's constructor arguments are translated by the
+        clustering model class' ``from_sklearn`` method; if the estimator is
+        fitted, its learned state is adopted and validated against the
+        configured feature extractor / PCA. Only clustering model classes
+        exposing ``from_sklearn`` support this — currently
+        :class:`~pyvisim.encoders._clustering.KMeans` (VLAD) and
+        :class:`~pyvisim.encoders._clustering.DiagCovarGaussianMixture`
+        (Fisher Vector).
+
+        :param model: A scikit-learn estimator of the type matching this
+            encoder's clustering model (e.g. :class:`sklearn.cluster.KMeans`
+            for VLAD), fitted or not.
+        :raises NotImplementedError: If this encoder's clustering model class
+            cannot be created from a scikit-learn estimator.
+        :raises TypeError: If ``model`` is not of the supported estimator type.
+        :raises RuntimeError: If the fitted estimator's input size is
+            incompatible with the configured feature extractor or PCA.
+        """
+        from_sklearn = getattr(self._clustering_model_cls, "from_sklearn", None)
+        if from_sklearn is None:
+            raise NotImplementedError(
+                f"{self._clustering_model_cls.__name__} cannot be created from "
+                "a scikit-learn estimator."
+            )
+        self._set_clustering_model(from_sklearn(model))
 
     @classmethod
     def from_pretrained(

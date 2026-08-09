@@ -12,7 +12,7 @@ A concrete encoder is the combination of:
 
 1. a **feature extractor** (`FeatureExtractorBase`),
 2. an optional **PCA** model,
-3. a **clustering model** (`KMeans` for VLAD, `GaussianMixtureModel` for Fisher)
+3. a **clustering model** (`KMeans` for VLAD, `DiagCovarGaussianMixture` for Fisher)
 4. a **similarity function**.
 
 The base class wires these together, validates their dimensions, and provides
@@ -29,8 +29,8 @@ The encoder classes are constructed like this:
   step. Leave it out and no PCA is applied.
 
 Everything in `kmeans_params` / `gmm_params` / `pca_params` is forwarded verbatim to the
-underlying scikit-learn models (see scikit-learn for `KMeans` and `GaussianMixture` documentation). See
-[vlad.md](vlad.md) and [fisher_vector.md](fisher_vector.md) for the per-encoder details.
+underlying `KMeans`, `DiagCovarGaussianMixture` and `PCA` models. See [vlad.md](vlad.md)
+and [fisher_vector.md](fisher_vector.md) for the parameters each one accepts.
 
 ## Training and persistence
 
