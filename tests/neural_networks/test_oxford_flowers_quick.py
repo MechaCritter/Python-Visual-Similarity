@@ -2,7 +2,7 @@
 
 Takes only 20 images from each flower class of the training split and runs
 the real pipeline on it: pair mining with :class:`OxfordSiamesePairs`, a few
-short training epochs of the actual :class:`SiameseNeuralNetwork` (pretrained
+short training epochs of the actual :class:`ContrastiveSiameseNetwork` (pretrained
 ResNet-18 backbone) via :func:`run_epoch`, and encoding/similarity scoring.
 
 The whole module skips itself unless both the Oxford Flowers data and the
@@ -21,9 +21,10 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, Subset
 
+import pyvisim.neural_networks.scripts._pairs as pair_data
 import pyvisim.neural_networks.scripts.train_siamese_neural_network as ts
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.neural_networks import SiameseNeuralNetwork
+from pyvisim.neural_networks import ContrastiveSiameseNetwork
 from pyvisim.neural_networks.losses import ContrastiveLoss
 
 from ._stubs import oxford_flowers_cached, resnet18_weights_cached
@@ -66,18 +67,20 @@ def pair_dataset(flower_subset: OxfordFlowerDataset) -> ts.OxfordSiamesePairs:
     :param flower_subset: The reduced flower dataset.
     :return: An ``OxfordSiamesePairs`` over the subset.
     """
-    with mock.patch.object(ts, "OxfordFlowerDataset", return_value=flower_subset):
+    with mock.patch.object(
+        pair_data, "OxfordFlowerDataset", return_value=flower_subset
+    ):
         return ts.OxfordSiamesePairs("train", transform=ts.VAL_TF)
 
 
 @pytest.fixture(scope="module")
-def model() -> SiameseNeuralNetwork:
+def model() -> ContrastiveSiameseNetwork:
     """The real Siamese network with its pretrained ResNet-18 backbone.
 
     :return: Model on the script's device with a small embedding space.
     """
     torch.manual_seed(0)
-    return SiameseNeuralNetwork(embedding_dim=EMBEDDING_DIM, device=ts.device)
+    return ContrastiveSiameseNetwork(embedding_dim=EMBEDDING_DIM, device=ts.device)
 
 
 def test_subset_has_20_images_per_class(flower_subset: OxfordFlowerDataset) -> None:
@@ -110,7 +113,7 @@ def test_pair_dataset_covers_subset(
 
 
 def test_short_training_on_subset_reduces_loss(
-    pair_dataset: ts.OxfordSiamesePairs, model: SiameseNeuralNetwork
+    pair_dataset: ts.OxfordSiamesePairs, model: ContrastiveSiameseNetwork
 ) -> None:
     """Three short epochs on repeated subset pairs drive the loss down."""
     loader = DataLoader(
@@ -134,7 +137,7 @@ def test_short_training_on_subset_reduces_loss(
 
 
 def test_embed_flower_images(
-    model: SiameseNeuralNetwork, flower_subset: OxfordFlowerDataset
+    model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
 ) -> None:
     """Real flower images embed to unit-norm embedding rows."""
     indices = (0, 1, len(flower_subset) // 2, len(flower_subset) - 1)
@@ -146,7 +149,7 @@ def test_embed_flower_images(
 
 
 def test_identical_flower_similarity_is_one(
-    model: SiameseNeuralNetwork, flower_subset: OxfordFlowerDataset
+    model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
 ) -> None:
     """A flower image compared with itself scores cosine similarity 1."""
     image = flower_subset[0][0]
@@ -156,7 +159,7 @@ def test_identical_flower_similarity_is_one(
 
 
 def test_similarity_matrix_on_flowers(
-    model: SiameseNeuralNetwork, flower_subset: OxfordFlowerDataset
+    model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
 ) -> None:
     """Batches of flowers produce a bounded ``(N, M)`` similarity matrix."""
     batch_a = [flower_subset[index][0] for index in (0, 1)]

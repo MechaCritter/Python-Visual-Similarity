@@ -21,7 +21,7 @@ from PIL import Image
 
 import pyvisim.neural_networks.scripts.train_siamese_neural_network as ts
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.neural_networks import SiameseNeuralNetwork
+from pyvisim.neural_networks import ContrastiveSiameseNetwork
 from pyvisim.typing import UInt8NumpyArray
 
 pytestmark = pytest.mark.slow
@@ -94,7 +94,7 @@ def test_full_training_and_demo(
     assert -1.0 <= score <= 1.0
 
     # §3 the learned metric ranks same-class pairs above cross-class pairs
-    model = SiameseNeuralNetwork(
+    model = ContrastiveSiameseNetwork(
         embedding_dim=ts.CONFIG["embedding_dim"], device=ts.device
     )
     model.load_state_dict(torch.load(best, map_location=ts.device)["model"])
