@@ -16,7 +16,7 @@ embeddings instead, reach for `ClipEmbedder` in
 where `K` is the number of clusters and `D` is the local descriptor dimension.
 
 Shared machinery lives in [`ImageEncoderBase`](base_encoder.md). The clustering
-encoders build their aggregation model from the `KMeans`, `GaussianMixtureModel`
+encoders build their aggregation model from the `KMeans`, `DiagCovarGaussianMixture`
 and `PCA` classes bundled inside the encoders package
 (`pyvisim/encoders/_clustering/`) using the parameters you pass at construction, then
 fit it in `learn`. Trained encoders are saved and

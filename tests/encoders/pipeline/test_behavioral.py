@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 MARGIN = 1e-6
 
 #: PCA variants for the pipeline behavioural test (mirrors the encoder fixtures).
-PCA_VARIANTS = [None, {"n_components": 32, "random_state": 0}]
+PCA_VARIANTS = [None, {"n_components": 32, "rng": 0}]
 
 
 def _assert_same_category_higher(
@@ -92,11 +92,11 @@ def test_same_category_higher(
     """A VLAD+Fisher pipeline scores same-category pairs higher than different ones."""
     vlad = VLADEncoder(
         n_clusters=8,
-        kmeans_params={"random_state": 0, "n_init": 3},
+        kmeans_params={"rng": 0},
         pca_params=pca_params,
     )
     fisher = FisherVectorEncoder(
-        n_components=8, gmm_params={"random_state": 0}, pca_params=pca_params
+        n_components=8, gmm_params={"rng": 0}, pca_params=pca_params
     )
     vlad.learn(category_train_images_flat)
     fisher.learn(category_train_images_flat)

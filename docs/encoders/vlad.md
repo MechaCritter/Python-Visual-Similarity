@@ -14,18 +14,43 @@ VLAD always clusters with K-Means, so you configure that model through the encod
 from pyvisim.encoders import VLADEncoder
 
 vlad = VLADEncoder(
-    n_clusters=256,                    # number of visual words
-    kmeans_params={"random_state": 0}, # forwarded to sklearn.cluster.KMeans
-    pca_params={"n_components": 64},   # optional; omit for no PCA
+    n_clusters=256,                  # number of visual words
+    kmeans_params={"rng": 0},        # forwarded to  KMeans
+    pca_params={"n_components": 64}, # optional; omit for no PCA
 )
-vlad.learn(images)                     # fits the PCA (if any) then K-Means
+vlad.learn(images)                   # fits the PCA (if any) then K-Means
 ```
 
 `n_clusters` is passed directly, not inside `kmeans_params` (doing both raises a
-`ValueError`). Everything else in `kmeans_params` / `pca_params` is handed straight to
-the matching scikit-learn estimator. Once fitted, save with `vlad.save_to_disk("vlad")`
-and reload with `VLADEncoder.load_from_disk("vlad.encoder")`, see
-[base_encoder.md](base_encoder.md).
+`ValueError`). Everything else in `kmeans_params` is handed straight to the
+[`KMeans`](../../pyvisim/encoders/_clustering/kmeans.py) model, and `pca_params` to the
+[`PCA`](../../pyvisim/encoders/_clustering/pca.py) model. Once fitted, save with
+`vlad.save_to_disk("vlad")` and reload with `VLADEncoder.load_from_disk("vlad.encoder")`, see [base_encoder.md](base_encoder.md).
+
+## K-Means parameters (`kmeans_params`)
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `n_init` | `1` | Number of k-means++ seedings to run; the refined codebook with the lowest distortion is kept. Raise it for better, more stable vocabularies. |
+| `thresh` | `1e-05` | Stops each refinement once the change in distortion drops below this (there is no maximum-iteration count). |
+| `check_finite` | `True` | Whether to validate that the input contains only finite numbers. Turn it off for a small speed-up. |
+| `rng` | `None` | Seed (`int`) or `numpy.random.Generator` for reproducible fitting. |
+
+For example, a fully reproducible encoder that keeps the best of five seedings:
+
+```python
+vlad = VLADEncoder(n_clusters=256, kmeans_params={"rng": 0, "n_init": 5})
+```
+
+## PCA parameters (`pca_params`)
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `n_components` | (required) | Number of components to keep. Must be at most `min(n_samples, n_features)` of the training descriptors. |
+| `whiten` | `False` | Scale each projected component to unit variance. Components with near-zero variance (rank-deficient descriptors) are floored at machine epsilon so the output stays finite. |
+| `svd_solver` | `"auto"` | `"full"` (economy SVD), `"covariance_eigh"` (eigendecomposition of the feature covariance, fastest for many samples with few features), `"arpack"` (truncated SVD, computes only `n_components` singular triplets), or `"auto"`, which picks between them based on the training shape. |
+| `tol` | `0.0` | Convergence tolerance of the `"arpack"` solver (0 means machine precision). Ignored by the other solvers. |
+| `rng` | `None` | Seed (`int`) or `numpy.random.Generator` for the `"arpack"` solver's starting vector. Ignored by the other solvers. |
 
 ## How `encode` works
 
