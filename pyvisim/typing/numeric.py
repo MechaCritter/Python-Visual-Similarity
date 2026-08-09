@@ -61,7 +61,7 @@ NumpyArray = npt.NDArray[np.generic]
 UInt8NumpyArray = npt.NDArray[np.uint8]
 #: NumPy array of float32 values (feature descriptors and encodings).
 Float32NumpyArray = npt.NDArray[np.float32]
-#: NumPy array of float64 values (sklearn estimator outputs).
+#: NumPy array of float64 values (model outputs computed in double precision).
 Float64NumpyArray = npt.NDArray[np.float64]
 #: NumPy array of any floating-point dtype.
 FloatNumpyArray = npt.NDArray[np.floating[Any]]

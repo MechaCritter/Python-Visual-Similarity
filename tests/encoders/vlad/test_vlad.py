@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 import torch
-from sklearn.exceptions import NotFittedError
 
+from pyvisim._errors import NotFittedError
 from pyvisim.encoders import GMMWeights, VLADEncoder
-from pyvisim.encoders._clustering import GaussianMixtureModel, KMeans
+from pyvisim.encoders._clustering import DiagCovarGaussianMixture, KMeans
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -28,7 +28,7 @@ def vlad_no_pca(category_train_images_flat: list[np.ndarray]) -> VLADEncoder:
     :param category_train_images_flat: flattened training images to learn from.
     :returns: a fitted ``VLADEncoder``.
     """
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
+    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
     encoder.learn(category_train_images_flat)
     return encoder
 
@@ -42,8 +42,8 @@ def vlad_pca(category_train_images_flat: list[np.ndarray]) -> VLADEncoder:
     """
     encoder = VLADEncoder(
         n_clusters=8,
-        kmeans_params={"random_state": 0, "n_init": 3},
-        pca_params={"n_components": 32, "random_state": 0},
+        kmeans_params={"rng": 0},
+        pca_params={"n_components": 32, "rng": 0},
     )
     encoder.learn(category_train_images_flat)
     return encoder
@@ -70,7 +70,7 @@ def test_clustering_model_is_read_only() -> None:
     """``clustering_model`` is a read-only property; direct assignment raises ``AttributeError``."""
     encoder = VLADEncoder(n_clusters=8)
     with pytest.raises(AttributeError):
-        encoder.clustering_model = GaussianMixtureModel(8)  # type: ignore[assignment]
+        encoder.clustering_model = DiagCovarGaussianMixture(8)  # type: ignore[assignment]
 
 
 def test_encode_shape_no_pca(

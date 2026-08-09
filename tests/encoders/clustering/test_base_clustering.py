@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from sklearn.exceptions import NotFittedError
 
-from pyvisim.encoders._clustering import PCA, ClusteringModelBase, KMeans
+from pyvisim._errors import NotFittedError
+from pyvisim.encoders._clustering import ClusteringModelBase, KMeans
 
 
 def test_clustering_base_is_abstract() -> None:
@@ -14,14 +14,13 @@ def test_clustering_base_is_abstract() -> None:
         ClusteringModelBase()  # type: ignore[abstract]
 
 
-def test_repr_contains_model() -> None:
-    """The shared ``__repr__`` names the concrete class and its model."""
-    text = repr(KMeans(8))
-    assert "KMeans(" in text
-    assert "model=" in text
-
-
 def test_check_is_fitted_message() -> None:
     """The shared fitted check raises a message mentioning the unfitted state."""
     with pytest.raises(NotFittedError, match="is not fitted yet"):
-        _ = PCA(4).n_components
+        _ = KMeans(4).cluster_centers
+
+
+def test_not_fitted_error_is_value_and_attribute_error() -> None:
+    """``NotFittedError`` keeps the sklearn exception hierarchy it replaced."""
+    assert issubclass(NotFittedError, ValueError)
+    assert issubclass(NotFittedError, AttributeError)

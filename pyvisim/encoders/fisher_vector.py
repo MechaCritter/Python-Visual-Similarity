@@ -14,7 +14,7 @@ from ..typing import (
     FloatNumpyArray,
     ImageInput,
 )
-from ._clustering import PCA, ClusteringModelBase, GaussianMixtureModel
+from ._clustering import PCA, ClusteringModelBase, DiagCovarGaussianMixture
 from .utils import iter_images
 
 
@@ -63,11 +63,10 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
     :param weights: Pretrained GMM weights to load (deprecated).
     :param n_components: Number of Gaussian mixture components (visual words) to use.
-    :param gmm_params: Dictionary of additional keyword arguments forwarded
-        verbatim to :class:`sklearn.mixture.GaussianMixture` (e.g. ``{"random_state": 0}``).
-    :param pca_params: Dictionary of keyword arguments for the PCA model used
-        for dimensionality reduction; must include ``n_components``. If omitted,
-        no PCA is applied.
+    :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/fisher_vector.md#gmm-parameters``.
+    :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/pca.md#parameters``.
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
@@ -82,7 +81,7 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     - [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
     """
 
-    _clustering_model_cls = GaussianMixtureModel
+    _clustering_model_cls = DiagCovarGaussianMixture
 
     def __init__(
         self,
@@ -108,7 +107,7 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
                 "Pass 'n_components' directly to FisherVectorEncoder instead of inside gmm_params."
             )
         clustering_model = (
-            GaussianMixtureModel(n_components=n_components, **(gmm_params or {}))
+            DiagCovarGaussianMixture(n_components=n_components, **(gmm_params or {}))
             if weights is None
             else None
         )
@@ -127,13 +126,13 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
         )
 
     @property
-    def clustering_model(self) -> GaussianMixtureModel:
-        return cast(GaussianMixtureModel, self._clustering_model)
+    def clustering_model(self) -> DiagCovarGaussianMixture:
+        return cast(DiagCovarGaussianMixture, self._clustering_model)
 
     def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
-        if not isinstance(clustering_model, GaussianMixtureModel):
+        if not isinstance(clustering_model, DiagCovarGaussianMixture):
             raise ValueError(
-                f"The clustering model must be an instance of pyvisim.encoders._clustering.GaussianMixtureModel, not {type(clustering_model)}"
+                f"The clustering model must be an instance of pyvisim.encoders._clustering.DiagCovarGaussianMixture, not {type(clustering_model)}"
             )
         super()._set_clustering_model(clustering_model)
 
