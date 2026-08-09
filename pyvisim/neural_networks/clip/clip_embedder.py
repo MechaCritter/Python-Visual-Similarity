@@ -19,7 +19,6 @@ from PIL import Image
 
 from ..._base_classes import SimilarityMetric
 from ..._utils import get_similarity_func
-from ...encoders.utils import iter_images
 from ...lazy_import import OptionalImport
 from ...typing import (
     Float32NumpyArray,
@@ -28,6 +27,7 @@ from ...typing import (
     SimilarityFunc,
     UInt8NumpyArray,
 )
+from ...utils.image_utils import iter_images
 from ._registry import (
     CheckpointSpec,
     VisionConfig,
