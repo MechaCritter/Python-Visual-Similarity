@@ -18,9 +18,9 @@ from ..typing import (
     ImageInput,
     SimilarityFunc,
 )
+from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase
 from ._serialization import load_encoder_state, save_encoder_state
-from .utils import iter_images
 
 setup_logging()
 
