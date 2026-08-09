@@ -17,7 +17,7 @@ from pyvisim.encoders import FisherVectorEncoder
 
 fisher = FisherVectorEncoder(
     n_components=256,                # number of mixture components
-    gmm_params={"random_state": 0},  # forwarded to sklearn.mixture.GaussianMixture
+    gmm_params={"rng": 0},           # forwarded to the GMM
     pca_params={"n_components": 64}, # optional; omit for no PCA
 )
 fisher.learn(images)                 # fits the PCA (if any) then the GMM
@@ -29,6 +29,22 @@ in `gmm_params` raises a `ValueError`, since the Fisher Vector math assumes diag
 covariances. Save a fitted encoder with `fisher.save_to_disk("fisher")` and reload it
 with `FisherVectorEncoder.load_from_disk("fisher.encoder")`, see
 [base_encoder.md](base_encoder.md).
+
+## GMM parameters (`gmm_params`)
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `n_init` | `1` | Number of k-means++ seeded EM runs; the run with the highest final log-likelihood is kept. Raise it for better, more stable vocabularies. |
+| `max_iter` | `100` | Maximum number of EM iterations per run. |
+| `tol` | `1e-3` | Convergence threshold: a run stops when the change of the mean per-sample log-likelihood between iterations falls below it. |
+| `reg_covar` | `1e-6` | Non-negative regularisation added to (and floored on) the per-feature variances, keeping them strictly positive when a component collapses or dies. |
+| `rng` | `None` | Seed (`int`) or `numpy.random.Generator` for reproducible fitting. |
+
+For example, a fully reproducible encoder that keeps the best of five EM runs:
+
+```python
+fisher = FisherVectorEncoder(n_components=256, gmm_params={"rng": 0, "n_init": 5})
+```
 
 ## How `encode` works
 

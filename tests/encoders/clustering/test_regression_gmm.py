@@ -1,17 +1,4 @@
-"""Regression tests for :class:`DiagCovarGaussianMixture` vs sklearn.
-
-These mirror the quality checks of ``notebooks/benchmark_gmm.ipynb`` (the
-runtime comparison is intentionally left out): the NumPy/SciPy EM
-implementation must estimate the mixture as well as
-:class:`sklearn.mixture.GaussianMixture` with ``covariance_type="diag"``. With
-``n_init=10`` and identical ``tol`` / ``max_iter`` / ``reg_covar`` for both, the
-held-out log-likelihood and the label-quality metrics stay within one
-percentage point of scikit-learn, the two implementations assign held-out
-samples almost identically, and the recorded EM lower bound never decreases.
-
-Two blob shapes are exercised: a 2-D problem (fast) and a 128-dimensional
-variant (marked ``slow``).
-"""
+"""Regression tests for :class:`DiagCovarGaussianMixture` vs sklearn."""
 
 from __future__ import annotations
 
@@ -32,7 +19,7 @@ from pyvisim.encoders._clustering import DiagCovarGaussianMixture
 #: Number of seeded restarts kept for both implementations.
 N_INIT = 10
 #: Number of blob samples drawn for each configuration.
-N_SAMPLES = 2_000
+N_SAMPLES = 50_000
 #: Shared EM hyper-parameters, matching the notebook.
 MAX_ITER = 100
 TOL = 1e-3
@@ -40,7 +27,7 @@ REG_COVAR = 1e-6
 #: Largest allowed absolute gap in a label-quality metric (one percentage point).
 QUALITY_ABS_TOL = 0.01
 #: Minimum Adjusted Rand Index between the two implementations' assignments.
-AGREEMENT_MIN = 0.98
+AGREEMENT_MIN = 0.985
 
 #: ``(n_features, centers, cluster_std, seed, n_components)`` per configuration.
 BLOB_CONFIGS = [
@@ -52,12 +39,7 @@ BLOB_CONFIGS = [
 def _fit_both(
     train: np.ndarray, n_components: int
 ) -> tuple[DiagCovarGaussianMixture, SklearnGaussianMixture]:
-    """Fit both mixtures on the same data with matching hyper-parameters.
-
-    :param train: the training samples.
-    :param n_components: the number of mixture components to fit.
-    :returns: the fitted ``(pyvisim, sklearn)`` models.
-    """
+    """Fit both mixtures on the same data with matching hyper-parameters."""
     pyvisim_model = DiagCovarGaussianMixture(
         n_components,
         n_init=N_INIT,

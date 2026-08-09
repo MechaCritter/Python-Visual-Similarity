@@ -1,16 +1,4 @@
-"""Regression tests for :class:`pyvisim.encoders._clustering.KMeans` vs sklearn.
-
-These mirror the quality checks of ``notebooks/benchmark_kmeans.ipynb`` (the
-runtime comparison is intentionally left out): on Gaussian blobs the
-SciPy-backed :class:`~pyvisim.encoders._clustering.KMeans` must recover the
-ground-truth partition just as well as :class:`sklearn.cluster.KMeans`. With
-``n_init=10`` for both, the label-quality metrics stay within one percentage
-point of scikit-learn and the two implementations partition the data almost
-identically.
-
-Two blob shapes are exercised: the notebook's 2-D toy problem (fast) and a
-128-dimensional variant (marked ``slow``).
-"""
+"""Regression tests for :class:`pyvisim.encoders._clustering.KMeans` vs sklearn."""
 
 from __future__ import annotations
 
@@ -30,11 +18,11 @@ from pyvisim.encoders._clustering import KMeans
 #: Number of seeded restarts kept for both implementations (see the notebook).
 N_INIT = 10
 #: Number of blob samples drawn for each configuration.
-N_SAMPLES = 2_000
+N_SAMPLES = 50_000
 #: Largest allowed absolute gap in a label-quality metric (one percentage point).
 QUALITY_ABS_TOL = 0.01
 #: Minimum Adjusted Rand Index between the two implementations' partitions.
-AGREEMENT_MIN = 0.98
+AGREEMENT_MIN = 0.985
 
 #: ``(n_features, centers, cluster_std, seed, n_clusters)`` per configuration.
 #: The 2-D case reuses the notebook's well-separated toy blobs; the
@@ -46,23 +34,12 @@ BLOB_CONFIGS = [
 
 
 def _inertia(data: np.ndarray, centers: np.ndarray, labels: np.ndarray) -> float:
-    """Sum of squared distances of each sample to its assigned centroid.
-
-    :param data: the clustered samples, shape ``(n_samples, n_features)``.
-    :param centers: the cluster centroids, shape ``(n_clusters, n_features)``.
-    :param labels: the assignment of each sample to a centroid.
-    :returns: the k-means objective for this assignment.
-    """
+    """Sum of squared distances of each sample to its assigned centroid."""
     return float(((data - centers[labels]) ** 2).sum())
 
 
 def _fit_both(data: np.ndarray, n_clusters: int) -> tuple[KMeans, SklearnKMeans]:
-    """Fit both implementations on the same data with matching parameters.
-
-    :param data: the training samples.
-    :param n_clusters: the number of clusters to fit.
-    :returns: the fitted ``(pyvisim, sklearn)`` models.
-    """
+    """Fit both implementations on the same data with matching parameters."""
     pyvisim_model = KMeans(n_clusters, n_init=N_INIT, rng=0)
     pyvisim_model.fit(data)
     sklearn_model = SklearnKMeans(n_clusters=n_clusters, n_init=N_INIT, random_state=0)

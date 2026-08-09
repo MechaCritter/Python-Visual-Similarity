@@ -63,18 +63,10 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
     :param weights: Pretrained GMM weights to load (deprecated).
     :param n_components: Number of Gaussian mixture components (visual words) to use.
-    :param gmm_params: Dictionary of additional keyword arguments forwarded
-        verbatim to :class:`~pyvisim.encoders._clustering.DiagCovarGaussianMixture`:
-        ``n_init``, ``max_iter``, ``tol``, ``reg_covar`` and ``rng``
-        (e.g. ``{"rng": 0}``). See ``docs/encoders/fisher_vector.md`` for
-        what each parameter means.
-    :param pca_params: Dictionary of keyword arguments forwarded verbatim to
-        :class:`~pyvisim.encoders._clustering.PCA`, used to reduce the descriptor
-        dimensionality before the GMM: ``n_components`` (required),
-        ``whiten``, ``svd_solver``, ``tol`` and ``rng`` (e.g.
-        ``{"n_components": 64, "whiten": True}``). See the "PCA parameters"
-        section of ``docs/encoders/fisher_vector.md`` for what each
-        parameter means. If omitted, no PCA is applied.
+    :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/fisher_vector.md#gmm-parameters``.
+    :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/pca.md#parameters``.
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.

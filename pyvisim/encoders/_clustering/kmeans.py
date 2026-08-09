@@ -12,20 +12,11 @@ from ._base_clustering import ClusteringModelBase, _decode, _encode
 
 _KMeansT = TypeVar("_KMeansT", bound="KMeans")
 
-#: Constructor arguments (besides ``n_clusters``) restored on deserialisation.
 _INIT_PARAM_NAMES = ("n_init", "thresh", "check_finite", "rng")
 
 
 def _n_init_from_sklearn(n_init: Any) -> int:
-    """
-    Translates a scikit-learn ``n_init`` value into an integer seeding count.
-
-    :param n_init: The scikit-learn ``n_init`` constructor argument.
-    :return: The number of k-means++ seedings to run. ``"auto"`` resolves
-        to 1, matching scikit-learn's resolution for k-means++
-        initialization.
-    :raises TypeError: If ``n_init`` is neither an integer nor ``"auto"``.
-    """
+    """Translates a scikit-learn ``n_init`` value into an integer seeding count."""
     if n_init == "auto":
         return 1
     if isinstance(n_init, (int, np.integer)):
@@ -37,14 +28,7 @@ def _n_init_from_sklearn(n_init: Any) -> int:
 
 
 def _rng_from_sklearn(random_state: Any) -> int | None:
-    """
-    Translates a scikit-learn ``random_state`` into a NumPy ``rng`` seed.
-
-    :param random_state: The scikit-learn ``random_state`` constructor argument.
-    :return: An integer seed or ``None``.
-    :raises TypeError: If ``random_state`` is a ``RandomState`` instance,
-        which cannot be mapped to a :class:`numpy.random.Generator` seed.
-    """
+    """Translates a scikit-learn ``random_state`` into a NumPy ``rng`` seed."""
     if random_state is None:
         return None
     if isinstance(random_state, (int, np.integer)):
@@ -55,13 +39,6 @@ def _rng_from_sklearn(random_state: Any) -> int | None:
     )
 
 
-#: Maps :class:`sklearn.cluster.KMeans` constructor arguments to this class'
-#: constructor arguments, with a converter per argument. scikit-learn
-#: arguments without a counterpart here (``max_iter``, ``algorithm``,
-#: ``copy_x``, ``verbose``) are ignored: SciPy's :func:`~scipy.cluster.vq.kmeans`
-#: iterates until the distortion change falls below ``thresh`` instead of
-#: honouring a maximum iteration count. ``init`` is validated separately,
-#: since k-means++ is the only initialization supported.
 _SKLEARN_PARAM_MAP: dict[str, tuple[str, Callable[[Any], Any]]] = {
     "n_clusters": ("n_clusters", int),
     "tol": ("thresh", float),
@@ -75,12 +52,6 @@ def _kmeans_plusplus(
 ) -> FloatNumpyArray:
     """
     Selects initial centroids with greedy k-means++ seeding.
-
-    Implements the D²-weighted seeding of Arthur & Vassilvitskii (2007)
-    with greedy local trials (as popularised by scikit-learn): for every new
-    centroid, ``2 + log(k)`` candidates are drawn proportionally to their
-    squared distance from the chosen centroids, and the candidate that
-    lowers the total potential the most is kept.
 
     :param data: Observation matrix of shape (n_samples, n_features).
     :param n_clusters: Number of centroids to select.
@@ -130,31 +101,15 @@ class KMeans(ClusteringModelBase):
     """
     K-Means clustering model, used by the VLAD encoder.
 
-    Fitting is backed by :func:`scipy.cluster.vq.kmeans`: the observations
-    are whitened first (each feature divided by its standard deviation, as
-    :func:`scipy.cluster.vq.whiten` does — SciPy's k-means expects whitened
-    input), initial centroids are chosen with this module's own k-means++
-    seeding (the only initialization supported for now), and the seeding +
-    ``kmeans`` refinement is repeated ``n_init`` times, keeping the codebook
-    with the lowest distortion. Each seeding is passed to ``kmeans`` via its
-    ``k_or_guess`` parameter.
-
-    The learned centroids are stored on the model **in the original
-    (unwhitened) feature space**, together with the per-feature scale from
-    training. Prediction whitens the query features with that stored scale
-    and assigns each sample to its nearest centroid with
-    :func:`scipy.cluster.vq.vq`.
-
     :param n_clusters: Number of clusters to form.
     :param n_init: Number of k-means++ seedings to run; each seeded codebook
-        is refined by :func:`scipy.cluster.vq.kmeans` and the result with the
-        lowest distortion is kept.
-    :param thresh: Terminates each ``kmeans`` refinement when the change in
-        distortion falls below this threshold.
+        is refined and the result with the lowest distortion is kept.
+    :param thresh: Terminates each refinement when the change in distortion
+        falls below this threshold.
     :param check_finite: Whether to check that the input contains only
         finite numbers. Disabling may give a performance gain.
     :param rng: Seed (int) or :class:`numpy.random.Generator` for
-        reproducible fitting. Supersedes SciPy's deprecated ``seed``.
+        reproducible fitting.
     :raises ValueError: If ``n_clusters`` or ``n_init`` is not positive.
     """
 
@@ -191,31 +146,18 @@ class KMeans(ClusteringModelBase):
 
     @property
     def n_features_in(self) -> int:
-        """
-        Number of features the fitted model expects as input.
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Number of features the fitted model expects as input."""
         return int(self.cluster_centers.shape[1])
 
     @property
     def cluster_centers(self) -> FloatNumpyArray:
-        """
-        Coordinates of the cluster centers in the original (unwhitened)
-        feature space, shape (n_clusters, n_features).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Cluster centroids, shape (n_clusters, n_features)."""
         self._check_is_fitted()
         return cast(FloatNumpyArray, self._cluster_centers)
 
     @property
     def _fitted_scale(self) -> FloatNumpyArray:
-        """
-        Per-feature whitening scale from training, shape (n_features,).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Per-feature whitening scale from training, shape (n_features,)."""
         self._check_is_fitted()
         return cast(FloatNumpyArray, self._scale)
 
@@ -223,10 +165,6 @@ class KMeans(ClusteringModelBase):
     def _whitening_scale(data: FloatNumpyArray) -> FloatNumpyArray:
         """
         Computes the per-feature whitening scale of the training data.
-
-        Zero-variance features get a scale of 1 so they pass through
-        unchanged instead of dividing by zero (mirroring
-        :func:`scipy.cluster.vq.whiten`).
 
         :param data: Feature matrix of shape (n_samples, n_features).
         :return: Per-feature standard deviations, shape (n_features,).
@@ -239,9 +177,8 @@ class KMeans(ClusteringModelBase):
         """
         Learns the cluster centroids from the given feature matrix.
 
-        The features are whitened (as :func:`scipy.cluster.vq.whiten`
-        requires for SciPy's k-means), then ``n_init`` k-means++ seedings
-        are each refined by :func:`scipy.cluster.vq.kmeans` and the codebook
+        The features are whitened, then ``n_init`` k-means++ seedings
+        are each refined and the codebook
         with the lowest distortion is kept. The centroids are stored
         de-whitened, i.e. in the original feature space, together with the
         whitening scale used at prediction time.
@@ -291,9 +228,9 @@ class KMeans(ClusteringModelBase):
         """
         Predicts the closest cluster for each feature vector.
 
-        The features are whitened with the scale computed during fitting
-        (:func:`scipy.cluster.vq.vq` expects observations whitened the same
-        way as the codebook) and then assigned to the nearest centroid.
+        The features are whitened with the scale computed during fitting —
+        observations must be whitened the same way as the codebook — and
+        then assigned to the nearest centroid.
 
         :param features: Feature matrix of shape (n_samples, n_features).
         :return: Cluster index of each sample, shape (n_samples,).
@@ -310,9 +247,9 @@ class KMeans(ClusteringModelBase):
         Serialises the fitted model into a JSON-safe dictionary.
 
         The state layout keeps the ``cluster_centers_`` / ``n_features_in_``
-        key names of the scikit-learn-backed model this class replaced, so
-        ``.encoder`` files written by older releases can still be read; the
-        whitening scale is stored under ``scale_``.
+        key names used by older releases, so the ``.encoder`` files they
+        wrote can still be read; the whitening scale is stored under
+        ``scale_``.
 
         **NOTE**: ``rng`` is stored only when it is an integer seed; a
         :class:`numpy.random.Generator` is stateful and not JSON-safe.
@@ -341,11 +278,10 @@ class KMeans(ClusteringModelBase):
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
-        Dictionaries serialised by older releases (which stored the fitted
-        state of :class:`sklearn.cluster.KMeans`) are also accepted: the
-        centroids are restored, the whitening scale defaults to ones (the
-        scikit-learn model was trained without whitening) and the remaining
-        parameters keep their defaults.
+        Dictionaries serialised by older releases are also accepted: the
+        centroids are restored, the whitening scale defaults to ones (those
+        models were trained without whitening) and the remaining parameters
+        keep their defaults.
 
         :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
         :return: A fitted model.
@@ -389,10 +325,10 @@ class KMeans(ClusteringModelBase):
         The scikit-learn constructor arguments are translated to their
         equivalents here (``tol`` becomes ``thresh``, ``n_init`` the number
         of k-means++ seedings — ``"auto"`` resolves to 1 — and
-        ``random_state`` becomes ``rng``). ``max_iter`` has no counterpart
-        (SciPy's :func:`~scipy.cluster.vq.kmeans` iterates until the
-        distortion change falls below ``thresh``) and is ignored, as are
-        ``algorithm``, ``copy_x`` and ``verbose``. Only the default
+        ``random_state`` becomes ``rng``). ``max_iter`` has no counterpart —
+        each refinement iterates until the distortion change falls below
+        ``thresh`` — and is ignored, as are ``algorithm``, ``copy_x`` and
+        ``verbose``. Only the default
         ``init="k-means++"`` is accepted, since k-means++ is the only
         initialization supported.
 

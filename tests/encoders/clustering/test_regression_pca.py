@@ -1,19 +1,4 @@
-"""Regression tests for :class:`pyvisim.encoders._clustering.PCA` vs sklearn.
-
-These mirror the numerical-agreement checks of ``notebooks/benchmark_pca.ipynb``
-(the runtime and peak-memory comparisons are intentionally left out). Every
-pyvisim solver (``full``, ``covariance_eigh``, ``arpack``) is compared against
-scikit-learn's exact ``full`` solver on the same data:
-
-- the **reconstruction error** (relative Frobenius error of the rank-``k``
-  reconstruction) must match scikit-learn's, and
-- the learned **subspace** must be identical (zero principal angle, matching
-  explained-variance ratios, sign-aligned components and projections).
-
-The whitening behaviour and the two edge cases the notebook calls out
-(whitening rank-deficient data stays finite, and ``transform`` centers with the
-training mean) are checked as well.
-"""
+"""Regression tests for :class:`pyvisim.encoders._clustering.PCA` vs sklearn."""
 
 from __future__ import annotations
 
@@ -34,17 +19,7 @@ def _make_data(
     effective_rank: int | None = None,
     seed: int = 0,
 ) -> np.ndarray:
-    """Gaussian data with a decaying spectrum and non-zero feature means.
-
-    This reproduces the notebook's data generator: real feature matrices are
-    low-rank plus noise, which is what makes the truncated solvers meaningful.
-
-    :param n_samples: number of rows to draw.
-    :param n_features: number of columns to draw.
-    :param effective_rank: rank of the signal subspace (defaults to full rank).
-    :param seed: seed of the generator.
-    :returns: a ``(n_samples, n_features)`` float64 matrix.
-    """
+    """Gaussian data with a decaying spectrum and non-zero feature means."""
     rng = np.random.default_rng(seed)
     rank = effective_rank or min(n_samples, n_features)
     spectrum = np.exp(-np.arange(rank) / (rank / 4))

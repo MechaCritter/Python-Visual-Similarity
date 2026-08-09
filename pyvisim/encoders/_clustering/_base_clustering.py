@@ -18,10 +18,9 @@ def _encode(value: Any) -> Any:
     """
     Recursively converts a fitted-attribute value into JSON-safe data.
 
-    Handles the types scikit-learn stores on its estimators: NumPy arrays,
-    NumPy scalars, plain containers and primitives.
+    Handles NumPy arrays, NumPy scalars, plain containers and primitives.
 
-    :param value: A value taken from an estimator's ``__dict__``.
+    :param value: A value taken from a model's ``__dict__``.
     :return: A JSON-serialisable representation of ``value``.
     :raises TypeError: If ``value`` is of a type that cannot be encoded.
     """
@@ -55,7 +54,7 @@ def _encode(value: Any) -> Any:
 
 def _decode(value: Any) -> Any:
     """
-    Rebuilds the scikit-learn objects from JSON data.
+    Rebuilds the fitted-attribute values from JSON data.
 
     :param value: A value produced by :func:`_encode`, after JSON round-trip.
     :return: The reconstructed value, with arrays restored to ``numpy.ndarray``.
@@ -75,13 +74,7 @@ def _decode(value: Any) -> Any:
 
 
 class ClusteringModelBase(abc.ABC):
-    """
-    Base class for clustering models.
-
-    The interface is backend-agnostic: implementations may be backed by any
-    library (e.g. scikit-learn or SciPy) as long as they expose the fitted
-    state, serialisation and fitting behaviour declared here.
-    """
+    """Base class for clustering models."""
 
     @property
     @abc.abstractmethod
@@ -98,11 +91,7 @@ class ClusteringModelBase(abc.ABC):
     @property
     @abc.abstractmethod
     def n_features_in(self) -> int:
-        """
-        Number of features the fitted model expects as input.
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Number of features the fitted model expects as input."""
         raise NotImplementedError
 
     @abc.abstractmethod

@@ -14,10 +14,7 @@ from .kmeans import _rng_from_sklearn
 
 _PCAT = TypeVar("_PCAT", bound="PCA")
 
-#: SVD solvers this model supports (see the class docstring).
 _SUPPORTED_SOLVERS = ("auto", "full", "covariance_eigh", "arpack")
-
-#: Constructor arguments (besides ``n_components``) restored on deserialisation.
 _INIT_PARAM_NAMES = ("whiten", "svd_solver", "tol", "rng")
 
 
@@ -47,18 +44,13 @@ def _solver_from_sklearn(svd_solver: Any) -> str:
 
     :param svd_solver: The scikit-learn ``svd_solver`` constructor argument.
     :return: One of the supported solver names. ``"randomized"`` (which has
-        no SciPy counterpart) falls back to ``"auto"``.
+        no counterpart here) falls back to ``"auto"``.
     """
     if svd_solver in _SUPPORTED_SOLVERS:
         return str(svd_solver)
     return "auto"
 
 
-#: Maps :class:`sklearn.decomposition.PCA` constructor arguments to this
-#: class' constructor arguments, with a converter per argument. scikit-learn
-#: arguments without a counterpart here (``copy``, ``iterated_power``,
-#: ``n_oversamples``, ``power_iteration_normalizer``) only affect its
-#: randomized solver or in-place behaviour and are ignored.
 _SKLEARN_PARAM_MAP: dict[str, tuple[str, Callable[[Any], Any]]] = {
     "n_components": ("n_components", _n_components_from_sklearn),
     "whiten": ("whiten", bool),
@@ -75,8 +67,7 @@ def _flip_signs(components: Float64NumpyArray) -> Float64NumpyArray:
     The sign of an SVD/eigendecomposition factor pair is arbitrary, so the
     same data can yield components flipped between runs, solvers or BLAS
     builds. Each component is flipped so that its entry with the largest
-    absolute value is positive (scikit-learn's ``svd_flip`` with
-    ``u_based_decision=False``).
+    absolute value is positive.
 
     :param components: Component matrix of shape (n_components, n_features).
     :return: The sign-adjusted components (modified in place and returned).
@@ -93,41 +84,35 @@ class PCA:
     Principal Component Analysis model, used by the image encoders to
     reduce the dimensionality of local features.
 
-    Fitting is backed by SciPy. The training features are centered and
-    decomposed with an economy ("thin") factorisation — never the full
-    square one, whose factors would be prohibitively large for the
-    high-dimensional descriptor matrices behind VLAD and Fisher Vectors.
-    Which decomposition runs is controlled by ``svd_solver``:
+    Supported SVD solvers are:
 
-    - ``"full"``: :func:`scipy.linalg.svd` of the centered features with
-      ``full_matrices=False``.
-    - ``"covariance_eigh"``: eigendecomposition (:func:`scipy.linalg.eigh`)
-      of the (n_features, n_features) covariance matrix. The covariance is
-      centered *after* the Gram product ``X.T @ X``, so no centered copy of
-      the data is ever materialised — the method of choice for
-      tall-and-skinny data such as millions of local SIFT descriptors.
-    - ``"arpack"``: truncated sparse SVD (:func:`scipy.sparse.linalg.svds`)
-      computing only the requested ``n_components`` singular triplets;
-      worthwhile when ``n_components`` is much smaller than both matrix
-      dimensions. Requires ``n_components < min(n_samples, n_features)``.
-    - ``"auto"``: picks one of the above at fit time with scikit-learn's
-      selection policy: ``"covariance_eigh"`` when ``n_features <= 1000``
-      and ``n_samples >= 10 * n_features``; else ``"full"`` when
+    - ``"full"``: economy SVD of the centered features.
+    - ``"covariance_eigh"``: eigendecomposition of the (n_features,
+      n_features) covariance matrix. The covariance is centered *after* the
+      Gram product ``X.T @ X``, so no centered copy of the data is ever
+      materialised — the method of choice for tall-and-skinny data such as
+      millions of local SIFT descriptors.
+    - ``"arpack"``: truncated sparse SVD computing only the requested
+      ``n_components`` singular triplets; worthwhile when ``n_components``
+      is much smaller than both matrix dimensions. Requires
+      ``n_components < min(n_samples, n_features)``.
+    - ``"auto"``: picks one of the above at fit time:
+      ``"covariance_eigh"`` when ``n_features <= 1000`` and
+      ``n_samples >= 10 * n_features``; else ``"full"`` when
       ``max(n_samples, n_features) <= 500``; else ``"arpack"`` when
-      ``n_components < 0.8 * min(n_samples, n_features)`` (where
-      scikit-learn would use its randomized solver — ARPACK is SciPy's
-      truncated counterpart); ``"full"`` otherwise.
+      ``n_components < 0.8 * min(n_samples, n_features)``; ``"full"``
+      otherwise.
 
     Component signs are made deterministic by flipping each component so
-    that its largest-magnitude entry is positive (scikit-learn's
-    ``svd_flip`` convention), so all solvers produce comparable output.
+    that its largest-magnitude entry is positive, so all solvers produce
+    comparable output.
 
     :meth:`transform` always centers with the **training** mean stored at
     fit time — never the mean of the batch being transformed — so a single
     query image is projected exactly like the training corpus was. With
     ``whiten=True``, components whose standard deviation falls below
     machine epsilon (rank-deficient training data) are divided by epsilon
-    instead, keeping the output finite (matching scikit-learn).
+    instead, keeping the output finite.
 
     :param n_components: Number of components to keep. Must be at most
         ``min(n_samples, n_features)`` of the training data.
@@ -194,21 +179,13 @@ class PCA:
 
     @property
     def n_components(self) -> int:
-        """
-        Number of components of the fitted PCA.
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Number of components of the fitted PCA."""
         self._check_is_fitted()
         return self._n_components
 
     @property
     def n_features_in(self) -> int:
-        """
-        Number of features the fitted model expects as input.
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Number of features the fitted model expects as input."""
         return int(self.components.shape[1])
 
     @property
@@ -221,29 +198,19 @@ class PCA:
         """
         Principal components, shape (n_components, n_features), sorted by
         descending explained variance.
-
-        :raises NotFittedError: If the model is not fitted.
         """
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._components)
 
     @property
     def mean(self) -> Float64NumpyArray:
-        """
-        Per-feature mean of the training data, shape (n_features,).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Per-feature mean of the training data, shape (n_features,)."""
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._mean)
 
     @property
     def explained_variance(self) -> Float64NumpyArray:
-        """
-        Variance explained by each component, shape (n_components,).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Variance explained by each component, shape (n_components,)."""
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._explained_variance)
 
@@ -252,8 +219,6 @@ class PCA:
         """
         Fraction of the total variance explained by each component,
         shape (n_components,).
-
-        :raises NotFittedError: If the model is not fitted.
         """
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._explained_variance_ratio)
@@ -263,8 +228,6 @@ class PCA:
         """
         Singular values of the centered training data corresponding to each
         component, shape (n_components,).
-
-        :raises NotFittedError: If the model is not fitted.
         """
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._singular_values)
@@ -274,19 +237,13 @@ class PCA:
         """
         Mean variance of the discarded components (the probabilistic-PCA
         noise estimate); 0 when nothing is discarded.
-
-        :raises NotFittedError: If the model is not fitted.
         """
         self._check_is_fitted()
         return self._noise_variance
 
     @property
     def fitted_svd_solver(self) -> str:
-        """
-        Solver that actually ran at fit time (``"auto"`` resolved).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Solver that actually ran at fit time (``"auto"`` resolved)."""
         self._check_is_fitted()
         return cast(str, self._fit_svd_solver)
 
@@ -296,15 +253,6 @@ class PCA:
     ) -> Float64NumpyArray:
         """
         Coerces a feature matrix to ``float64`` and validates its shape.
-
-        The decompositions accumulate over all samples, so everything is
-        computed in double precision regardless of the input dtype.
-
-        :param features: Feature matrix of shape (n_samples, n_features).
-        :param n_features: Expected number of features, if known.
-        :return: The validated matrix as a ``float64`` array.
-        :raises ValueError: If ``features`` is not 2-dimensional, holds no
-            samples, or its feature count does not match ``n_features``.
         """
         data = np.asarray(features, dtype=np.float64)
         if data.ndim != 2:
@@ -320,9 +268,6 @@ class PCA:
     def _resolve_solver(self, n_samples: int, n_features: int) -> str:
         """
         Resolves ``svd_solver="auto"`` for the given training shape.
-
-        Follows scikit-learn's selection policy (see the class docstring),
-        with ARPACK standing in for its randomized solver.
 
         :param n_samples: Number of training samples.
         :param n_features: Number of training features.
@@ -358,7 +303,7 @@ class PCA:
         self, data: Float64NumpyArray, mean: Float64NumpyArray
     ) -> tuple[Float64NumpyArray, Float64NumpyArray, Float64NumpyArray, float]:
         """
-        Decomposes the covariance matrix of the data with ``eigh``.
+        Decomposes the covariance matrix of the data.
 
         The covariance is centered after the Gram product
         (``X.T @ X - n * mean mean^T``), so no centered (n_samples,
@@ -387,12 +332,11 @@ class PCA:
         self, data: Float64NumpyArray, mean: Float64NumpyArray
     ) -> tuple[Float64NumpyArray, Float64NumpyArray, Float64NumpyArray, float]:
         """
-        Computes only the leading ``n_components`` singular triplets with
-        ARPACK.
+        Computes only the leading ``n_components`` singular triplets.
 
         The starting vector is drawn from ``rng``, making the otherwise
-        randomly-seeded Lanczos iteration reproducible. ARPACK returns the
-        singular values in ascending order, so the outputs are reversed.
+        randomly-seeded Lanczos iteration reproducible. The singular values
+        come out in ascending order, so the outputs are reversed.
         The total variance (which the truncated spectrum cannot provide)
         is computed directly from the centered data.
 
@@ -489,13 +433,10 @@ class PCA:
         Projects the given features onto the principal components.
 
         The features are centered with the **training** mean stored at fit
-        time (never the mean of this batch), applied after the projection
+        time, applied after the projection
         (``X @ V.T - mean @ V.T``) so the input matrix is not copied. With
         ``whiten=True``, each projected component is divided by its
-        standard deviation; on rank-deficient training data a component's
-        variance can be arbitrarily close to zero, so standard deviations
-        below machine epsilon are floored at epsilon to keep the output
-        finite (matching scikit-learn).
+        standard deviation.
 
         :param features: Feature matrix of shape (n_samples, n_features).
         :return: Reduced features of shape (n_samples, n_components).
@@ -517,12 +458,6 @@ class PCA:
     def to_dict(self) -> dict[str, Any]:
         """
         Serialises the fitted model into a JSON-safe dictionary.
-
-        The state layout keeps the ``components_`` / ``mean_`` /
-        ``explained_variance_`` / ... key names of the scikit-learn-backed
-        model this class replaced, so ``.encoder`` files written by older
-        releases can still be read (and files written now stay structurally
-        familiar).
 
         **NOTE**: ``rng`` is stored only when it is an integer seed; a
         :class:`numpy.random.Generator` is stateful and not JSON-safe.
@@ -557,14 +492,6 @@ class PCA:
     def from_dict(cls: type[_PCAT], data: dict[str, Any]) -> _PCAT:
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
-
-        Dictionaries serialised by older releases (which stored the fitted
-        state of :class:`sklearn.decomposition.PCA` under the same
-        ``"PCA"`` class name) are also accepted: the fitted arrays are
-        restored and the shared constructor arguments are translated
-        (``random_state`` becomes ``rng``; an ``svd_solver`` without a
-        counterpart here, e.g. ``"randomized"``, falls back to ``"auto"``,
-        which only matters if the model is refitted).
 
         :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
         :return: A fitted model.
@@ -631,16 +558,6 @@ class PCA:
     def from_sklearn(cls: type[_PCAT], model: Any) -> _PCAT:
         """
         Creates a model from a :class:`sklearn.decomposition.PCA` estimator.
-
-        The scikit-learn constructor arguments are translated to their
-        equivalents here (``random_state`` becomes ``rng``; ``whiten``,
-        ``tol`` and integer ``n_components`` map directly; an
-        ``svd_solver`` of ``"randomized"`` falls back to ``"auto"``).
-        ``copy``, ``iterated_power``, ``n_oversamples`` and
-        ``power_iteration_normalizer`` only affect scikit-learn's own
-        solvers and are ignored. If the estimator is fitted, its
-        components, mean and variance spectrum are adopted, so the
-        returned model transforms identically to the estimator.
 
         :param model: A :class:`sklearn.decomposition.PCA` instance,
             fitted or not.

@@ -62,18 +62,11 @@ class VLADEncoder(ClusteringBasedEncoder):
         Defaults to RootSIFT.
     :param weights: Pretrained K-Means weights to load (deprecated).
     :param n_clusters: Number of K-Means clusters (visual words) to use.
-    :param kmeans_params: Dictionary of additional keyword arguments forwarded
-        verbatim to :class:`~pyvisim.encoders._clustering.KMeans` (e.g.
-        ``{"rng": 0}``), which is backed by :func:`scipy.cluster.vq.kmeans`.
-        See ``docs/encoders/vlad.md`` (section *K-Means parameters*) for the
-        full list of accepted parameters and their meaning.
-    :param pca_params: Dictionary of keyword arguments forwarded verbatim to
-        :class:`~pyvisim.encoders._clustering.PCA`, used to reduce the descriptor
-        dimensionality before K-Means: ``n_components`` (required),
-        ``whiten``, ``svd_solver``, ``tol`` and ``rng`` (e.g.
-        ``{"n_components": 64, "whiten": True}``). See the "PCA parameters"
-        section of ``docs/encoders/vlad.md`` for what each parameter means.
-        If omitted, no PCA is applied.
+    :param kmeans_params: Arguments for K-Means during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/vlad.md#k-means-parameters``.
+    :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/pca.md#parameters``.
+    :param power_norm_weight: Exponent for power normalization
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.

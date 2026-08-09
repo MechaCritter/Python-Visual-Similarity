@@ -54,22 +54,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
     Gaussian Mixture clustering model with diagonal covariances, used by
     the Fisher Vector encoder.
 
-    The mixture is fitted with expectation-maximization implemented on
-    NumPy and SciPy helpers (:func:`scipy.special.logsumexp` keeps the
-    E-step in the log domain, so small component likelihoods do not
-    underflow to zero). Initial means are chosen with the same greedy
-    k-means++ seeding the :class:`~pyvisim.clustering.KMeans` model uses
-    (the only initialization supported for now); the seeding + EM
-    refinement is repeated ``n_init`` times and the run with the highest
-    final log-likelihood is kept.
-
-    Only diagonal covariance matrices are supported: the Fisher Vector
-    computation relies on them, and they collapse every matrix operation
-    of the full-covariance EM into elementwise arithmetic (no Cholesky
-    factorization, no matrix inversion, ``K x D`` storage). Each
-    component's variance vector is floored at ``reg_covar`` after every
-    M-step, so collapsing components cannot produce zero or negative
-    variances.
 
     :param n_components: Number of mixture components.
     :param covariance_type: Present for scikit-learn compatibility; only
@@ -138,30 +122,18 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
 
     @property
     def n_features_in(self) -> int:
-        """
-        Number of features the fitted model expects as input.
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Number of features the fitted model expects as input."""
         return int(self.means.shape[1])
 
     @property
     def weights(self) -> Float64NumpyArray:
-        """
-        Mixture weights of each component, shape (n_components,).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Mixture weights of each component, shape (n_components,)."""
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._weights)
 
     @property
     def means(self) -> Float64NumpyArray:
-        """
-        Mean of each mixture component, shape (n_components, n_features).
-
-        :raises NotFittedError: If the model is not fitted.
-        """
+        """Mean of each mixture component, shape (n_components, n_features)."""
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._means)
 
@@ -169,8 +141,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
     def covariances(self) -> Float64NumpyArray:
         """
         Diagonal covariance of each component, shape (n_components, n_features).
-
-        :raises NotFittedError: If the model is not fitted.
         """
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._covariances)
@@ -178,18 +148,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
     def _validate_features(
         self, features: FloatNumpyArray, *, n_features: int | None = None
     ) -> Float64NumpyArray:
-        """
-        Coerces a feature matrix to ``float64`` and validates its shape.
-
-        EM accumulates sums over all samples, so everything is computed in
-        double precision regardless of the input dtype.
-
-        :param features: Feature matrix of shape (n_samples, n_features).
-        :param n_features: Expected number of features, if known.
-        :return: The validated matrix as a ``float64`` array.
-        :raises ValueError: If ``features`` is not 2-dimensional, holds no
-            samples, or its feature count does not match ``n_features``.
-        """
+        """Coerces a feature matrix to ``float64`` and validates its shape."""
         data = np.asarray(features, dtype=np.float64)
         if data.ndim != 2:
             raise ValueError(f"Expected a 2D feature matrix, got a {data.ndim}D array.")
@@ -209,21 +168,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         means: Float64NumpyArray,
         covariances: Float64NumpyArray,
     ) -> Float64NumpyArray:
-        """
-        Evaluates ``log(weight_k) + log N(x | mean_k, diag(covariance_k))``.
-
-        With diagonal covariances the log-determinant is the sum of the
-        per-feature log-variances and the Mahalanobis term collapses to
-        elementwise operations expressed through matrix products, so no
-        matrix decomposition is needed.
-
-        :param data: Feature matrix of shape (n_samples, n_features).
-        :param data_sq: Precomputed elementwise square of ``data``.
-        :param weights: Mixture weights, shape (n_components,).
-        :param means: Component means, shape (n_components, n_features).
-        :param covariances: Diagonal covariances, shape (n_components, n_features).
-        :return: Weighted log-probabilities, shape (n_samples, n_components).
-        """
+        """Evaluates ``log(weight_k) + log N(x | mean_k, diag(covariance_k))``."""
         precisions = 1.0 / covariances
         log_det = np.sum(np.log(covariances), axis=1)
         mahalanobis = (
@@ -245,10 +190,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
     ) -> tuple[float, Float64NumpyArray]:
         """
         Computes the log-responsibilities and the mean log-likelihood.
-
-        The normalisation runs through :func:`scipy.special.logsumexp`, so
-        samples that are far from every component keep well-defined
-        responsibilities instead of underflowing to an all-zero row.
 
         :param data: Feature matrix of shape (n_samples, n_features).
         :param data_sq: Precomputed elementwise square of ``data``.
@@ -274,13 +215,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         """
         Re-estimates the mixture parameters from the responsibilities.
 
-        The per-component sample counts are floored at a few machine
-        epsilons, so an empty (dying) component yields tiny but strictly
-        positive weights instead of a division by zero. The variance
-        update ``E[x^2] - E[x]^2`` can cancel to a slightly negative
-        number in floating point; adding ``reg_covar`` and flooring the
-        result keeps every variance strictly positive.
-
         :param data: Feature matrix of shape (n_samples, n_features).
         :param data_sq: Precomputed elementwise square of ``data``.
         :param resp: Responsibilities, shape (n_samples, n_components).
@@ -303,8 +237,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
 
         Every sample is hard-assigned to its nearest seeded center, so the
         first M-step estimates each component's parameters from an actual
-        cluster of samples (rather than a single seed point), giving
-        well-scaled initial variances.
+        cluster of samples.
 
         :param data: Feature matrix of shape (n_samples, n_features).
         :param generator: NumPy random generator driving the seeding.
@@ -353,8 +286,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         Learns the mixture parameters from the given feature matrix.
 
         ``n_init`` EM runs are seeded with greedy k-means++ and the run
-        with the highest final mean log-likelihood is kept. The learned
-        weights, means and diagonal covariances are stored on the model.
+        with the highest final mean log-likelihood is kept.
 
         :param features: Feature matrix of shape (n_samples, n_features).
         :raises ValueError: If there are fewer samples than components or
@@ -393,8 +325,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         """
         Evaluates the weighted log-probabilities under the fitted mixture.
 
-        :param features: Feature matrix of shape (n_samples, n_features).
-        :return: Weighted log-probabilities, shape (n_samples, n_components).
         :raises NotFittedError: If the model is not fitted.
         :raises ValueError: If the feature count does not match the
             fitted model.
@@ -447,11 +377,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         """
         Serialises the fitted model into a JSON-safe dictionary.
 
-        The state layout keeps the ``weights_`` / ``means_`` /
-        ``covariances_`` / ``n_features_in_`` key names of the
-        scikit-learn-backed model this class replaced, so ``.encoder``
-        files stay structurally familiar.
-
         **NOTE**: ``rng`` is stored only when it is an integer seed; a
         :class:`numpy.random.Generator` is stateful and not JSON-safe.
 
@@ -483,12 +408,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
-        Dictionaries serialised by older releases (which stored the fitted
-        state of :class:`sklearn.mixture.GaussianMixture`) are also
-        accepted: the mixture parameters are restored and the shared
-        training parameters (``n_init``, ``max_iter``, ``tol``,
-        ``reg_covar``, ``random_state``) are translated to their
-        counterparts here.
 
         :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
         :return: A fitted model.

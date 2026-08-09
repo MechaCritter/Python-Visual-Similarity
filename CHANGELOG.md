@@ -2,10 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+- Clustering models can now be built from a fitted scikit-learn estimator:
+  `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
+  `PCA.from_sklearn`, plus `load_clustering_model_from_sklearn` on `VLADEncoder`
+  and `FisherVectorEncoder` to drop one straight into an encoder. Handy for reusing
+  a vocabulary you already trained with scikit-learn.
+
+### Changed
+- ℹ️ Dropped scikit-learn as a runtime dependency.
+
 ### Breaking
-- ⚠️ The clustering models (`KMeans`, `GaussianMixtureModel`, `PCA`,
+- ⚠️ The clustering models (`KMeans`, `DiagCovarGaussianMixture`, `PCA`,
   `ClusteringModelBase`) are now internal to the encoders package and moved from
   `pyvisim.clustering` to `pyvisim.encoders._clustering`.
+- ⚠️ Encoder clustering parameters changed: pass `rng` instead of `random_state`
+  inside `kmeans_params` / `gmm_params` / `pca_params` (see
+  [vlad.md](docs/encoders/vlad.md) and
+  [fisher_vector.md](docs/encoders/fisher_vector.md) for every accepted key).
 
 ## [0.8.2]
 
