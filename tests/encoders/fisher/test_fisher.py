@@ -9,8 +9,8 @@ import pytest
 import torch
 from sklearn.exceptions import NotFittedError
 
-from pyvisim.clustering import GaussianMixtureModel, KMeans
 from pyvisim.encoders import FisherVectorEncoder, KMeansWeights
+from pyvisim.encoders._clustering import GaussianMixtureModel, KMeans
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj

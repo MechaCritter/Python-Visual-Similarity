@@ -22,9 +22,10 @@ together with all of their public methods.
 
    encoders/index
    features/index
-   clustering/index
    image_store
    retrieval/index
    dataset/index
    neural_networks/index
+   distance
+   structural/index
    functions

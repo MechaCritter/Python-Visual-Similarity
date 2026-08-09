@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77.0.0", "wheel"]
+requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.8.0"
+version = "0.8.2"
 description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
 readme = "README.md"
 license = "MIT"
@@ -25,28 +25,28 @@ classifiers = [
 dependencies = [
     "numpy",
     "Pillow",
-    "opencv-python",
     "platformdirs",
     "safetensors",
     "scikit-learn",
+    "scipy",
     "tqdm",
     "requests",
 ]
 
 # To install PyTorch with CUDA support instead of the CPU-only default:
-#   uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+#   uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 # Replace cu124 with the CUDA version matching your system (e.g. cu121, cu118).
 
 # Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
 [project.optional-dependencies]
-# Deep-learning features and encoders (DeepConvFeature, CLIPEncoder, the
-# datasets and neural_networks modules) built on top of torch / torchvision /
-# open_clip.
+# Deep-learning features and models (DeepConvFeature, the datasets and
+# neural_networks modules, including ClipEmbedder) built on top of
+# torch / torchvision. huggingface_hub downloads the pretrained CLIP
+# checkpoints from the Hugging Face Hub.
 nn = [
     "torch",
     "torchvision",
-    "torchaudio",
-    "open_clip_torch",
+    "huggingface_hub",
 ]
 # Accelerated nearest-neighbour search and retrieval (ImageIndex,
 # InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.
@@ -65,6 +65,10 @@ pyvisim = [
     "res/model_files/*.encoder",
     "res/logging_config.yaml",
     "py.typed",
+    "structural/_kernel/*.pyx",
+    "structural/_kernel/*.pyi",
+    "features/_vendored/sift/*.pyx",
+    "features/_vendored/sift/*.pxd",
 ]
 
 # Dependencies groups to isolate test env from production env
@@ -88,6 +92,27 @@ docs = [
     "myst-parser",
     "furo",
 ]
+# Regenerating the checked-in C sources of the Cython kernels (make build-ext)
+build = [
+    "cython",
+    "setuptools",
+]
+# Reference implementations and tooling for notebooks/benchmark_structural.ipynb
+# and docs/structural/benchmarks/generate_benchmark.py
+bench = [
+    "scikit-image",
+    "torchmetrics",
+    "matplotlib",
+    "nbclient",
+    "ipykernel",
+]
+
+# Per-platform wheel builds for the compiled Cython extension, run by the
+# publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
+[tool.cibuildwheel]
+build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+# Skip 32-bit and musl targets: scipy/scikit-learn ship no wheels for them.
+skip = ["*-musllinux_*", "*_i686", "*-win32"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -106,11 +131,17 @@ check_untyped_defs = true
 exclude = ["^build/", "^dist/", "^\\.venv/", "^venv/"]
 plugins = ["numpy.typing.mypy_plugin"]
 
+# Vendored third-party code is kept byte-comparable with upstream and is not
+# held to this project's typing standards.
+[[tool.mypy.overrides]]
+module = "pyvisim.features._vendored.*"
+ignore_errors = true
+ignore_missing_imports = true
+
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
   "faiss.*",
-  "open_clip.*",
   "sklearn.*",
   "torchvision.*",
   "tqdm.*",
@@ -120,7 +151,8 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py310"
 line-length = 88
-extend-exclude = ["*.ipynb"]
+# _vendored folders hold third-party code kept byte-comparable with upstream.
+extend-exclude = ["*.ipynb", "_vendored"]
 
 [tool.ruff.lint]
 select = [
@@ -142,7 +174,7 @@ indent-style = "space"
 
 [tool.codespell]
 ignore-words-list = "Commun"
-skip = "./examples"  # jupyter notebooks
+skip = "./examples,*/_vendored/*"  # jupyter notebooks; vendored third-party code
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

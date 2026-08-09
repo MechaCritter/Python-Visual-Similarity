@@ -1,13 +1,109 @@
 # Changelog
 
-## [UNRELEASED]
+## [Unreleased]
+
+### Added
+- Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
+`pyvisim.structural`) metrics as well as their benchmark scripts asainst
+existing implementations under `docs/pixelwise/benchmarks` and
+`docs/structural/benchmarks`.
+
+### Breaking
+- ⚠️ The clustering models (`KMeans`, `GaussianMixtureModel`, `PCA`,
+  `ClusteringModelBase`) are now internal to the encoders package and moved from
+  `pyvisim.clustering` to `pyvisim.encoders._clustering`.
+
+## [0.8.2]
+
+### Added
+- `SIFT` now exposes the full set of detector parameters (`upsampling`, `n_octaves`,
+  `n_scales`, `sigma_min`, `c_dog`, `c_edge`, `n_hist`, `n_ori`, ...) as constructor
+  arguments, along with the underlying detector API (`detect`, `extract`,
+  `detect_and_extract` and the `keypoints`/`descriptors`/`positions`/... attributes).
+  `output_dim` is now `n_hist**2 * n_ori` (still `128` with the defaults).
 
 ### Changed
+- ℹ️ Removed `OpenCV` and `torchaudio` from the dependency list.
+- `SIFT` and `RootSIFT` no longer call OpenCV's `cv2.SIFT`; they now run the pure
+  NumPy/Cython SIFT implementation vendored from scikit-image
+  (`pyvisim/features/_vendored/sift/`, compiled via `make build-ext`).
+  `RootSIFT` subclasses `SIFT` and only adds the Hellinger-kernel normalization.
+  With OpenCV gone, `opencv-python-headless` is removed from the dependencies;
+  `scipy` returns as a direct dependency (the vendored implementation uses.
+
+
+### Breaking
+-  Some small numerical changes are expected compared to before regarding the `SIFT`
+  and `RootSIFT` comoutation are expected due to the migration. For the user, no
+  difference in API is observed since only the backend behind these 2 classes change.
+
+## [0.8.1]
+
+### Added
+- Structural similarity metrics (in `pyvisim.structural`): `SSIM` (Wang et al., 2004) and the
+  multi-scale `MSSSIM` (Wang et al., 2003), computed by a compiled multithreaded Cython
+  kernel (thread count via `num_workers` or `PYVISIM_NUM_THREADS`) and matching
+  scikit-image / torchmetrics respectively. Both score two image batches into an `(N, M)`
+  similarity matrix and take a `batch_size` parameter to bound peak memory (`-1` scores the
+  whole input as one batch):
+
+  ```python
+  from pyvisim.structural import MSSSIM, SSIM
+
+  scores = SSIM().similarity_score(image1, image2)          # (N, M) matrix in [-1, 1]
+  scores = MSSSIM(batch_size=16).similarity_score(gallery, queries)
+  ```
+- New `pyvisim.distance` module with pyvisim's own pure-NumPy pairwise metrics:
+  `cosine_similarity`, `euclidean_distances` and `manhattan_distances`. They keep
+  scikit-learn's numerical tricks (float64 upcast and the dot-product expansion for
+  Euclidean, zero-safe norms divided out of the result in place for cosine, chunked
+  broadcasting with a configurable `working_memory_bytes` budget for Manhattan) and
+  are verified against the scikit-learn reference in the test suite, including
+  `slow`-marked stress tests on a 100000 x 10000 gallery (size overridable via
+  `PYVISIM_TEST_LARGE_ROWS` / `PYVISIM_TEST_LARGE_FEATURES`).
+
+### Changed
+- The distance metrics behind `similarity_func` no longer wrap
+  `sklearn.metrics.pairwise`; they now resolve to the implementations in
+  `pyvisim.distance`. Same names, same results.
 - Rolled out lib's own `.mat` loader to replace `scipy.io.loadmat`, so that
 the `scipy` dependency could be dropped completely. Added test to verify
 that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
 - `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
 to be as little dependent on OpenCV as possible.
+- CLIP moved from `pyvisim.encoders` into `pyvisim.neural_networks` and dropped the
+  open_clip dependency entirely. The new `ClipEmbedder` runs pyvisim's own implementation
+  of the CLIP image towers (Vision Transformer and modified ResNet) and loads pretrained
+  safetensors weights from the Hugging Face Hub — verified numerically equivalent to
+  open_clip's image embeddings. Variant names and pretrained tags follow open_clip:
+  67 (variant, tag) combinations across 30 variant names are supported (every open_clip
+  variant with a standard CLIP image tower and open_clip-format safetensors on the Hub),
+  from `RN50` and `ViT-B-32` up to `ViT-g-14`/`ViT-bigG-14`, with weights by OpenAI,
+  LAION, DataComp and Meta (MetaCLIP, incl. MetaCLIP-2 worldwide). Enumerate them with
+  `pyvisim.neural_networks.clip.available_variants()` / `available_pretrained(variant)`.
+  Only the image tower is loaded, always in `float32`; QuickGELU-trained checkpoints
+  (like all `"openai"` ones) automatically get the QuickGELU activation. Downloads are
+  integrity-checked by huggingface_hub and land in the standard Hugging Face cache
+  (`~/.cache/huggingface/hub`), so weights already pulled via open_clip's Hub downloads
+  are reused.
+
+  ```python
+  from pyvisim.neural_networks import ClipEmbedder
+
+  embedder = ClipEmbedder("ViT-B-32", pretrained="openai")  # "ViT-B/32" works too
+  embeddings = embedder.embed(images)  # (num_images, 512); L2-normalized by default
+  score = embedder.similarity_score(image1, image2)
+  ```
+
+### Breaking
+- ⚠️ `CLIPEncoder` is gone. Use `ClipEmbedder` instead: the method is `embed()` (like
+  `SiameseNeuralNetwork`), not `encode()`, and it takes open_clip-style `variant` and
+  `pretrained` arguments (`ClipEmbedder("ViT-B-32", pretrained="openai")`). CLIP
+  `.encoder` files can no longer be loaded; just construct the embedder with the
+  variant you want.
+- ⚠️ The `nn` extra no longer installs `open_clip_torch`; it now installs
+  `huggingface_hub` (for the checkpoint downloads) instead. If your own code imports
+  `open_clip`, install it yourself.
 
 ## [0.8.0] - 2026-07-04
 

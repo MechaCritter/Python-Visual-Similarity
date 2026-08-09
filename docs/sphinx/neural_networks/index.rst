@@ -18,5 +18,7 @@ API reference
    :inherited-members: Module
    :show-inheritance:
 
-.. autoclass:: pyvisim.neural_networks.SiameseNeuralNetwork
+.. autoclass:: pyvisim.neural_networks.ClipEmbedder
+   :members:
+   :inherited-members:
    :show-inheritance:

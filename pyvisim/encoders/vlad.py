@@ -4,7 +4,6 @@ import numpy as np
 
 from .._base_classes import FeatureExtractorBase
 from .._config import MODEL_FILES_PATH
-from ..clustering import PCA, ClusteringModelBase, KMeans
 from ..encoders._base_encoder import (
     ClusteringBasedEncoder,
     KMeansWeights,
@@ -15,6 +14,7 @@ from ..typing import (
     FloatNumpyArray,
     ImageInput,
 )
+from ._clustering import PCA, ClusteringModelBase, KMeans
 from .utils import iter_images
 
 
@@ -65,8 +65,8 @@ class VLADEncoder(ClusteringBasedEncoder):
     :param kmeans_params: Dictionary of additional keyword arguments forwarded
         verbatim to :class:`sklearn.cluster.KMeans` (e.g. ``{"random_state": 0}``).
     :param pca_params: Dictionary of keyword arguments for the PCA model used
-        for dimensionality reduction (see ``pyvisim.clustering.PCA``); must
-        include ``n_components``. If omitted, no PCA is applied.
+        for dimensionality reduction; must include ``n_components``. If omitted,
+        no PCA is applied.
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
@@ -134,7 +134,7 @@ class VLADEncoder(ClusteringBasedEncoder):
     def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
         if not isinstance(clustering_model, KMeans):
             raise ValueError(
-                f"The clustering model must be an instance of pyvisim.clustering.KMeans, not {type(clustering_model)}"
+                f"The clustering model must be an instance of pyvisim.encoders._clustering.KMeans, not {type(clustering_model)}"
             )
         super()._set_clustering_model(clustering_model)
 
