@@ -8,7 +8,12 @@ Neural networks
 API reference
 -------------
 
-.. autoclass:: pyvisim.neural_networks.SiameseNeuralNetwork
+.. autoclass:: pyvisim.neural_networks.ContrastiveSiameseNetwork
+   :members:
+   :inherited-members: Module
+   :show-inheritance:
+
+.. autoclass:: pyvisim.neural_networks.PairwiseSiameseNetwork
    :members:
    :inherited-members: Module
    :show-inheritance:

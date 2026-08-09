@@ -1,13 +1,13 @@
 # Neural networks
 
-File: [`neural_networks/`](../../pyvisim/neural_networks/)
+Following is implemented:
 
-Two models live here:
-
-* A **Siamese network** for image similarity. It runs two images through
-  a shared backbone (currently only supports `ResNet-18`) and a projection head, L2-normalizes the resulting embeddings, and
-  trains them with a contrastive loss so similar images land close together and dissimilar ones
-  end up far apart.
+* `ContrastiveSiameseNetwork` L2-normalizes the resulting embeddings and trains them with a
+  contrastive loss so similar images land close together and dissimilar ones end up far apart;
+  similarity is a fixed metric (cosine by default) on the embeddings.
+* `PairwiseSiameseNetwork` feeds the component-wise L1 distance of sigmoid-activated branch
+  features into a learned scoring layer and returns the probability that both images show the
+  same class (Koch et al., 2015); it trains as a binary classifier over pairs.
 * **`ClipEmbedder`**, pretrained CLIP embeddings from pyvisim's own implementation of
   the CLIP image towers. Weights come as safetensors files from the Hugging Face Hub,
   with open_clip-style variant names and pretrained tags (`"ViT-B-32"` + `"openai"`,

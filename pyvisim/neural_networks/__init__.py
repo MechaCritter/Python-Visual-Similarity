@@ -1,4 +1,11 @@
 from .clip import ClipEmbedder
-from .siamese import SiameseNeuralNetwork
+from .siamese import (
+    ContrastiveSiameseNetwork,
+    PairwiseSiameseNetwork,
+)
 
-__all__ = ["ClipEmbedder", "SiameseNeuralNetwork"]
+__all__ = [
+    "ContrastiveSiameseNetwork",
+    "PairwiseSiameseNetwork",
+    "ClipEmbedder",
+]

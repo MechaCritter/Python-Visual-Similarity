@@ -1,12 +1,12 @@
+import abc
 from typing import Any, cast
 
 import numpy as np
 from PIL import Image
 
 from ..._base_classes import SimilarityMetric
-from ..._utils import get_similarity_func
 from ...lazy_import import OptionalImport
-from ...typing import FloatNumpyArray, ImageInput, MatLike, SimilarityFunc
+from ...typing import FloatNumpyArray, ImageInput, MatLike
 from ...utils.image_utils import iter_images
 from .backbones import ResNetBackbone
 
@@ -17,21 +17,26 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 
-class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
+class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
     """
-    Siamese neural network for image similarity, proposed in
-    `Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
-    by Learning an Invariant Mapping`.
+    Abstract base for Siamese image-similarity networks.
 
-    #TODO: this is currently the Implementation originating from
-    the paper [2]. Before the release, add the implementation from
-    paper [1] as well, and allow the user to choose between the two.
+    A Siamese network passes both inputs through the *same* shared-weight
+    ``backbone`` and projection ``head``; concrete subclasses only differ in
+    what they do with the two branch outputs:
 
-    Two images are passed through the same shared-weight ``backbone`` and
-    projection ``head`` to produce embeddings, which are L2-normalized so that
-    cosine similarity reduces to a dot product. The network is trained so that
-    similar images map to nearby embeddings and dissimilar images map far apart
-    (see :class:`pyvisim.neural_networks.losses.ContrastiveLoss`).
+    - :class:`ContrastiveSiameseNetwork` compares the branch embeddings with a
+      fixed metric (e.g. cosine) and is trained with a contrastive loss
+      (Hadsell, Chopra & LeCun, 2006).
+    - :class:`PairwiseSiameseNetwork` feeds the component-wise L1 distance of
+      the branch features into a learned scoring layer that outputs the
+      probability of the two images belonging to the same class
+      (Koch, Zemel & Salakhutdinov, 2015).
+
+    Subclasses must implement :meth:`_forward_once` (the single-branch pass
+    used by :meth:`embed`) and :meth:`similarity_score`, and must finish their
+    ``__init__`` with ``self.to(torch.device(device))`` so that every submodule
+    they register ends up on the requested device.
 
     References:
     ===========
@@ -45,28 +50,21 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
 
     :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
     :param embedding_dim: Dimensionality of the projected embedding space.
-    :param similarity_func: Name of the built-in similarity metric used to score
-        two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
-        or ``"manhattan"``.
     :param transform: processing transform applied to every input image. If
         ``None``, the default ImageNet preprocessing is used depending
         on the backbone. See :meth:`_get_imagenet_transform`.
-    :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
-        ImageNet. If you are loading the ``SiameseNeuralNetwork`` from a checkpoint,
-        set this to ``False`` to avoid downloading the weights again.
-    :raises ValueError: If ``embedding_dim`` is not a positive integer, if
-        ``backbone`` is not a supported backbone name, or if ``similarity_func``
-        is not a supported similarity metric.
+        ImageNet. If you are loading the network from a checkpoint, set this
+        to ``False`` to avoid downloading the weights again.
+    :raises ValueError: If ``embedding_dim`` is not a positive integer or if
+        ``backbone`` is not a supported backbone name.
     """
 
     def __init__(
         self,
         backbone: str = "resnet18",
         embedding_dim: int = 128,
-        similarity_func: str = "cosine",
         transform: transforms.Compose | None = None,
-        device: str | torch.device = "cpu",
         pretrained_backbone: bool = True,
     ):
         super().__init__()
@@ -83,9 +81,6 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
 
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
-        self._similarity_func: SimilarityFunc
-        self.similarity_func = similarity_func
-        self.to(torch.device(device))
 
     def __setattr__(self, name: str, value: Any) -> None:
         """
@@ -110,20 +105,17 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
             return
         super().__setattr__(name, value)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    @abc.abstractmethod
+    def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Computes L2-normalized embeddings for a batch of preprocessed images.
+        Runs one branch of the Siamese network on a preprocessed batch.
 
-        The embeddings are unit-length, so cosine similarity between two of them
-        equals their dot product.
+        Both inputs of a pair go through this same shared-weight pass; it is
+        also the encoding used by :meth:`embed`.
 
         :param x: Preprocessed image tensor of shape (batch, channels, H, W).
-        :return: L2-normalized embeddings of shape (batch, embedding_dim).
+        :return: Branch output of shape (batch, embedding_dim).
         """
-        features = self._backbone(x)
-        embeddings = self._head(features)
-        embeddings = torch.nn.functional.normalize(embeddings, dim=1)
-        return embeddings
 
     @staticmethod
     def _get_backbone(backbone: str, pretrained: bool) -> torch.nn.Module:
@@ -214,35 +206,30 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
         return cast(torch.Tensor, self._transform(pil_image))
 
     @torch.no_grad()
-    def embed(
+    def _encode_images(
         self,
         images: ImageInput,
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
+    ) -> torch.Tensor:
         """
-        Embeds one or more images into a batch of embedding vectors.
+        Encodes one or more images into a batch of branch outputs.
 
         All images are preprocessed, stacked into a single batch and passed
-        through the network in one forward pass. The model is switched to eval
-        mode so that ``BatchNorm`` and ``Dropout`` behave correctly during
-        inference, and the previous training state is restored afterwards so
-        the training loop is not disrupted.
+        through :meth:`_forward_once`. The model is switched to eval mode so
+        that ``BatchNorm`` and ``Dropout`` behave correctly during inference,
+        and the previous training state is restored afterwards so the training
+        loop is not disrupted.
 
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images.
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
+            (e.g. RGB), ``"B"`` = batch size. See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: ``(N, embedding_dim)`` array holding one L2-normalized
-            embedding per input image.
+        :return: ``(N, embedding_dim)`` tensor on the model's device.
         :raises ValueError: If ``images`` contains no image.
         """
         was_training = self.training
@@ -255,28 +242,27 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
             if not tensors:
                 raise ValueError("Expected at least one image to embed, got none.")
             batch = torch.stack(tensors).to(self.device)
-            embeddings = self.forward(batch)
-            return cast(FloatNumpyArray, embeddings.cpu().numpy())
+            return self._forward_once(batch)
         finally:
             if was_training:
                 self.train()
 
-    def similarity_score(
+    def embed(
         self,
-        image1: ImageInput,
-        image2: ImageInput,
+        images: ImageInput,
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Computes the similarity matrix between two image batches.
+        Embeds one or more images into a batch of embedding vectors.
 
-        Both inputs are encoded with :meth:`embed` and the resulting embedding
-        batches are scored with ``similarity_func``.
+        All images are preprocessed, stacked into a single batch and passed
+        through the network in one forward pass; see :meth:`_forward_once` of
+        the concrete class for the exact form of the embedding.
 
-        :param image1: First (batch of) image(s) as ``MatLike``.
-        :param image2: Second (batch of) image(s) as ``MatLike``.
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images.
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
@@ -286,28 +272,12 @@ class SiameseNeuralNetwork(torch.nn.Module, SimilarityMetric):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: Similarity matrix of shape ``(N, M)`` produced by
-            ``similarity_func``.
+        :return: ``(N, embedding_dim)`` array holding one embedding per input
+            image.
+        :raises ValueError: If ``images`` contains no image.
         """
-        embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
-        embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
-        return np.asarray(self.similarity_func(embeddings1, embeddings2))
-
-    @property
-    def similarity_func(self) -> SimilarityFunc:
-        """The resolved similarity function callable."""
-        return self._similarity_func
-
-    @similarity_func.setter
-    def similarity_func(self, name: str) -> None:
-        """
-        Resolves and stores a built-in similarity metric by name.
-
-        :param name: One of ``"cosine"``, ``"euclidean"``, ``"l1"`` or
-            ``"manhattan"``.
-        :raises ValueError: If ``name`` is not a supported similarity metric.
-        """
-        self._similarity_func = get_similarity_func(name)
+        embeddings = self._encode_images(images, dims=dims, value_range=value_range)
+        return cast(FloatNumpyArray, embeddings.cpu().numpy())
 
     @property
     def device(self) -> torch.device:
