@@ -4,11 +4,31 @@
 
 ### Added
 - Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
-`pyvisim.structural`) metrics as well as their benchmark scripts asainst
+`pyvisim.structural`) metrics as well as their benchmark scripts against
 existing implementations under `docs/pixelwise/benchmarks` and
 `docs/structural/benchmarks`.
+- `PairwiseSiameseNetwork` (in `pyvisim.neural_networks`): the pair-classifying
+  Siamese variant of Koch, Zemel & Salakhutdinov (2015).
+
+### Changed
+- The Siamese networks are split along a shared abstract base,
+  `SiameseNetworkBase`, which owns the backbone, the projection head, image
+  preprocessing, `embed` and the device handling. Subclasses implement
+  `_forward_once` (the single-branch pass) and `similarity_score`, and `embed`
+  now returns whatever the concrete branch produces (L2-normalized embeddings
+  for the contrastive variant, sigmoid-activated features for the pairwise one).
 
 ### Breaking
+- ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
+  (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
+  class now lives in `pyvisim.neural_networks.siamese._base_siamese`):
+
+  ```python
+  from pyvisim.neural_networks import ContrastiveSiameseNetwork
+
+  model = ContrastiveSiameseNetwork(backbone="resnet18", embedding_dim=128)
+  score = model.similarity_score(image1, image2)  # cosine similarity in [-1, 1]
+  ```
 - ⚠️ The clustering models (`KMeans`, `GaussianMixtureModel`, `PCA`,
   `ClusteringModelBase`) are now internal to the encoders package and moved from
   `pyvisim.clustering` to `pyvisim.encoders._clustering`.
