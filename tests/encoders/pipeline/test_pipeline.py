@@ -27,8 +27,8 @@ def pipeline_encoders(
     :param category_train_images_flat: flattened training images to learn from.
     :returns: a ``(vlad, fisher)`` tuple of fitted encoders.
     """
-    vlad = VLADEncoder(n_clusters=8, kmeans_params={"random_state": 0, "n_init": 3})
-    fisher = FisherVectorEncoder(n_components=8, gmm_params={"random_state": 0})
+    vlad = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
+    fisher = FisherVectorEncoder(n_components=8, gmm_params={"rng": 0})
     vlad.learn(category_train_images_flat)
     fisher.learn(category_train_images_flat)
     return vlad, fisher

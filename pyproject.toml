@@ -27,7 +27,6 @@ dependencies = [
     "Pillow",
     "platformdirs",
     "safetensors",
-    "scikit-learn",
     "scipy",
     "tqdm",
     "requests",
@@ -86,6 +85,9 @@ test = [
     "pytest",
     "pytest-cov",
     "scipy",
+    # Reference implementation for the clustering/PCA equivalence tests and
+    # the from_sklearn conversion tests.
+    "scikit-learn",
 ]
 docs = [
     "sphinx",
@@ -97,10 +99,12 @@ build = [
     "cython",
     "setuptools",
 ]
-# Reference implementations and tooling for notebooks/benchmark_structural.ipynb
-# and docs/structural/benchmarks/generate_benchmark.py
+# Reference implementations and tooling for the notebooks/benchmark_*.ipynb
+# notebooks and docs/structural/benchmarks/generate_benchmark.py; scikit-learn
+# is the comparison baseline of the clustering/PCA benchmarks.
 bench = [
     "scikit-image",
+    "scikit-learn",
     "torchmetrics",
     "matplotlib",
     "nbclient",
@@ -111,7 +115,7 @@ bench = [
 # publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
-# Skip 32-bit and musl targets: scipy/scikit-learn ship no wheels for them.
+# Skip 32-bit and musl targets: scipy ships no wheels for them.
 skip = ["*-musllinux_*", "*_i686", "*-win32"]
 
 [tool.mypy]
@@ -142,6 +146,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
   "faiss.*",
+  "scipy.*",
   "sklearn.*",
   "torchvision.*",
   "tqdm.*",
@@ -174,7 +179,7 @@ indent-style = "space"
 
 [tool.codespell]
 ignore-words-list = "Commun"
-skip = "./examples,*/_vendored/*"  # jupyter notebooks; vendored third-party code
+skip = "./examples,./notebooks,*/_vendored/*"  # jupyter notebooks; vendored third-party code
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
