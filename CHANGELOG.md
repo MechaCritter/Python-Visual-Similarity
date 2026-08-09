@@ -11,6 +11,10 @@
 
 ### Changed
 - ℹ️ Dropped scikit-learn as a runtime dependency.
+- Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
+`pyvisim.structural`) metrics as well as their benchmark scripts asainst
+existing implementations under `docs/pixelwise/benchmarks` and
+`docs/structural/benchmarks`.
 
 ### Breaking
 - ⚠️ The clustering models (`KMeans`, `DiagCovarGaussianMixture`, `PCA`,

@@ -37,7 +37,7 @@ jobs:
           python-version: "3.x"
 
       - name: "Install uv"
-        uses: astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
@@ -74,7 +74,7 @@ jobs:
           persist-credentials: false
 
       - name: "Install uv"
-        uses: astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
@@ -113,7 +113,7 @@ jobs:
           path: dist/
 
       - name: "Publish to PyPI"
-        uses: pypa/gh-action-pypi-publish@v1.14.1
+        uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           attestations: true                     # Cryptographically signs the release
 
@@ -142,7 +142,7 @@ jobs:
           path: dist/
 
       - name: "Publish to Test PyPI"
-        uses: pypa/gh-action-pypi-publish@v1.14.1
+        uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
           attestations: true

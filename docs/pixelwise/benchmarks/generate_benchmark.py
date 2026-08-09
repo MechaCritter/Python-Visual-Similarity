@@ -2,29 +2,25 @@ import argparse
 import itertools
 import os
 import time
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Sequence
 from importlib import metadata
 from pathlib import Path
 from typing import cast
 
 import numpy as np
-import torch
 from PIL import Image
-from skimage.metrics import structural_similarity
-from torchmetrics.functional.image import (
-    multiscale_structural_similarity_index_measure as tm_msssim,
-)
+from skimage.metrics import peak_signal_noise_ratio
 
-from pyvisim.base import DenseMetricBase
+from pyvisim._base_classes import SimilarityMetric
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.structural import MSSSIM, SSIM
+from pyvisim.pixelwise import PSNR
 from pyvisim.typing import UInt8NumpyArray
 
-_SCRIPT_REF = "docs/structural/benchmarks/generate_benchmark.py"
+_SCRIPT_REF = "docs/pixelwise/benchmarks/generate_benchmark.py"
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
-# Fixed thread budget of every run.
-_NUM_THREADS = 4
+# Fixed thread budget of every run: the compiled SSD kernel's OpenMP team size.
+_NUM_WORKERS = 4
 
 _DATASET_SPLIT = "train"
 _NOISE_STD = 15.0
@@ -93,39 +89,13 @@ def _add_noise(
     return np.clip(noisy, 0, 255).astype(np.uint8)
 
 
-def _skimage_ssim(image_a: UInt8NumpyArray, image_b: UInt8NumpyArray) -> float:
-    """Score one RGB pair with the scikit-image SSIM baseline (Wang et al. 2004)."""
-    return float(
-        structural_similarity(
-            image_a,
-            image_b,
-            win_size=11,
-            gaussian_weights=True,
-            sigma=1.5,
-            use_sample_covariance=False,
-            data_range=255,
-            channel_axis=-1,
-        )
-    )
-
-
-def _to_bchw(images: Iterable[UInt8NumpyArray], dtype: type) -> torch.Tensor:
-    """Stack same-shape RGB images into a ``(B, C, H, W)`` torch tensor."""
-    stacked = np.stack(list(images)).astype(dtype).transpose(0, 3, 1, 2)
-    return torch.from_numpy(np.ascontiguousarray(stacked))
-
-
-def _torchmetrics_msssim(rows: torch.Tensor, cols: torch.Tensor) -> float:
-    """Score aligned ``(B, C, H, W)`` pairs with the torchmetrics MS-SSIM baseline."""
-    return float(
-        tm_msssim(
-            rows, cols, data_range=255.0, kernel_size=11, sigma=1.5, normalize="relu"
-        )
-    )
+def _skimage_psnr(image_a: UInt8NumpyArray, image_b: UInt8NumpyArray) -> float:
+    """Score one RGB pair with the scikit-image PSNR baseline (in decibels)."""
+    return float(peak_signal_noise_ratio(image_a, image_b, data_range=255))
 
 
 def _measure_accuracy(
-    metric: DenseMetricBase,
+    metric: SimilarityMetric,
     baseline_fn: Callable[[UInt8NumpyArray, UInt8NumpyArray], float],
     images: Sequence[_NamedImage],
     rng: np.random.Generator,
@@ -156,29 +126,12 @@ def _time_skimage_matrix(
 ) -> list[float]:
     """Time the scikit-image baseline over all pairs, via a Python loop."""
     return _time_ms(
-        lambda: [_skimage_ssim(a, b) for a in gallery_a for b in gallery_b], repeats
+        lambda: [_skimage_psnr(a, b) for a in gallery_a for b in gallery_b], repeats
     )
 
 
-def _time_torchmetrics_matrix(
-    gallery_a: _Gallery, gallery_b: _Gallery, repeats: int
-) -> list[float]:
-    """
-    Time the torchmetrics baseline over all pairs, as one stacked batch.
-
-    The tensor stacking is done once outside the timed region, mirroring the
-    benchmark notebook (pyvisim timings, by contrast, always include the full
-    input pipeline).
-    """
-    stack_a = _to_bchw(gallery_a, np.float32)
-    stack_b = _to_bchw(gallery_b, np.float32)
-    rows = stack_a.repeat_interleave(stack_b.shape[0], dim=0)
-    cols = stack_b.repeat(stack_a.shape[0], 1, 1, 1)
-    return _time_ms(lambda: _torchmetrics_msssim(rows, cols), repeats)
-
-
 def _measure_runtime(
-    metric: DenseMetricBase,
+    metric: SimilarityMetric,
     baseline_timer: Callable[[_Gallery, _Gallery, int], list[float]],
     groups: Sequence[list[_NamedImage]],
     rng: np.random.Generator,
@@ -220,7 +173,7 @@ def _measure_runtime(
 
 def _format_ms(value: float) -> str:
     """Format a duration in milliseconds for labels and tables."""
-    return f"{value:,.0f}" if value >= 100 else f"{value:.1f}"
+    return f"{value:,.0f}" if value >= 100 else f"{value:.3f}"
 
 
 def _plot_runtime_barplot(
@@ -305,16 +258,15 @@ Baseline: **{bench["baseline"]}**.
 #### Accuracy
 
 Each image (native resolution) is scored against a copy distorted with
-Gaussian noise (std {_NOISE_STD:g}); the error is the absolute difference
-between the pyvisim score and the baseline score.
+Gaussian noise (std {_NOISE_STD:g}). The error is the absolute difference
+between the reference and the pyvisim implementation's score.
 
 {_format_accuracy_table(accuracy)}
 
 #### Runtime
 
-Median wall-clock time per full scoring call ({bench["metric_label"]} of every
-image in the first gallery against every image in the second). For a fair comparison,
-GPU is disabled.
+Median runtime per full scoring call ({bench["metric_label"]} of every
+image in the first gallery against every image in the second).
 
 {_format_runtime_table(runtime)}
 
@@ -337,7 +289,7 @@ def _format_section(
 
 All images are drawn from the Oxford Flower dataset
 (`{_DATASET_SPLIT}` split, seed {seed}), with a disjoint image subset per
-experiment and per metric. `num_workers={_NUM_THREADS}`. {repeats} timed
+experiment and per metric. `num_workers={_NUM_WORKERS}`. {repeats} timed
 calls after one warm-up.
 
 {metric_sections}
@@ -355,7 +307,7 @@ def _inject_section(readme_path: Path, section: str) -> None:
     """
     if not readme_path.exists():
         readme_path.parent.mkdir(parents=True, exist_ok=True)
-        readme_path.write_text(f"# Structural metrics\n\n{section}\n")
+        readme_path.write_text(f"# Pixelwise metrics\n\n{section}\n")
         return
     text = readme_path.read_text()
     has_begin, has_end = _SECTION_BEGIN in text, _SECTION_END in text
@@ -372,58 +324,25 @@ def _inject_section(readme_path: Path, section: str) -> None:
     readme_path.write_text(text)
 
 
-def _benchmark_ssim(
+def _benchmark_psnr(
     accuracy_images: list[_NamedImage],
     runtime_groups: Sequence[list[_NamedImage]],
     rng: np.random.Generator,
     repeats: int,
 ) -> dict[str, object]:
-    """Benchmark :class:`SSIM` against scikit-image."""
-    metric = SSIM(num_workers=_NUM_THREADS)
+    """Benchmark :class:`PSNR` against scikit-image."""
+    metric = PSNR()
     return {
-        "metric_label": "SSIM",
-        "slug": "ssim",
+        "metric_label": "PSNR",
+        "slug": "psnr",
         "baseline_label": "scikit-image",
         "baseline": (
             f"scikit-image {_package_version('scikit-image')} — "
-            "skimage.metrics.structural_similarity(win_size=11, "
-            "gaussian_weights=True, sigma=1.5, use_sample_covariance=False, "
-            "data_range=255)"
+            "skimage.metrics.peak_signal_noise_ratio(data_range=255)"
         ),
-        "accuracy": _measure_accuracy(metric, _skimage_ssim, accuracy_images, rng),
+        "accuracy": _measure_accuracy(metric, _skimage_psnr, accuracy_images, rng),
         "runtime": _measure_runtime(
             metric, _time_skimage_matrix, runtime_groups, rng, repeats
-        ),
-    }
-
-
-def _benchmark_msssim(
-    accuracy_images: list[_NamedImage],
-    runtime_groups: Sequence[list[_NamedImage]],
-    rng: np.random.Generator,
-    repeats: int,
-) -> dict[str, object]:
-    """Benchmark :class:`MSSSIM` against torchmetrics."""
-
-    def baseline_pair(image_a: UInt8NumpyArray, image_b: UInt8NumpyArray) -> float:
-        return _torchmetrics_msssim(
-            _to_bchw([image_a], np.float64), _to_bchw([image_b], np.float64)
-        )
-
-    metric = MSSSIM(num_workers=_NUM_THREADS)
-    return {
-        "metric_label": "MS-SSIM",
-        "slug": "ms_ssim",
-        "baseline_label": "torchmetrics",
-        "baseline": (
-            f"torchmetrics {_package_version('torchmetrics')} — "
-            "torchmetrics.functional.image."
-            "multiscale_structural_similarity_index_measure(data_range=255.0, "
-            "kernel_size=11, sigma=1.5, normalize='relu')"
-        ),
-        "accuracy": _measure_accuracy(metric, baseline_pair, accuracy_images, rng),
-        "runtime": _measure_runtime(
-            metric, _time_torchmetrics_matrix, runtime_groups, rng, repeats
         ),
     }
 
@@ -435,7 +354,12 @@ def _write_outputs(
     seed: int,
     repeats: int,
 ) -> None:
-    """Render the runtime plots and refresh the README section."""
+    """Render the runtime plots and refresh the README section.
+
+    The plots are written to ``output_dir`` so they can be published to
+    GitHub Pages; they are not committed to the repository (see
+    ``_IMAGE_BASE_URL``).
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     for bench in benchmarks:
         image_path = output_dir / f"{bench['slug']}_runtime_barplot.png"
@@ -455,18 +379,18 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     """Parse the command-line arguments."""
     parser = argparse.ArgumentParser(
         description='Generate the "Benchmark" documentation section '
-        "for ``pyvisim.structural``."
+        "for ``pyvisim.pixelwise``."
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=_REPO_ROOT / "docs" / "structural" / "benchmarks",
+        default=_REPO_ROOT / "docs" / "pixelwise" / "benchmarks",
         help="Directory the runtime barplot PNGs are written to.",
     )
     parser.add_argument(
         "--readme",
         type=Path,
-        default=_REPO_ROOT / "docs" / "structural" / "README.md",
+        default=_REPO_ROOT / "docs" / "pixelwise" / "README.md",
         help="Markdown file whose Benchmark section is refreshed.",
     )
     parser.add_argument(
@@ -484,26 +408,14 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> None:
     """Run every benchmark and write the outputs."""
     args = _parse_args(argv)
-    os.environ["PYVISIM_NUM_THREADS"] = str(_NUM_THREADS)
-    os.environ["CUDA_VISIBLE_DEVICES"] = ""  # disable GPU
-    if torch.cuda.is_available():
-        raise RuntimeError("GPU is available. This comparison is not fair.")
-    torch.set_num_threads(_NUM_THREADS)
-    if int(torch.get_num_threads()) != int(os.environ["PYVISIM_NUM_THREADS"]):
-        raise RuntimeError(
-            f"torch.get_num_threads()={torch.get_num_threads()} "
-            f"!= PYVISIM_NUM_THREADS={os.environ['PYVISIM_NUM_THREADS']}"
-        )
+    os.environ["PYVISIM_NUM_THREADS"] = str(_NUM_WORKERS)
     rng = np.random.default_rng(args.seed)
     dataset = OxfordFlowerDataset(purpose=_DATASET_SPLIT)
-    # Per metric: 8 accuracy images plus the four disjoint runtime groups
-    # (single pair, expanded pair, batch of 4, batch of 8).
-    counts_per_metric = [8, 2, 1, 4, 8]
-    groups = _sample_disjoint_images(dataset, rng, counts_per_metric * 2)
-    benchmarks = (
-        _benchmark_ssim(groups[0], groups[1:5], rng, args.repeats),
-        _benchmark_msssim(groups[5], groups[6:10], rng, args.repeats),
-    )
+    # 8 accuracy images plus the four disjoint runtime groups (single pair,
+    # expanded pair, batch of 4, batch of 8).
+    counts = [8, 2, 1, 4, 8]
+    groups = _sample_disjoint_images(dataset, rng, counts)
+    benchmarks = (_benchmark_psnr(groups[0], groups[1:5], rng, args.repeats),)
     _write_outputs(benchmarks, args.output_dir, args.readme, args.seed, args.repeats)
 
 

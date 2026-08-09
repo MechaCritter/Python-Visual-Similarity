@@ -1,0 +1,81 @@
+name: Benchmarks
+
+# Regenerates the docs benchmark barplots and publishes them to the orphan
+# 'benchmark-assets' branch. The 'Docs' workflow overlays that branch onto the
+# GitHub Pages site. Trigger it from the Actions
+# tab (or run it locally with `act`) whenever the benchmark numbers change.
+on:
+  workflow_dispatch:
+
+# Only 'contents: write' is needed, to force-push the assets branch.
+permissions:
+  contents: write
+
+# Serialize publishes so concurrent runs cannot race on the assets branch.
+concurrency:
+  group: benchmark-assets
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  publish:
+    name: Generate and publish benchmark barplots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      # 'nn' pulls in torch (the MS-SSIM baseline); 'bench' pulls in
+      # scikit-image, torchmetrics and matplotlib. The Cython kernels are
+      # compiled from setup.py while the editable pyvisim package is built.
+      - name: Install dependencies
+        run: uv sync --extra nn --group bench
+
+      - name: Generate benchmark barplots
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          scripts=(docs/*/benchmarks/generate_benchmark.py)
+          if [ ${#scripts[@]} -eq 0 ]; then
+            echo "No benchmark scripts found under docs/*/benchmarks/." >&2
+            exit 1
+          fi
+          for script in "${scripts[@]}"; do
+            echo "::group::$script"
+            uv run python "$script"
+            echo "::endgroup::"
+          done
+
+      - name: Publish barplots to the benchmark-assets branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          staging="$(mktemp -d)"
+          find docs -path '*/benchmarks/*_runtime_barplot.png' -exec cp -v {} "$staging/" \;
+          if [ -z "$(ls -A "$staging")" ]; then
+            echo "No barplots were produced; nothing to publish." >&2
+            exit 1
+          fi
+          cd "$staging"
+          git init -q -b benchmark-assets
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Publish benchmark barplots (${GITHUB_SHA})"
+          git push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:benchmark-assets
