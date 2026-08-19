@@ -8,13 +8,13 @@ from ..typing import (
     ImageInput,
 )
 from ..utils.image_utils import iter_images
-from ._base_embedder import ImageEmbedderBase
+from ._base_embedder import SerializableImageEmbedder
 
 #: On-disk format version of the serialised pipeline state.
 _PIPELINE_FORMAT_VERSION = 1
 
 
-class Pipeline(ImageEmbedderBase):
+class Pipeline(SerializableImageEmbedder):
     """
     A pipeline for computing feature vectors using a set of
     embedders.
@@ -23,7 +23,7 @@ class Pipeline(ImageEmbedderBase):
     will always be flattened, because different Embedders also
     have different output sizes.
 
-    :param embedders: A list of ImageEmbedderBase instances.
+    :param embedders: A list of SerializableImageEmbedder instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     """
@@ -37,22 +37,24 @@ class Pipeline(ImageEmbedderBase):
 
     def __init__(
         self,
-        embedders: list[ImageEmbedderBase],
+        embedders: list[SerializableImageEmbedder],
         similarity_func: str = "cosine",
     ):
         self._check_valid_embedders(embedders)
         self.embedders = embedders
         super().__init__(similarity_func=similarity_func)
 
-    def _check_valid_embedders(self, embedders: list[ImageEmbedderBase]) -> None:
+    def _check_valid_embedders(
+        self, embedders: list[SerializableImageEmbedder]
+    ) -> None:
         """
-        Checks if all embedders in the pipeline are instances of ImageEmbedderBase.
+        Checks if all embedders in the pipeline are instances of SerializableImageEmbedder.
         :param embedders: list of embedders to check.
         """
         for embedder in embedders:
-            if not isinstance(embedder, ImageEmbedderBase):
+            if not isinstance(embedder, SerializableImageEmbedder):
                 raise ValueError(
-                    f"Pipeline only accepts instances of ImageEmbedderBase, not {type(embedder)}"
+                    f"Pipeline only accepts instances of SerializableImageEmbedder, not {type(embedder)}"
                 )
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,7 +62,7 @@ class Pipeline(ImageEmbedderBase):
         Serialises the pipeline into a JSON-safe state dictionary.
 
         Each member embedder is serialised with its own
-        :meth:`~pyvisim.encoders.ImageEmbedderBase.to_dict`, so every embedder
+        :meth:`~pyvisim.encoders.SerializableImageEmbedder.to_dict`, so every embedder
         must be fitted.
 
         :return: A JSON-safe pipeline description suitable for
@@ -86,7 +88,7 @@ class Pipeline(ImageEmbedderBase):
         from ._reconstruct import embedder_from_dict
 
         embedders = [
-            cast(ImageEmbedderBase, embedder_from_dict(embedder_state))
+            cast(SerializableImageEmbedder, embedder_from_dict(embedder_state))
             for embedder_state in state["encoders"]
         ]
         return cls(embedders, similarity_func=state["similarity_func"])

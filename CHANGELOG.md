@@ -7,6 +7,10 @@
   `tests/neural_networks/test_oxford_flowers_quick.py` and
   `test_oxford_flowers_slow.py`.
 ### Added
+- `NeuralImageEmbedder` (in `pyvisim.neural_networks`): the shared base for the
+  neural embedders, both an `ImageEmbedderBase` and a `torch.nn.Module`.
+  `SiameseNetworkBase` now derives from it, so the Siamese networks and the
+  classic embedders expose the same `embed`/`similarity_score` surface.
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
   `PCA.from_sklearn`, plus `load_clustering_model_from_sklearn` on `VLADEncoder`

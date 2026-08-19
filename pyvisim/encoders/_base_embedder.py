@@ -5,17 +5,14 @@ from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
-from .._base_classes import FeatureExtractorBase, SimilarityMetric
+from .._base_classes import FeatureExtractorBase, ImageEmbedderBase
 from .._config import setup_logging
 from .._errors import NotFittedError
-from .._utils import get_similarity_func
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
 from ..typing import (
-    Float32NumpyArray,
     FloatNumpyArray,
     ImageInput,
-    SimilarityFunc,
 )
 from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase
@@ -32,21 +29,19 @@ _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bo
     #
     # However, (2, 1) might not be True!!
 }
-_EmbedderT = TypeVar("_EmbedderT", bound="ImageEmbedderBase")
+_EmbedderT = TypeVar("_EmbedderT", bound="SerializableImageEmbedder")
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
 
 
-class ImageEmbedderBase(SimilarityMetric):
+class SerializableImageEmbedder(ImageEmbedderBase):
     """
-    Base class for all image embedders. An image embedder generates a vector
-    representation of an image which can be used for indexing, retrieval,
-    clustering or classification tasks.
+    Base for embedders that persist to a ``.embedder`` file.
 
-    This base only knows how to embed images into vectors (:meth:`embed`) and
-    how to compare those vectors with a similarity function. Subclasses add the
-    machinery they need on top of that, e.g. a feature extractor
-    (:class:`FeatureBasedEmbedder`) or a clustering model
-    (:class:`ClusteringBasedEmbedder`).
+    Adds the serialization contract on top of
+    :class:`~pyvisim._base_classes.ImageEmbedderBase`: subclasses describe
+    themselves as a JSON-safe state via :meth:`to_dict` / :meth:`from_dict`, and
+    this class turns that state into a file and back. Neural embedders do not
+    use this path; they are persisted with the usual torch checkpoints.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
@@ -57,27 +52,6 @@ class ImageEmbedderBase(SimilarityMetric):
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
         {"embedder_class", "similarity_func"}
     )
-
-    def __init__(self, similarity_func: str = "cosine"):
-        # Set important attributes via setters to trigger error handling
-        self._similarity_func: SimilarityFunc
-        self._similarity_func_name: str
-        self.similarity_func = similarity_func
-
-    @property
-    def similarity_func(self) -> SimilarityFunc:
-        """The resolved similarity function callable."""
-        return self._similarity_func
-
-    @similarity_func.setter
-    def similarity_func(self, name: str) -> None:
-        self._similarity_func = get_similarity_func(name)
-        self._similarity_func_name = name
-
-    @property
-    def similarity_func_name(self) -> str:
-        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
-        return self._similarity_func_name
 
     @abc.abstractmethod
     def to_dict(self) -> dict[str, Any]:
@@ -105,66 +79,6 @@ class ImageEmbedderBase(SimilarityMetric):
         :return: A ready-to-use embedder instance.
         """
         raise NotImplementedError
-
-    @abc.abstractmethod
-    def embed(
-        self,
-        images: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
-        """
-        Embeds one or more images into a batch of vector representations.
-
-        Each image is normalized to a canonical ``uint8`` ``(H, W, C)`` array
-        before feature extraction, so NumPy arrays, torch tensors and other
-        array-like inputs are all accepted. When a batch axis is present (via
-        ``dims``), every image in the batch is embedded.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images. Consider using an iterator for large datasets.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: vector representations of the given images
-        """
-        raise NotImplementedError
-
-    def similarity_score(
-        self,
-        images1: ImageInput,
-        images2: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> Float32NumpyArray:
-        """
-        Computes vector embeddings for two images and calculates the similarity score between them.
-
-        :param images1: First (batch of) image(s) as ``MatLike``.
-        :param images2: Second (batch of) image(s) as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: Similarity matrix between the two image batches.
-        """
-        vector1 = self.embed(images1, dims=dims, value_range=value_range)
-        vector2 = self.embed(images2, dims=dims, value_range=value_range)
-        result = self.similarity_func(vector1, vector2)
-        return np.asarray(result, dtype=np.float32)
 
     def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
         """
@@ -206,13 +120,8 @@ class ImageEmbedderBase(SimilarityMetric):
             )
         return cls.from_dict(state)
 
-    def __repr__(self) -> str:
-        return (
-            self.__class__.__name__ + f"(similarity_func={self.similarity_func_name})"
-        )
 
-
-class FeatureBasedEmbedder(ImageEmbedderBase):
+class FeatureBasedEmbedder(SerializableImageEmbedder):
     """
     Base class for embedders that derive their vector representation from local
     features extracted by a :class:`~pyvisim.features.FeatureExtractorBase`

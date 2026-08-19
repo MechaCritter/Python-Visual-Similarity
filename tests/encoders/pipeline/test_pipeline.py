@@ -49,7 +49,9 @@ def pipeline(
 
 def test_rejects_non_embedder() -> None:
     """A pipeline rejects members that are not embedders."""
-    with pytest.raises(ValueError, match="only accepts instances of ImageEmbedderBase"):
+    with pytest.raises(
+        ValueError, match="only accepts instances of SerializableImageEmbedder"
+    ):
         Pipeline(["not an embedder"])  # type: ignore[list-item]
 
 

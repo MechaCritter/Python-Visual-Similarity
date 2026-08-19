@@ -28,6 +28,17 @@ Pick the variant by what you need at inference time:
 
 ## Architecture
 
+Every model here derives from `NeuralImageEmbedder`, which is both an
+`ImageEmbedderBase` and a `torch.nn.Module`. It contributes the `similarity_func`
+handling and the `similarity_score` built on top of `embed`, so a neural model is
+interchangeable with a classic one anywhere pyvisim accepts an embedder (an
+`InMemoryImageEmbeddingStore`, an `ImageRetriever`, ...). Unlike the classic
+embedders these are not written to `.embedder` files; persist them with the usual
+torch `state_dict` checkpoints.
+
+The Siamese models share a further base, `SiameseNetworkBase`, which owns the
+backbone, the projection head and the image preprocessing.
+
 ### `ContrastiveSiameseNetwork` (Hadsell, Chopra & LeCun, 2006)
 
 ```text
