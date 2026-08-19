@@ -19,6 +19,9 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- CI restores the Oxford Flowers dataset and the pretrained backbone weights from
+  the GitHub Actions cache instead of re-downloading them on every run; the new
+  `Warm asset cache` workflow keeps that cache populated on `main`.
 - The `similarity_func` registry in `pyvisim._utils` now maps the metric names
   straight onto `pyvisim.distance`.
 - ℹ️ Dropped scikit-learn as a runtime dependency.
