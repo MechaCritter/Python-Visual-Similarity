@@ -29,6 +29,10 @@ existing implementations under `docs/pixelwise/benchmarks` and
 in a notebook in the "examples" repository.
 
 ### Breaking
+- ⚠️ The bundled pretrained VLAD and Fisher Vector encoders are removed, together
+  with `from_pretrained`, `PretrainedVLAD`/`PretrainedFisher`, the deprecated
+  `weights=` argument and `KMeansWeights`/`GMMWeights`. Train a vocabulary with
+  `learn()` and persist it with `save_to_disk`/`load_from_disk` instead.
 - ⚠️ `ImageEncoderBase` is renamed to `ImageEmbedderBase` and its `encode()`
   method to `embed()`, matching `ClipEmbedder` and the Siamese networks. Rename
   the calls on `VLADEncoder`, `FisherVectorEncoder` and `Pipeline` accordingly.

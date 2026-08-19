@@ -62,7 +62,7 @@ autodoc_default_options = {
 # '.. include:: ... :parser: myst_parser.sphinx_'.
 # dollarmath renders the $$...$$ formulas
 myst_enable_extensions = ["colon_fence", "dollarmath"]
-# Generate anchors for headings so links such as 'weights.md#section' resolve.
+# Generate anchors for headings so links such as 'vlad.md#section' resolve.
 myst_heading_anchors = 3
 
 # -- Intersphinx ---------------------------------------------------------------

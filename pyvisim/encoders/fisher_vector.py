@@ -3,12 +3,7 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
-from .._config import MODEL_FILES_PATH
-from ..encoders._base_encoder import (
-    ClusteringBasedEncoder,
-    GMMWeights,
-    _PretrainedEncoder,
-)
+from ..encoders._base_encoder import ClusteringBasedEncoder
 from ..typing import (
     Float64NumpyArray,
     FloatNumpyArray,
@@ -16,32 +11,6 @@ from ..typing import (
 )
 from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase, DiagCovarGaussianMixture
-
-
-class PretrainedFisher(_PretrainedEncoder):
-    """
-    Bundled pretrained Fisher Vector encoders trained on the Oxford-102 flower
-    dataset with ``k=256`` components. Load one with
-    :meth:`FisherVectorEncoder.from_pretrained`.
-
-    Variants differ by the feature extractor (RootSIFT, SIFT or VGG16 deep
-    features) and whether PCA dimensionality reduction was applied.
-    """
-
-    OXFORD102_K256_ROOTSIFT = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift.encoder"
-    )
-    OXFORD102_K256_ROOTSIFT_PCA = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift_pca.encoder"
-    )
-    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift.encoder"
-    OXFORD102_K256_SIFT_PCA = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift_pca.encoder"
-    )
-    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16.encoder"
-    OXFORD102_K256_VGG16_PCA = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16_pca.encoder"
-    )
 
 
 class FisherVectorEncoder(ClusteringBasedEncoder):
@@ -61,7 +30,6 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     The output when calling `encode` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
-    :param weights: Pretrained GMM weights to load (deprecated).
     :param n_components: Number of Gaussian mixture components (visual words) to use.
     :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary learning. See
         ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/fisher_vector.md#gmm-parameters``.
@@ -86,7 +54,6 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights: GMMWeights | None = None,  # TODO: removed with version 1.0.0
         n_components: int = 256,
         gmm_params: dict[str, Any] | None = None,
         pca_params: dict[str, Any] | None = None,
@@ -97,25 +64,17 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
         similarity_func: str = "cosine",
         raise_error_when_pca_incompatible: bool = False,
     ):
-        if weights is not None:
-            if (weights_class := weights.__class__.__name__) != "GMMWeights":
-                raise ValueError(
-                    f"You can only pass an instance of GMMWeights, not {weights_class}"
-                )
         if gmm_params and "n_components" in gmm_params:
             raise ValueError(
                 "Pass 'n_components' directly to FisherVectorEncoder instead of inside gmm_params."
             )
-        clustering_model = (
-            DiagCovarGaussianMixture(n_components=n_components, **(gmm_params or {}))
-            if weights is None
-            else None
+        clustering_model = DiagCovarGaussianMixture(
+            n_components=n_components, **(gmm_params or {})
         )
-        pca = PCA(**pca_params) if weights is None and pca_params is not None else None
+        pca = PCA(**pca_params) if pca_params is not None else None
         super().__init__(
             feature_extractor=feature_extractor,
             clustering_model=clustering_model,
-            weights=weights,
             similarity_func=similarity_func,
             power_norm_weight=power_norm_weight,
             norm_order=norm_order,

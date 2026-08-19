@@ -3,12 +3,7 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
-from .._config import MODEL_FILES_PATH
-from ..encoders._base_encoder import (
-    ClusteringBasedEncoder,
-    KMeansWeights,
-    _PretrainedEncoder,
-)
+from ..encoders._base_encoder import ClusteringBasedEncoder
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -16,27 +11,6 @@ from ..typing import (
 )
 from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase, KMeans
-
-
-class PretrainedVLAD(_PretrainedEncoder):
-    """
-    Bundled pretrained VLAD encoders trained on the Oxford-102 flower dataset
-    with ``k=256`` clusters. Load one with :meth:`VLADEncoder.from_pretrained`.
-
-    Variants differ by the feature extractor (RootSIFT, SIFT or VGG16 deep
-    features) and whether PCA dimensionality reduction was applied.
-    """
-
-    OXFORD102_K256_ROOTSIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift.encoder"
-    OXFORD102_K256_ROOTSIFT_PCA = (
-        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift_pca.encoder"
-    )
-    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift.encoder"
-    OXFORD102_K256_SIFT_PCA = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift_pca.encoder"
-    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16.encoder"
-    OXFORD102_K256_VGG16_PCA = (
-        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16_pca.encoder"
-    )
 
 
 class VLADEncoder(ClusteringBasedEncoder):
@@ -60,7 +34,6 @@ class VLADEncoder(ClusteringBasedEncoder):
 
     :param feature_extractor: Feature extractor instance (should implement __call__).
         Defaults to RootSIFT.
-    :param weights: Pretrained K-Means weights to load (deprecated).
     :param n_clusters: Number of K-Means clusters (visual words) to use.
     :param kmeans_params: Arguments for K-Means during vocabulary learning. See
         ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/encoders/vlad.md#k-means-parameters``.
@@ -88,7 +61,6 @@ class VLADEncoder(ClusteringBasedEncoder):
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
-        weights: KMeansWeights | None = None,  # TODO: removed with version 1.0.0
         n_clusters: int = 256,
         kmeans_params: dict[str, Any] | None = None,
         pca_params: dict[str, Any] | None = None,
@@ -99,25 +71,15 @@ class VLADEncoder(ClusteringBasedEncoder):
         similarity_func: str = "cosine",
         raise_error_when_pca_incompatible: bool = False,
     ) -> None:
-        if weights is not None:
-            if (weights_class := weights.__class__.__name__) != "KMeansWeights":
-                raise ValueError(
-                    f"You can only pass an instance of KMeansWeights, not {weights_class}"
-                )
         if kmeans_params and "n_clusters" in kmeans_params:
             raise ValueError(
                 "Pass 'n_clusters' directly to VLADEncoder instead of inside kmeans_params."
             )
-        clustering_model = (
-            KMeans(n_clusters=n_clusters, **(kmeans_params or {}))
-            if weights is None
-            else None
-        )
-        pca = PCA(**pca_params) if weights is None and pca_params is not None else None
+        clustering_model = KMeans(n_clusters=n_clusters, **(kmeans_params or {}))
+        pca = PCA(**pca_params) if pca_params is not None else None
         super().__init__(
             feature_extractor=feature_extractor,
             clustering_model=clustering_model,
-            weights=weights,
             similarity_func=similarity_func,
             power_norm_weight=power_norm_weight,
             norm_order=norm_order,

@@ -61,7 +61,6 @@ include = ["pyvisim", "pyvisim.*"]
 
 [tool.setuptools.package-data]
 pyvisim = [
-    "res/model_files/*.encoder",
     "res/logging_config.yaml",
     "py.typed",
     "structural/_kernel/*.pyx",

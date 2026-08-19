@@ -81,9 +81,7 @@ Everything is built on the two abstract base classes in
   metric names: `"cosine"` (default), `"euclidean"`, `"l1"` or `"manhattan"`.
 - **Trained encoders persist to safetensors `.encoder` files.** `save_to_disk` /
   `load_from_disk` capture everything (clustering model, PCA, normalization settings,
-  similarity metric and feature extractor), so loading only needs the path. Bundled
-  pretrained encoders load via `from_pretrained`.
-  See [encoders/weights.md](encoders/weights.md).
+  similarity metric and feature extractor), so loading only needs the path.
 
 ## Retrieval
 

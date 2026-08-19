@@ -12,4 +12,3 @@ Encoders
    vlad
    fisher_vector
    pipeline
-   weights

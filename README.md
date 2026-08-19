@@ -21,7 +21,6 @@ and neural networks.
 
 1. [Installation](#installation)
 2. [Why **pyvisim**](#why-pyvisim)
-3. [Pretrained Models](#pretrained-models)
 4. [Contributing](#contributing)
 5. [Get in Touch](#get-in-touch)
 6. [TODO](#todo)
@@ -82,7 +81,7 @@ With just a few lines of code, you can compute the similarity score between two 
 #### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD) <ref>[5]</ref>
 
 ```python
-from pyvisim.encoders import VLADEncoder, PretrainedVLAD
+from pyvisim.encoders import VLADEncoder
 from pyvisim.datasets import OxfordFlowerDataset  # needs "nn" extra: install with `pip install "pyvisim[nn]"`
 
 # Load images from the Oxford Flower Dataset. Has to be NumPy Images!
@@ -90,9 +89,9 @@ dataset = OxfordFlowerDataset()
 image1, *_  = dataset[0]
 image2, *_ = dataset[1]
 
-# Load a bundled pretrained VLAD encoder (RootSIFT features, k=256).
-# The feature extractor and similarity metric come with it.
-encoder = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
+# Learn a visual vocabulary (RootSIFT features by default, k=256).
+encoder = VLADEncoder(n_clusters=256)
+encoder.learn(image for image, *_ in dataset)
 
 # Compute the similarity score. By default, cosine similarity is used.
 similarity_score = encoder.similarity_score(image1, image2)
@@ -104,7 +103,6 @@ By default the encoder uses cosine similarity. To use a different metric, pass
 its name; `"cosine"`, `"euclidean"`, `"l1"` and `"manhattan"` are supported:
 
 ```python
-encoder = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
 encoder.similarity_func = "euclidean"
 ```
 
@@ -175,75 +173,18 @@ have any suggestions or questions!
      See the [neural networks docs](pyvisim/neural_networks/README.md) for more details.
    - Possible use cases include face recognition, signature verification, or any image-based identity matching.
 
-## Pretrained Models
-
-pyvisim ships ready-to-use pretrained encoders trained on the Oxford-102 flower
-dataset. Each one is a bundled `.encoder` file that already includes the right
-feature extractor and the cosine similarity metric, so loading one gives you a
-working encoder in a single line:
-
-```python
-from pyvisim.encoders import (
-    VLADEncoder,
-    FisherVectorEncoder,
-    PretrainedVLAD,
-    PretrainedFisher,
-)
-
-vlad = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
-fisher = FisherVectorEncoder.from_pretrained(PretrainedFisher.OXFORD102_K256_VGG16_PCA)
-```
-
-The SIFT/RootSIFT variants work on the base install. The `*_VGG16*` variants build a
-`DeepConvFeature`, so they need the `nn` extra: `pip install "pyvisim[nn]"`.
-
-All clustering models were trained with `k=256`. The choice of `k` was made arbitrarily
-based on the paper <sup>[5](#references)</sup>, where the authors tested with `k=32`, `64`, `128`, `256`, `512`, and so on.
-Since higher values would take too long, I chose `k=256` as a balance between performance and computational cost.
-Variants ending in `_PCA` reduce the feature dimensions by half with PCA before clustering.
-
-> [!CAUTION]
-> **Deprecated:** the old `weights=KMeansWeights.X` / `weights=GMMWeights.X` constructor
-> argument is deprecated and will be removed in `1.0.0`. Use `from_pretrained()` with the
-> `PretrainedVLAD`/`PretrainedFisher` enums (or `load_from_disk()` with a `.encoder` file)
-> instead. The enums above load the exact same trained models.
-
-### VLAD encoders (`PretrainedVLAD`)
-
-Loaded with `VLADEncoder.from_pretrained(...)`.
-
-| Member                        | Feature Extractor       | PCA Applied | Feature Dimensions |
-|-------------------------------|-------------------------|-------------|--------------------|
-| `OXFORD102_K256_VGG16_PCA`    | Last Conv Layer (VGG16) | Yes         | 257                |
-| `OXFORD102_K256_VGG16`        | Last Conv Layer (VGG16) | No          | 514                |
-| `OXFORD102_K256_ROOTSIFT_PCA` | RootSIFT features       | Yes         | 64                 |
-| `OXFORD102_K256_ROOTSIFT`     | RootSIFT features       | No          | 128                |
-| `OXFORD102_K256_SIFT_PCA`     | SIFT features           | Yes         | 64                 |
-| `OXFORD102_K256_SIFT`         | SIFT features           | No          | 128                |
-
-### Fisher Vector encoders (`PretrainedFisher`)
-
-Loaded with `FisherVectorEncoder.from_pretrained(...)`.
-
-| Member                        | Feature Extractor       | PCA Applied | Feature Dimensions |
-|-------------------------------|-------------------------|-------------|--------------------|
-| `OXFORD102_K256_VGG16_PCA`    | Last Conv Layer (VGG16) | Yes         | 257                |
-| `OXFORD102_K256_VGG16`        | Last Conv Layer (VGG16) | No          | 514                |
-| `OXFORD102_K256_ROOTSIFT_PCA` | RootSIFT features       | Yes         | 64                 |
-| `OXFORD102_K256_ROOTSIFT`     | RootSIFT features       | No          | 128                |
-| `OXFORD102_K256_SIFT_PCA`     | SIFT features           | Yes         | 64                 |
-| `OXFORD102_K256_SIFT`         | SIFT features           | No          | 128                |
-
 ### Notes
-1. **Feature Extraction**:
-   - **Deep Features (VGG16)**: Feature maps from the last convolutional layer of VGG16. At each spatial location,
-   the relative x and y coordinates are concatenated to the feature vector, resulting in `512 + 2 = 514` dimensions <sup>[6](#references)</sup>.
-   - **SIFT**: Scale-Invariant Feature Transform descriptors, which was the original feature used for VLAD and
-    Fisher Vector encoding <sup>[5](#references)</sup>.
-   - **RootSIFT**: A variant of SIFT with `Hellinger kernel normalization`<sup>[4](#references)</sup>.
-2. **Dimensionality Reduction**:
-   - Models with `_PCA` in their names apply PCA to reduce the feature dimensions to by half.
-   - The clustering models will learn from the transformed features after PCA is applied.
+
+The local features the VLAD and Fisher Vector encoders aggregate:
+
+- **RootSIFT** (the default): SIFT with `Hellinger kernel normalization` <sup>[4](#references)</sup>.
+- **SIFT**: Scale-Invariant Feature Transform descriptors, the original feature used for VLAD and
+  Fisher Vector encoding <sup>[5](#references)</sup>.
+- **Deep Features (VGG16)**: Feature maps from the last convolutional layer of VGG16. At each spatial location,
+  the relative x and y coordinates are concatenated to the feature vector, resulting in `512 + 2 = 514` dimensions <sup>[6](#references)</sup>.
+
+Pass `pca_params` to reduce the feature dimensions before clustering; the clustering model
+then learns from the transformed features.
 
 ## Contributing
 
@@ -266,7 +207,6 @@ If you have any questions or just want to say hi, feel free to:
 
 The features below are planned for future releases:
 
-- With `v1.0.0`, remove the deprecated `weights` constructor argument and the `_CLUSTERING_TO_PCA_MAPPING` internal variable, since they are no longer needed with the new `from_pretrained()` API.
 - Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
 paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>
 - Add support for **vision transformers** for the `DeepConvFeature` class.

@@ -48,11 +48,8 @@ The models start unfitted, so you have to train before encoding:
   similarity metric included, so the path is all you pass. A `DeepConvFeature` using the
   default torchvision model is rebuilt from default weights; one you supplied yourself
   has its `state_dict` restored from the file.
-- `from_pretrained(enum)` loads one of the bundled pretrained encoders, see
-  [weights.md](weights.md).
 
-This save/load round-trip is the supported way to reuse a trained encoder. The old
-`weights=` enum path still works but is deprecated, see [weights.md](weights.md).
+This save/load round-trip is the supported way to reuse a trained encoder.
 
 `to_dict`/`from_dict` expose the same state as a plain dictionary (no file involved);
 `save_to_disk`/`load_from_disk` are thin wrappers over them. This is also how an

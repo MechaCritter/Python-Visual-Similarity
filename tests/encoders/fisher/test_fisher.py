@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from pyvisim._errors import NotFittedError
-from pyvisim.encoders import FisherVectorEncoder, KMeansWeights
+from pyvisim.encoders import FisherVectorEncoder
 from pyvisim.encoders._clustering import DiagCovarGaussianMixture, KMeans
 
 if TYPE_CHECKING:
@@ -59,12 +59,6 @@ def test_n_components_kwargs_collision() -> None:
     """Passing ``n_components`` inside ``gmm_params`` raises ``ValueError``."""
     with pytest.raises(ValueError, match="Pass 'n_components' directly"):
         FisherVectorEncoder(gmm_params={"n_components": 8})
-
-
-def test_wrong_weights_class_raises() -> None:
-    """Passing KMeans weights to Fisher raises ``ValueError``."""
-    with pytest.raises(ValueError, match="only pass an instance of GMMWeights"):
-        FisherVectorEncoder(weights=KMeansWeights.OXFORD102_K256_SIFT)
 
 
 def test_clustering_model_is_read_only() -> None:

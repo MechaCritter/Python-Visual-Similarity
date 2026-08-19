@@ -1,13 +1,12 @@
 import abc
 import pathlib
 import warnings
-from enum import Enum
 from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase, SimilarityMetric
-from .._config import MODEL_FILES_PATH, setup_logging
+from .._config import setup_logging
 from .._errors import NotFittedError
 from .._utils import get_similarity_func
 from ..features._registry import feature_extractor_from_dict
@@ -35,100 +34,6 @@ _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool
 }
 _EncoderT = TypeVar("_EncoderT", bound="ImageEmbedderBase")
 _ClusteringEncoderT = TypeVar("_ClusteringEncoderT", bound="ClusteringBasedEncoder")
-
-
-class _PretrainedModels(Enum):
-    # TODO: removed with version 1.0.0
-    @property
-    def path(self) -> pathlib.Path:
-        """Filesystem path of the bundled ``.encoder`` file."""
-        return pathlib.Path(self.value)
-
-
-class KMeansWeights(_PretrainedModels):
-    """
-    Pretrained K-Means weights trained on the Oxford-102 flower dataset.
-
-    .. deprecated::
-        Loading pretrained models via this enum is deprecated and will be
-        removed in a future release. Use :meth:`VLADEncoder.from_pretrained`
-        or ``load_from_disk`` with ``.encoder`` files instead.
-    """
-
-    # TODO: removed with version 1.0.0
-    OXFORD102_K256_VGG16_PCA = (
-        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16_pca.encoder"
-    )
-    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16.encoder"
-    OXFORD102_K256_ROOTSIFT_PCA = (
-        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift_pca.encoder"
-    )
-    OXFORD102_K256_ROOTSIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift.encoder"
-    OXFORD102_K256_SIFT_PCA = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift_pca.encoder"
-    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift.encoder"
-
-
-class _PCA(_PretrainedModels):
-    # TODO: removed with version 1.0.0
-    OXFORD102_PCA256_VGG16 = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_vgg16_pca.encoder"
-    OXFORD102_PCA256_ROOTSIFT = (
-        f"{MODEL_FILES_PATH}/vlad_oxford102_k256_rootsift_pca.encoder"
-    )
-    OXFORD102_PCA256_SIFT = f"{MODEL_FILES_PATH}/vlad_oxford102_k256_sift_pca.encoder"
-
-
-class GMMWeights(_PretrainedModels):
-    """
-    Pretrained GMM weights trained on the Oxford-102 flower dataset.
-
-    .. deprecated::
-        Loading pretrained models via this enum is deprecated and will be
-        removed in a future release. Use
-        :meth:`FisherVectorEncoder.from_pretrained` or ``load_from_disk``
-        with ``.encoder`` files instead.
-    """
-
-    # TODO: removed with version 1.0.0
-    OXFORD102_K256_VGG16_PCA = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16_pca.encoder"
-    )
-    OXFORD102_K256_VGG16 = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_vgg16.encoder"
-    OXFORD102_K256_ROOTSIFT_PCA = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift_pca.encoder"
-    )
-    OXFORD102_K256_ROOTSIFT = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_rootsift.encoder"
-    )
-    OXFORD102_K256_SIFT_PCA = (
-        f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift_pca.encoder"
-    )
-    OXFORD102_K256_SIFT = f"{MODEL_FILES_PATH}/fisher_oxford102_k256_sift.encoder"
-
-
-# TODO: removed with version 1.0.0
-_CLUSTERING_TO_PCA_MAPPING = {
-    KMeansWeights.OXFORD102_K256_VGG16_PCA: _PCA.OXFORD102_PCA256_VGG16,
-    KMeansWeights.OXFORD102_K256_ROOTSIFT_PCA: _PCA.OXFORD102_PCA256_ROOTSIFT,
-    KMeansWeights.OXFORD102_K256_SIFT_PCA: _PCA.OXFORD102_PCA256_SIFT,
-    GMMWeights.OXFORD102_K256_VGG16_PCA: _PCA.OXFORD102_PCA256_VGG16,
-    GMMWeights.OXFORD102_K256_ROOTSIFT_PCA: _PCA.OXFORD102_PCA256_ROOTSIFT,
-    GMMWeights.OXFORD102_K256_SIFT_PCA: _PCA.OXFORD102_PCA256_SIFT,
-}
-
-
-class _PretrainedEncoder(Enum):
-    """
-    Base for pretrained-encoder enums backed by bundled ``.encoder`` files.
-
-    Concrete members live next to their encoders:
-    :class:`~pyvisim.encoders.PretrainedVLAD` (in ``vlad.py``) and
-    :class:`~pyvisim.encoders.PretrainedFisher` (in ``fisher_vector.py``).
-    """
-
-    @property
-    def path(self) -> pathlib.Path:
-        """Filesystem path of the bundled ``.encoder`` file."""
-        return pathlib.Path(self.value)
 
 
 class ImageEmbedderBase(SimilarityMetric):
@@ -370,8 +275,6 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
     :param feature_extractor: Feature extractor instance (should implement __call__).
         Defaults to RootSIFT.
     :param clustering_model: Clustering model used for generating descriptors.
-    :param weights: Pretrained model for clustering. If provided, the clustering model will be loaded from the file,
-    and `clustering_model` and `pca` parameters will be ignored.
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
@@ -405,9 +308,6 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
         self,
         feature_extractor: FeatureExtractorBase | None = None,
         clustering_model: ClusteringModelBase | None = None,
-        weights: KMeansWeights
-        | GMMWeights
-        | None = None,  # TODO: removed with version 1.0.0
         similarity_func: str = "cosine",
         power_norm_weight: float = 1,
         norm_order: int = 2,
@@ -432,40 +332,10 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             feature_extractor=feature_extractor, similarity_func=similarity_func
         )
 
-        if weights is not None:
-            self._load_pretrained_weights(weights)  # TODO: removed with version 1.0.0
-        else:
-            if pca is not None:
-                self._set_pca(pca)
-            if clustering_model is not None:
-                self._set_clustering_model(clustering_model)
-
-    # TODO: removed with version 1.0.0
-    def _load_pretrained_weights(self, weights: KMeansWeights | GMMWeights) -> None:
-        """
-        Loads a pretrained clustering model (and its matching PCA, if any) from
-        a bundled ``.encoder`` file into this encoder.
-
-        .. deprecated::
-            Will be removed in version 1.0.0 together with the weight enums.
-            Use :meth:`from_pretrained` or :meth:`load_from_disk` instead.
-
-        :param weights: Pretrained weight enum member to load.
-        """
-        warnings.warn(
-            "Loading pretrained models via KMeansWeights/GMMWeights is "
-            "deprecated and will be removed in a future release. Use "
-            "from_pretrained()/load_from_disk() with .encoder files instead.",
-            FutureWarning,
-            stacklevel=3,
-        )
-        if "PCA" in weights.name:
-            pca_state = load_encoder_state(_CLUSTERING_TO_PCA_MAPPING[weights].path)
-            self._set_pca(PCA.from_dict(pca_state["pca"]))
-        clustering_state = load_encoder_state(weights.path)
-        self._set_clustering_model(
-            self._clustering_model_cls.from_dict(clustering_state["clustering_model"])
-        )
+        if pca is not None:
+            self._set_pca(pca)
+        if clustering_model is not None:
+            self._set_clustering_model(clustering_model)
 
     def _validate_feature_extractor(
         self, feature_extractor: FeatureExtractorBase
@@ -675,23 +545,6 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
                 "a scikit-learn estimator."
             )
         self._set_clustering_model(from_sklearn(model))
-
-    @classmethod
-    def from_pretrained(
-        cls: type[_ClusteringEncoderT], pretrained: _PretrainedEncoder
-    ) -> _ClusteringEncoderT:
-        """
-        Loads a bundled pretrained encoder.
-
-        :param pretrained: A pretrained-encoder enum member, e.g.
-            :class:`PretrainedVLAD` for :class:`VLADEncoder` or
-            :class:`PretrainedFisher` for :class:`FisherVectorEncoder`.
-        :return: A ready-to-use encoder instance with its feature extractor and
-            similarity metric restored from the file.
-        :raises ValueError: If the chosen pretrained encoder was not saved by
-            this encoder class (e.g. loading a Fisher encoder as VLAD).
-        """
-        return cls.load_from_disk(pretrained.path)
 
     def to_dict(self) -> dict[str, Any]:
         """

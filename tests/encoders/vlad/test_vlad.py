@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from pyvisim._errors import NotFittedError
-from pyvisim.encoders import GMMWeights, VLADEncoder
+from pyvisim.encoders import VLADEncoder
 from pyvisim.encoders._clustering import DiagCovarGaussianMixture, KMeans
 
 if TYPE_CHECKING:
@@ -58,12 +58,6 @@ def test_n_clusters_param_kwargs_collision() -> None:
     """Passing ``n_clusters`` inside ``kmeans_params`` raises ``ValueError``."""
     with pytest.raises(ValueError, match="Pass 'n_clusters' directly"):
         VLADEncoder(kmeans_params={"n_clusters": 8})
-
-
-def test_wrong_weights_class_raises() -> None:
-    """Passing GMM weights to VLAD raises ``ValueError``."""
-    with pytest.raises(ValueError, match="only pass an instance of KMeansWeights"):
-        VLADEncoder(weights=GMMWeights.OXFORD102_K256_SIFT)
 
 
 def test_clustering_model_is_read_only() -> None:
