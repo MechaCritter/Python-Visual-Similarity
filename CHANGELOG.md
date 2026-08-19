@@ -15,16 +15,14 @@
 `pyvisim.structural`) metrics as well as their benchmark scripts against
 existing implementations under `docs/pixelwise/benchmarks` and
 `docs/structural/benchmarks`.
-- `PairwiseSiameseNetwork` (in `pyvisim.neural_networks`): the pair-classifying
+- `BCESiameseNetwork` (in `pyvisim.neural_networks`): the pair-classifying
   Siamese variant of Koch, Zemel & Salakhutdinov (2015).
 
 ### Changed
 - The Siamese networks are split along a shared abstract base,
-  `SiameseNetworkBase`, which owns the backbone, the projection head, image
-  preprocessing, `embed` and the device handling. Subclasses implement
-  `_forward_once` (the single-branch pass) and `similarity_score`, and `embed`
-  now returns whatever the concrete branch produces (L2-normalized embeddings
-  for the contrastive variant, sigmoid-activated features for the pairwise one).
+  `SiameseNetworkBase`.
+- Removed the Siamese Network's train scripts. This is now demonstrated
+in a notebook in the "examples" repository.
 
 ### Breaking
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`

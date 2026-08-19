@@ -1,12 +1,4 @@
-"""Unit tests for :class:`pyvisim.neural_networks.PairwiseSiameseNetwork`.
-
-The pairwise network (Koch et al., 2015) scores a pair of images with
-``sigmoid(sum_j alpha_j * |h1_j - h2_j| + b)``. With the deterministic stub
-backbones from :mod:`._stubs`, an identity head and a hand-set scoring layer,
-every logit and probability below is exactly hand-computable. Shared
-behaviour (preprocessing, layouts, device handling) is covered by the
-contrastive test module, since it lives in the common base class.
-"""
+"""Unit tests for :class:`pyvisim.neural_networks.BCESiameseNetwork`."""
 
 from __future__ import annotations
 
@@ -17,12 +9,12 @@ import pytest
 import torch
 from torchvision import transforms
 
-from pyvisim.neural_networks import PairwiseSiameseNetwork
+from pyvisim.neural_networks import BCESiameseNetwork
 
 from ._stubs import (
     FlattenBackbone,
     MeanBackbone,
-    build_stub_pairwise_model,
+    build_stub_bce_model,
     install_head,
     install_scorer,
     make_identity_head,
@@ -46,18 +38,18 @@ def _sigmoid(x: float) -> float:
 def test_unknown_backbone_name_raises() -> None:
     """An unrecognised backbone name raises ``ValueError`` at construction."""
     with pytest.raises(ValueError, match="Unsupported backbone"):
-        PairwiseSiameseNetwork(backbone="alexnet")
+        BCESiameseNetwork(backbone="alexnet")
 
 
 def test_non_positive_embedding_dim_raises() -> None:
     """A non-positive embedding dimensionality is rejected."""
     with pytest.raises(ValueError, match="embedding_dim"):
-        build_stub_pairwise_model(MeanBackbone(), embedding_dim=0)
+        build_stub_bce_model(MeanBackbone(), embedding_dim=0)
 
 
 def test_scorer_maps_embedding_to_single_logit() -> None:
     """The scoring layer is a ``Linear(embedding_dim, 1)``."""
-    model = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     assert isinstance(model.scorer, torch.nn.Linear)
     assert model.scorer.in_features == 4
     assert model.scorer.out_features == 1
@@ -65,7 +57,7 @@ def test_scorer_maps_embedding_to_single_logit() -> None:
 
 def test_head_input_matches_backbone_output_dim() -> None:
     """The head's ``in_features`` equals the backbone's ``output_dim``."""
-    model = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     assert isinstance(model.head, torch.nn.Linear)
     assert model.head.in_features == MeanBackbone.output_dim
 
@@ -73,34 +65,41 @@ def test_head_input_matches_backbone_output_dim() -> None:
 # §2 branch output: sigmoid features, not normalized embeddings
 
 
-def test_embed_applies_sigmoid_to_head_output() -> None:
-    """A uniform image embeds to the constant vector ``sigmoid(v / 255)``.
+def test_embed_raises_not_implemented_error() -> None:
+    """``embed`` is unsupported: the branch features are not an embedding."""
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=8)
+    with pytest.raises(NotImplementedError, match="does not expose an embedding"):
+        model.embed(make_random_rgb_image(seed=1))
+
+
+def test_branch_applies_sigmoid_to_head_output() -> None:
+    """A uniform image encodes to the constant vector ``sigmoid(v / 255)``.
 
     With a plain ``ToTensor`` transform, a 2x2 uniform image of value 51
     becomes 12 features of exactly ``0.2``; the identity head leaves them
     untouched and the branch sigmoid maps each to ``sigmoid(0.2)``.
     """
-    model = build_stub_pairwise_model(
+    model = build_stub_bce_model(
         FlattenBackbone(12),
         embedding_dim=12,
         transform=transforms.Compose([transforms.ToTensor()]),
     )
     install_head(model, make_identity_head(12))
-    embeddings = model.embed(make_solid_rgb_image(value=51, size=2))
-    assert embeddings.shape == (1, 12)
-    assert np.allclose(embeddings, _sigmoid(51.0 / 255.0), atol=1e-6)
+    features = model._encode_images(make_solid_rgb_image(value=51, size=2)).numpy()
+    assert features.shape == (1, 12)
+    assert np.allclose(features, _sigmoid(51.0 / 255.0), atol=1e-6)
 
 
-def test_embed_output_is_bounded_but_not_unit_norm() -> None:
+def test_branch_output_is_bounded_but_not_unit_norm() -> None:
     """Branch features lie strictly in ``(0, 1)`` and are not L2-normalized."""
     torch.manual_seed(0)
-    model = build_stub_pairwise_model(MeanBackbone(), embedding_dim=8)
-    embeddings = model.embed(
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=8)
+    features = model._encode_images(
         [make_random_rgb_image(seed=1), make_random_rgb_image(seed=2)]
-    )
-    assert np.all(embeddings > 0.0)
-    assert np.all(embeddings < 1.0)
-    assert not np.allclose(np.linalg.norm(embeddings, axis=1), 1.0, atol=1e-3)
+    ).numpy()
+    assert np.all(features > 0.0)
+    assert np.all(features < 1.0)
+    assert not np.allclose(np.linalg.norm(features, axis=1), 1.0, atol=1e-3)
 
 
 # §3 forward: hand-computed pair logits
@@ -115,7 +114,7 @@ def test_forward_computes_weighted_l1_logits() -> None:
     logit is ``4 * 0.25 - 1 = 0``. The second pair is identical, leaving
     only the bias ``-1``.
     """
-    model = build_stub_pairwise_model(FlattenBackbone(2), embedding_dim=2)
+    model = build_stub_bce_model(FlattenBackbone(2), embedding_dim=2)
     install_head(model, make_identity_head(2))
     install_scorer(model, weights=[4.0, 8.0], bias=-1.0)
 
@@ -130,7 +129,7 @@ def test_forward_computes_weighted_l1_logits() -> None:
 def test_forward_is_symmetric_in_its_inputs() -> None:
     """Swapping the two branches leaves the logits unchanged (L1 distance)."""
     torch.manual_seed(0)
-    model = build_stub_pairwise_model(FlattenBackbone(4), embedding_dim=4)
+    model = build_stub_bce_model(FlattenBackbone(4), embedding_dim=4)
     x1 = torch.randn(3, 4)
     x2 = torch.randn(3, 4)
     assert torch.allclose(model(x1, x2), model(x2, x1), atol=1e-6)
@@ -138,7 +137,7 @@ def test_forward_is_symmetric_in_its_inputs() -> None:
 
 def test_forward_rejects_mismatched_batch_shapes() -> None:
     """Batches of different shapes raise instead of broadcasting silently."""
-    model = build_stub_pairwise_model(FlattenBackbone(2), embedding_dim=2)
+    model = build_stub_bce_model(FlattenBackbone(2), embedding_dim=2)
     with pytest.raises(ValueError, match="same shape"):
         model(torch.zeros(1, 2), torch.zeros(3, 2))
 
@@ -154,7 +153,7 @@ def test_similarity_score_matches_hand_computed_probability() -> None:
     bias the logit is ``12 * (sigmoid(0.8) - sigmoid(0.2))`` and the score is
     its sigmoid.
     """
-    model = build_stub_pairwise_model(
+    model = build_stub_bce_model(
         FlattenBackbone(12),
         embedding_dim=12,
         transform=transforms.Compose([transforms.ToTensor()]),
@@ -176,7 +175,7 @@ def test_identical_images_score_sigmoid_of_bias() -> None:
 
     A perfect match therefore scores the learned operating point, not 1.
     """
-    model = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     install_scorer(model, weights=[2.0, -3.0, 0.5, 1.0], bias=-1.0)
     image = make_random_rgb_image(seed=11)
     score = model.similarity_score(image, image.copy())
@@ -184,18 +183,18 @@ def test_identical_images_score_sigmoid_of_bias() -> None:
 
 
 def test_similarity_score_uses_learned_scoring_layer() -> None:
-    """The score equals the formula evaluated on the public embeddings.
+    """The score equals the formula evaluated on the branch features.
 
     Reads the (randomly initialised) scoring parameters back and recomputes
-    ``sigmoid(sum(alpha * |h1 - h2|) + b)`` from ``embed`` outputs.
+    ``sigmoid(sum(alpha * |h1 - h2|) + b)`` from the branch outputs.
     """
     torch.manual_seed(0)
-    model = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     image1 = make_random_rgb_image(seed=1)
     image2 = make_random_rgb_image(seed=2)
 
-    h1 = model.embed(image1)[0]
-    h2 = model.embed(image2)[0]
+    h1 = model._encode_images(image1).numpy()[0]
+    h2 = model._encode_images(image2).numpy()[0]
     assert isinstance(model.scorer, torch.nn.Linear)
     weights = model.scorer.weight.detach().cpu().numpy()[0]
     bias = float(model.scorer.bias.detach().cpu())
@@ -208,7 +207,7 @@ def test_similarity_score_uses_learned_scoring_layer() -> None:
 
 def test_similarity_matrix_shape() -> None:
     """Two batches of sizes N and M produce an ``(N, M)`` probability matrix."""
-    network = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    network = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
     score = network.similarity_score(batch_a, batch_b)
@@ -217,7 +216,7 @@ def test_similarity_matrix_shape() -> None:
 
 def test_similarity_scores_are_probabilities() -> None:
     """Every entry of the score matrix lies strictly in ``(0, 1)``."""
-    network = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    network = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
     score = network.similarity_score(batch_a, batch_b)
@@ -227,7 +226,7 @@ def test_similarity_scores_are_probabilities() -> None:
 
 def test_similarity_matrix_is_symmetric() -> None:
     """Swapping the inputs transposes the probability matrix."""
-    network = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    network = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
     forward_score = network.similarity_score(batch_a, batch_b)
@@ -245,7 +244,7 @@ def test_bce_training_step_reduces_loss_on_separable_pairs() -> None:
     are far apart, so the scoring layer alone can separate them.
     """
     torch.manual_seed(0)
-    model = build_stub_pairwise_model(FlattenBackbone(2), embedding_dim=2)
+    model = build_stub_bce_model(FlattenBackbone(2), embedding_dim=2)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
     criterion = torch.nn.BCEWithLogitsLoss()
 
@@ -270,7 +269,7 @@ def test_bce_training_step_reduces_loss_on_separable_pairs() -> None:
 
 def test_scorer_is_read_only() -> None:
     """Assigning to ``scorer`` raises instead of silently registering a module."""
-    model = build_stub_pairwise_model(MeanBackbone(), embedding_dim=4)
+    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     original_scorer = model.scorer
     with pytest.raises(AttributeError):
         model.scorer = torch.nn.Linear(4, 1)  # type: ignore[misc]

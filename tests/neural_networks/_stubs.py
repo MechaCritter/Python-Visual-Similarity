@@ -10,7 +10,7 @@ from unittest import mock
 import numpy as np
 import torch
 
-from pyvisim.neural_networks import ContrastiveSiameseNetwork, PairwiseSiameseNetwork
+from pyvisim.neural_networks import BCESiameseNetwork, ContrastiveSiameseNetwork
 from pyvisim.neural_networks.siamese._base_siamese import SiameseNetworkBase
 from pyvisim.typing import UInt8NumpyArray
 
@@ -114,16 +114,16 @@ def build_stub_model(
     return _build_stub_network(ContrastiveSiameseNetwork, backbone_module, **kwargs)
 
 
-def build_stub_pairwise_model(
+def build_stub_bce_model(
     backbone_module: torch.nn.Module, **kwargs: object
-) -> PairwiseSiameseNetwork:
-    """Build a :class:`PairwiseSiameseNetwork` running on a stub backbone.
+) -> BCESiameseNetwork:
+    """Build a :class:`BCESiameseNetwork` running on a stub backbone.
 
     :param backbone_module: Module to install as the model's backbone.
-    :param kwargs: Extra keyword arguments for ``PairwiseSiameseNetwork``.
+    :param kwargs: Extra keyword arguments for ``BCESiameseNetwork``.
     :return: A model whose backbone is ``backbone_module``.
     """
-    return _build_stub_network(PairwiseSiameseNetwork, backbone_module, **kwargs)
+    return _build_stub_network(BCESiameseNetwork, backbone_module, **kwargs)
 
 
 def install_head(model: SiameseNetworkBase, head: torch.nn.Module) -> None:
@@ -140,7 +140,7 @@ def install_head(model: SiameseNetworkBase, head: torch.nn.Module) -> None:
 
 
 def install_scorer(
-    model: PairwiseSiameseNetwork, weights: Sequence[float], bias: float
+    model: BCESiameseNetwork, weights: Sequence[float], bias: float
 ) -> None:
     """Overwrite the scoring layer's parameters with known values.
 
@@ -148,7 +148,7 @@ def install_scorer(
     of the existing layer are overwritten in place. With fixed weights the
     same-class logit ``sum(alpha * |h1 - h2|) + b`` becomes hand-computable.
 
-    :param model: The pairwise model to modify.
+    :param model: The BCE model to modify.
     :param weights: One weight per embedding dimension.
     :param bias: The scoring layer's bias.
     """

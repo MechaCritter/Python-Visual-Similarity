@@ -18,16 +18,16 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
     `Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
     by Learning an Invariant Mapping`.
 
-    Two images are passed through the same shared-weight ``backbone`` and
-    projection ``head`` to produce embeddings, which are L2-normalized so that
-    cosine similarity reduces to a dot product. The network is trained so that
-    similar images map to nearby embeddings and dissimilar images map far apart
-    (see :class:`pyvisim.neural_networks.losses.ContrastiveLoss`).
+    This network "learns" the similarity metric directly. Two images are passed
+    through the same shared-weight ``backbone`` and projection ``head`` to
+    produce embeddings, which are L2-normalized so that cosine similarity
+    reduces to a dot product. The network is trained so that similar images map
+    to nearby embeddings and dissimilar images map far apart.
 
-    At inference time the similarity of two images is a *fixed* metric on the
-    embedding space (``similarity_func``); nothing about the comparison itself
-    is learned. For the variant that learns the comparison as well, see
-    :class:`PairwiseSiameseNetwork`.
+    `Contrastive loss` is used to train this network, which has the formula:
+
+    .. math::
+        L = \\frac{1}{2N} \\sum_{i=1}^{N} \\Bigl( y_i \\, D_i^2 + (1 - y_i) \\, \\max(0, m - D_i)^2 \\Bigr)
 
     References:
     ===========
@@ -36,14 +36,14 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
     Computer Society Conference on Computer Vision and Pattern Recognition
     (CVPR), Vol. 2, 1735-1742. https://doi.org/10.1109/CVPR.2006.100
 
-    :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
+    :param backbone: name of feature-extraction network.
     :param embedding_dim: Dimensionality of the projected embedding space.
     :param similarity_func: Name of the built-in similarity metric used to score
-        two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
+        two embeddings. One of ``"cosine"``, ``"euclidean"``, ``"l1"``
         or ``"manhattan"``.
     :param transform: processing transform applied to every input image. If
         ``None``, the default ImageNet preprocessing is used depending
-        on the backbone. See :meth:`_get_imagenet_transform`.
+        on the backbone.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``ContrastiveSiameseNetwork`` from a

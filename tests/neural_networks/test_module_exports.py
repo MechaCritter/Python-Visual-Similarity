@@ -11,14 +11,14 @@ import pyvisim.neural_networks
 def test_public_exports() -> None:
     """The documented classes are importable from their canonical locations."""
     from pyvisim.neural_networks import (
+        BCESiameseNetwork,
         ContrastiveSiameseNetwork,
-        PairwiseSiameseNetwork,
     )
     from pyvisim.neural_networks.losses import ContrastiveLoss
     from pyvisim.neural_networks.siamese import ResNetBackbone
 
     assert ContrastiveSiameseNetwork is not None
-    assert PairwiseSiameseNetwork is not None
+    assert BCESiameseNetwork is not None
     assert ContrastiveLoss is not None
     assert ResNetBackbone is not None
 
