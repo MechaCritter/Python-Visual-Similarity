@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- The `ruff check` CI step no longer fails on import sorting (`I001`) in
+  `tests/neural_networks/test_oxford_flowers_quick.py` and
+  `test_oxford_flowers_slow.py`.
 ### Added
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
