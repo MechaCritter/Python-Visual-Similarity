@@ -14,6 +14,9 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- CI restores the Oxford Flowers dataset and the pretrained backbone weights from
+  the GitHub Actions cache instead of re-downloading them on every run; the new
+  `Warm asset cache` workflow keeps that cache populated on `main`.
 - ℹ️ Dropped scikit-learn as a runtime dependency.
 - Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
 `pyvisim.structural`) metrics as well as their benchmark scripts against
