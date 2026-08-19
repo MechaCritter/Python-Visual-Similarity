@@ -1,0 +1,85 @@
+name: Warm asset cache
+
+# The Oxford Flowers dataset and the ImageNet backbone weights are downloaded
+# from third-party servers on first use. CI caches them, but a cache written by
+# a pull request is only visible to that pull request, so every new branch would
+# still pay for the first download. Caches written on the default branch are
+# visible to every branch: this workflow populates them there. GitHub evicts
+# caches after 7 days without a hit, hence the schedule.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "uv.lock"
+      - ".github/scripts/prefetch_assets.py"
+      - ".github/workflows/warm-cache.yml"
+  schedule:
+    - cron: "0 4 * * 1,4" # Mondays and Thursdays, 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One warm-up at a time; parallel runs would download the same assets twice.
+concurrency:
+  group: warm-cache
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  warm:
+    name: "Warm caches (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      # Must match the paths and keys used by the CI workflow.
+      TORCH_HOME: ${{ github.workspace }}/.cache/torch
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync --extra nn --extra search
+
+      - name: Resolve the dataset cache directory
+        id: dataset-cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="$(uv run --no-sync python .github/scripts/prefetch_assets.py --print-cache-dir)"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Oxford Flowers dataset
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.dataset-cache.outputs.path }}
+          key: pyvisim-dataset-${{ runner.os }}-v1
+
+      - name: Restore the pretrained backbone weights
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TORCH_HOME }}
+          key: pyvisim-torch-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: pyvisim-torch-${{ runner.os }}-
+
+      # Downloads only what the cache steps above could not restore; the caches
+      # are saved when the job ends.
+      - name: Prefetch the dataset and the backbone weights
+        run: uv run --no-sync python .github/scripts/prefetch_assets.py
