@@ -3,9 +3,14 @@
 ## [Unreleased]
 
 ### Fixed
+- `make test-types` no longer prints a `DeprecationWarning`: the
+  `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
+- The development interpreter is pinned to Python 3.10 (`.python-version`), the
+  project's minimum supported version and the one every CI job already uses.
 - The `ruff check` CI step no longer fails on import sorting (`I001`) in
   `tests/neural_networks/test_oxford_flowers_quick.py` and
   `test_oxford_flowers_slow.py`.
+  
 ### Added
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
@@ -17,6 +22,8 @@
 - CI restores the Oxford Flowers dataset and the pretrained backbone weights from
   the GitHub Actions cache instead of re-downloading them on every run; the new
   `Warm asset cache` workflow keeps that cache populated on `main`.
+- The `similarity_func` registry in `pyvisim._utils` now maps the metric names
+  straight onto `pyvisim.distance`.
 - ℹ️ Dropped scikit-learn as a runtime dependency.
 - Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
 `pyvisim.structural`) metrics as well as their benchmark scripts against
@@ -24,14 +31,15 @@ existing implementations under `docs/pixelwise/benchmarks` and
 `docs/structural/benchmarks`.
 - `BCESiameseNetwork` (in `pyvisim.neural_networks`): the pair-classifying
   Siamese variant of Koch, Zemel & Salakhutdinov (2015).
-
-### Changed
 - The Siamese networks are split along a shared abstract base,
   `SiameseNetworkBase`.
 - Removed the Siamese Network's train scripts. This is now demonstrated
 in a notebook in the "examples" repository.
 
 ### Breaking
+- ⚠️ `similarity_func` no longer coerces its inputs: a 1-D vector now raises
+  `ValueError` instead of being reshaped, so pass `(N, D)` matrices yourself.
+  Encoders and neural networks are unaffected — `encode`/`embed` already do.
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
   (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
   class now lives in `pyvisim.neural_networks.siamese._base_siamese`):
