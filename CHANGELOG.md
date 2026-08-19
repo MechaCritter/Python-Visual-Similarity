@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+- `make test-types` no longer prints a `DeprecationWarning`: the
+  `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
+- The development interpreter is pinned to Python 3.10 (`.python-version`), the
+  project's minimum supported version and the one every CI job already uses.
+
 ### Added
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
