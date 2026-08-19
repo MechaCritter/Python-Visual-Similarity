@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- The `similarity_func` registry in `pyvisim._utils` now maps the metric names
+  straight onto `pyvisim.distance`.
+
 ### Added
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
@@ -27,6 +31,9 @@ existing implementations under `docs/pixelwise/benchmarks` and
   for the contrastive variant, sigmoid-activated features for the pairwise one).
 
 ### Breaking
+- ⚠️ `similarity_func` no longer coerces its inputs: a 1-D vector now raises
+  `ValueError` instead of being reshaped, so pass `(N, D)` matrices yourself.
+  Encoders and neural networks are unaffected — `encode`/`embed` already do.
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
   (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
   class now lives in `pyvisim.neural_networks.siamese._base_siamese`):
