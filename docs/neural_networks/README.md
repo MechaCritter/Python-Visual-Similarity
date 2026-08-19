@@ -5,7 +5,7 @@ Following is implemented:
 * `ContrastiveSiameseNetwork` L2-normalizes the resulting embeddings and trains them with a
   contrastive loss so similar images land close together and dissimilar ones end up far apart;
   similarity is a fixed metric (cosine by default) on the embeddings.
-* `PairwiseSiameseNetwork` feeds the component-wise L1 distance of sigmoid-activated branch
+* `BCESiameseNetwork` feeds the component-wise L1 distance of sigmoid-activated branch
   features into a learned scoring layer and returns the probability that both images show the
   same class (Koch et al., 2015); it trains as a binary classifier over pairs.
 * **`ClipEmbedder`**, pretrained CLIP embeddings from pyvisim's own implementation of
