@@ -52,7 +52,7 @@ vlad = VLADEncoder(n_clusters=256, kmeans_params={"rng": 0, "n_init": 5})
 | `tol` | `0.0` | Convergence tolerance of the `"arpack"` solver (0 means machine precision). Ignored by the other solvers. |
 | `rng` | `None` | Seed (`int`) or `numpy.random.Generator` for the `"arpack"` solver's starting vector. Ignored by the other solvers. |
 
-## How `encode` works
+## How `embed` works
 
 For each image:
 

@@ -8,13 +8,13 @@ from ..typing import (
     ImageInput,
 )
 from ..utils.image_utils import iter_images
-from ._base_encoder import ImageEncoderBase
+from ._base_encoder import ImageEmbedderBase
 
 #: On-disk format version of the serialised pipeline state.
 _PIPELINE_FORMAT_VERSION = 1
 
 
-class Pipeline(ImageEncoderBase):
+class Pipeline(ImageEmbedderBase):
     """
     A pipeline for computing feature vectors using a set of
     encoders.
@@ -23,7 +23,7 @@ class Pipeline(ImageEncoderBase):
     will always be flattened, because different Encoders also
     have different output sizes.
 
-    :param encoders: A list of ImageEncoderBase instances.
+    :param encoders: A list of ImageEmbedderBase instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     """
@@ -37,22 +37,22 @@ class Pipeline(ImageEncoderBase):
 
     def __init__(
         self,
-        encoders: list[ImageEncoderBase],
+        encoders: list[ImageEmbedderBase],
         similarity_func: str = "cosine",
     ):
         self._check_valid_encoders(encoders)
         self.encoders = encoders
         super().__init__(similarity_func=similarity_func)
 
-    def _check_valid_encoders(self, encoders: list[ImageEncoderBase]) -> None:
+    def _check_valid_encoders(self, encoders: list[ImageEmbedderBase]) -> None:
         """
-        Checks if all encoders in the pipeline are instances of ImageEncoderBase.
+        Checks if all encoders in the pipeline are instances of ImageEmbedderBase.
         :param encoders: list of encoders to check.
         """
         for encoder in encoders:
-            if not isinstance(encoder, ImageEncoderBase):
+            if not isinstance(encoder, ImageEmbedderBase):
                 raise ValueError(
-                    f"Pipeline only accepts instances of ImageEncoderBase, not {type(encoder)}"
+                    f"Pipeline only accepts instances of ImageEmbedderBase, not {type(encoder)}"
                 )
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,7 +60,7 @@ class Pipeline(ImageEncoderBase):
         Serialises the pipeline into a JSON-safe state dictionary.
 
         Each member encoder is serialised with its own
-        :meth:`~pyvisim.encoders.ImageEncoderBase.to_dict`, so every encoder
+        :meth:`~pyvisim.encoders.ImageEmbedderBase.to_dict`, so every encoder
         must be fitted.
 
         :return: A JSON-safe pipeline description suitable for
@@ -86,12 +86,12 @@ class Pipeline(ImageEncoderBase):
         from ._reconstruct import encoder_from_dict
 
         encoders = [
-            cast(ImageEncoderBase, encoder_from_dict(encoder_state))
+            cast(ImageEmbedderBase, encoder_from_dict(encoder_state))
             for encoder_state in state["encoders"]
         ]
         return cls(encoders, similarity_func=state["similarity_func"])
 
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,
@@ -99,7 +99,7 @@ class Pipeline(ImageEncoderBase):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Encode an image using all encoders in the pipeline.
+        Embed an image using all encoders in the pipeline.
 
         The input is normalized once into canonical ``uint8`` ``(H, W, C)``
         images (handling torch tensors and batches), then shared across every
@@ -116,7 +116,7 @@ class Pipeline(ImageEncoderBase):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: encoded images using the combined encoders.
+        :return: embedded images using the combined encoders.
         """
         image_list = list(iter_images(images, dims=dims, value_range=value_range))
         all_encodings = []
@@ -128,9 +128,7 @@ class Pipeline(ImageEncoderBase):
             if has_flatten:
                 original_flatten = metric.flatten  # type: ignore[attr-defined]
                 metric.flatten = True  # type: ignore[attr-defined]
-            encodings = metric.encode(
-                image_list
-            )  # Each of size (num_imgs, feature_dim)
+            encodings = metric.embed(image_list)  # Each of size (num_imgs, feature_dim)
             all_encodings.append(encodings)
             if has_flatten:
                 metric.flatten = original_flatten  # type: ignore[attr-defined]

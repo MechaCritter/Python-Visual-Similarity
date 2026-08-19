@@ -33,7 +33,7 @@ _CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool
     #
     # However, (2, 1) might not be True!!
 }
-_EncoderT = TypeVar("_EncoderT", bound="ImageEncoderBase")
+_EncoderT = TypeVar("_EncoderT", bound="ImageEmbedderBase")
 _ClusteringEncoderT = TypeVar("_ClusteringEncoderT", bound="ClusteringBasedEncoder")
 
 
@@ -131,13 +131,13 @@ class _PretrainedEncoder(Enum):
         return pathlib.Path(self.value)
 
 
-class ImageEncoderBase(SimilarityMetric):
+class ImageEmbedderBase(SimilarityMetric):
     """
-    Base class for all image encoders. An image encoder generates a vector
+    Base class for all image embedders. An image embedder generates a vector
     representation of an image which can be used for indexing, retrieval,
     clustering or classification tasks.
 
-    This base only knows how to encode images into vectors (:meth:`encode`) and
+    This base only knows how to embed images into vectors (:meth:`embed`) and
     how to compare those vectors with a similarity function. Subclasses add the
     machinery they need on top of that, e.g. a feature extractor
     (:class:`FeatureBasedEncoder`) or a clustering model
@@ -202,7 +202,7 @@ class ImageEncoderBase(SimilarityMetric):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,
@@ -210,12 +210,12 @@ class ImageEncoderBase(SimilarityMetric):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Encodes one or more images into a batch of vector representations.
+        Embeds one or more images into a batch of vector representations.
 
         Each image is normalized to a canonical ``uint8`` ``(H, W, C)`` array
         before feature extraction, so NumPy arrays, torch tensors and other
         array-like inputs are all accepted. When a batch axis is present (via
-        ``dims``), every image in the batch is encoded.
+        ``dims``), every image in the batch is embedded.
 
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images. Consider using an iterator for large datasets.
@@ -241,7 +241,7 @@ class ImageEncoderBase(SimilarityMetric):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
         """
-        Computes vector encodings for two images and calculates the similarity score between them.
+        Computes vector embeddings for two images and calculates the similarity score between them.
 
         :param images1: First (batch of) image(s) as ``MatLike``.
         :param images2: Second (batch of) image(s) as ``MatLike``.
@@ -256,8 +256,8 @@ class ImageEncoderBase(SimilarityMetric):
             converted into the canonical ``[0, 255]`` range.
         :return: Similarity matrix between the two image batches.
         """
-        vector1 = self.encode(images1, dims=dims, value_range=value_range)
-        vector2 = self.encode(images2, dims=dims, value_range=value_range)
+        vector1 = self.embed(images1, dims=dims, value_range=value_range)
+        vector2 = self.embed(images2, dims=dims, value_range=value_range)
         result = self.similarity_func(vector1, vector2)
         return np.asarray(result, dtype=np.float32)
 
@@ -307,7 +307,7 @@ class ImageEncoderBase(SimilarityMetric):
         )
 
 
-class FeatureBasedEncoder(ImageEncoderBase):
+class FeatureBasedEncoder(ImageEmbedderBase):
     """
     Base class for encoders that derive their vector representation from local
     features extracted by a :class:`~pyvisim.features.FeatureExtractorBase`

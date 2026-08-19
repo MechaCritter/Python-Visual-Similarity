@@ -98,7 +98,7 @@ def test_encode_deterministic(
     """Encoding the same query twice with a fixed seed is reproducible."""
     image = checkerboard_image.array
     assert np.allclose(
-        learned_vlad_encoder.encode([image]), learned_vlad_encoder.encode([image])
+        learned_vlad_encoder.embed([image]), learned_vlad_encoder.embed([image])
     )
 
 
@@ -169,12 +169,12 @@ def test_encode_invariant_after_serialization(
 ) -> None:
     """VLAD encodes an image to the exact same vector before and after a save/load round-trip."""
     image = checkerboard_image.array
-    vector_before = learned_vlad_encoder.encode([image])
+    vector_before = learned_vlad_encoder.embed([image])
 
     path = learned_vlad_encoder.save_to_disk(tmp_path / "encoder")
     try:
         loaded = VLADEncoder.load_from_disk(path)
-        vector_after = loaded.encode([image])
+        vector_after = loaded.embed([image])
         assert np.allclose(vector_before, vector_after)
     finally:
         path.unlink()

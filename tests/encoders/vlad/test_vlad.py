@@ -77,7 +77,7 @@ def test_encode_shape_no_pca(
     vlad_no_pca: VLADEncoder, checkerboard_image: ImageObj
 ) -> None:
     """Without PCA, a single image encodes to ``(1, n_clusters * 128)``."""
-    out = vlad_no_pca.encode([checkerboard_image.array])
+    out = vlad_no_pca.embed([checkerboard_image.array])
     assert out.shape == (1, VLAD_DIM_NO_PCA)
 
 
@@ -87,14 +87,14 @@ def test_encode_batch_shape(
     """A batch of three images encodes to ``(3, n_clusters * 128)``."""
     base = checkerboard_image.array
     batch = [base, np.roll(base, 8, axis=0), np.roll(base, 8, axis=1)]
-    assert vlad_no_pca.encode(batch).shape == (3, VLAD_DIM_NO_PCA)
+    assert vlad_no_pca.embed(batch).shape == (3, VLAD_DIM_NO_PCA)
 
 
 def test_encode_shape_with_pca(
     vlad_pca: VLADEncoder, checkerboard_image: ImageObj
 ) -> None:
     """With PCA to 32 dims, a single image encodes to ``(1, n_clusters * 32)``."""
-    out = vlad_pca.encode([checkerboard_image.array])
+    out = vlad_pca.embed([checkerboard_image.array])
     assert out.shape == (1, VLAD_DIM_PCA)
 
 
@@ -102,7 +102,7 @@ def test_encode_rows_l2_normalized(
     vlad_no_pca: VLADEncoder, checkerboard_image: ImageObj
 ) -> None:
     """Each non-zero cluster row of the encoding has unit L2 norm."""
-    out = vlad_no_pca.encode([checkerboard_image.array]).reshape(8, 128)
+    out = vlad_no_pca.embed([checkerboard_image.array]).reshape(8, 128)
     norms = np.linalg.norm(out, axis=1)
     non_zero = norms[norms > 1e-6]
     assert non_zero == pytest.approx(np.ones_like(non_zero), rel=1e-3)
@@ -112,7 +112,7 @@ def test_encode_single_rgb_image_ok(
     vlad_no_pca: VLADEncoder, rgb_image: ImageObj
 ) -> None:
     """A bare 3-D RGB array is treated as a single image."""
-    assert vlad_no_pca.encode(rgb_image.array).shape == (1, VLAD_DIM_NO_PCA)
+    assert vlad_no_pca.embed(rgb_image.array).shape == (1, VLAD_DIM_NO_PCA)
 
 
 def test_encode_single_2d_must_be_wrapped(
@@ -120,9 +120,9 @@ def test_encode_single_2d_must_be_wrapped(
 ) -> None:
     """A single 2-D image must be wrapped in a list; a bare 2-D array iterates rows."""
     gray = checkerboard_image.array
-    assert vlad_no_pca.encode([gray]).shape == (1, VLAD_DIM_NO_PCA)
+    assert vlad_no_pca.embed([gray]).shape == (1, VLAD_DIM_NO_PCA)
     with pytest.raises(ValueError):
-        vlad_no_pca.encode(gray)
+        vlad_no_pca.embed(gray)
 
 
 def test_encode_no_descriptors_raises(
@@ -130,7 +130,7 @@ def test_encode_no_descriptors_raises(
 ) -> None:
     """Encoding a featureless image raises a clear ``ValueError``."""
     with pytest.raises(ValueError, match="No descriptors found in the image"):
-        vlad_no_pca.encode([solid_image.array])
+        vlad_no_pca.embed([solid_image.array])
 
 
 def test_encode_accepts_tensor(
@@ -138,10 +138,10 @@ def test_encode_accepts_tensor(
 ) -> None:
     """A grayscale torch tensor image is accepted and encodes like its array."""
     tensor = torch.from_numpy(checkerboard_image.array)
-    assert vlad_no_pca.encode([tensor]).shape == (1, VLAD_DIM_NO_PCA)
+    assert vlad_no_pca.embed([tensor]).shape == (1, VLAD_DIM_NO_PCA)
 
 
 def test_predict_before_learn_raises(checkerboard_image: ImageObj) -> None:
     """Encoding before learning raises ``NotFittedError`` (KMeans not fitted)."""
     with pytest.raises(NotFittedError):
-        VLADEncoder(n_clusters=8).encode([checkerboard_image.array])
+        VLADEncoder(n_clusters=8).embed([checkerboard_image.array])

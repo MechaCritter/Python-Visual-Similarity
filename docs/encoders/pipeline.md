@@ -7,7 +7,7 @@ encoder, concatenates the per-encoder vectors, and compares the combined vectors
 a single similarity function. The goal is a more robust representation that blends,
 for example, VLAD and Fisher Vector encodings.
 
-It implements `SimilarityMetric` (not `ImageEncoderBase`), so it exposes `encode` and
+It implements `SimilarityMetric` (not `ImageEmbedderBase`), so it exposes `embed` and
 `similarity_score` but has no clustering model of its own. It's also serialisable:
 `to_dict`/`from_dict` round-trip the whole pipeline (each member encoder is serialised
 in turn), which is what lets an

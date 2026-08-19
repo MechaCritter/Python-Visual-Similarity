@@ -1,9 +1,9 @@
-# ImageEncoderBase
+# ImageEmbedderBase
 
 File: [`_base_encoder.py`](../../pyvisim/encoders/_base_encoder.py)
 
-`ImageEncoderBase` holds all logic shared by `VLADEncoder` and `FisherVectorEncoder`.
-It implements `SimilarityMetric` and leaves `encode` abstract for subclasses. If you
+`ImageEmbedderBase` holds all logic shared by `VLADEncoder` and `FisherVectorEncoder`.
+It implements `SimilarityMetric` and leaves `embed` abstract for subclasses. If you
 add a new aggregation-based encoder, subclass this.
 
 ## What it manages
@@ -16,7 +16,7 @@ A concrete encoder is the combination of:
 4. a **similarity function**.
 
 The base class wires these together, validates their dimensions, and provides
-`learn`, `to_dict`/`from_dict`, `save_to_disk`/`load_from_disk`, `encode` (abstract),
+`learn`, `to_dict`/`from_dict`, `save_to_disk`/`load_from_disk`, `embed` (abstract),
 and `similarity_score`.
 
 ## Constructing an encoder

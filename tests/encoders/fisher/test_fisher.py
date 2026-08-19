@@ -78,7 +78,7 @@ def test_encode_shape_no_pca(
     fisher_no_pca: FisherVectorEncoder, checkerboard_image: ImageObj
 ) -> None:
     """Without PCA, a single image encodes to ``(1, 2 * k * 128 + k)``."""
-    out = fisher_no_pca.encode([checkerboard_image.array])
+    out = fisher_no_pca.embed([checkerboard_image.array])
     assert out.shape == (1, FISHER_DIM_NO_PCA)
 
 
@@ -86,7 +86,7 @@ def test_encode_shape_with_pca(
     fisher_pca: FisherVectorEncoder, checkerboard_image: ImageObj
 ) -> None:
     """With PCA to 32 dims, a single image encodes to ``(1, 2 * k * 32 + k)``."""
-    out = fisher_pca.encode([checkerboard_image.array])
+    out = fisher_pca.embed([checkerboard_image.array])
     assert out.shape == (1, FISHER_DIM_PCA)
 
 
@@ -96,7 +96,7 @@ def test_encode_batch_shape(
     """A batch of two images encodes to ``(2, 2 * k * 128 + k)``."""
     base = checkerboard_image.array
     batch = [base, np.roll(base, 8, axis=0)]
-    assert fisher_no_pca.encode(batch).shape == (2, FISHER_DIM_NO_PCA)
+    assert fisher_no_pca.embed(batch).shape == (2, FISHER_DIM_NO_PCA)
 
 
 def test_encode_accepts_tensor(
@@ -104,7 +104,7 @@ def test_encode_accepts_tensor(
 ) -> None:
     """A grayscale torch tensor image is accepted and encodes like its array."""
     tensor = torch.from_numpy(checkerboard_image.array)
-    assert fisher_no_pca.encode([tensor]).shape == (1, FISHER_DIM_NO_PCA)
+    assert fisher_no_pca.embed([tensor]).shape == (1, FISHER_DIM_NO_PCA)
 
 
 def test_encode_no_descriptors(
@@ -112,10 +112,10 @@ def test_encode_no_descriptors(
 ) -> None:
     """Encoding a featureless image raises (GMM cannot score zero descriptors)."""
     with pytest.raises(ValueError):
-        fisher_no_pca.encode([solid_image.array])
+        fisher_no_pca.embed([solid_image.array])
 
 
 def test_before_learn_raises(checkerboard_image: ImageObj) -> None:
     """Encoding before learning raises ``NotFittedError`` (GMM not fitted)."""
     with pytest.raises(NotFittedError):
-        FisherVectorEncoder(n_components=8).encode([checkerboard_image.array])
+        FisherVectorEncoder(n_components=8).embed([checkerboard_image.array])

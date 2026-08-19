@@ -232,7 +232,7 @@ def test_store_with_pipeline_encoder_round_trips(
     gray = category_train_images_flat[0]
     probe = np.stack([gray, gray, gray], axis=-1)
     assert np.allclose(
-        loaded.encoder.encode(probe), store.encoder.encode(probe), atol=1e-5
+        loaded.encoder.embed(probe), store.encoder.embed(probe), atol=1e-5
     )
 
 
@@ -310,9 +310,9 @@ def test_save_load_preserves_encoder(
 
     gray = category_train_images_flat[0]
     probe = np.stack([gray, gray, gray], axis=-1)
-    from_store = store.encoder.encode(probe)
-    from_loaded_store = loaded.encoder.encode(probe)
-    from_direct = directly_loaded.encode(probe)
+    from_store = store.encoder.embed(probe)
+    from_loaded_store = loaded.encoder.embed(probe)
+    from_direct = directly_loaded.embed(probe)
 
     assert np.allclose(from_loaded_store, from_store, atol=1e-5)
     assert np.allclose(from_loaded_store, from_direct, atol=1e-5)

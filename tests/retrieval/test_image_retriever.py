@@ -18,7 +18,7 @@ NUM_GALLERY = 12
 class FlattenEncoder:
     """Deterministic encoder flattening each RGB image into its pixel vector."""
 
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,

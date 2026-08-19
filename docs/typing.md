@@ -30,7 +30,7 @@ Anything that can be treated as a numerical image array:
 ImageInput = MatLike | Iterable[MatLike]
 ```
 
-The widest input type accepted by `encode`, `learn`, and `similarity_score`. You can pass:
+The widest input type accepted by `embed`, `learn`, and `similarity_score`. You can pass:
 
 - a single image (NumPy array, tensor, ...)
 - a single *batched* array where one axis is a batch dimension (use `dims` to say which)
@@ -40,11 +40,11 @@ The widest input type accepted by `encode`, `learn`, and `similarity_score`. You
 
 ```python
 class Encoder(Protocol):
-    def encode(self, images: ImageInput, *, dims=..., value_range=...) -> FloatNumpyArray: ...
+    def embed(self, images: ImageInput, *, dims=..., value_range=...) -> FloatNumpyArray: ...
 ```
 
 A structural type (a `typing.Protocol`) for anything that turns images into vectors: all
-it needs is an `encode` method. `VLADEncoder`, `FisherVectorEncoder`, and `Pipeline` all
+it needs is an `embed` method. `VLADEncoder`, `FisherVectorEncoder`, and `Pipeline` all
 satisfy it without inheriting from it. That's what lets
 [`InMemoryImageEmbeddingStore`](image_store.md) accept any of them without importing the
 concrete encoder classes.
@@ -114,7 +114,7 @@ encoder.learn(train_images)  # train_images: list of uint8 HWC NumPy arrays
 
 # PyTorch DataLoader typically yields BCHW float tensors in [0, 1]
 batch: torch.Tensor  # shape (8, 3, 224, 224)
-encodings = encoder.encode(batch, dims="BCHW", value_range=(0.0, 1.0))
+encodings = encoder.embed(batch, dims="BCHW", value_range=(0.0, 1.0))
 # encodings.shape == (8, 64 * feature_dim)
 ```
 

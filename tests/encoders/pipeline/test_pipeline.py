@@ -49,13 +49,13 @@ def pipeline(
 
 def test_rejects_non_encoder() -> None:
     """A pipeline rejects members that are not encoders."""
-    with pytest.raises(ValueError, match="only accepts instances of ImageEncoderBase"):
+    with pytest.raises(ValueError, match="only accepts instances of ImageEmbedderBase"):
         Pipeline(["not an encoder"])  # type: ignore[list-item]
 
 
 def test_encode_concatenates(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
     """The pipeline concatenates each encoder's output along the feature axis."""
-    out = pipeline.encode([checkerboard_image.array])
+    out = pipeline.embed([checkerboard_image.array])
     assert out.shape == (1, PIPELINE_DIM)
 
 
@@ -69,7 +69,7 @@ def test_restores_flatten_flag(
     original = vlad.flatten
     vlad.flatten = False
     try:
-        pipeline.encode([checkerboard_image.array])
+        pipeline.embed([checkerboard_image.array])
         assert vlad.flatten is False
     finally:
         vlad.flatten = original
@@ -79,7 +79,7 @@ def test_encode_batch(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
     """A batch of two images encodes to ``(2, PIPELINE_DIM)``."""
     base = checkerboard_image.array
     batch = [base, np.roll(base, 8, axis=0)]
-    assert pipeline.encode(batch).shape == (2, PIPELINE_DIM)
+    assert pipeline.embed(batch).shape == (2, PIPELINE_DIM)
 
 
 def test_encode_accepts_tensor(
@@ -87,7 +87,7 @@ def test_encode_accepts_tensor(
 ) -> None:
     """A grayscale torch tensor image is accepted and encodes like its array."""
     tensor = torch.from_numpy(checkerboard_image.array)
-    assert pipeline.encode([tensor]).shape == (1, PIPELINE_DIM)
+    assert pipeline.embed([tensor]).shape == (1, PIPELINE_DIM)
 
 
 def test_similarity_score_shape(
@@ -119,4 +119,4 @@ def test_to_dict_from_dict_round_trip(
     assert len(restored.encoders) == len(pipeline.encoders)
     assert restored.similarity_func_name == pipeline.similarity_func_name
     probe = [checkerboard_image.array]
-    assert np.allclose(restored.encode(probe), pipeline.encode(probe), atol=1e-5)
+    assert np.allclose(restored.embed(probe), pipeline.embed(probe), atol=1e-5)

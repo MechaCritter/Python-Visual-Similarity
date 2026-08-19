@@ -53,7 +53,7 @@ def retrieve_top_k_similar(
     # ``encoder.encode`` returns one row per query image, in input order, so the
     # whole batch is searched at once: FAISS is far faster on one ``(M, D)``
     # matrix than on a per-query loop.
-    query_matrix = np.asarray(store.encoder.encode(query_images))
+    query_matrix = np.asarray(store.encoder.embed(query_images))
     if query_matrix.ndim == 1:
         query_matrix = query_matrix.reshape(1, -1)
     if query_matrix.shape[0] == 0:

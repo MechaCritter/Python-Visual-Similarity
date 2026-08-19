@@ -17,7 +17,7 @@ def encoder_to_dict(encoder: Encoder) -> dict[str, Any]:
     """
     Serialise an encoder into a JSON-safe state dictionary.
 
-    :param encoder: A :class:`~pyvisim.encoders.ImageEncoderBase` subclass
+    :param encoder: A :class:`~pyvisim.encoders.ImageEmbedderBase` subclass
         instance or a :class:`~pyvisim.encoders.Pipeline`.
     :return: The encoder's ``to_dict`` output.
     :raises TypeError: If ``encoder`` does not expose a ``to_dict`` method.

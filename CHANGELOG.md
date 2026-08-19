@@ -29,6 +29,9 @@ existing implementations under `docs/pixelwise/benchmarks` and
 in a notebook in the "examples" repository.
 
 ### Breaking
+- ⚠️ `ImageEncoderBase` is renamed to `ImageEmbedderBase` and its `encode()`
+  method to `embed()`, matching `ClipEmbedder` and the Siamese networks. Rename
+  the calls on `VLADEncoder`, `FisherVectorEncoder` and `Pipeline` accordingly.
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
   (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
   class now lives in `pyvisim.neural_networks.siamese._base_siamese`):

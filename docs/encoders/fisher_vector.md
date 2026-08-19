@@ -46,7 +46,7 @@ For example, a fully reproducible encoder that keeps the best of five EM runs:
 fisher = FisherVectorEncoder(n_components=256, gmm_params={"rng": 0, "n_init": 5})
 ```
 
-## How `encode` works
+## How `embed` works
 
 For each image:
 

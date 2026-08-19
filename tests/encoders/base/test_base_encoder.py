@@ -94,13 +94,13 @@ def test_load_clustering_model_from_sklearn_fisher() -> None:
     assert np.array_equal(encoder.clustering_model.means, sklearn_model.means_)
 
 
-# §3.2 ImageEncoderBase shared behaviour (exercised via VLADEncoder)
+# §3.2 ImageEmbedderBase shared behaviour (exercised via VLADEncoder)
 
 
 class _NoModelEncoder(ClusteringBasedEncoder):
     """Minimal concrete encoder used to test the "no clustering model" path."""
 
-    def encode(self, images: Iterable[np.ndarray], flatten: bool = True) -> np.ndarray:
+    def embed(self, images: Iterable[np.ndarray], flatten: bool = True) -> np.ndarray:
         """Unused stub; ``learn`` fails before encoding is ever reached."""
         raise NotImplementedError
 
@@ -213,8 +213,8 @@ def test_load_roundtrip_same_encoding(
     path = learned_vlad.save_to_disk(tmp_path / "model")
     loaded = VLADEncoder.load_from_disk(path)
     assert np.allclose(
-        loaded.encode([checkerboard_image.array]),
-        learned_vlad.encode([checkerboard_image.array]),
+        loaded.embed([checkerboard_image.array]),
+        learned_vlad.embed([checkerboard_image.array]),
     )
 
 

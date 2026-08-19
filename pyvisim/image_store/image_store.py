@@ -54,7 +54,7 @@ class InMemoryImageEmbeddingStore:
         dropped, keeping the first occurrence.
     :param encoder: Encoder used to turn images into feature vectors. To make the
         store serialisable it must implement ``to_dict`` (every
-        :class:`~pyvisim.encoders.ImageEncoderBase` subclass and
+        :class:`~pyvisim.encoders.ImageEmbedderBase` subclass and
         :class:`~pyvisim.encoders.Pipeline` does).
     :param index_type: Index structure to build, one of ``"ivf-flat"``,
         ``"ivf-pq"``, ``"hnsw"`` or ``"int8"``.
@@ -384,4 +384,4 @@ def _encode_single_path(path: str, encoder: Encoder) -> Float32NumpyArray:
         raise  # already clear and specific; let it propagate
     except (UnidentifiedImageError, OSError) as exc:
         raise ValueError(f"Could not read image {path!r}: {exc}") from exc
-    return np.asarray(encoder.encode(rgb_image), dtype=np.float32).flatten()
+    return np.asarray(encoder.embed(rgb_image), dtype=np.float32).flatten()

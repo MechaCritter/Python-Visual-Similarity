@@ -22,7 +22,7 @@ class FlattenEncoder:
     depending on a learned encoder.
     """
 
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,

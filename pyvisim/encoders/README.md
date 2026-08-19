@@ -55,7 +55,7 @@ vlad = VLADEncoder.load_from_disk(path)
 
 ## Similarity Metric Pipeline
 The _Pipeline_ class is designed to handle multiple encoders simultaneously to compute feature vectors. It takes
-a list of encoders (instances of the ImageEncoderBase class defined in the '_base_encoder.py' file) and a function
+a list of encoders (instances of the ImageEmbedderBase class defined in the '_base_encoder.py' file) and a function
 to compute similarity. The pipeline encodes an image using all the encoders included, flatten the resulting
 encoding vectors and concatenate them into a single feature vector, which are then fed into the similarity function.
 

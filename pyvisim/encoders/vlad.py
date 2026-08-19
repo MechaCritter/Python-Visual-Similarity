@@ -138,7 +138,7 @@ class VLADEncoder(ClusteringBasedEncoder):
             )
         super()._set_clustering_model(clustering_model)
 
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,
