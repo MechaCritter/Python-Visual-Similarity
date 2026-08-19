@@ -13,7 +13,7 @@ API reference
    :inherited-members: Module
    :show-inheritance:
 
-.. autoclass:: pyvisim.neural_networks.PairwiseSiameseNetwork
+.. autoclass:: pyvisim.neural_networks.BCESiameseNetwork
    :members:
    :inherited-members: Module
    :show-inheritance:

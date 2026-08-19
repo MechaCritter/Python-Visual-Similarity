@@ -24,7 +24,7 @@ class SimilarityMetric(abc.ABC):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Compute a similarity score between two images.
+        Compute a similarity score between two (batches of) images.
 
         :param image1: First (batch of) image(s) as ``MatLike`` (NumPy array,
             torch tensor or array-like).

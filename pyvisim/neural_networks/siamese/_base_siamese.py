@@ -28,10 +28,12 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
     - :class:`ContrastiveSiameseNetwork` compares the branch embeddings with a
       fixed metric (e.g. cosine) and is trained with a contrastive loss
       (Hadsell, Chopra & LeCun, 2006).
-    - :class:`PairwiseSiameseNetwork` feeds the component-wise L1 distance of
+    - :class:`BCESiameseNetwork` feeds the component-wise L1 distance of
       the branch features into a learned scoring layer that outputs the
       probability of the two images belonging to the same class
-      (Koch, Zemel & Salakhutdinov, 2015).
+      (Koch, Zemel & Salakhutdinov, 2015). It has no similarity-preserving
+      embedding space and therefore overrides :meth:`embed` to raise
+      :class:`NotImplementedError`.
 
     Subclasses must implement :meth:`_forward_once` (the single-branch pass
     used by :meth:`embed`) and :meth:`similarity_score`, and must finish their
@@ -256,10 +258,6 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
     ) -> FloatNumpyArray:
         """
         Embeds one or more images into a batch of embedding vectors.
-
-        All images are preprocessed, stacked into a single batch and passed
-        through the network in one forward pass; see :meth:`_forward_once` of
-        the concrete class for the exact form of the embedding.
 
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images.

@@ -160,16 +160,16 @@ have any suggestions or questions!
    - Learn a similarity function directly from pairs of images with a Siamese network (needs the `nn` extra: `pip install "pyvisim[nn]"`).
    - Two variants are available: `ContrastiveSiameseNetwork` compares L2-normalized embeddings with a fixed
    metric and trains with the bundled `ContrastiveLoss` (Hadsell, Chopra & LeCun, 2006), while
-   `PairwiseSiameseNetwork` learns the comparison itself and returns the probability that two images
+   `BCESiameseNetwork` learns the comparison itself and returns the probability that two images
    show the same class (Koch et al., 2015). Both come with a ready-to-run training script:
 
      ```python
-     from pyvisim.neural_networks import ContrastiveSiameseNetwork, PairwiseSiameseNetwork
+     from pyvisim.neural_networks import ContrastiveSiameseNetwork, BCESiameseNetwork
 
      model = ContrastiveSiameseNetwork(backbone="resnet18", embedding_dim=128)
      score = model.similarity_score(image1, image2)  # cosine similarity in [-1, 1]
 
-     classifier = PairwiseSiameseNetwork(backbone="resnet18", embedding_dim=128)
+     classifier = BCESiameseNetwork(backbone="resnet18", embedding_dim=128)
      probability = classifier.similarity_score(image1, image2)  # P(same class) in (0, 1)
      ```
      See the [neural networks docs](pyvisim/neural_networks/README.md) for more details.

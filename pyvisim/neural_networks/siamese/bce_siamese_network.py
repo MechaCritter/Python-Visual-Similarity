@@ -11,7 +11,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 
-class PairwiseSiameseNetwork(SiameseNetworkBase):
+class BCESiameseNetwork(SiameseNetworkBase):
     """
     Siamese network that classifies image pairs, proposed in
     `Koch, G., Zemel, R., & Salakhutdinov, R. (2015). Siamese Neural Networks
@@ -58,7 +58,7 @@ class PairwiseSiameseNetwork(SiameseNetworkBase):
         on the backbone. See :meth:`_get_imagenet_transform`.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
-        ImageNet. If you are loading the ``PairwiseSiameseNetwork`` from a
+        ImageNet. If you are loading the ``BCESiameseNetwork`` from a
         checkpoint, set this to ``False`` to avoid downloading the weights again.
     :raises ValueError: If ``embedding_dim`` is not a positive integer or if
         ``backbone`` is not a supported backbone name.
@@ -95,6 +95,19 @@ class PairwiseSiameseNetwork(SiameseNetworkBase):
         """
         features = self._backbone(x)
         return torch.sigmoid(self._head(features))
+
+    def embed(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> FloatNumpyArray:
+        """Not implemented for this class. Please do not use!"""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not learn to generate embeddings. "
+            "Use the ContrastiveSiameseNetwork for that purpose."
+        )
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         """
@@ -137,33 +150,7 @@ class PairwiseSiameseNetwork(SiameseNetworkBase):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        """
-        Computes the same-class probability matrix between two image batches.
 
-        Both inputs are encoded by the shared branch and every cross pair is
-        scored through the learned layer, so entry ``(i, j)`` is the model's
-        probability that ``image1[i]`` and ``image2[j]`` show the same class.
-
-        NOTE
-        ----
-        All ``N * M`` component-wise distance vectors are materialized at once,
-        so memory grows with ``N * M * embedding_dim``. Score very large
-        collections in chunks.
-
-        :param image1: First (batch of) image(s) as ``MatLike``.
-        :param image2: Second (batch of) image(s) as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: Probability matrix of shape ``(N, M)`` with values in
-            ``(0, 1)``.
-        """
         features1 = self._encode_images(image1, dims=dims, value_range=value_range)
         features2 = self._encode_images(image2, dims=dims, value_range=value_range)
         distances = torch.abs(features1.unsqueeze(1) - features2.unsqueeze(0))
