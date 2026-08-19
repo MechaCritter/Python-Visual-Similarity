@@ -9,9 +9,10 @@ import pytest
 import torch
 from torchvision import transforms
 
+from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.neural_networks import BCESiameseNetwork
 
-from ._stubs import (
+from .._stubs import (
     FlattenBackbone,
     MeanBackbone,
     build_stub_bce_model,
@@ -22,6 +23,9 @@ from ._stubs import (
     make_solid_rgb_image,
 )
 
+#: Embedding size of the shared ``bce_model`` fixture.
+EMBEDDING_DIM = 4
+
 
 def _sigmoid(x: float) -> float:
     """Reference logistic function for hand-computed expectations.
@@ -30,6 +34,12 @@ def _sigmoid(x: float) -> float:
     :return: ``1 / (1 + exp(-x))``.
     """
     return 1.0 / (1.0 + math.exp(-x))
+
+
+@pytest.fixture
+def bce_model() -> BCESiameseNetwork:
+    torch.manual_seed(0)
+    return build_stub_bce_model(MeanBackbone(), embedding_dim=EMBEDDING_DIM)
 
 
 # §1 construction
@@ -47,29 +57,28 @@ def test_non_positive_embedding_dim_raises() -> None:
         build_stub_bce_model(MeanBackbone(), embedding_dim=0)
 
 
-def test_scorer_maps_embedding_to_single_logit() -> None:
+def test_scorer_maps_embedding_to_single_logit(bce_model: BCESiameseNetwork) -> None:
     """The scoring layer is a ``Linear(embedding_dim, 1)``."""
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
-    assert isinstance(model.scorer, torch.nn.Linear)
-    assert model.scorer.in_features == 4
-    assert model.scorer.out_features == 1
+    assert isinstance(bce_model.scorer, torch.nn.Linear)
+    assert bce_model.scorer.in_features == EMBEDDING_DIM
+    assert bce_model.scorer.out_features == 1
 
 
-def test_head_input_matches_backbone_output_dim() -> None:
+def test_head_input_matches_backbone_output_dim(bce_model: BCESiameseNetwork) -> None:
     """The head's ``in_features`` equals the backbone's ``output_dim``."""
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
-    assert isinstance(model.head, torch.nn.Linear)
-    assert model.head.in_features == MeanBackbone.output_dim
+    assert isinstance(bce_model.head, torch.nn.Linear)
+    assert bce_model.head.in_features == MeanBackbone.output_dim
 
 
 # §2 branch output: sigmoid features, not normalized embeddings
 
 
-def test_embed_raises_not_implemented_error() -> None:
+def test_embed_raises_not_implemented_error(bce_model: BCESiameseNetwork) -> None:
     """``embed`` is unsupported: the branch features are not an embedding."""
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=8)
-    with pytest.raises(NotImplementedError, match="does not expose an embedding"):
-        model.embed(make_random_rgb_image(seed=1))
+    with pytest.raises(
+        NotImplementedError, match="does not learn to generate embeddings"
+    ):
+        bce_model.embed(make_random_rgb_image(seed=1))
 
 
 def test_branch_applies_sigmoid_to_head_output() -> None:
@@ -90,11 +99,11 @@ def test_branch_applies_sigmoid_to_head_output() -> None:
     assert np.allclose(features, _sigmoid(51.0 / 255.0), atol=1e-6)
 
 
-def test_branch_output_is_bounded_but_not_unit_norm() -> None:
+def test_branch_output_is_bounded_but_not_unit_norm(
+    bce_model: BCESiameseNetwork,
+) -> None:
     """Branch features lie strictly in ``(0, 1)`` and are not L2-normalized."""
-    torch.manual_seed(0)
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=8)
-    features = model._encode_images(
+    features = bce_model._encode_images(
         [make_random_rgb_image(seed=1), make_random_rgb_image(seed=2)]
     ).numpy()
     assert np.all(features > 0.0)
@@ -170,67 +179,63 @@ def test_similarity_score_matches_hand_computed_probability() -> None:
     assert score[0, 0] == pytest.approx(_sigmoid(logit), abs=1e-5)
 
 
-def test_identical_images_score_sigmoid_of_bias() -> None:
+def test_identical_images_score_sigmoid_of_bias(bce_model: BCESiameseNetwork) -> None:
     """For identical inputs all L1 distances vanish, leaving ``sigmoid(b)``.
 
     A perfect match therefore scores the learned operating point, not 1.
     """
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
-    install_scorer(model, weights=[2.0, -3.0, 0.5, 1.0], bias=-1.0)
+    install_scorer(bce_model, weights=[2.0, -3.0, 0.5, 1.0], bias=-1.0)
     image = make_random_rgb_image(seed=11)
-    score = model.similarity_score(image, image.copy())
+    score = bce_model.similarity_score(image, image.copy())
     assert score[0, 0] == pytest.approx(_sigmoid(-1.0), abs=1e-6)
 
 
-def test_similarity_score_uses_learned_scoring_layer() -> None:
+def test_similarity_score_uses_learned_scoring_layer(
+    bce_model: BCESiameseNetwork,
+) -> None:
     """The score equals the formula evaluated on the branch features.
 
     Reads the (randomly initialised) scoring parameters back and recomputes
     ``sigmoid(sum(alpha * |h1 - h2|) + b)`` from the branch outputs.
     """
-    torch.manual_seed(0)
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     image1 = make_random_rgb_image(seed=1)
     image2 = make_random_rgb_image(seed=2)
 
-    h1 = model._encode_images(image1).numpy()[0]
-    h2 = model._encode_images(image2).numpy()[0]
-    assert isinstance(model.scorer, torch.nn.Linear)
-    weights = model.scorer.weight.detach().cpu().numpy()[0]
-    bias = float(model.scorer.bias.detach().cpu())
+    h1 = bce_model._encode_images(image1).numpy()[0]
+    h2 = bce_model._encode_images(image2).numpy()[0]
+    assert isinstance(bce_model.scorer, torch.nn.Linear)
+    weights = bce_model.scorer.weight.detach().cpu().numpy()[0]
+    bias = float(bce_model.scorer.bias.detach().cpu())
     expected = _sigmoid(float(np.sum(weights * np.abs(h1 - h2))) + bias)
 
-    assert model.similarity_score(image1, image2)[0, 0] == pytest.approx(
+    assert bce_model.similarity_score(image1, image2)[0, 0] == pytest.approx(
         expected, abs=1e-5
     )
 
 
-def test_similarity_matrix_shape() -> None:
+def test_similarity_matrix_shape(bce_model: BCESiameseNetwork) -> None:
     """Two batches of sizes N and M produce an ``(N, M)`` probability matrix."""
-    network = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
-    score = network.similarity_score(batch_a, batch_b)
+    score = bce_model.similarity_score(batch_a, batch_b)
     assert score.shape == (2, 3)
 
 
-def test_similarity_scores_are_probabilities() -> None:
+def test_similarity_scores_are_probabilities(bce_model: BCESiameseNetwork) -> None:
     """Every entry of the score matrix lies strictly in ``(0, 1)``."""
-    network = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
-    score = network.similarity_score(batch_a, batch_b)
+    score = bce_model.similarity_score(batch_a, batch_b)
     assert np.all(score > 0.0)
     assert np.all(score < 1.0)
 
 
-def test_similarity_matrix_is_symmetric() -> None:
+def test_similarity_matrix_is_symmetric(bce_model: BCESiameseNetwork) -> None:
     """Swapping the inputs transposes the probability matrix."""
-    network = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
-    forward_score = network.similarity_score(batch_a, batch_b)
-    backward_score = network.similarity_score(batch_b, batch_a)
+    forward_score = bce_model.similarity_score(batch_a, batch_b)
+    backward_score = bce_model.similarity_score(batch_b, batch_a)
     assert np.allclose(forward_score, backward_score.T, atol=1e-6)
 
 
@@ -267,11 +272,56 @@ def test_bce_training_step_reduces_loss_on_separable_pairs() -> None:
 # §6 scorer property (read-only by design)
 
 
-def test_scorer_is_read_only() -> None:
+def test_scorer_is_read_only(bce_model: BCESiameseNetwork) -> None:
     """Assigning to ``scorer`` raises instead of silently registering a module."""
-    model = build_stub_bce_model(MeanBackbone(), embedding_dim=4)
-    original_scorer = model.scorer
+    original_scorer = bce_model.scorer
     with pytest.raises(AttributeError):
-        model.scorer = torch.nn.Linear(4, 1)  # type: ignore[misc]
-    assert "scorer" not in model._modules
-    assert model.scorer is original_scorer
+        bce_model.scorer = torch.nn.Linear(EMBEDDING_DIM, 1)  # type: ignore[misc]
+    assert "scorer" not in bce_model._modules
+    assert bce_model.scorer is original_scorer
+
+
+# §7 Oxford Flowers integration: real data through the stub backbone
+
+
+def test_embed_on_flower_images_raises(
+    bce_model: BCESiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """Real images are no exception: this network exposes no embedding."""
+    with pytest.raises(NotImplementedError):
+        bce_model.embed(flower_subset[0][0])
+
+
+def test_identical_flower_scores_sigmoid_of_bias(
+    bce_model: BCESiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """A flower compared with itself scores the learned operating point."""
+    image = flower_subset[0][0]
+    score = bce_model.similarity_score(image, image.copy())
+    assert isinstance(bce_model.scorer, torch.nn.Linear)
+    bias = float(bce_model.scorer.bias.detach().cpu())
+    assert score.shape == (1, 1)
+    assert score[0, 0] == pytest.approx(_sigmoid(bias), abs=1e-5)
+
+
+def test_similarity_matrix_on_flowers(
+    bce_model: BCESiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """Batches of flowers produce an ``(N, M)`` matrix of probabilities."""
+    batch_a = [flower_subset[index][0] for index in (0, 1)]
+    batch_b = [flower_subset[index][0] for index in (2, 3, 4)]
+    score = bce_model.similarity_score(batch_a, batch_b)
+    assert score.shape == (2, 3)
+    assert np.all(score > 0.0)
+    assert np.all(score < 1.0)
+
+
+def test_flower_similarity_is_symmetric(
+    bce_model: BCESiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """Swapping two real flower images transposes the probability matrix."""
+    batch_a = [flower_subset[index][0] for index in (0, 1)]
+    batch_b = [flower_subset[index][0] for index in (2, 3, 4)]
+    forward_score = bce_model.similarity_score(batch_a, batch_b)
+    backward_score = bce_model.similarity_score(batch_b, batch_a)
+    assert np.allclose(forward_score, backward_score.T, atol=1e-6)
