@@ -7,8 +7,6 @@ import torch
 
 from pyvisim.neural_networks.siamese import ResNetBackbone
 
-from ._stubs import resnet18_weights_cached
-
 
 @pytest.fixture(scope="module")
 def backbone() -> ResNetBackbone:
@@ -60,12 +58,11 @@ def test_eval_forward_is_deterministic(backbone: ResNetBackbone) -> None:
     assert torch.equal(first, second)
 
 
-@pytest.mark.skipif(
-    not resnet18_weights_cached(),
-    reason="pretrained ResNet-18 weights not cached locally",
-)
-def test_pretrained_backbone_loads_from_cache() -> None:
-    """``pretrained=True`` loads the ImageNet weights and keeps the interface."""
+def test_pretrained_backbone_loads_imagenet_weights() -> None:
+    """``pretrained=True`` loads the ImageNet weights and keeps the interface.
+
+    The weights are downloaded on first use and cached by ``torch.hub``.
+    """
     backbone = ResNetBackbone(pretrained=True)
     features = backbone(torch.randn(1, 3, 224, 224))
     assert features.shape == (1, 512)

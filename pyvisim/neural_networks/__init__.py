@@ -1,11 +1,11 @@
 from .clip import ClipEmbedder
 from .siamese import (
+    BCESiameseNetwork,
     ContrastiveSiameseNetwork,
-    PairwiseSiameseNetwork,
 )
 
 __all__ = [
-    "ContrastiveSiameseNetwork",
-    "PairwiseSiameseNetwork",
+    "BCESiameseNetwork",
     "ClipEmbedder",
+    "ContrastiveSiameseNetwork",
 ]
