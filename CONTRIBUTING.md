@@ -68,6 +68,17 @@ please run this command to compile them:
 make build-ext
 ```
 
+## Downloaded test assets
+
+Parts of the test suite need the Oxford Flowers dataset and the pretrained
+torchvision backbones, which are downloaded on first use into the platform cache
+directory (and into `TORCH_HOME` for the weights). You can fetch
+them upfront to save some time in the CI:
+
+```bash
+uv run python .github/scripts/prefetch_assets.py
+```
+
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.
