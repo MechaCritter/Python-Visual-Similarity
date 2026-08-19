@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Fixed
+- `make test-types` no longer prints a `DeprecationWarning`: the
+  `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
+- The development interpreter is pinned to Python 3.10 (`.python-version`), the
+  project's minimum supported version and the one every CI job already uses.
 - The `ruff check` CI step no longer fails on import sorting (`I001`) in
   `tests/neural_networks/test_oxford_flowers_quick.py` and
   `test_oxford_flowers_slow.py`.
