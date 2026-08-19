@@ -1,11 +1,4 @@
-"""Unit tests for :class:`pyvisim.neural_networks.ContrastiveSiameseNetwork`.
-
-The model resolves backbone *names* to pretrained networks, so these tests
-install tiny deterministic stub backbones (see :mod:`._stubs`) instead: the
-embedding math then becomes exactly hand-computable and no weights are ever
-downloaded. Integration with the real ResNet-18 is covered by the Oxford
-Flowers tests.
-"""
+"""Unit tests for :class:`pyvisim.neural_networks.ContrastiveSiameseNetwork`."""
 
 from __future__ import annotations
 
@@ -17,9 +10,10 @@ import torch
 from torchvision import transforms
 
 from pyvisim._errors import InvalidImageError
+from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.neural_networks import ContrastiveSiameseNetwork
 
-from ._stubs import (
+from .._stubs import (
     FlattenBackbone,
     MeanBackbone,
     build_stub_model,
@@ -144,7 +138,7 @@ def test_forward_applies_head_before_normalizing() -> None:
 
 
 @pytest.fixture
-def model() -> ContrastiveSiameseNetwork:
+def contrastive_model() -> ContrastiveSiameseNetwork:
     """A small deterministic model for image-level tests.
 
     :return: Model with a :class:`MeanBackbone` and a 4-dim embedding space.
@@ -153,88 +147,104 @@ def model() -> ContrastiveSiameseNetwork:
     return build_stub_model(MeanBackbone(), embedding_dim=4)
 
 
-def test_embed_single_image_shape_and_norm(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_single_image_shape_and_norm(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """One HWC image embeds to a single unit-norm float32 row."""
-    embeddings = model.embed(make_random_rgb_image(seed=1))
+    embeddings = contrastive_model.embed(make_random_rgb_image(seed=1))
     assert embeddings.shape == (1, 4)
     assert embeddings.dtype == np.float32
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx(1.0, abs=1e-5)
 
 
-def test_embed_list_of_images(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_list_of_images(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """A list of N images embeds to an ``(N, embedding_dim)`` batch."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2, 3)]
-    embeddings = model.embed(images)
+    embeddings = contrastive_model.embed(images)
     assert embeddings.shape == (3, 4)
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx([1.0] * 3, abs=1e-5)
 
 
-def test_embed_batch_matches_single_encoding(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_batch_matches_single_encoding(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """Batched embedding equals embedding each image individually."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2, 3)]
-    batched = model.embed(images)
-    single = model.embed(images[0])
+    batched = contrastive_model.embed(images)
+    single = contrastive_model.embed(images[0])
     assert np.allclose(batched[0], single[0], atol=1e-6)
 
 
-def test_embed_bhwc_array_matches_list(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_bhwc_array_matches_list(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """A stacked BHWC array yields the same embeddings as a list of images."""
     images = [make_random_rgb_image(seed=s) for s in (1, 2)]
-    from_list = model.embed(images)
-    from_batch = model.embed(np.stack(images), dims="BHWC")
+    from_list = contrastive_model.embed(images)
+    from_batch = contrastive_model.embed(np.stack(images), dims="BHWC")
     assert np.array_equal(from_list, from_batch)
 
 
-def test_embed_chw_matches_hwc(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_chw_matches_hwc(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """The same image in CHW layout yields the same embedding as in HWC."""
     image = make_random_rgb_image(seed=7)
-    from_hwc = model.embed(image)
-    from_chw = model.embed(image.transpose(2, 0, 1), dims="CHW")
+    from_hwc = contrastive_model.embed(image)
+    from_chw = contrastive_model.embed(image.transpose(2, 0, 1), dims="CHW")
     assert np.array_equal(from_hwc, from_chw)
 
 
-def test_embed_unit_value_range_matches_uint8(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_unit_value_range_matches_uint8(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """A float image in [0, 1] embeds identically to its uint8 counterpart."""
     checker = np.zeros((8, 8, 3), dtype=np.uint8)
     checker[::2, ::2] = 255
-    from_uint8 = model.embed(checker)
-    from_float = model.embed(checker.astype(np.float64) / 255.0, value_range=(0.0, 1.0))
+    from_uint8 = contrastive_model.embed(checker)
+    from_float = contrastive_model.embed(
+        checker.astype(np.float64) / 255.0, value_range=(0.0, 1.0)
+    )
     assert np.array_equal(from_uint8, from_float)
 
 
-def test_embed_grayscale_image(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_grayscale_image(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """A single-channel image is promoted to RGB and embedded normally."""
     gray = np.full((16, 16), 100, dtype=np.uint8)
-    embeddings = model.embed(gray, dims="HW")
+    embeddings = contrastive_model.embed(gray, dims="HW")
     assert embeddings.shape == (1, 4)
 
 
-def test_embed_empty_input_raises(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_empty_input_raises(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """An empty image collection raises ``ValueError``."""
     with pytest.raises(ValueError, match="at least one image"):
-        model.embed([])
+        contrastive_model.embed([])
 
 
-def test_embed_rejects_string_input(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_rejects_string_input(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """A string is not an image and raises ``InvalidImageError``."""
     with pytest.raises(InvalidImageError):
-        model.embed("not-an-image.jpg")
+        contrastive_model.embed("not-an-image.jpg")
 
 
-def test_embed_is_deterministic(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_is_deterministic(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """Embedding the same image twice yields identical embeddings."""
     image = make_random_rgb_image(seed=5)
-    assert np.array_equal(model.embed(image), model.embed(image))
+    assert np.array_equal(
+        contrastive_model.embed(image), contrastive_model.embed(image)
+    )
 
 
-def test_embed_restores_training_mode(model: ContrastiveSiameseNetwork) -> None:
+def test_embed_restores_training_mode(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """``embed`` runs in eval mode but restores the previous training state."""
-    model.train()
-    model.embed(make_solid_rgb_image(value=10))
-    assert model.training is True
-    model.eval()
-    model.embed(make_solid_rgb_image(value=10))
-    assert model.training is False
+    contrastive_model.train()
+    contrastive_model.embed(make_solid_rgb_image(value=10))
+    assert contrastive_model.training is True
+    contrastive_model.eval()
+    contrastive_model.embed(make_solid_rgb_image(value=10))
+    assert contrastive_model.training is False
 
 
 # §5 embed: mathematical correctness through the full public path
@@ -281,49 +291,51 @@ def test_embed_preserves_pixel_ratios() -> None:
 
 
 def test_similarity_of_identical_images_is_one(
-    model: ContrastiveSiameseNetwork,
+    contrastive_model: ContrastiveSiameseNetwork,
 ) -> None:
     """Cosine similarity of an image with itself is 1."""
     image = make_random_rgb_image(seed=11)
-    score = model.similarity_score(image, image.copy())
+    score = contrastive_model.similarity_score(image, image.copy())
     assert score.shape == (1, 1)
     assert score[0, 0] == pytest.approx(1.0, abs=1e-5)
 
 
-def test_similarity_matrix_shape(model: ContrastiveSiameseNetwork) -> None:
+def test_similarity_matrix_shape(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """Two batches of sizes N and M produce an ``(N, M)`` similarity matrix."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
-    score = model.similarity_score(batch_a, batch_b)
+    score = contrastive_model.similarity_score(batch_a, batch_b)
     assert score.shape == (2, 3)
 
 
-def test_similarity_scores_bounded_by_one(model: ContrastiveSiameseNetwork) -> None:
+def test_similarity_scores_bounded_by_one(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """Cosine similarities of unit embeddings lie in ``[-1, 1]``."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
-    score = model.similarity_score(batch_a, batch_b)
+    score = contrastive_model.similarity_score(batch_a, batch_b)
     assert np.all(score >= -1.0 - 1e-6)
     assert np.all(score <= 1.0 + 1e-6)
 
 
 def test_similarity_equals_embedding_dot_product(
-    model: ContrastiveSiameseNetwork,
+    contrastive_model: ContrastiveSiameseNetwork,
 ) -> None:
     """On L2-normalized embeddings, cosine similarity is the dot product."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4)]
-    score = model.similarity_score(batch_a, batch_b)
-    expected = model.embed(batch_a) @ model.embed(batch_b).T
+    score = contrastive_model.similarity_score(batch_a, batch_b)
+    expected = contrastive_model.embed(batch_a) @ contrastive_model.embed(batch_b).T
     assert np.allclose(score, expected, atol=1e-5)
 
 
-def test_similarity_is_symmetric(model: ContrastiveSiameseNetwork) -> None:
+def test_similarity_is_symmetric(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """Swapping the inputs transposes the cosine similarity matrix."""
     batch_a = [make_random_rgb_image(seed=s) for s in (1, 2)]
     batch_b = [make_random_rgb_image(seed=s) for s in (3, 4, 5)]
-    forward_score = model.similarity_score(batch_a, batch_b)
-    backward_score = model.similarity_score(batch_b, batch_a)
+    forward_score = contrastive_model.similarity_score(batch_a, batch_b)
+    backward_score = contrastive_model.similarity_score(batch_b, batch_a)
     assert np.allclose(forward_score, backward_score.T, atol=1e-6)
 
 
@@ -352,39 +364,41 @@ def test_unknown_similarity_func_raises() -> None:
 # §7 head and backbone properties (read-only by design)
 
 
-def test_head_property_returns_current_head(model: ContrastiveSiameseNetwork) -> None:
+def test_head_property_returns_current_head(
+    contrastive_model: ContrastiveSiameseNetwork,
+) -> None:
     """The property exposes the projection head module."""
-    assert isinstance(model.head, torch.nn.Linear)
-    assert model.head.out_features == 4
+    assert isinstance(contrastive_model.head, torch.nn.Linear)
+    assert contrastive_model.head.out_features == 4
 
 
 def test_backbone_property_returns_current_backbone(
-    model: ContrastiveSiameseNetwork,
+    contrastive_model: ContrastiveSiameseNetwork,
 ) -> None:
     """The property exposes the feature-extraction backbone module."""
-    assert isinstance(model.backbone, MeanBackbone)
+    assert isinstance(contrastive_model.backbone, MeanBackbone)
 
 
-def test_head_is_read_only(model: ContrastiveSiameseNetwork) -> None:
+def test_head_is_read_only(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """Assigning to ``head`` raises instead of silently registering a module.
 
     ``torch.nn.Module.__setattr__`` would otherwise register the value as an
     orphan ``head`` submodule whose parameters get optimized but never used.
     """
-    original_head = model.head
+    original_head = contrastive_model.head
     with pytest.raises(AttributeError):
-        model.head = torch.nn.Linear(3, 8)  # type: ignore[misc]
-    assert "head" not in model._modules
-    assert model.head is original_head
+        contrastive_model.head = torch.nn.Linear(3, 8)  # type: ignore[misc]
+    assert "head" not in contrastive_model._modules
+    assert contrastive_model.head is original_head
 
 
-def test_backbone_is_read_only(model: ContrastiveSiameseNetwork) -> None:
+def test_backbone_is_read_only(contrastive_model: ContrastiveSiameseNetwork) -> None:
     """Assigning to ``backbone`` raises instead of silently registering a module."""
-    original_backbone = model.backbone
+    original_backbone = contrastive_model.backbone
     with pytest.raises(AttributeError):
-        model.backbone = MeanBackbone()  # type: ignore[misc]
-    assert "backbone" not in model._modules
-    assert model.backbone is original_backbone
+        contrastive_model.backbone = MeanBackbone()  # type: ignore[misc]
+    assert "backbone" not in contrastive_model._modules
+    assert contrastive_model.backbone is original_backbone
 
 
 # §8 device handling
@@ -398,3 +412,49 @@ def test_embed_on_cuda_returns_cpu_numpy() -> None:
     embeddings = model.embed(make_random_rgb_image(seed=1))
     assert isinstance(embeddings, np.ndarray)
     assert embeddings.shape == (1, 4)
+
+
+# §9 Oxford Flowers integration: real data through the stub backbone
+
+
+def test_embed_on_flower_images_is_deterministic(
+    contrastive_model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """Real images are no exception: embedding one twice gives the same rows."""
+    image = flower_subset[0][0]
+    embeddings = contrastive_model.embed(image)
+    assert embeddings.shape == (1, 4)
+    assert np.array_equal(embeddings, contrastive_model.embed(image))
+
+
+def test_identical_flower_similarity_is_one(
+    contrastive_model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """A flower compared with itself has cosine similarity 1."""
+    image = flower_subset[0][0]
+    score = contrastive_model.similarity_score(image, image.copy())
+    assert score.shape == (1, 1)
+    assert score[0, 0] == pytest.approx(1.0, abs=1e-5)
+
+
+def test_similarity_matrix_on_flowers(
+    contrastive_model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """Batches of flowers produce an ``(N, M)`` matrix of cosine similarities."""
+    batch_a = [flower_subset[index][0] for index in (0, 1)]
+    batch_b = [flower_subset[index][0] for index in (2, 3, 4)]
+    score = contrastive_model.similarity_score(batch_a, batch_b)
+    assert score.shape == (2, 3)
+    assert np.all(score >= -1.0 - 1e-6)
+    assert np.all(score <= 1.0 + 1e-6)
+
+
+def test_flower_similarity_is_symmetric(
+    contrastive_model: ContrastiveSiameseNetwork, flower_subset: OxfordFlowerDataset
+) -> None:
+    """Swapping two real flower images transposes the similarity matrix."""
+    batch_a = [flower_subset[index][0] for index in (0, 1)]
+    batch_b = [flower_subset[index][0] for index in (2, 3, 4)]
+    forward_score = contrastive_model.similarity_score(batch_a, batch_b)
+    backward_score = contrastive_model.similarity_score(batch_b, batch_a)
+    assert np.allclose(forward_score, backward_score.T, atol=1e-6)
