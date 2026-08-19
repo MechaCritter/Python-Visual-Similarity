@@ -32,7 +32,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 language = "en"
 
 # The narrative pages included from docs/ link to repository source files
-# (e.g. ../pyvisim/encoders/vlad.py), which have no HTML equivalent.
+# (e.g. ../pyvisim/classic/vlad.py), which have no HTML equivalent.
 # Their H1 titles are skipped via ':start-line: 1' so that each rST page owns
 # the top-level heading, which makes the included content start at H2.
 suppress_warnings = ["myst.xref_missing", "myst.header"]

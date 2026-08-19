@@ -1,0 +1,179 @@
+from typing import Any, cast
+
+import numpy as np
+
+from .._base_classes import FeatureExtractorBase
+from ..typing import (
+    Float64NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+)
+from ..utils.image_utils import iter_images
+from ._base_embedder import ClusteringBasedEmbedder
+from ._clustering import PCA, ClusteringModelBase, DiagCovarGaussianMixture
+
+
+class FisherVectorEmbedder(ClusteringBasedEmbedder):
+    """
+    This class serves as an embedder that transforms input images into Fisher Vector descriptors.
+
+    The Fisher Vector representation is based on the gradients of the GMM parameters
+    (weights, means, and covariances) with respect to the feature descriptors extracted
+    from the images. The representation is optionally power-normalized and L2-normalized.
+
+    The Gaussian Mixture Model is configured from the parameters passed to
+    this constructor (``n_components`` plus the optional ``gmm_params``
+    dictionary) and fitted by calling :meth:`learn`. An optional PCA
+    model for dimensionality reduction is configured the same way via
+    ``pca_params``.
+
+    The output when calling `embed` has shape (2 * num_clusters * feature_dim + num_clusters,).
+
+    :param feature_extractor: Feature extractor instance. Default is RootSIFT
+    :param n_components: Number of Gaussian mixture components (visual words) to use.
+    :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/classic/fisher_vector.md#gmm-parameters``.
+    :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
+        ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/classic/pca.md#parameters``.
+    :param power_norm_weight: Exponent for power normalization
+    :param norm_order: Norm order for normalization (default: 2).
+    :param epsilon: Small constant to avoid division by zero.
+    :param flatten: Whether to flatten the computed embedding vector (default: True).
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
+                                        than the PCA model's output size, the PCA model will be reset to None.
+
+    .. rubric:: References
+
+    - [1] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local Image Descriptors into Compact Codes," IEEE.
+    """
+
+    _clustering_model_cls = DiagCovarGaussianMixture
+
+    def __init__(
+        self,
+        feature_extractor: FeatureExtractorBase | None = None,
+        n_components: int = 256,
+        gmm_params: dict[str, Any] | None = None,
+        pca_params: dict[str, Any] | None = None,
+        power_norm_weight: float = 0.5,
+        norm_order: int = 2,
+        epsilon: float = 1e-9,
+        flatten: bool = True,
+        similarity_func: str = "cosine",
+        raise_error_when_pca_incompatible: bool = False,
+    ):
+        if gmm_params and "n_components" in gmm_params:
+            raise ValueError(
+                "Pass 'n_components' directly to FisherVectorEmbedder instead of inside gmm_params."
+            )
+        clustering_model = DiagCovarGaussianMixture(
+            n_components=n_components, **(gmm_params or {})
+        )
+        pca = PCA(**pca_params) if pca_params is not None else None
+        super().__init__(
+            feature_extractor=feature_extractor,
+            clustering_model=clustering_model,
+            similarity_func=similarity_func,
+            power_norm_weight=power_norm_weight,
+            norm_order=norm_order,
+            epsilon=epsilon,
+            flatten=flatten,
+            pca=pca,
+            raise_error_when_pca_incompatible=raise_error_when_pca_incompatible,
+        )
+
+    @property
+    def clustering_model(self) -> DiagCovarGaussianMixture:
+        return cast(DiagCovarGaussianMixture, self._clustering_model)
+
+    def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
+        if not isinstance(clustering_model, DiagCovarGaussianMixture):
+            raise ValueError(
+                f"The clustering model must be an instance of pyvisim.classic._clustering.DiagCovarGaussianMixture, not {type(clustering_model)}"
+            )
+        super()._set_clustering_model(clustering_model)
+
+    def embed(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> Float64NumpyArray:
+        """
+        Embed one or more images into Fisher Vector descriptors.
+
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: ``(N, 2 × n_components × feature_dim + n_components)`` array of
+            Fisher Vector embeddings.
+        """
+        all_embeddings = []
+        for image in iter_images(images, dims=dims, value_range=value_range):
+            descriptors: FloatNumpyArray = self.feature_extractor(image)
+            if self.pca:
+                descriptors = self.pca.transform(descriptors.astype(np.float32))
+            num_descriptors = len(descriptors)
+
+            mixture_weights = self.clustering_model.weights
+            means = self.clustering_model.means
+            covariances = self.clustering_model.covariances
+
+            posterior_probabilities = self.clustering_model.predict_proba(descriptors)
+
+            # Statistics necessary to compute GMM gradients wrt its parameters
+            pp_sum = posterior_probabilities.mean(axis=0, keepdims=True).T
+            pp_x = posterior_probabilities.T.dot(descriptors) / num_descriptors
+            pp_x_2 = (
+                posterior_probabilities.T.dot(np.power(descriptors, 2))
+                / num_descriptors
+            )
+
+            # Compute GMM gradients wrt its parameters
+            d_pi = pp_sum.squeeze() - mixture_weights
+
+            d_mu = pp_x - pp_sum * means
+
+            d_sigma_t1 = pp_sum * np.power(means, 2)
+            d_sigma_t2 = pp_sum * covariances
+            d_sigma_t3 = 2 * pp_x * means
+            d_sigma = -pp_x_2 - d_sigma_t1 + d_sigma_t2 + d_sigma_t3
+
+            # Apply analytical diagonal normalization
+            sqrt_mixture_weights = np.sqrt(mixture_weights)
+            d_pi /= sqrt_mixture_weights
+            d_mu /= sqrt_mixture_weights[:, np.newaxis] * np.sqrt(covariances)
+            d_sigma /= np.sqrt(2) * sqrt_mixture_weights[:, np.newaxis] * covariances
+
+            # Concatenate GMM gradients to form Fisher vector representation
+            descriptor_vector = np.hstack((d_pi, d_mu.ravel(), d_sigma.ravel()))
+            descriptor_vector = descriptor_vector.reshape(1, -1)
+
+            # Power normalization and L2 normalization
+            descriptor_vector = np.sign(descriptor_vector) * np.power(
+                np.abs(descriptor_vector), self.power_norm_weight
+            )
+            norm = (
+                np.linalg.norm(
+                    descriptor_vector, axis=1, ord=self.norm_order, keepdims=True
+                )
+                + self.epsilon
+            )
+            descriptor_vector = descriptor_vector / norm
+
+            if self.flatten:
+                descriptor_vector = descriptor_vector.flatten()
+            all_embeddings.append(descriptor_vector)
+
+        return np.vstack(all_embeddings)

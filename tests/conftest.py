@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.encoders import FisherVectorEmbedder, VLADEmbedder
+from pyvisim.classic import FisherVectorEmbedder, VLADEmbedder
 
 #: Directory where generated test images are dumped for manual inspection.
 DEBUG_DIR = Path(__file__).parent / "debug"

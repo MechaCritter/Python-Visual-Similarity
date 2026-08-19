@@ -20,7 +20,7 @@ together with all of their public methods.
    :maxdepth: 2
    :caption: API reference
 
-   encoders/index
+   classic/index
    features/index
    image_store
    retrieval/index

@@ -107,7 +107,7 @@ You don't need to convert manually. Just tell the embedder what layout your tens
 
 ```python
 import torch
-from pyvisim.encoders import VLADEmbedder
+from pyvisim.classic import VLADEmbedder
 
 embedder = VLADEmbedder(n_clusters=64)
 embedder.learn(train_images)  # train_images: list of uint8 HWC NumPy arrays

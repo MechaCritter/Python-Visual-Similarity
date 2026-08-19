@@ -3,9 +3,9 @@ pyvisim: A Python library for image similarity analysis using Image Embedders an
 """
 
 __all__ = [
+    "classic",
     "datasets",
     "distance",
-    "encoders",
     "features",
     "eval",
     "functional",

@@ -13,8 +13,8 @@ from typing import Any
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from ..encoders._reconstruct import embedder_from_dict, embedder_to_dict
-from ..encoders._serialization import load_state, save_state
+from ..classic._reconstruct import embedder_from_dict, embedder_to_dict
+from ..classic._serialization import load_state, save_state
 from ..functional import Candidate, retrieve_top_k_similar
 from ..retrieval.index import (
     ImageIndex,
@@ -54,8 +54,8 @@ class InMemoryImageEmbeddingStore:
         dropped, keeping the first occurrence.
     :param embedder: Embedder used to turn images into feature vectors. To make the
         store serialisable it must implement ``to_dict`` (every
-        :class:`~pyvisim.encoders.ImageEmbedderBase` subclass and
-        :class:`~pyvisim.encoders.Pipeline` does).
+        :class:`~pyvisim.classic.ImageEmbedderBase` subclass and
+        :class:`~pyvisim.classic.Pipeline` does).
     :param index_type: Index structure to build, one of ``"ivf-flat"``,
         ``"ivf-pq"``, ``"hnsw"`` or ``"int8"``.
     :param quantizer: Distance metric the index is built for, ``"l2"`` or

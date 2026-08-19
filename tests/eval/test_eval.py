@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.encoders import VLADEmbedder
+from pyvisim.classic import VLADEmbedder
 from pyvisim.eval import top_k_accuracy, top_k_map
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 

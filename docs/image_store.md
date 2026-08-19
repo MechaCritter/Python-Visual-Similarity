@@ -15,7 +15,7 @@ embeddings, so it stays lean even for big galleries.
 ## Building a store
 
 ```python
-from pyvisim.encoders import VLADEmbedder
+from pyvisim.classic import VLADEmbedder
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 
 embedder = VLADEmbedder(n_clusters=64)

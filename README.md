@@ -81,7 +81,7 @@ With just a few lines of code, you can compute the similarity score between two 
 #### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD) <ref>[5]</ref>
 
 ```python
-from pyvisim.encoders import VLADEmbedder
+from pyvisim.classic import VLADEmbedder
 from pyvisim.datasets import OxfordFlowerDataset  # needs "nn" extra: install with `pip install "pyvisim[nn]"`
 
 # Load images from the Oxford Flower Dataset. Has to be NumPy Images!

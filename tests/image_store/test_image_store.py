@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.encoders import Pipeline, VLADEmbedder
+from pyvisim.classic import Pipeline, VLADEmbedder
 from pyvisim.functional import Candidate
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 
