@@ -1,9 +1,9 @@
-from .fisher_vector import FisherVectorEncoder
+from .fisher_vector import FisherVectorEmbedder
 from .pipeline import Pipeline
-from .vlad import VLADEncoder
+from .vlad import VLADEmbedder
 
 __all__ = [
-    "VLADEncoder",
-    "FisherVectorEncoder",
+    "VLADEmbedder",
+    "FisherVectorEmbedder",
     "Pipeline",
 ]

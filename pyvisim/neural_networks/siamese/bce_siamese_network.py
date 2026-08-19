@@ -151,8 +151,8 @@ class BCESiameseNetwork(SiameseNetworkBase):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
 
-        features1 = self._encode_images(image1, dims=dims, value_range=value_range)
-        features2 = self._encode_images(image2, dims=dims, value_range=value_range)
+        features1 = self._embed_images(image1, dims=dims, value_range=value_range)
+        features2 = self._embed_images(image2, dims=dims, value_range=value_range)
         distances = torch.abs(features1.unsqueeze(1) - features2.unsqueeze(0))
         probabilities = torch.sigmoid(self._score_distances(distances))
         return cast(FloatNumpyArray, probabilities.cpu().numpy())

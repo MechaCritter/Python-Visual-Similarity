@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import torch
 
-from pyvisim.encoders import FisherVectorEncoder, Pipeline, VLADEncoder
+from pyvisim.encoders import FisherVectorEmbedder, Pipeline, VLADEmbedder
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -19,16 +19,16 @@ PIPELINE_DIM = 8 * 128 + (2 * 8 * 128 + 8)
 
 
 @pytest.fixture(scope="module")
-def pipeline_encoders(
+def pipeline_embedders(
     category_train_images_flat: list[np.ndarray],
-) -> tuple[VLADEncoder, FisherVectorEncoder]:
-    """A learned VLAD and Fisher encoder, both sharing the default RootSIFT.
+) -> tuple[VLADEmbedder, FisherVectorEmbedder]:
+    """A learned VLAD and Fisher embedder, both sharing the default RootSIFT.
 
     :param category_train_images_flat: flattened training images to learn from.
-    :returns: a ``(vlad, fisher)`` tuple of fitted encoders.
+    :returns: a ``(vlad, fisher)`` tuple of fitted embedders.
     """
-    vlad = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
-    fisher = FisherVectorEncoder(n_components=8, gmm_params={"rng": 0})
+    vlad = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
+    fisher = FisherVectorEmbedder(n_components=8, gmm_params={"rng": 0})
     vlad.learn(category_train_images_flat)
     fisher.learn(category_train_images_flat)
     return vlad, fisher
@@ -36,36 +36,36 @@ def pipeline_encoders(
 
 @pytest.fixture(scope="module")
 def pipeline(
-    pipeline_encoders: tuple[VLADEncoder, FisherVectorEncoder],
+    pipeline_embedders: tuple[VLADEmbedder, FisherVectorEmbedder],
 ) -> Pipeline:
-    """A pipeline combining the learned VLAD and Fisher encoders.
+    """A pipeline combining the learned VLAD and Fisher embedders.
 
-    :param pipeline_encoders: the ``(vlad, fisher)`` fixture.
-    :returns: a ``Pipeline`` over both encoders.
+    :param pipeline_embedders: the ``(vlad, fisher)`` fixture.
+    :returns: a ``Pipeline`` over both embedders.
     """
-    vlad, fisher = pipeline_encoders
+    vlad, fisher = pipeline_embedders
     return Pipeline([vlad, fisher])
 
 
-def test_rejects_non_encoder() -> None:
-    """A pipeline rejects members that are not encoders."""
+def test_rejects_non_embedder() -> None:
+    """A pipeline rejects members that are not embedders."""
     with pytest.raises(ValueError, match="only accepts instances of ImageEmbedderBase"):
-        Pipeline(["not an encoder"])  # type: ignore[list-item]
+        Pipeline(["not an embedder"])  # type: ignore[list-item]
 
 
-def test_encode_concatenates(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
-    """The pipeline concatenates each encoder's output along the feature axis."""
+def test_embed_concatenates(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
+    """The pipeline concatenates each embedder's output along the feature axis."""
     out = pipeline.embed([checkerboard_image.array])
     assert out.shape == (1, PIPELINE_DIM)
 
 
 def test_restores_flatten_flag(
     pipeline: Pipeline,
-    pipeline_encoders: tuple[VLADEncoder, FisherVectorEncoder],
+    pipeline_embedders: tuple[VLADEmbedder, FisherVectorEmbedder],
     checkerboard_image: ImageObj,
 ) -> None:
-    """The pipeline restores each encoder's original ``flatten`` flag."""
-    vlad, _ = pipeline_encoders
+    """The pipeline restores each embedder's original ``flatten`` flag."""
+    vlad, _ = pipeline_embedders
     original = vlad.flatten
     vlad.flatten = False
     try:
@@ -75,17 +75,15 @@ def test_restores_flatten_flag(
         vlad.flatten = original
 
 
-def test_encode_batch(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
-    """A batch of two images encodes to ``(2, PIPELINE_DIM)``."""
+def test_embed_batch(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
+    """A batch of two images embeds to ``(2, PIPELINE_DIM)``."""
     base = checkerboard_image.array
     batch = [base, np.roll(base, 8, axis=0)]
     assert pipeline.embed(batch).shape == (2, PIPELINE_DIM)
 
 
-def test_encode_accepts_tensor(
-    pipeline: Pipeline, checkerboard_image: ImageObj
-) -> None:
-    """A grayscale torch tensor image is accepted and encodes like its array."""
+def test_embed_accepts_tensor(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
+    """A grayscale torch tensor image is accepted and embeds like its array."""
     tensor = torch.from_numpy(checkerboard_image.array)
     assert pipeline.embed([tensor]).shape == (1, PIPELINE_DIM)
 
@@ -103,11 +101,11 @@ def test_similarity_score_shape(
 
 
 def test_repr(pipeline: Pipeline) -> None:
-    """``repr`` names the pipeline and each member encoder."""
+    """``repr`` names the pipeline and each member embedder."""
     text = repr(pipeline)
     assert "Pipeline(" in text
-    assert "VLADEncoder(" in text
-    assert "FisherVectorEncoder(" in text
+    assert "VLADEmbedder(" in text
+    assert "FisherVectorEmbedder(" in text
 
 
 def test_to_dict_from_dict_round_trip(
@@ -116,7 +114,7 @@ def test_to_dict_from_dict_round_trip(
     """``Pipeline.from_dict(pipeline.to_dict())`` rebuilds an equivalent pipeline."""
     restored = Pipeline.from_dict(pipeline.to_dict())
     assert isinstance(restored, Pipeline)
-    assert len(restored.encoders) == len(pipeline.encoders)
+    assert len(restored.embedders) == len(pipeline.embedders)
     assert restored.similarity_func_name == pipeline.similarity_func_name
     probe = [checkerboard_image.array]
     assert np.allclose(restored.embed(probe), pipeline.embed(probe), atol=1e-5)

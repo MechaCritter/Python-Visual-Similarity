@@ -1,4 +1,4 @@
-"""Tests for the encoder base class and its similarity-function helpers."""
+"""Tests for the embedder base class and its similarity-function helpers."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 from pyvisim._errors import NotFittedError
-from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
-from pyvisim.encoders._base_encoder import ClusteringBasedEncoder
+from pyvisim.encoders import FisherVectorEmbedder, VLADEmbedder
+from pyvisim.encoders._base_embedder import ClusteringBasedEmbedder
 from pyvisim.encoders._clustering import PCA
 from pyvisim.features import Lambda, RootSIFT
 
@@ -23,29 +23,29 @@ if TYPE_CHECKING:
 
 
 def test_similarity_func_defaults_to_cosine() -> None:
-    """Encoders default to the cosine similarity metric."""
-    encoder = VLADEncoder(n_clusters=8)
-    assert encoder.similarity_func_name == "cosine"
+    """Embedders default to the cosine similarity metric."""
+    embedder = VLADEmbedder(n_clusters=8)
+    assert embedder.similarity_func_name == "cosine"
 
 
 @pytest.mark.parametrize("name", ["cosine", "euclidean", "l1", "manhattan"])
 def test_similarity_func_accepts_supported_metrics(name: str) -> None:
     """Each supported metric name resolves to a callable."""
-    encoder = VLADEncoder(n_clusters=8, similarity_func=name)
-    assert encoder.similarity_func_name == name
-    assert callable(encoder.similarity_func)
+    embedder = VLADEmbedder(n_clusters=8, similarity_func=name)
+    assert embedder.similarity_func_name == name
+    assert callable(embedder.similarity_func)
 
 
 def test_similarity_func_rejects_custom_function() -> None:
     """Passing a custom callable is no longer supported and raises ``ValueError``."""
     with pytest.raises(ValueError, match="Unsupported similarity function"):
-        VLADEncoder(n_clusters=8, similarity_func=lambda a, b: a)  # type: ignore[arg-type]
+        VLADEmbedder(n_clusters=8, similarity_func=lambda a, b: a)  # type: ignore[arg-type]
 
 
 def test_similarity_func_rejects_unknown_name() -> None:
     """An unknown metric name raises ``ValueError``."""
     with pytest.raises(ValueError, match="Unsupported similarity function"):
-        VLADEncoder(n_clusters=8, similarity_func="dot")
+        VLADEmbedder(n_clusters=8, similarity_func="dot")
 
 
 # §3.1b loading a clustering model from a scikit-learn estimator
@@ -58,11 +58,11 @@ def test_load_clustering_model_from_sklearn_vlad() -> None:
     rng = np.random.default_rng(0)
     features = rng.random((300, 128))  # RootSIFT output dimension
     sklearn_model = SklearnKMeans(n_clusters=8, random_state=0).fit(features)
-    encoder = VLADEncoder(n_clusters=8)
-    encoder.load_clustering_model_from_sklearn(sklearn_model)
-    assert encoder.clustering_model.is_fitted
+    embedder = VLADEmbedder(n_clusters=8)
+    embedder.load_clustering_model_from_sklearn(sklearn_model)
+    assert embedder.clustering_model.is_fitted
     assert np.array_equal(
-        encoder.clustering_model.cluster_centers, sklearn_model.cluster_centers_
+        embedder.clustering_model.cluster_centers, sklearn_model.cluster_centers_
     )
 
 
@@ -74,9 +74,9 @@ def test_load_clustering_model_from_sklearn_dim_mismatch_raises() -> None:
     sklearn_model = SklearnKMeans(n_clusters=8, random_state=0).fit(
         rng.random((300, 16))
     )
-    encoder = VLADEncoder(n_clusters=8)
+    embedder = VLADEmbedder(n_clusters=8)
     with pytest.raises(RuntimeError, match="has to match"):
-        encoder.load_clustering_model_from_sklearn(sklearn_model)
+        embedder.load_clustering_model_from_sklearn(sklearn_model)
 
 
 def test_load_clustering_model_from_sklearn_fisher() -> None:
@@ -88,130 +88,130 @@ def test_load_clustering_model_from_sklearn_fisher() -> None:
     sklearn_model = SklearnGaussianMixture(
         n_components=8, covariance_type="diag", random_state=0
     ).fit(features)
-    encoder = FisherVectorEncoder(n_components=8)
-    encoder.load_clustering_model_from_sklearn(sklearn_model)
-    assert encoder.clustering_model.is_fitted
-    assert np.array_equal(encoder.clustering_model.means, sklearn_model.means_)
+    embedder = FisherVectorEmbedder(n_components=8)
+    embedder.load_clustering_model_from_sklearn(sklearn_model)
+    assert embedder.clustering_model.is_fitted
+    assert np.array_equal(embedder.clustering_model.means, sklearn_model.means_)
 
 
-# §3.2 ImageEmbedderBase shared behaviour (exercised via VLADEncoder)
+# §3.2 ImageEmbedderBase shared behaviour (exercised via VLADEmbedder)
 
 
-class _NoModelEncoder(ClusteringBasedEncoder):
-    """Minimal concrete encoder used to test the "no clustering model" path."""
+class _NoModelEmbedder(ClusteringBasedEmbedder):
+    """Minimal concrete embedder used to test the "no clustering model" path."""
 
     def embed(self, images: Iterable[np.ndarray], flatten: bool = True) -> np.ndarray:
-        """Unused stub; ``learn`` fails before encoding is ever reached."""
+        """Unused stub; ``learn`` fails before embedding is ever reached."""
         raise NotImplementedError
 
 
 @pytest.fixture(scope="module")
-def learned_vlad(category_train_images_flat: list[np.ndarray]) -> VLADEncoder:
-    """A ``VLADEncoder(n_clusters=8)`` learned once for this module.
+def learned_vlad(category_train_images_flat: list[np.ndarray]) -> VLADEmbedder:
+    """A ``VLADEmbedder(n_clusters=8)`` learned once for this module.
 
     :param category_train_images_flat: flattened training images to learn from.
-    :returns: a fitted ``VLADEncoder``.
+    :returns: a fitted ``VLADEmbedder``.
     """
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
-    encoder.learn(category_train_images_flat)
-    return encoder
+    embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
+    embedder.learn(category_train_images_flat)
+    return embedder
 
 
 def test_default_feature_extractor_is_rootsift() -> None:
-    """Encoders default to the RootSIFT feature extractor."""
-    assert isinstance(VLADEncoder(n_clusters=8).feature_extractor, RootSIFT)
+    """Embedders default to the RootSIFT feature extractor."""
+    assert isinstance(VLADEmbedder(n_clusters=8).feature_extractor, RootSIFT)
 
 
 def test_feature_extractor_setter_type_check() -> None:
     """Assigning a non-extractor to ``feature_extractor`` raises ``TypeError``."""
-    encoder = VLADEncoder(n_clusters=8)
+    embedder = VLADEmbedder(n_clusters=8)
     with pytest.raises(TypeError):
-        encoder.feature_extractor = "x"  # type: ignore[assignment]
+        embedder.feature_extractor = "x"  # type: ignore[assignment]
 
 
 def test_pca_is_read_only() -> None:
     """``pca`` is a read-only property; direct assignment raises ``AttributeError``."""
-    encoder = VLADEncoder(n_clusters=8)
+    embedder = VLADEmbedder(n_clusters=8)
     with pytest.raises(AttributeError):
-        encoder.pca = object()  # type: ignore[assignment]
+        embedder.pca = object()  # type: ignore[assignment]
 
 
 def test_learn_without_clustering_model_raises(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """Learning with no clustering model raises ``RuntimeError``."""
-    encoder = _NoModelEncoder(clustering_model=None)
+    embedder = _NoModelEmbedder(clustering_model=None)
     with pytest.raises(RuntimeError, match="no clustering model"):
-        encoder.learn(category_train_images_flat)
+        embedder.learn(category_train_images_flat)
 
 
 def test_learn_bad_dim_reduction_factor_zero(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """A zero ``dim_reduction_factor`` raises ``ValueError``."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
+    embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
     with pytest.raises(ValueError, match="must be a positive integer"):
-        encoder.learn(category_train_images_flat, dim_reduction_factor=0)
+        embedder.learn(category_train_images_flat, dim_reduction_factor=0)
 
 
 def test_learn_bad_dim_reduction_factor_negative(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """A negative ``dim_reduction_factor`` raises ``ValueError``."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
+    embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
     with pytest.raises(ValueError, match="must be a positive integer"):
-        encoder.learn(category_train_images_flat, dim_reduction_factor=-2)
+        embedder.learn(category_train_images_flat, dim_reduction_factor=-2)
 
 
 def test_learn_with_dim_reduction_factor_builds_pca(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """A ``dim_reduction_factor`` builds and fits a PCA halving the dimension."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
-    encoder.learn(category_train_images_flat, dim_reduction_factor=2)
-    assert isinstance(encoder.pca, PCA)
-    assert encoder.pca.is_fitted is True
-    assert encoder.pca.n_components == 64  # RootSIFT dim 128 // 2
+    embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
+    embedder.learn(category_train_images_flat, dim_reduction_factor=2)
+    assert isinstance(embedder.pca, PCA)
+    assert embedder.pca.is_fitted is True
+    assert embedder.pca.n_components == 64  # RootSIFT dim 128 // 2
 
 
 def test_feature_extractor_pca_dim_mismatch_raises(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """Assigning an extractor whose output dim mismatches the fitted PCA raises."""
-    encoder = VLADEncoder(n_clusters=8, kmeans_params={"rng": 0})
-    encoder.learn(category_train_images_flat, dim_reduction_factor=2)  # PCA in=128
+    embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
+    embedder.learn(category_train_images_flat, dim_reduction_factor=2)  # PCA in=128
     with pytest.raises(RuntimeError):
-        encoder.feature_extractor = Lambda(
+        embedder.feature_extractor = Lambda(
             lambda image: np.ones((5, 64), np.float32), output_dim=64
         )
 
 
 def test_save_unfitted_raises(tmp_path: Path) -> None:
-    """Saving an unfitted encoder raises ``NotFittedError``."""
-    encoder = VLADEncoder(n_clusters=8)
+    """Saving an unfitted embedder raises ``NotFittedError``."""
+    embedder = VLADEmbedder(n_clusters=8)
     with pytest.raises(NotFittedError, match="not fitted"):
-        encoder.save_to_disk(tmp_path / "m")
+        embedder.save_to_disk(tmp_path / "m")
 
 
-def test_save_appends_suffix(learned_vlad: VLADEncoder, tmp_path: Path) -> None:
-    """Saving appends the ``.encoder`` suffix and writes the file."""
+def test_save_appends_suffix(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:
+    """Saving appends the ``.embedder`` suffix and writes the file."""
     path = learned_vlad.save_to_disk(tmp_path / "model")
-    assert str(path).endswith(".encoder")
+    assert str(path).endswith(".embedder")
     assert path.exists()
 
 
-def test_save_keeps_existing_suffix(learned_vlad: VLADEncoder, tmp_path: Path) -> None:
-    """Saving with an existing ``.encoder`` suffix does not double it."""
-    path = learned_vlad.save_to_disk(tmp_path / "m.encoder")
-    assert path.name == "m.encoder"
+def test_save_keeps_existing_suffix(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:
+    """Saving with an existing ``.embedder`` suffix does not double it."""
+    path = learned_vlad.save_to_disk(tmp_path / "m.embedder")
+    assert path.name == "m.embedder"
 
 
-def test_load_roundtrip_same_encoding(
-    learned_vlad: VLADEncoder, tmp_path: Path, checkerboard_image: ImageObj
+def test_load_roundtrip_same_embedding(
+    learned_vlad: VLADEmbedder, tmp_path: Path, checkerboard_image: ImageObj
 ) -> None:
-    """A saved-and-reloaded encoder produces the same encoding."""
+    """A saved-and-reloaded embedder produces the same embedding."""
     path = learned_vlad.save_to_disk(tmp_path / "model")
-    loaded = VLADEncoder.load_from_disk(path)
+    loaded = VLADEmbedder.load_from_disk(path)
     assert np.allclose(
         loaded.embed([checkerboard_image.array]),
         learned_vlad.embed([checkerboard_image.array]),
@@ -219,22 +219,22 @@ def test_load_roundtrip_same_encoding(
 
 
 def test_load_invalid_file_raises(tmp_path: Path) -> None:
-    """Loading a file that is not a valid encoder raises ``ValueError``."""
-    bad = tmp_path / "bad.encoder"
+    """Loading a file that is not a valid embedder raises ``ValueError``."""
+    bad = tmp_path / "bad.embedder"
     bad.write_bytes(b"not a safetensors file")
-    with pytest.raises(ValueError, match="not a valid .encoder file"):
-        VLADEncoder.load_from_disk(bad)
+    with pytest.raises(ValueError, match="not a valid .embedder file"):
+        VLADEmbedder.load_from_disk(bad)
 
 
-def test_load_wrong_class_raises(learned_vlad: VLADEncoder, tmp_path: Path) -> None:
+def test_load_wrong_class_raises(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:
     """Loading a VLAD file with the Fisher loader raises ``ValueError``."""
     path = learned_vlad.save_to_disk(tmp_path / "model")
-    with pytest.raises(ValueError, match="was saved by VLADEncoder"):
-        FisherVectorEncoder.load_from_disk(path)
+    with pytest.raises(ValueError, match="was saved by VLADEmbedder"):
+        FisherVectorEmbedder.load_from_disk(path)
 
 
-def test_repr_smoke(learned_vlad: VLADEncoder) -> None:
-    """``repr`` names the encoder class and its RootSIFT feature extractor."""
+def test_repr_smoke(learned_vlad: VLADEmbedder) -> None:
+    """``repr`` names the embedder class and its RootSIFT feature extractor."""
     text = repr(learned_vlad)
-    assert "VLADEncoder(" in text
+    assert "VLADEmbedder(" in text
     assert "feature_extractor=RootSIFT" in text

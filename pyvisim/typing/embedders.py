@@ -8,7 +8,7 @@ from .numeric import FloatNumpyArray, ImageInput
 
 
 @runtime_checkable
-class Encoder(Protocol):
+class Embedder(Protocol):
     """
     Protocol for objects that embed images into fixed-size vectors.
 

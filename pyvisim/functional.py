@@ -39,21 +39,21 @@ def retrieve_top_k_similar(
     """
     Return the top-k most similar gallery images for each query image.
 
-    Each query image is encoded with the store's encoder and matched against the
+    Each query image is embedded with the store's embedder and matched against the
     gallery through the store's accelerated index.
 
     :param query_images: A single image or a batch/iterable of images to use as
-        queries. Anything accepted by the store's encoder is valid.
+        queries. Anything accepted by the store's embedder is valid.
     :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
         (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery.
     :param k: Number of top similar gallery images to return per query.
     :return: One ranked list of :class:`Candidate` matches per query image, in
         the same order as ``query_images``.
     """
-    # ``encoder.encode`` returns one row per query image, in input order, so the
+    # ``embedder.embed`` returns one row per query image, in input order, so the
     # whole batch is searched at once: FAISS is far faster on one ``(M, D)``
     # matrix than on a per-query loop.
-    query_matrix = np.asarray(store.encoder.embed(query_images))
+    query_matrix = np.asarray(store.embedder.embed(query_images))
     if query_matrix.ndim == 1:
         query_matrix = query_matrix.reshape(1, -1)
     if query_matrix.shape[0] == 0:

@@ -9,7 +9,7 @@ classification, clustering, retrieval or similarity comparison.
 ## Features to Include:
 
 - **Feature Extraction**: Implement methods to extract key features from images using state-of-the-art techniques.
-- **Embeddings Creation**: Develop embeddings that encode the visual information into compact, vectorized forms.
+- **Embeddings Creation**: Develop embeddings that embed the visual information into compact, vectorized forms.
 - **Support for Pre-trained Models**: Incorporate popular pre-trained models (e.g., ResNet, VGG, EfficientNet) to
   generate and use embeddings effectively.
 

@@ -1,10 +1,10 @@
 """
-safetensors-backed serialization for image encoders.
+safetensors-backed serialization for image embedders.
 
-An encoder is described by a nested, JSON-safe state dictionary (clustering
+An embedder is described by a nested, JSON-safe state dictionary (clustering
 model, optional PCA, normalization hyperparameters, similarity-metric name and
 feature-extractor configuration). This module stores that description as a
-``.encoder`` file in the `safetensors <https://github.com/huggingface/safetensors>`_
+``.embedder`` file in the `safetensors <https://github.com/huggingface/safetensors>`_
 format: every NumPy array is written as a binary tensor, while the surrounding
 structure and scalar values are stored as a single JSON blob in the file's
 metadata.
@@ -20,15 +20,15 @@ from safetensors.numpy import save_file
 
 from ..typing import NumpyArray
 
-#: Metadata key under which the encoder JSON skeleton is stored.
-_METADATA_KEY = "pyvisim_encoder"
+#: Metadata key under which the embedder JSON skeleton is stored.
+_METADATA_KEY = "pyvisim_embedder"
 
 
 def _arrays_to_tensors(
     obj: Any, tensors: dict[str, NumpyArray], counter: list[int]
 ) -> Any:
     """
-    Replace encoded ``__ndarray__`` nodes with tensor references.
+    Replace embedded ``__ndarray__`` nodes with tensor references.
 
     Walks a JSON-safe structure (as produced by the clustering models'
     ``to_dict``) and moves every array into ``tensors`` under a unique key,
@@ -123,26 +123,26 @@ def load_state(path: str | pathlib.Path, metadata_key: str) -> dict[str, Any]:
     return state
 
 
-def save_encoder_state(state: dict[str, Any], path: pathlib.Path) -> None:
+def save_embedder_state(state: dict[str, Any], path: pathlib.Path) -> None:
     """
-    Write an encoder state dictionary to a ``.encoder`` safetensors file.
+    Write an embedder state dictionary to a ``.embedder`` safetensors file.
 
-    :param state: JSON-safe encoder description (may contain ``__ndarray__``
+    :param state: JSON-safe embedder description (may contain ``__ndarray__``
         nodes produced by the clustering models' ``to_dict``).
     :param path: Destination file path.
     """
     save_state(state, path, _METADATA_KEY)
 
 
-def load_encoder_state(path: pathlib.Path) -> dict[str, Any]:
+def load_embedder_state(path: pathlib.Path) -> dict[str, Any]:
     """
-    Read an encoder state dictionary from a ``.encoder`` safetensors file.
+    Read an embedder state dictionary from a ``.embedder`` safetensors file.
 
-    :param path: Path to the ``.encoder`` file.
-    :return: The reconstructed encoder state, with arrays restored.
-    :raises ValueError: If the file is not a valid ``.encoder`` file.
+    :param path: Path to the ``.embedder`` file.
+    :return: The reconstructed embedder state, with arrays restored.
+    :raises ValueError: If the file is not a valid ``.embedder`` file.
     """
     try:
         return load_state(path, _METADATA_KEY)
     except ValueError as error:
-        raise ValueError(f"File {path} is not a valid .encoder file.") from error
+        raise ValueError(f"File {path} is not a valid .embedder file.") from error

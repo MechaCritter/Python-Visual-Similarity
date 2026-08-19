@@ -1,5 +1,5 @@
-FisherVectorEncoder
-===================
+FisherVectorEmbedder
+====================
 
 .. include:: ../../encoders/fisher_vector.md
    :parser: myst_parser.sphinx_
@@ -8,7 +8,7 @@ FisherVectorEncoder
 API reference
 -------------
 
-.. autoclass:: pyvisim.encoders.FisherVectorEncoder
+.. autoclass:: pyvisim.encoders.FisherVectorEmbedder
    :members:
    :inherited-members:
    :show-inheritance:

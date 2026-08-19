@@ -3,7 +3,7 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
-from ..encoders._base_encoder import ClusteringBasedEncoder
+from ..encoders._base_embedder import ClusteringBasedEmbedder
 from ..typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -13,9 +13,9 @@ from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase, KMeans
 
 
-class VLADEncoder(ClusteringBasedEncoder):
+class VLADEmbedder(ClusteringBasedEmbedder):
     """
-    This class encodes images into VLAD descriptor vectors
+    This class embeds images into VLAD descriptor vectors
     using a chosen feature extractor and a K-Means clustering model,
     then compares two VLAD descriptor vectors with a user-specified
     or default (cosine) similarity function.
@@ -26,11 +26,11 @@ class VLADEncoder(ClusteringBasedEncoder):
     model for dimensionality reduction is configured the same way via
     ``pca_params``.
 
-    The output when calling `encode` has shape (num_clusters * feature_dim,).
+    The output when calling `embed` has shape (num_clusters * feature_dim,).
 
     You can use euclidean distance, manhattan distance, etc. as the similarity function.
 
-    The encoding can be used for indexing, retrieval, clustering or classification tasks.
+    The embedding can be used for indexing, retrieval, clustering or classification tasks.
 
     :param feature_extractor: Feature extractor instance (should implement __call__).
         Defaults to RootSIFT.
@@ -73,7 +73,7 @@ class VLADEncoder(ClusteringBasedEncoder):
     ) -> None:
         if kmeans_params and "n_clusters" in kmeans_params:
             raise ValueError(
-                "Pass 'n_clusters' directly to VLADEncoder instead of inside kmeans_params."
+                "Pass 'n_clusters' directly to VLADEmbedder instead of inside kmeans_params."
             )
         clustering_model = KMeans(n_clusters=n_clusters, **(kmeans_params or {}))
         pca = PCA(**pca_params) if pca_params is not None else None
@@ -108,7 +108,7 @@ class VLADEncoder(ClusteringBasedEncoder):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
         """
-        Encode one or more images into VLAD descriptor vectors.
+        Embed one or more images into VLAD descriptor vectors.
 
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images.
@@ -121,9 +121,9 @@ class VLADEncoder(ClusteringBasedEncoder):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: ``(N, n_clusters × feature_dim)`` array of VLAD encodings.
+        :return: ``(N, n_clusters × feature_dim)`` array of VLAD embeddings.
         """
-        all_encodings = []
+        all_embeddings = []
         for image in iter_images(images, dims=dims, value_range=value_range):
             descriptors: FloatNumpyArray = self.feature_extractor(image)
             if self.pca:
@@ -131,7 +131,7 @@ class VLADEncoder(ClusteringBasedEncoder):
 
             if descriptors is None or descriptors.shape[0] == 0:
                 raise ValueError(
-                    "No descriptors found in the image. Cannot compute VLAD encoding."
+                    "No descriptors found in the image. Cannot compute VLAD embedding."
                 )
 
             labels = self.clustering_model.predict(descriptors.astype(np.float32))
@@ -160,6 +160,6 @@ class VLADEncoder(ClusteringBasedEncoder):
             if self.flatten:
                 descriptor_vector = descriptor_vector.flatten()
 
-            all_encodings.append(descriptor_vector)
+            all_embeddings.append(descriptor_vector)
 
-        return np.vstack(all_encodings)
+        return np.vstack(all_embeddings)

@@ -7,23 +7,23 @@ File: [`pyvisim/image_store/__init__.py`](../pyvisim/image_store/__init__.py)
 > Requires extra: `search` (`pip install "pyvisim[search]"`)
 
 `InMemoryImageEmbeddingStore` is the gallery object the retrieval pipeline is built
-around. You give it a list of image paths, an encoder, and the kind of index you want;
-it encodes every image, builds a FAISS index over the embeddings, and from then on you
+around. You give it a list of image paths, an embedder, and the kind of index you want;
+it embeds every image, builds a FAISS index over the embeddings, and from then on you
 search it. The store keeps only the index in memory, not a second copy of the
 embeddings, so it stays lean even for big galleries.
 
 ## Building a store
 
 ```python
-from pyvisim.encoders import VLADEncoder
+from pyvisim.encoders import VLADEmbedder
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 
-encoder = VLADEncoder(n_clusters=64)
-encoder.learn(train_images)
+embedder = VLADEmbedder(n_clusters=64)
+embedder.learn(train_images)
 
 store = InMemoryImageEmbeddingStore(
-    ["a.jpg", "b.jpg", "c.jpg"],   # encodes all three now
-    encoder,
+    ["a.jpg", "b.jpg", "c.jpg"],   # embeds all three now
+    embedder,
     "ivf-flat",                    # index structure (the default)
     quantizer="inner_product",     # rank by cosine similarity
     index_params={"nlist": 100, "nprobe": 8},
@@ -47,13 +47,13 @@ dropped with a warning instead:
 
 ```python
 store = InMemoryImageEmbeddingStore(
-    ["a.jpg", "missing.jpg"], encoder, skip_errors=True
+    ["a.jpg", "missing.jpg"], embedder, skip_errors=True
 )
-# FutureWarning: Skipped 1 image(s) that could not be encoded.
+# FutureWarning: Skipped 1 image(s) that could not be embedded.
 ```
 
-Any object that satisfies the [`Encoder`](typing.md) protocol works here, so individual
-encoders and a `Pipeline` are both fair game.
+Any object that satisfies the [`Embedder`](typing.md) protocol works here, so individual
+embedders and a `Pipeline` are both fair game.
 
 ## Searching
 
@@ -81,10 +81,10 @@ indexed in); for an IVF-PQ store they're the decompressed approximation.
 ## Saving and loading
 
 `save_to_disk(path)` writes everything you need to rebuild the store, the embeddings,
-the image paths, the index configuration and the fully serialised encoder, to a single
+the image paths, the index configuration and the fully serialised embedder, to a single
 [safetensors](https://github.com/huggingface/safetensors) file (the `.safetensors`
-suffix is added if you leave it off). `load_from_disk(path)` reconstructs the encoder
-and re-trains the index from the saved embeddings, so no image is encoded again:
+suffix is added if you leave it off). `load_from_disk(path)` reconstructs the embedder
+and re-trains the index from the saved embeddings, so no image is embedded again:
 
 ```python
 store.save_to_disk("gallery.safetensors")

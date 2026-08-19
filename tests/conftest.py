@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for pyvisim's encoder test suite."""
+"""Shared pytest fixtures for pyvisim's embedder test suite."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.encoders import FisherVectorEncoder, VLADEncoder
+from pyvisim.encoders import FisherVectorEmbedder, VLADEmbedder
 
 #: Directory where generated test images are dumped for manual inspection.
 DEBUG_DIR = Path(__file__).parent / "debug"
@@ -175,7 +175,7 @@ def large_image() -> ImageObj:
 def non_square_image() -> ImageObj:
     """A 128x256 (height x width) checkerboard image.
 
-    Used to confirm that the encoder does not silently assume square
+    Used to confirm that the embedder does not silently assume square
     inputs.
 
     :returns: an ``ImageObj`` object with the ``(128, 256)`` ``uint8`` array.
@@ -241,7 +241,7 @@ def solid_image() -> ImageObj:
     """A uniform mid-gray image with no texture at all.
 
     Most keypoint detectors will find zero descriptors in this image --
-    use it to verify that the encoder handles the "no descriptors found"
+    use it to verify that the embedder handles the "no descriptors found"
     case gracefully (e.g. by raising a clear error or returning a zero
     vector), rather than crashing.
 
@@ -322,7 +322,7 @@ def noisy_image_pair() -> tuple[ImageObj, ImageObj]:
     """Two checkerboard images with mild, independent gaussian noise.
 
     Both images share the same base pattern and noise standard deviation
-    (``std=15``), so an encoder should consider them highly similar.
+    (``std=15``), so an embedder should consider them highly similar.
 
     :returns: a tuple of two ``ImageObj`` objects with ``(256, 256)`` ``uint8``
         arrays.
@@ -359,7 +359,7 @@ def very_noisy_image_pair() -> tuple[ImageObj, ImageObj]:
 def identical_image_pair() -> tuple[np.ndarray, np.ndarray]:
     """Two pixel-identical checkerboard images.
 
-    Used to verify that encoding the same image twice yields (near)
+    Used to verify that embedding the same image twice yields (near)
     perfect similarity.
 
     :returns: a tuple ``(image_a, image_b)`` of ``(256, 256)`` ``uint8``
@@ -373,7 +373,7 @@ def identical_image_pair() -> tuple[np.ndarray, np.ndarray]:
 #: Number of training images generated per category.
 CATEGORY_TRAIN_SIZE = 10
 
-#: PCA configurations used to parametrize the learned-encoder fixtures: one
+#: PCA configurations used to parametrize the learned-embedder fixtures: one
 #: variant without PCA and one with PCA reducing descriptors to 32 dimensions.
 PCA_PARAMS = [None, {"n_components": 32, "rng": 0}]
 
@@ -475,46 +475,46 @@ def category_train_images_flat(
 
 
 @pytest.fixture(scope="session", params=PCA_PARAMS, ids=["no_pca", "pca32"])
-def learned_vlad_encoder(
+def learned_vlad_embedder(
     request: pytest.FixtureRequest,
     category_train_images_flat: list[np.ndarray],
-) -> VLADEncoder:
-    """A :class:`VLADEncoder` already learned on the training images.
+) -> VLADEmbedder:
+    """A :class:`VLADEmbedder` already learned on the training images.
 
     Parametrized over a non-PCA and a PCA variant so dependent tests run for
     both paths. Session-scoped to avoid re-fitting per test.
 
     :param request: the pytest request, carrying the PCA params for this variant.
     :param category_train_images_flat: flattened training images to learn from.
-    :returns: a fitted ``VLADEncoder`` with ``n_clusters=8``.
+    :returns: a fitted ``VLADEmbedder`` with ``n_clusters=8``.
     """
-    encoder = VLADEncoder(
+    embedder = VLADEmbedder(
         n_clusters=8,
         kmeans_params={"rng": 0},
         pca_params=request.param,
     )
-    encoder.learn(category_train_images_flat)
-    return encoder
+    embedder.learn(category_train_images_flat)
+    return embedder
 
 
 @pytest.fixture(scope="session", params=PCA_PARAMS, ids=["no_pca", "pca32"])
-def learned_fisher_encoder(
+def learned_fisher_embedder(
     request: pytest.FixtureRequest,
     category_train_images_flat: list[np.ndarray],
-) -> FisherVectorEncoder:
-    """A :class:`FisherVectorEncoder` already learned on the training images.
+) -> FisherVectorEmbedder:
+    """A :class:`FisherVectorEmbedder` already learned on the training images.
 
     Parametrized over a non-PCA and a PCA variant so dependent tests run for
     both paths. Session-scoped to avoid re-fitting per test.
 
     :param request: the pytest request, carrying the PCA params for this variant.
     :param category_train_images_flat: flattened training images to learn from.
-    :returns: a fitted ``FisherVectorEncoder`` with ``n_components=8``.
+    :returns: a fitted ``FisherVectorEmbedder`` with ``n_components=8``.
     """
-    encoder = FisherVectorEncoder(
+    embedder = FisherVectorEmbedder(
         n_components=8,
         gmm_params={"rng": 0},
         pca_params=request.param,
     )
-    encoder.learn(category_train_images_flat)
-    return encoder
+    embedder.learn(category_train_images_flat)
+    return embedder

@@ -7,7 +7,7 @@ from .typing import Float32NumpyArray, FloatNumpyArray, ImageInput, MatLike
 
 class SimilarityMetric(abc.ABC):
     """
-    Abstract base for all similarity encoders.
+    Abstract base for all similarity embedders.
 
     All concrete similarity metric classes must inherit from this class.
     """

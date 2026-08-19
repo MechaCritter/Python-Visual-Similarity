@@ -1,7 +1,7 @@
-# Encoders
+# Embedders
 
-An encoder turns an image into a single fixed-size vector you can use for
-retrieval, clustering, and classification. The encoders here are the
+An embedder turns an image into a single fixed-size vector you can use for
+retrieval, clustering, and classification. The embedders here are the
 clustering-based ones (VLAD, Fisher Vector) that extract local descriptors and
 aggregate them against a learned visual vocabulary. If you want end-to-end CLIP
 embeddings instead, reach for `ClipEmbedder` in
@@ -9,17 +9,17 @@ embeddings instead, reach for `ClipEmbedder` in
 
 | Object | File | Aggregation model | Output size |
 |--------|------|-------------------|-------------|
-| [`VLADEncoder`](vlad.md) | [`vlad.py`](../../pyvisim/encoders/vlad.py) | KMeans | `K * D` |
-| [`FisherVectorEncoder`](fisher_vector.md) | [`fisher_vector.py`](../../pyvisim/encoders/fisher_vector.py) | Gaussian Mixture Model | `2 * K * D + K` |
-| [`Pipeline`](pipeline.md) | [`pipeline.py`](../../pyvisim/encoders/pipeline.py) | n/a (composes encoders) | sum of members |
+| [`VLADEmbedder`](vlad.md) | [`vlad.py`](../../pyvisim/encoders/vlad.py) | KMeans | `K * D` |
+| [`FisherVectorEmbedder`](fisher_vector.md) | [`fisher_vector.py`](../../pyvisim/encoders/fisher_vector.py) | Gaussian Mixture Model | `2 * K * D + K` |
+| [`Pipeline`](pipeline.md) | [`pipeline.py`](../../pyvisim/encoders/pipeline.py) | n/a (composes embedders) | sum of members |
 
 where `K` is the number of clusters and `D` is the local descriptor dimension.
 
-Shared machinery lives in [`ImageEmbedderBase`](base_encoder.md). The clustering
-encoders build their aggregation model from the `KMeans`, `DiagCovarGaussianMixture`
-and `PCA` classes bundled inside the encoders package
+Shared machinery lives in [`ImageEmbedderBase`](base_embedder.md). The clustering
+embedders build their aggregation model from the `KMeans`, `DiagCovarGaussianMixture`
+and `PCA` classes bundled inside the embedders package
 (`pyvisim/encoders/_clustering/`) using the parameters you pass at construction, then
-fit it in `learn`. Trained encoders are saved and
+fit it in `learn`. Trained embedders are saved and
 restored with `save_to_disk` / `load_from_disk`.
 
 ## VLAD vs Fisher Vector

@@ -1,7 +1,7 @@
 pyvisim
 =======
 
-A Python library for image similarity analysis using image encoders and
+A Python library for image similarity analysis using image embedders and
 neural networks.
 
 ``pyvisim`` computes image similarity by turning images into fixed-size

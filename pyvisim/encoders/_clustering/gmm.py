@@ -1,6 +1,6 @@
 """
 Diagonal-covariance Gaussian Mixture Model used by the Fisher Vector
-encoder.
+embedder.
 """
 
 import warnings
@@ -11,7 +11,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 from ...typing import Float64NumpyArray, FloatNumpyArray, IntNumpyArray
-from ._base_clustering import ClusteringModelBase, _decode, _encode
+from ._base_clustering import ClusteringModelBase, _decode, _embed
 from .kmeans import _kmeans_plusplus, _rng_from_sklearn
 
 _GaussianMixtureT = TypeVar("_GaussianMixtureT", bound="DiagCovarGaussianMixture")
@@ -52,7 +52,7 @@ class _EMRun(NamedTuple):
 class DiagCovarGaussianMixture(ClusteringModelBase):
     """
     Gaussian Mixture clustering model with diagonal covariances, used by
-    the Fisher Vector encoder.
+    the Fisher Vector embedder.
 
 
     :param n_components: Number of mixture components.
@@ -398,7 +398,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         return {
             "__class__": type(self).__name__,
             "__module__": type(self).__module__,
-            "state": _encode(state),
+            "state": _embed(state),
         }
 
     @classmethod

@@ -1,19 +1,19 @@
-# VLADEncoder
+# VLADEmbedder
 
 File: [`vlad.py`](../../pyvisim/encoders/vlad.py)
 
-VLAD (Vector of Locally Aggregated Descriptors) encodes an image into a vector of
+VLAD (Vector of Locally Aggregated Descriptors) embeds an image into a vector of
 shape `(K * D,)`, where `K` is the number of KMeans clusters and `D` is the local
 descriptor dimension (after optional PCA).
 
 ## Constructing one
 
-VLAD always clusters with K-Means, so you configure that model through the encoder:
+VLAD always clusters with K-Means, so you configure that model through the embedder:
 
 ```python
-from pyvisim.encoders import VLADEncoder
+from pyvisim.encoders import VLADEmbedder
 
-vlad = VLADEncoder(
+vlad = VLADEmbedder(
     n_clusters=256,                  # number of visual words
     kmeans_params={"rng": 0},        # forwarded to  KMeans
     pca_params={"n_components": 64}, # optional; omit for no PCA
@@ -25,7 +25,7 @@ vlad.learn(images)                   # fits the PCA (if any) then K-Means
 `ValueError`). Everything else in `kmeans_params` is handed straight to the
 [`KMeans`](../../pyvisim/encoders/_clustering/kmeans.py) model, and `pca_params` to the
 [`PCA`](../../pyvisim/encoders/_clustering/pca.py) model. Once fitted, save with
-`vlad.save_to_disk("vlad")` and reload with `VLADEncoder.load_from_disk("vlad.encoder")`, see [base_encoder.md](base_encoder.md).
+`vlad.save_to_disk("vlad")` and reload with `VLADEmbedder.load_from_disk("vlad.embedder")`, see [base_embedder.md](base_embedder.md).
 
 ## K-Means parameters (`kmeans_params`)
 
@@ -36,10 +36,10 @@ vlad.learn(images)                   # fits the PCA (if any) then K-Means
 | `check_finite` | `True` | Whether to validate that the input contains only finite numbers. Turn it off for a small speed-up. |
 | `rng` | `None` | Seed (`int`) or `numpy.random.Generator` for reproducible fitting. |
 
-For example, a fully reproducible encoder that keeps the best of five seedings:
+For example, a fully reproducible embedder that keeps the best of five seedings:
 
 ```python
-vlad = VLADEncoder(n_clusters=256, kmeans_params={"rng": 0, "n_init": 5})
+vlad = VLADEmbedder(n_clusters=256, kmeans_params={"rng": 0, "n_init": 5})
 ```
 
 ## PCA parameters (`pca_params`)

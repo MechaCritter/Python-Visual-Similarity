@@ -12,7 +12,7 @@
 
 # Welcome to `pyvisim`!
 
-`pyvisim` is a Python library for computing image similarities using image encoders
+`pyvisim` is a Python library for computing image similarities using image embedders
 and neural networks.
 
 📚 **Documentation**: <https://mechacritter.github.io/Python-Visual-Similarity/>
@@ -76,12 +76,12 @@ For more details on the dataset, please refer to the [documentation](pyvisim/dat
 
 ### Quick Start
 
-With just a few lines of code, you can compute the similarity score between two images using the VLAD encoder:
+With just a few lines of code, you can compute the similarity score between two images using the VLAD embedder:
 
 #### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD) <ref>[5]</ref>
 
 ```python
-from pyvisim.encoders import VLADEncoder
+from pyvisim.encoders import VLADEmbedder
 from pyvisim.datasets import OxfordFlowerDataset  # needs "nn" extra: install with `pip install "pyvisim[nn]"`
 
 # Load images from the Oxford Flower Dataset. Has to be NumPy Images!
@@ -90,27 +90,27 @@ image1, *_  = dataset[0]
 image2, *_ = dataset[1]
 
 # Learn a visual vocabulary (RootSIFT features by default, k=256).
-encoder = VLADEncoder(n_clusters=256)
-encoder.learn(image for image, *_ in dataset)
+embedder = VLADEmbedder(n_clusters=256)
+embedder.learn(image for image, *_ in dataset)
 
 # Compute the similarity score. By default, cosine similarity is used.
-similarity_score = encoder.similarity_score(image1, image2)
+similarity_score = embedder.similarity_score(image1, image2)
 
 print(f"Similarity Score: {similarity_score}")
 ```
 
-By default the encoder uses cosine similarity. To use a different metric, pass
+By default the embedder uses cosine similarity. To use a different metric, pass
 its name; `"cosine"`, `"euclidean"`, `"l1"` and `"manhattan"` are supported:
 
 ```python
-encoder.similarity_func = "euclidean"
+embedder.similarity_func = "euclidean"
 ```
 
-A fitted encoder can be saved to a `.encoder` file and restored later:
+A fitted embedder can be saved to a `.embedder` file and restored later:
 
 ```python
-path = encoder.save_to_disk("vlad_oxford102")  # writes vlad_oxford102.encoder
-encoder = VLADEncoder.load_from_disk(path)
+path = embedder.save_to_disk("vlad_oxford102")  # writes vlad_oxford102.embedder
+embedder = VLADEmbedder.load_from_disk(path)
 ```
 You can also visit the [introduction notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/getting_started.ipynb) for more examples.
 
@@ -119,7 +119,7 @@ have any suggestions or questions!
 
 1. **Image Retrieval**  
    Retrieve the top-k most similar images from a dataset.  
-   - Use encoding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
+   - Use embedding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
    [this juptyer notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
    - For large galleries, build an `InMemoryImageEmbeddingStore` over your image paths;
      it indexes the embeddings and searches them for you (needs the `search` extra:
@@ -129,7 +129,7 @@ have any suggestions or questions!
      from pyvisim.image_store import InMemoryImageEmbeddingStore
 
      store = InMemoryImageEmbeddingStore(
-         gallery_paths, encoder, "ivf-flat",
+         gallery_paths, embedder, "ivf-flat",
          quantizer="inner_product", index_params={"nlist": 100},
      )
      results = store.retrieve_top_k_similar(query_images, k=5)
@@ -139,7 +139,7 @@ have any suggestions or questions!
 
 2. **Deep Learning Embeddings**  
    - Generate VLAD or Fisher vectors from neural network embeddings, e.g., VGG16 or other models.
-   - Enhance your deep learning pipeline by leveraging traditional encoding methods on top of CNN features.
+   - Enhance your deep learning pipeline by leveraging traditional embedding methods on top of CNN features.
    - Or skip the aggregation entirely and use `ClipEmbedder` (in `pyvisim.neural_networks`)
    for ready-made CLIP embeddings, loaded straight from OpenAI's official checkpoints.
    - The VGG16 deep-feature path (`DeepConvFeature`) and `ClipEmbedder` both need the `nn`
@@ -150,8 +150,8 @@ have any suggestions or questions!
     can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/clustering_images_using_fv.ipynb).
    - Useful for organizing unlabeled data or generating pseudo-labels for further training.
 
-4. **Pipeline for Combining Multiple Encoders**  
-   - Chain various encoders in a single pipeline. An example can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/pipeline.ipynb).
+4. **Pipeline for Combining Multiple Embedders**  
+   - Chain various embedders in a single pipeline. An example can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/pipeline.ipynb).
    - Achieve more robust similarity metrics by blending different feature representations.
 
 5. **Siamese Networks**  
@@ -175,11 +175,11 @@ have any suggestions or questions!
 
 ### Notes
 
-The local features the VLAD and Fisher Vector encoders aggregate:
+The local features the VLAD and Fisher Vector embedders aggregate:
 
 - **RootSIFT** (the default): SIFT with `Hellinger kernel normalization` <sup>[4](#references)</sup>.
 - **SIFT**: Scale-Invariant Feature Transform descriptors, the original feature used for VLAD and
-  Fisher Vector encoding <sup>[5](#references)</sup>.
+  Fisher Vector embedding <sup>[5](#references)</sup>.
 - **Deep Features (VGG16)**: Feature maps from the last convolutional layer of VGG16. At each spatial location,
   the relative x and y coordinates are concatenated to the feature vector, resulting in `512 + 2 = 514` dimensions <sup>[6](#references)</sup>.
 

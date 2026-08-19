@@ -1,5 +1,5 @@
-Encoders
-========
+Embedders
+=========
 
 .. include:: ../../encoders/README.md
    :parser: myst_parser.sphinx_

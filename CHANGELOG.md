@@ -33,9 +33,12 @@ in a notebook in the "examples" repository.
   with `from_pretrained`, `PretrainedVLAD`/`PretrainedFisher`, the deprecated
   `weights=` argument and `KMeansWeights`/`GMMWeights`. Train a vocabulary with
   `learn()` and persist it with `save_to_disk`/`load_from_disk` instead.
-- ⚠️ `ImageEncoderBase` is renamed to `ImageEmbedderBase` and its `encode()`
-  method to `embed()`, matching `ClipEmbedder` and the Siamese networks. Rename
-  the calls on `VLADEncoder`, `FisherVectorEncoder` and `Pipeline` accordingly.
+- ⚠️ "Encoder" is now "embedder" throughout: `ImageEncoderBase` -> `ImageEmbedderBase`,
+  `VLADEncoder` -> `VLADEmbedder`, `FisherVectorEncoder` -> `FisherVectorEmbedder`,
+  the `Encoder` protocol -> `Embedder`, `encode()` -> `embed()` and `store.encoder`
+  -> `store.embedder`.
+- ⚠️ Saved models use the `.embedder` suffix and an `embedder_class` state key, so
+  existing `.encoder` files no longer load. Re-save them with `save_to_disk`.
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
   (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
   class now lives in `pyvisim.neural_networks.siamese._base_siamese`):

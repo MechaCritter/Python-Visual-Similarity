@@ -1,6 +1,6 @@
 """
 Base classes for the clustering and decomposition models used by the
-image encoders.
+image embedders.
 """
 
 import abc
@@ -14,7 +14,7 @@ from ...typing import FloatNumpyArray
 _ClusteringModelT = TypeVar("_ClusteringModelT", bound="ClusteringModelBase")
 
 
-def _encode(value: Any) -> Any:
+def _embed(value: Any) -> Any:
     """
     Recursively converts a fitted-attribute value into JSON-safe data.
 
@@ -22,7 +22,7 @@ def _encode(value: Any) -> Any:
 
     :param value: A value taken from a model's ``__dict__``.
     :return: A JSON-serialisable representation of ``value``.
-    :raises TypeError: If ``value`` is of a type that cannot be encoded.
+    :raises TypeError: If ``value`` is of a type that cannot be embedded.
     """
     if isinstance(value, np.ndarray):
         # Preserve the memory order: scikit-learn stores some fitted attributes
@@ -44,9 +44,9 @@ def _encode(value: Any) -> Any:
     if isinstance(value, np.generic):  # np.float64, np.int64, ...
         return value.item()
     if isinstance(value, dict):
-        return {key: _encode(item) for key, item in value.items()}
+        return {key: _embed(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_encode(item) for item in value]
+        return [_embed(item) for item in value]
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     raise TypeError(f"Cannot serialise attribute of type {type(value)!r}.")
@@ -56,7 +56,7 @@ def _decode(value: Any) -> Any:
     """
     Rebuilds the fitted-attribute values from JSON data.
 
-    :param value: A value produced by :func:`_encode`, after JSON round-trip.
+    :param value: A value produced by :func:`_embed`, after JSON round-trip.
     :return: The reconstructed value, with arrays restored to ``numpy.ndarray``.
     """
     if isinstance(value, dict):

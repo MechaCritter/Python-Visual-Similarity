@@ -105,31 +105,31 @@ def _build_torchvision_model(arch: str, *, pretrained: bool) -> torch.nn.Module:
 
 def _encode_state_dict(model: torch.nn.Module) -> dict[str, Any]:
     """
-    Encode a model's ``state_dict`` as array nodes for the encoder serializer.
+    Embed a model's ``state_dict`` as array nodes for the embedder serializer.
 
     :param model: The model whose weights are serialised.
-    :return: A mapping of parameter name to an encoded array node. The encoder
-        serializer extracts these arrays into the ``.encoder`` file's tensors.
+    :return: A mapping of parameter name to an embedded array node. The embedder
+        serializer extracts these arrays into the ``.embedder`` file's tensors.
     """
-    encoded: dict[str, Any] = {}
+    embedded: dict[str, Any] = {}
     for name, tensor in model.state_dict().items():
         array = tensor.detach().cpu().numpy()
-        encoded[name] = {
+        embedded[name] = {
             "__ndarray__": True,
             "data": array,
             "dtype": str(array.dtype),
             "shape": list(array.shape),
             "order": "C",
         }
-    return encoded
+    return embedded
 
 
 def _decode_state_dict(state_dict: dict[str, Any]) -> dict[str, torch.Tensor]:
     """
-    Rebuild a model ``state_dict`` from arrays restored by the encoder loader.
+    Rebuild a model ``state_dict`` from arrays restored by the embedder loader.
 
     :param state_dict: Mapping of parameter name to NumPy array (restored from
-        the ``.encoder`` file's tensors).
+        the ``.embedder`` file's tensors).
     :return: A mapping of parameter name to torch tensor.
     """
     return {
@@ -145,7 +145,7 @@ class DeepConvFeature(FeatureExtractorBase):
     normalized (x, y) coordinates to each spatial location.
 
     The concepts here were inspired by by the work on `VLAD-DCNN` features for face verification, as
-    presented in [1], where VLAD encodings were computed from deep convolutional features and input into
+    presented in [1], where VLAD embeddings were computed from deep convolutional features and input into
     a metric learning algorithm in order to distinguish between different people.
 
     :param backbone: The convolutional backbone to extract features from. It may be:
@@ -156,11 +156,11 @@ class DeepConvFeature(FeatureExtractorBase):
         * A ``torch.nn.Module`` instance: any user-supplied PyTorch model.
 
         In the paper [1], a VGG-Face model trained on the Imdb-Wiki dataset was
-        used with VLAD encoding for younger faces verification.
+        used with VLAD embedding for younger faces verification.
     :param target_submodule: Optional submodule name to hook into. If None, the whole model is used.
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`
                        to see the ordering or use -1 for the last conv layer.
-    :param spatial_encoding: If True, appends (x/W, y/H) to each descriptor.
+    :param spatial_embedding: If True, appends (x/W, y/H) to each descriptor.
     :param device: 'cpu' or 'cuda'. Where to run the model. Defaults to
                    ``None``, which auto-selects 'cuda' when available, else 'cpu'.
     :param transform: Optional torchvision.transforms.Compose. Default includes `to_tensor`, `resize(224, 224)`,
@@ -184,7 +184,7 @@ class DeepConvFeature(FeatureExtractorBase):
         backbone: str | torch.nn.Module | None = None,
         target_submodule: str | None = None,
         layer_index: int = -1,
-        spatial_encoding: bool = True,
+        spatial_embedding: bool = True,
         device: str | None = None,
         transform: transforms.Compose = None,
         **kwargs: Any,
@@ -195,12 +195,12 @@ class DeepConvFeature(FeatureExtractorBase):
         # Track whether a rebuildable (torchvision-default) model is used: when
         # serialising, such a model is rebuilt from torchvision on load (no
         # weights stored), while a user-supplied model has its state_dict
-        # embedded in the encoder file.
+        # embedded in the embedder file.
         model, self._is_default_model = _build_backbone(backbone)
         self._model: torch.nn.Module
         self._target_submodule = target_submodule
         self.layer_index = layer_index
-        self.spatial_encoding = spatial_encoding
+        self.spatial_embedding = spatial_embedding
         self.device = _resolve_device(device)
         self.transform = transform
         if self.transform is None:
@@ -236,7 +236,7 @@ class DeepConvFeature(FeatureExtractorBase):
             ) from e
         self._output_dim = (
             self.selected_layer_module.out_channels + 2
-            if self.spatial_encoding
+            if self.spatial_embedding
             else self.selected_layer_module.out_channels
         )
         self._register_hook()
@@ -287,20 +287,20 @@ class DeepConvFeature(FeatureExtractorBase):
         its architecture name is stored and the model is rebuilt from
         torchvision's default weights on load. When a user-supplied model is
         used, its full ``state_dict`` is embedded (as array nodes that the
-        encoder serializer writes as binary tensors) so the trained weights
+        embedder serializer writes as binary tensors) so the trained weights
         are recovered exactly. The custom ``transform`` is not serialised; the
         default transform is used when reconstructing.
 
-        :return: A mapping of constructor arguments. It may contain encoded
-            array nodes (the model ``state_dict``) which the encoder serializer
-            extracts into the ``.encoder`` file's tensors.
+        :return: A mapping of constructor arguments. It may contain embedded
+            array nodes (the model ``state_dict``) which the embedder serializer
+            extracts into the ``.embedder`` file's tensors.
         """
         config: dict[str, Any] = {
             "model_arch": type(self._model).__name__,
             "default_model": self._is_default_model,
             "target_submodule": self._target_submodule,
             "layer_index": self.layer_index,
-            "spatial_encoding": self.spatial_encoding,
+            "spatial_embedding": self.spatial_embedding,
             "device": self.device,
         }
         if not self._is_default_model:
@@ -336,7 +336,7 @@ class DeepConvFeature(FeatureExtractorBase):
             backbone=model,
             target_submodule=config.get("target_submodule"),
             layer_index=config["layer_index"],
-            spatial_encoding=config["spatial_encoding"],
+            spatial_embedding=config["spatial_embedding"],
             device=device,
         )
 
@@ -415,7 +415,7 @@ class DeepConvFeature(FeatureExtractorBase):
 
         The input is normalized to a canonical ``uint8`` ``(H, W, C)`` image
         and then passed through ``self.transform`` (which converts it to a
-        tensor in ``[0, 1]``). Batches are handled at the encoder level, so a
+        tensor in ``[0, 1]``). Batches are handled at the embedder level, so a
         single image is expected here.
 
         :param image: Input image as ``MatLike`` (e.g. a NumPy ``(H, W, C)``
@@ -445,7 +445,7 @@ class DeepConvFeature(FeatureExtractorBase):
         C, Hf, Wf = feature_map.shape
         feature_map = feature_map.reshape(C, -1).T  # shape: (Hf*Wf, C)
 
-        if self.spatial_encoding:
+        if self.spatial_embedding:
             coords = []
             for y in range(Hf):
                 for x in range(Wf):
@@ -459,7 +459,7 @@ class DeepConvFeature(FeatureExtractorBase):
     def __repr__(self) -> str:
         return (
             f"DeepConvFeature(backbone={type(self.model).__name__}, layer_index={self.layer_index}, "
-            f"spatial_encoding={self.spatial_encoding}, device={self.device}, "
+            f"spatial_embedding={self.spatial_embedding}, device={self.device}, "
             f"transform={self.transform}, selected_layer_name={self.selected_layer_name}, "
             f"selected_layer_module={self.selected_layer_module}, output_dim={self.output_dim})"
         )

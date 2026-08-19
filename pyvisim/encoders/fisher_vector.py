@@ -3,7 +3,7 @@ from typing import Any, cast
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase
-from ..encoders._base_encoder import ClusteringBasedEncoder
+from ..encoders._base_embedder import ClusteringBasedEmbedder
 from ..typing import (
     Float64NumpyArray,
     FloatNumpyArray,
@@ -13,9 +13,9 @@ from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase, DiagCovarGaussianMixture
 
 
-class FisherVectorEncoder(ClusteringBasedEncoder):
+class FisherVectorEmbedder(ClusteringBasedEmbedder):
     """
-    This class serves as an encoder that transforms input images into Fisher Vector descriptors.
+    This class serves as an embedder that transforms input images into Fisher Vector descriptors.
 
     The Fisher Vector representation is based on the gradients of the GMM parameters
     (weights, means, and covariances) with respect to the feature descriptors extracted
@@ -27,7 +27,7 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     model for dimensionality reduction is configured the same way via
     ``pca_params``.
 
-    The output when calling `encode` has shape (2 * num_clusters * feature_dim + num_clusters,).
+    The output when calling `embed` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
     :param feature_extractor: Feature extractor instance. Default is RootSIFT
     :param n_components: Number of Gaussian mixture components (visual words) to use.
@@ -38,7 +38,7 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization (default: 2).
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed encoding vector (default: True).
+    :param flatten: Whether to flatten the computed embedding vector (default: True).
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
@@ -66,7 +66,7 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
     ):
         if gmm_params and "n_components" in gmm_params:
             raise ValueError(
-                "Pass 'n_components' directly to FisherVectorEncoder instead of inside gmm_params."
+                "Pass 'n_components' directly to FisherVectorEmbedder instead of inside gmm_params."
             )
         clustering_model = DiagCovarGaussianMixture(
             n_components=n_components, **(gmm_params or {})
@@ -103,7 +103,7 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float64NumpyArray:
         """
-        Encode one or more images into Fisher Vector descriptors.
+        Embed one or more images into Fisher Vector descriptors.
 
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images.
@@ -117,9 +117,9 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
         :return: ``(N, 2 × n_components × feature_dim + n_components)`` array of
-            Fisher Vector encodings.
+            Fisher Vector embeddings.
         """
-        all_encodings = []
+        all_embeddings = []
         for image in iter_images(images, dims=dims, value_range=value_range):
             descriptors: FloatNumpyArray = self.feature_extractor(image)
             if self.pca:
@@ -174,6 +174,6 @@ class FisherVectorEncoder(ClusteringBasedEncoder):
 
             if self.flatten:
                 descriptor_vector = descriptor_vector.flatten()
-            all_encodings.append(descriptor_vector)
+            all_embeddings.append(descriptor_vector)
 
-        return np.vstack(all_encodings)
+        return np.vstack(all_embeddings)

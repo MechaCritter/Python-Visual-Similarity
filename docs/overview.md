@@ -17,7 +17,7 @@ pyvisim/
 ├── structural/          SSIM and MSSSIM: pixel-level structural similarity
 ├── eval.py              Retrieval metrics (mAP, top-k accuracy)
 ├── functional.py        retrieve_top_k_similar
-├── encoders/            VLAD, Fisher Vector, Pipeline, pretrained weights
+├── embedders/            VLAD, Fisher Vector, Pipeline, pretrained weights
 ├── image_store/         InMemoryImageEmbeddingStore: indexed embedding gallery
 ├── features/            SIFT, RootSIFT, DeepConvFeature, Lambda
 ├── retrieval/           image indexes + ImageRetriever
@@ -27,10 +27,10 @@ pyvisim/
 
 Per-area docs:
 
-- [Typing](typing.md): Public types (`MatLike`, `ImageInput`, `Encoder`).
-- [Distance](distance.md): the pairwise metrics that compare encodings.
+- [Typing](typing.md): Public types (`MatLike`, `ImageInput`, `Embedder`).
+- [Distance](distance.md): the pairwise metrics that compare embeddings.
 - [Structural](structural/): SSIM and MSSSIM
-- [Encoders](encoders/): how images become vectors.
+- [Embedders](embedders/): how images become vectors.
 - [Image store](image_store.md): the indexed embedding gallery you search.
 - [Features](features/): how local descriptors are extracted from an image.
 - [Retrieval](retrieval/): search indexes and the `ImageRetriever` façade for fast
@@ -40,7 +40,7 @@ Per-area docs:
 
 ## The core pipeline
 
-Every encoder follows the same three-stage flow:
+Every embedder follows the same three-stage flow:
 
 ```
 image (NumPy array)
@@ -52,11 +52,11 @@ local descriptors  (N, D)
 aggregated vector  (fixed size, independent of N)
    │  power + L2 normalization
    ▼
-encoding  →  similarity_func  →  similarity score
+embedding  →  similarity_func  →  similarity score
 ```
 
 The key property is that the number of local descriptors `N` varies per image, but
-the aggregated encoding has a fixed length. That is what makes two images comparable
+the aggregated embedding has a fixed length. That is what makes two images comparable
 with a single similarity function.
 
 ## Two abstract interfaces
@@ -65,21 +65,21 @@ Everything is built on the two abstract base classes in
 [`_base_classes.py`](../pyvisim/_base_classes.py):
 
 - `SimilarityMetric`: anything that can produce a `similarity_score` between two
-  images. Both the encoders and the `Pipeline` implement this.
+  images. Both the embedders and the `Pipeline` implement this.
 - `FeatureExtractorBase`: anything that maps one image to a `(N, D)` array of
   descriptors via `__call__`, and reports its `output_dim`. Used to validate that a
   feature extractor matches the clustering model and PCA it is paired with.
 
 ## Design decisions worth knowing
 
-- **NumPy, torch, or array-like images.** Encoders and feature extractors accept `MatLike`
+- **NumPy, torch, or array-like images.** Embedders and feature extractors accept `MatLike`
   inputs: NumPy arrays, PyTorch tensors, or anything `numpy.asarray` can turn into a
   numeric array. Use the `dims` string (e.g. `"HWC"`, `"BCHW"`) to describe the axis
   layout, and `value_range` to rescale float inputs into `[0, 255]`. See
   [typing.md](typing.md).
 - **Similarity metric is chosen by name.** `similarity_func` takes one of the built-in
   metric names: `"cosine"` (default), `"euclidean"`, `"l1"` or `"manhattan"`.
-- **Trained encoders persist to safetensors `.encoder` files.** `save_to_disk` /
+- **Trained embedders persist to safetensors `.embedder` files.** `save_to_disk` /
   `load_from_disk` capture everything (clustering model, PCA, normalization settings,
   similarity metric and feature extractor), so loading only needs the path.
 

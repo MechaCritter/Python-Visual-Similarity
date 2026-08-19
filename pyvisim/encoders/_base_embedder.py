@@ -19,21 +19,21 @@ from ..typing import (
 )
 from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase
-from ._serialization import load_encoder_state, save_encoder_state
+from ._serialization import load_embedder_state, save_embedder_state
 
 setup_logging()
 
-_ENCODER_FILE_SUFFIX = ".encoder"
-_CLUSERING_ENCODER_FILE_FORMAT_VERSION = 1
-_CLUSERING_ENCODER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
-    # TODO: when the next _CLUSERING_ENCODER_FILE_FORMAT_VERSION comes, check if
+_EMBEDDER_FILE_SUFFIX = ".embedder"
+_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION = 1
+_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
+    # TODO: when the next _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION comes, check if
     # it's forward / backward compatible, then add entries like:
     # (1, 2): True,  # version 1 can read files from version 2
     #
     # However, (2, 1) might not be True!!
 }
-_EncoderT = TypeVar("_EncoderT", bound="ImageEmbedderBase")
-_ClusteringEncoderT = TypeVar("_ClusteringEncoderT", bound="ClusteringBasedEncoder")
+_EmbedderT = TypeVar("_EmbedderT", bound="ImageEmbedderBase")
+_ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
 
 
 class ImageEmbedderBase(SimilarityMetric):
@@ -45,17 +45,17 @@ class ImageEmbedderBase(SimilarityMetric):
     This base only knows how to embed images into vectors (:meth:`embed`) and
     how to compare those vectors with a similarity function. Subclasses add the
     machinery they need on top of that, e.g. a feature extractor
-    (:class:`FeatureBasedEncoder`) or a clustering model
-    (:class:`ClusteringBasedEncoder`).
+    (:class:`FeatureBasedEmbedder`) or a clustering model
+    (:class:`ClusteringBasedEmbedder`).
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     """
 
-    #: Keys a serialised state must contain to be a valid encoder file.
+    #: Keys a serialised state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"encoder_class", "similarity_func"}
+        {"embedder_class", "similarity_func"}
     )
 
     def __init__(self, similarity_func: str = "cosine"):
@@ -82,27 +82,27 @@ class ImageEmbedderBase(SimilarityMetric):
     @abc.abstractmethod
     def to_dict(self) -> dict[str, Any]:
         """
-        Serialises this encoder into a JSON-safe state dictionary.
+        Serialises this embedder into a JSON-safe state dictionary.
 
-        Every concrete encoder must define how it serialises itself. The
+        Every concrete embedder must define how it serialises itself. The
         returned mapping has to contain at least the keys listed in
-        :attr:`_STATE_KEYS` (notably ``"encoder_class"``) so that
+        :attr:`_STATE_KEYS` (notably ``"embedder_class"``) so that
         :meth:`load_from_disk` can validate the file and dispatch it to the
         right class. Arrays may be embedded as ``__ndarray__`` nodes; the
         serialization layer stores them as binary tensors.
 
-        :return: A JSON-safe encoder description suitable for :meth:`from_dict`.
+        :return: A JSON-safe embedder description suitable for :meth:`from_dict`.
         """
         raise NotImplementedError
 
     @classmethod
     @abc.abstractmethod
-    def from_dict(cls: type[_EncoderT], state: dict[str, Any]) -> _EncoderT:
+    def from_dict(cls: type[_EmbedderT], state: dict[str, Any]) -> _EmbedderT:
         """
-        Rebuilds an encoder from a dictionary produced by :meth:`to_dict`.
+        Rebuilds an embedder from a dictionary produced by :meth:`to_dict`.
 
-        :param state: A JSON-safe encoder description from :meth:`to_dict`.
-        :return: A ready-to-use encoder instance.
+        :param state: A JSON-safe embedder description from :meth:`to_dict`.
+        :return: A ready-to-use embedder instance.
         """
         raise NotImplementedError
 
@@ -168,41 +168,41 @@ class ImageEmbedderBase(SimilarityMetric):
 
     def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
         """
-        Saves the serialised state of this encoder to a ``.encoder`` file.
+        Saves the serialised state of this embedder to a ``.embedder`` file.
 
-        :param path: Target file path. The ``.encoder`` suffix is appended if missing.
+        :param path: Target file path. The ``.embedder`` suffix is appended if missing.
         :return: The path of the written file.
-        :raises NotFittedError: If the encoder is not ready to be serialised
+        :raises NotFittedError: If the embedder is not ready to be serialised
             (see :meth:`to_dict`).
         """
         path = pathlib.Path(path)
-        if path.suffix != _ENCODER_FILE_SUFFIX:
-            path = path.with_name(path.name + _ENCODER_FILE_SUFFIX)
-        save_encoder_state(self.to_dict(), path)
+        if path.suffix != _EMBEDDER_FILE_SUFFIX:
+            path = path.with_name(path.name + _EMBEDDER_FILE_SUFFIX)
+        save_embedder_state(self.to_dict(), path)
         return path
 
     @classmethod
     def load_from_disk(
-        cls: type[_EncoderT],
+        cls: type[_EmbedderT],
         path: str | pathlib.Path,
-    ) -> _EncoderT:
+    ) -> _EmbedderT:
         """
-        Loads an encoder previously saved with :meth:`save_to_disk`.
+        Loads an embedder previously saved with :meth:`save_to_disk`.
 
-        :param path: Path to the ``.encoder`` file.
-        :return: A ready-to-use encoder instance.
-        :raises ValueError: If the file is not a valid ``.encoder`` file or
-            was saved by a different encoder class.
+        :param path: Path to the ``.embedder`` file.
+        :return: A ready-to-use embedder instance.
+        :raises ValueError: If the file is not a valid ``.embedder`` file or
+            was saved by a different embedder class.
         """
-        state = load_encoder_state(pathlib.Path(path))
+        state = load_embedder_state(pathlib.Path(path))
         if not cls._STATE_KEYS.issubset(state):
-            raise ValueError(f"File {path} is not a valid .encoder file.")
+            raise ValueError(f"File {path} is not a valid .embedder file.")
         # TODO: in the future, verify the file's format version against the
         # class-specific compatibility table before reconstructing.
-        if state["encoder_class"] != cls.__name__:
+        if state["embedder_class"] != cls.__name__:
             raise ValueError(
-                f"File {path} was saved by {state['encoder_class']}. "
-                f"Load it with {state['encoder_class']}.load_from_disk instead."
+                f"File {path} was saved by {state['embedder_class']}. "
+                f"Load it with {state['embedder_class']}.load_from_disk instead."
             )
         return cls.from_dict(state)
 
@@ -212,9 +212,9 @@ class ImageEmbedderBase(SimilarityMetric):
         )
 
 
-class FeatureBasedEncoder(ImageEmbedderBase):
+class FeatureBasedEmbedder(ImageEmbedderBase):
     """
-    Base class for encoders that derive their vector representation from local
+    Base class for embedders that derive their vector representation from local
     features extracted by a :class:`~pyvisim.features.FeatureExtractorBase`
     (e.g. SIFT, SURF or deep features).
 
@@ -260,9 +260,9 @@ class FeatureBasedEncoder(ImageEmbedderBase):
             )
 
 
-class ClusteringBasedEncoder(FeatureBasedEncoder):
+class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     """
-    Base class for image encoders that aggregate local features with a
+    Base class for image embedders that aggregate local features with a
     clustering model. Subclasses (VLAD and Fisher Vector) use a combination of:
 
     - A feature extractor: Extract local features from an image (e.g. SIFT, SURF, or Deep Features).
@@ -271,7 +271,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
     - A similarity function: computes a single float value from the vector representations that represents
     the similarity between two images.
 
-    The encoding can be used for indexing, retrieval, clustering or classification tasks.
+    The embedding can be used for indexing, retrieval, clustering or classification tasks.
     :param feature_extractor: Feature extractor instance (should implement __call__).
         Defaults to RootSIFT.
     :param clustering_model: Clustering model used for generating descriptors.
@@ -288,10 +288,10 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
 
-    #: Keys that a serialised state must contain to be a valid encoder file.
+    #: Keys that a serialised state must contain to be a valid embedder file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
         {
-            "encoder_class",
+            "embedder_class",
             "clustering_model",
             "pca",
             "power_norm_weight",
@@ -462,7 +462,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
         Learns the visual vocabulary from the given images.
 
         The clustering model configured at initialization (with the
-        scikit-learn parameters passed to the encoder constructor) is fitted
+        scikit-learn parameters passed to the embedder constructor) is fitted
         on the extracted features. If a PCA model is configured, the features
         are reduced with it first (fitting it beforehand if necessary).
 
@@ -479,7 +479,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :raises RuntimeError: If the encoder has no clustering model configured.
+        :raises RuntimeError: If the embedder has no clustering model configured.
         :raises ValueError: If dim_reduction_factor is provided but is not a positive integer.
         """
         if dim_reduction_factor is not None and (
@@ -488,7 +488,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             raise ValueError("dim_reduction_factor must be a positive integer.")
         if self._clustering_model is None:
             raise RuntimeError(
-                "This encoder has no clustering model to fit. "
+                "This embedder has no clustering model to fit. "
                 "Configure one via the constructor parameters."
             )
         features: FloatNumpyArray = np.vstack(
@@ -517,7 +517,7 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
 
     def load_clustering_model_from_sklearn(self, model: Any) -> None:
         """
-        Replaces this encoder's clustering model with one created from a
+        Replaces this embedder's clustering model with one created from a
         scikit-learn estimator.
 
         The estimator's constructor arguments are translated by the
@@ -530,9 +530,9 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
         (Fisher Vector).
 
         :param model: A scikit-learn estimator of the type matching this
-            encoder's clustering model (e.g. :class:`sklearn.cluster.KMeans`
+            embedder's clustering model (e.g. :class:`sklearn.cluster.KMeans`
             for VLAD), fitted or not.
-        :raises NotImplementedError: If this encoder's clustering model class
+        :raises NotImplementedError: If this embedder's clustering model class
             cannot be created from a scikit-learn estimator.
         :raises TypeError: If ``model`` is not of the supported estimator type.
         :raises RuntimeError: If the fitted estimator's input size is
@@ -548,26 +548,26 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
 
     def to_dict(self) -> dict[str, Any]:
         """
-        Serialises the learned encoder into a JSON-safe state dictionary.
+        Serialises the learned embedder into a JSON-safe state dictionary.
 
-        The returned mapping describes the encoder class, its clustering model,
+        The returned mapping describes the embedder class, its clustering model,
         optional PCA, normalization hyperparameters, similarity metric and
         feature extractor. Arrays are kept as ``__ndarray__`` nodes so the
         whole dictionary can be embedded inside a larger state (e.g. an
         :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`).
 
-        :return: A JSON-safe encoder description suitable for
+        :return: A JSON-safe embedder description suitable for
             :meth:`from_dict`.
         :raises NotFittedError: If the clustering model is missing or not fitted.
         """
         if self._clustering_model is None or not self._clustering_model.is_fitted:
             raise NotFittedError(
-                "Cannot serialise an encoder whose clustering model is not "
+                "Cannot serialise an embedder whose clustering model is not "
                 "fitted. Call 'learn' first."
             )
         return {
-            "format_version": _CLUSERING_ENCODER_FILE_FORMAT_VERSION,
-            "encoder_class": type(self).__name__,
+            "format_version": _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION,
+            "embedder_class": type(self).__name__,
             "clustering_model": self._clustering_model.to_dict(),
             "pca": self._pca.to_dict() if self._pca is not None else None,
             "power_norm_weight": self.power_norm_weight,
@@ -581,18 +581,18 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
 
     @classmethod
     def from_dict(
-        cls: type[_ClusteringEncoderT], state: dict[str, Any]
-    ) -> _ClusteringEncoderT:
+        cls: type[_ClusteringEmbedderT], state: dict[str, Any]
+    ) -> _ClusteringEmbedderT:
         """
-        Rebuilds an encoder from a dictionary produced by :meth:`to_dict`.
+        Rebuilds an embedder from a dictionary produced by :meth:`to_dict`.
 
-        The caller is responsible for dispatching ``state["encoder_class"]`` to
-        the matching encoder class; this method trusts that ``cls`` is correct.
+        The caller is responsible for dispatching ``state["embedder_class"]`` to
+        the matching embedder class; this method trusts that ``cls`` is correct.
 
-        :param state: A JSON-safe encoder description from :meth:`to_dict`.
-        :return: A ready-to-use encoder instance.
+        :param state: A JSON-safe embedder description from :meth:`to_dict`.
+        :return: A ready-to-use embedder instance.
         """
-        encoder = cls(
+        embedder = cls(
             feature_extractor=feature_extractor_from_dict(state["feature_extractor"]),
             similarity_func=state["similarity_func"],
             power_norm_weight=state["power_norm_weight"],
@@ -604,11 +604,11 @@ class ClusteringBasedEncoder(FeatureBasedEncoder):
             ],
         )
         if state["pca"] is not None:
-            encoder._set_pca(PCA.from_dict(state["pca"]))
-        encoder._set_clustering_model(
+            embedder._set_pca(PCA.from_dict(state["pca"]))
+        embedder._set_clustering_model(
             cls._clustering_model_cls.from_dict(state["clustering_model"])
         )
-        return encoder
+        return embedder
 
     def __repr__(self) -> str:
         n_clusters = (

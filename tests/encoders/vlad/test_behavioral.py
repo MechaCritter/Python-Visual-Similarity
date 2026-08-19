@@ -1,4 +1,4 @@
-"""Behavioural / requirement-driven tests for :class:`pyvisim.encoders.VLADEncoder`."""
+"""Behavioural / requirement-driven tests for :class:`pyvisim.encoders.VLADEmbedder`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from pyvisim.encoders import VLADEncoder
+from pyvisim.encoders import VLADEmbedder
 
 if TYPE_CHECKING:
     from pyvisim._base_classes import SimilarityMetric
@@ -18,7 +18,7 @@ MARGIN = 1e-6
 
 
 def _assert_same_category_higher(
-    encoder: SimilarityMetric, query_images: dict[str, list[np.ndarray]]
+    embedder: SimilarityMetric, query_images: dict[str, list[np.ndarray]]
 ) -> None:
     """Assert same-category queries score higher than different-category ones."""
     categories = list(query_images)
@@ -28,8 +28,8 @@ def _assert_same_category_higher(
         other = categories[(index + 1) % len(categories)]
         query_a, query_b = query_images[category][0], query_images[category][1]
         query_other = query_images[other][0]
-        score_same = float(encoder.similarity_score([query_a], [query_b])[0, 0])
-        score_diff = float(encoder.similarity_score([query_a], [query_other])[0, 0])
+        score_same = float(embedder.similarity_score([query_a], [query_b])[0, 0])
+        score_diff = float(embedder.similarity_score([query_a], [query_other])[0, 0])
         assert score_same > score_diff + MARGIN
         same_scores.append(score_same)
         diff_scores.append(score_diff)
@@ -37,38 +37,40 @@ def _assert_same_category_higher(
 
 
 def _assert_same_noise_higher(
-    encoder: SimilarityMetric,
+    embedder: SimilarityMetric,
     noisy_pair: tuple[ImageObj, ImageObj],
     very_noisy_pair: tuple[ImageObj, ImageObj],
 ) -> float:
     """Assert same-level noise scores higher than different-level; return ``s_diff``."""
     noisy_a, noisy_b = noisy_pair
     very_noisy_a, _ = very_noisy_pair
-    score_same = float(encoder.similarity_score([noisy_a.array], [noisy_b.array])[0, 0])
+    score_same = float(
+        embedder.similarity_score([noisy_a.array], [noisy_b.array])[0, 0]
+    )
     score_diff = float(
-        encoder.similarity_score([noisy_a.array], [very_noisy_a.array])[0, 0]
+        embedder.similarity_score([noisy_a.array], [very_noisy_a.array])[0, 0]
     )
     assert score_same > score_diff + MARGIN
     return score_diff
 
 
 def _assert_grey_is_floor(
-    encoder: SimilarityMetric, query: np.ndarray, grey: np.ndarray
+    embedder: SimilarityMetric, query: np.ndarray, grey: np.ndarray
 ) -> None:
-    """Assert the plain grey image is the similarity floor (it cannot be encoded)."""
+    """Assert the plain grey image is the similarity floor (it cannot be embedded)."""
     with pytest.raises(ValueError):
-        encoder.similarity_score([query], [grey])
+        embedder.similarity_score([query], [grey])
 
 
 def _assert_noisy_closer_to_original_than_different(
-    encoder: SimilarityMetric,
+    embedder: SimilarityMetric,
     original: np.ndarray,
     noisy: np.ndarray,
     different: np.ndarray,
 ) -> None:
     """Assert ``similarity(original, noisy) > similarity(original, different)``."""
-    score_noisy = float(encoder.similarity_score([original], [noisy])[0, 0])
-    score_diff = float(encoder.similarity_score([original], [different])[0, 0])
+    score_noisy = float(embedder.similarity_score([original], [noisy])[0, 0])
+    score_diff = float(embedder.similarity_score([original], [different])[0, 0])
     assert score_noisy > score_diff + MARGIN
 
 
@@ -76,29 +78,29 @@ def _assert_noisy_closer_to_original_than_different(
 
 
 def test_same_category_scores_higher_than_different(
-    learned_vlad_encoder: VLADEncoder,
+    learned_vlad_embedder: VLADEmbedder,
     category_query_images: dict[str, list[np.ndarray]],
 ) -> None:
     """VLAD scores same-category query pairs higher than different-category ones."""
-    _assert_same_category_higher(learned_vlad_encoder, category_query_images)
+    _assert_same_category_higher(learned_vlad_embedder, category_query_images)
 
 
 def test_identical_image_near_perfect_similarity(
-    learned_vlad_encoder: VLADEncoder, checkerboard_image: ImageObj
+    learned_vlad_embedder: VLADEmbedder, checkerboard_image: ImageObj
 ) -> None:
     """VLAD reports similarity of 1.0 for an image against its copy."""
     image = checkerboard_image.array
-    score = float(learned_vlad_encoder.similarity_score([image], [image.copy()])[0, 0])
+    score = float(learned_vlad_embedder.similarity_score([image], [image.copy()])[0, 0])
     assert score == pytest.approx(1.0, abs=1e-6)
 
 
-def test_encode_deterministic(
-    learned_vlad_encoder: VLADEncoder, checkerboard_image: ImageObj
+def test_embed_deterministic(
+    learned_vlad_embedder: VLADEmbedder, checkerboard_image: ImageObj
 ) -> None:
-    """Encoding the same query twice with a fixed seed is reproducible."""
+    """Embedding the same query twice with a fixed seed is reproducible."""
     image = checkerboard_image.array
     assert np.allclose(
-        learned_vlad_encoder.embed([image]), learned_vlad_encoder.embed([image])
+        learned_vlad_embedder.embed([image]), learned_vlad_embedder.embed([image])
     )
 
 
@@ -106,38 +108,38 @@ def test_encode_deterministic(
 
 
 def test_same_noise_more_similar_than_different_noise(
-    learned_vlad_encoder: VLADEncoder,
+    learned_vlad_embedder: VLADEmbedder,
     noisy_image_pair: tuple[ImageObj, ImageObj],
     very_noisy_image_pair: tuple[ImageObj, ImageObj],
 ) -> None:
     """VLAD: same noise level is more similar than a different noise level."""
     _assert_same_noise_higher(
-        learned_vlad_encoder, noisy_image_pair, very_noisy_image_pair
+        learned_vlad_embedder, noisy_image_pair, very_noisy_image_pair
     )
 
 
 def test_different_noise_more_similar_than_grey(
-    learned_vlad_encoder: VLADEncoder,
+    learned_vlad_embedder: VLADEmbedder,
     noisy_image_pair: tuple[ImageObj, ImageObj],
     solid_image: ImageObj,
 ) -> None:
     """VLAD: a different-noise pair still beats the unencodable plain grey floor."""
     noisy_a, _ = noisy_image_pair
-    _assert_grey_is_floor(learned_vlad_encoder, noisy_a.array, solid_image.array)
+    _assert_grey_is_floor(learned_vlad_embedder, noisy_a.array, solid_image.array)
 
 
 def test_full_noise_ordering(
-    learned_vlad_encoder: VLADEncoder,
+    learned_vlad_embedder: VLADEmbedder,
     noisy_image_pair: tuple[ImageObj, ImageObj],
     very_noisy_image_pair: tuple[ImageObj, ImageObj],
     solid_image: ImageObj,
 ) -> None:
     """VLAD: ``s_same > s_diff > s_grey`` as a single ordering check."""
     _assert_same_noise_higher(
-        learned_vlad_encoder, noisy_image_pair, very_noisy_image_pair
+        learned_vlad_embedder, noisy_image_pair, very_noisy_image_pair
     )
     _assert_grey_is_floor(
-        learned_vlad_encoder, noisy_image_pair[0].array, solid_image.array
+        learned_vlad_embedder, noisy_image_pair[0].array, solid_image.array
     )
 
 
@@ -145,14 +147,14 @@ def test_full_noise_ordering(
 
 
 def test_noisy_closer_to_original_than_different(
-    learned_vlad_encoder: VLADEncoder,
+    learned_vlad_embedder: VLADEmbedder,
     checkerboard_image: ImageObj,
     noisy_checkerboard_image: ImageObj,
     blobs_image: ImageObj,
 ) -> None:
     """VLAD: image+noise is more similar to its original than to a structurally different image."""
     _assert_noisy_closer_to_original_than_different(
-        learned_vlad_encoder,
+        learned_vlad_embedder,
         checkerboard_image.array,
         noisy_checkerboard_image.array,
         blobs_image.array,
@@ -162,18 +164,18 @@ def test_noisy_closer_to_original_than_different(
 # §3.6.5 Serialization round-trip
 
 
-def test_encode_invariant_after_serialization(
-    learned_vlad_encoder: VLADEncoder,
+def test_embed_invariant_after_serialization(
+    learned_vlad_embedder: VLADEmbedder,
     checkerboard_image: ImageObj,
     tmp_path,
 ) -> None:
-    """VLAD encodes an image to the exact same vector before and after a save/load round-trip."""
+    """VLAD embeds an image to the exact same vector before and after a save/load round-trip."""
     image = checkerboard_image.array
-    vector_before = learned_vlad_encoder.embed([image])
+    vector_before = learned_vlad_embedder.embed([image])
 
-    path = learned_vlad_encoder.save_to_disk(tmp_path / "encoder")
+    path = learned_vlad_embedder.save_to_disk(tmp_path / "embedder")
     try:
-        loaded = VLADEncoder.load_from_disk(path)
+        loaded = VLADEmbedder.load_from_disk(path)
         vector_after = loaded.embed([image])
         assert np.allclose(vector_before, vector_after)
     finally:

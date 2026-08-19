@@ -14,12 +14,12 @@ from pyvisim.typing import FloatNumpyArray, ImageInput, UInt8NumpyArray
 NUM_GALLERY = 12
 
 
-class FlattenEncoder:
-    """Deterministic encoder flattening each RGB image into its pixel vector.
+class FlattenEmbedder:
+    """Deterministic embedder flattening each RGB image into its pixel vector.
 
     Identical pixels yield identical vectors, so an image is always its own
     nearest neighbour. This keeps the retrieval assertions exact without
-    depending on a learned encoder.
+    depending on a learned embedder.
     """
 
     def embed(
@@ -62,7 +62,7 @@ def gallery(
         paths.append(str(path))
     store = InMemoryImageEmbeddingStore(
         paths,
-        FlattenEncoder(),
+        FlattenEmbedder(),
         "ivf-flat",
         quantizer="inner_product",
         index_params={"nlist": 2, "nprobe": 2},

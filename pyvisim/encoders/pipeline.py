@@ -8,7 +8,7 @@ from ..typing import (
     ImageInput,
 )
 from ..utils.image_utils import iter_images
-from ._base_encoder import ImageEmbedderBase
+from ._base_embedder import ImageEmbedderBase
 
 #: On-disk format version of the serialised pipeline state.
 _PIPELINE_FORMAT_VERSION = 1
@@ -17,13 +17,13 @@ _PIPELINE_FORMAT_VERSION = 1
 class Pipeline(ImageEmbedderBase):
     """
     A pipeline for computing feature vectors using a set of
-    encoders.
+    embedders.
 
-    Currently, all vectors computed using the Encoders listed
-    will always be flattened, because different Encoders also
+    Currently, all vectors computed using the Embedders listed
+    will always be flattened, because different Embedders also
     have different output sizes.
 
-    :param encoders: A list of ImageEmbedderBase instances.
+    :param embedders: A list of ImageEmbedderBase instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     """
@@ -32,45 +32,45 @@ class Pipeline(ImageEmbedderBase):
 
     #: Keys a serialised state must contain to be a valid pipeline file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"encoder_class", "encoders", "similarity_func"}
+        {"embedder_class", "encoders", "similarity_func"}
     )
 
     def __init__(
         self,
-        encoders: list[ImageEmbedderBase],
+        embedders: list[ImageEmbedderBase],
         similarity_func: str = "cosine",
     ):
-        self._check_valid_encoders(encoders)
-        self.encoders = encoders
+        self._check_valid_embedders(embedders)
+        self.embedders = embedders
         super().__init__(similarity_func=similarity_func)
 
-    def _check_valid_encoders(self, encoders: list[ImageEmbedderBase]) -> None:
+    def _check_valid_embedders(self, embedders: list[ImageEmbedderBase]) -> None:
         """
-        Checks if all encoders in the pipeline are instances of ImageEmbedderBase.
-        :param encoders: list of encoders to check.
+        Checks if all embedders in the pipeline are instances of ImageEmbedderBase.
+        :param embedders: list of embedders to check.
         """
-        for encoder in encoders:
-            if not isinstance(encoder, ImageEmbedderBase):
+        for embedder in embedders:
+            if not isinstance(embedder, ImageEmbedderBase):
                 raise ValueError(
-                    f"Pipeline only accepts instances of ImageEmbedderBase, not {type(encoder)}"
+                    f"Pipeline only accepts instances of ImageEmbedderBase, not {type(embedder)}"
                 )
 
     def to_dict(self) -> dict[str, Any]:
         """
         Serialises the pipeline into a JSON-safe state dictionary.
 
-        Each member encoder is serialised with its own
-        :meth:`~pyvisim.encoders.ImageEmbedderBase.to_dict`, so every encoder
+        Each member embedder is serialised with its own
+        :meth:`~pyvisim.encoders.ImageEmbedderBase.to_dict`, so every embedder
         must be fitted.
 
         :return: A JSON-safe pipeline description suitable for
             :meth:`from_dict`.
-        :raises NotFittedError: If any member encoder is not fitted.
+        :raises NotFittedError: If any member embedder is not fitted.
         """
         return {
             "format_version": _PIPELINE_FORMAT_VERSION,
-            "encoder_class": type(self).__name__,
-            "encoders": [encoder.to_dict() for encoder in self.encoders],
+            "embedder_class": type(self).__name__,
+            "encoders": [embedder.to_dict() for embedder in self.embedders],
             "similarity_func": self._similarity_func_name,
         }
 
@@ -82,14 +82,14 @@ class Pipeline(ImageEmbedderBase):
         :param state: A JSON-safe pipeline description from :meth:`to_dict`.
         :return: A ready-to-use :class:`Pipeline` instance.
         """
-        # Imported lazily to avoid an import cycle with the encoder registry.
-        from ._reconstruct import encoder_from_dict
+        # Imported lazily to avoid an import cycle with the embedder registry.
+        from ._reconstruct import embedder_from_dict
 
-        encoders = [
-            cast(ImageEmbedderBase, encoder_from_dict(encoder_state))
-            for encoder_state in state["encoders"]
+        embedders = [
+            cast(ImageEmbedderBase, embedder_from_dict(embedder_state))
+            for embedder_state in state["encoders"]
         ]
-        return cls(encoders, similarity_func=state["similarity_func"])
+        return cls(embedders, similarity_func=state["similarity_func"])
 
     def embed(
         self,
@@ -99,11 +99,11 @@ class Pipeline(ImageEmbedderBase):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Embed an image using all encoders in the pipeline.
+        Embed an image using all embedders in the pipeline.
 
         The input is normalized once into canonical ``uint8`` ``(H, W, C)``
         images (handling torch tensors and batches), then shared across every
-        encoder in the pipeline.
+        embedder in the pipeline.
 
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images.
@@ -116,33 +116,35 @@ class Pipeline(ImageEmbedderBase):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: embedded images using the combined encoders.
+        :return: embedded images using the combined embedders.
         """
         image_list = list(iter_images(images, dims=dims, value_range=value_range))
-        all_encodings = []
-        for metric in self.encoders:
-            # Each encoder has to be flattened to be usable here. Encoders that
+        all_embeddings = []
+        for metric in self.embedders:
+            # Each embedder has to be flattened to be usable here. Embedders that
             # do not expose a ``flatten`` flag are assumed to already emit flat
-            # ``(num_imgs, feature_dim)`` encodings.
+            # ``(num_imgs, feature_dim)`` embeddings.
             has_flatten = hasattr(metric, "flatten")
             if has_flatten:
                 original_flatten = metric.flatten  # type: ignore[attr-defined]
                 metric.flatten = True  # type: ignore[attr-defined]
-            encodings = metric.embed(image_list)  # Each of size (num_imgs, feature_dim)
-            all_encodings.append(encodings)
+            embeddings = metric.embed(
+                image_list
+            )  # Each of size (num_imgs, feature_dim)
+            all_embeddings.append(embeddings)
             if has_flatten:
                 metric.flatten = original_flatten  # type: ignore[attr-defined]
-        return np.hstack(all_encodings)
+        return np.hstack(all_embeddings)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
     #     """
-    #     Trains any clustering model_files used by the encoders in this pipeline, if they have a fit method.
+    #     Trains any clustering model_files used by the embedders in this pipeline, if they have a fit method.
     #
-    #     :param images: Iterable of images (NumPy arrays) used for fitting the pipeline's encoders.
+    #     :param images: Iterable of images (NumPy arrays) used for fitting the pipeline's embedders.
     #     :param reduce_dimension: Whether to apply dimension reduction (e.g., PCA) if supported.
     #     :param reduce_factor: Factor to reduce the dimension by.
     #     """
-    #     for metric in self.encoder:
+    #     for metric in self.embedder:
     #         if hasattr(metric, 'fit') and callable(metric.fit):
     #             self._logger.info(f"Fitting {metric.__class__.__name__} with reduce_dimension={reduce_dimension}...")
     #             metric.fit(images, reduce_dimension=reduce_dimension, reduce_factor=reduce_factor)
@@ -152,11 +154,11 @@ class Pipeline(ImageEmbedderBase):
     def __repr__(self) -> str:
         """
         Returns a string representation of this Pipeline, including the names
-        of the encoders and the similarity function used.
+        of the embedders and the similarity function used.
         """
-        encoders_str = "\n".join([str(encoder) for encoder in self.encoders])
+        embedders_str = "\n".join([str(embedder) for embedder in self.embedders])
         return (
             f"Pipeline(\n"
-            f"encoders=[{encoders_str}],\n"
+            f"embedders=[{embedders_str}],\n"
             f"similarity_func={self._similarity_func_name})"
         )

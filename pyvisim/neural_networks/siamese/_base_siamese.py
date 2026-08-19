@@ -113,7 +113,7 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         Runs one branch of the Siamese network on a preprocessed batch.
 
         Both inputs of a pair go through this same shared-weight pass; it is
-        also the encoding used by :meth:`embed`.
+        also the embedding used by :meth:`embed`.
 
         :param x: Preprocessed image tensor of shape (batch, channels, H, W).
         :return: Branch output of shape (batch, embedding_dim).
@@ -208,7 +208,7 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         return cast(torch.Tensor, self._transform(pil_image))
 
     @torch.no_grad()
-    def _encode_images(
+    def _embed_images(
         self,
         images: ImageInput,
         *,
@@ -216,7 +216,7 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> torch.Tensor:
         """
-        Encodes one or more images into a batch of branch outputs.
+        Embeds one or more images into a batch of branch outputs.
 
         All images are preprocessed, stacked into a single batch and passed
         through :meth:`_forward_once`. The model is switched to eval mode so
@@ -274,7 +274,7 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
             image.
         :raises ValueError: If ``images`` contains no image.
         """
-        embeddings = self._encode_images(images, dims=dims, value_range=value_range)
+        embeddings = self._embed_images(images, dims=dims, value_range=value_range)
         return cast(FloatNumpyArray, embeddings.cpu().numpy())
 
     @property

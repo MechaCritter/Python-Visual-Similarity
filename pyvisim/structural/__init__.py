@@ -2,7 +2,7 @@
 Structural similarity metrics.
 
 Dense metrics that compare two aligned images through local luminance,
-contrast and structure statistics instead of an intermediate vector encoding:
+contrast and structure statistics instead of an intermediate vector embedding:
 the single-scale :class:`SSIM` (Wang et al., 2004) and the multi-scale
 :class:`MSSSIM` (Wang et al., 2003).
 """

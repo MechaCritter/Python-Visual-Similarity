@@ -1,4 +1,4 @@
-"""Principal Component Analysis model used by the image encoders."""
+"""Principal Component Analysis model used by the image embedders."""
 
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
@@ -9,7 +9,7 @@ from scipy.sparse.linalg import svds
 
 from ..._errors import NotFittedError
 from ...typing import Float64NumpyArray, FloatNumpyArray
-from ._base_clustering import _decode, _encode
+from ._base_clustering import _decode, _embed
 from .kmeans import _rng_from_sklearn
 
 _PCAT = TypeVar("_PCAT", bound="PCA")
@@ -81,7 +81,7 @@ def _flip_signs(components: Float64NumpyArray) -> Float64NumpyArray:
 
 class PCA:
     """
-    Principal Component Analysis model, used by the image encoders to
+    Principal Component Analysis model, used by the image embedders to
     reduce the dimensionality of local features.
 
     Supported SVD solvers are:
@@ -485,7 +485,7 @@ class PCA:
         return {
             "__class__": type(self).__name__,
             "__module__": type(self).__module__,
-            "state": _encode(state),
+            "state": _embed(state),
         }
 
     @classmethod

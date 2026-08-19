@@ -110,7 +110,7 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
         """
         Computes the similarity matrix between two image batches.
 
-        Both inputs are encoded with :meth:`embed` and the resulting embedding
+        Both inputs are embedded with :meth:`embed` and the resulting embedding
         batches are scored with ``similarity_func``.
 
         :param image1: First (batch of) image(s) as ``MatLike``.

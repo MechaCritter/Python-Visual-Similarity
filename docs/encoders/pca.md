@@ -1,7 +1,7 @@
 # Principal Component Analysis (PCA)
 
 `PCA` is used to reduce the dimensionality of local descriptors of VLAD and Fisher Vector before clustering in
-order to reduce the size of the final encoding.
+order to reduce the size of the final embedding.
 
 ## Parameters (`pca_params`)
 

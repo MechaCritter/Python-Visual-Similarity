@@ -1,4 +1,4 @@
-"""K-Means clustering class used by the VLAD encoder."""
+"""K-Means clustering class used by the VLAD embedder."""
 
 import warnings
 from collections.abc import Callable
@@ -8,7 +8,7 @@ import numpy as np
 from scipy.cluster.vq import kmeans, vq
 
 from ...typing import FloatNumpyArray, IntNumpyArray
-from ._base_clustering import ClusteringModelBase, _decode, _encode
+from ._base_clustering import ClusteringModelBase, _decode, _embed
 
 _KMeansT = TypeVar("_KMeansT", bound="KMeans")
 
@@ -99,7 +99,7 @@ def _kmeans_plusplus(
 
 class KMeans(ClusteringModelBase):
     """
-    K-Means clustering model, used by the VLAD encoder.
+    K-Means clustering model, used by the VLAD embedder.
 
     :param n_clusters: Number of clusters to form.
     :param n_init: Number of k-means++ seedings to run; each seeded codebook
@@ -247,7 +247,7 @@ class KMeans(ClusteringModelBase):
         Serialises the fitted model into a JSON-safe dictionary.
 
         The state layout keeps the ``cluster_centers_`` / ``n_features_in_``
-        key names used by older releases, so the ``.encoder`` files they
+        key names used by older releases, so the ``.embedder`` files they
         wrote can still be read; the whitening scale is stored under
         ``scale_``.
 
@@ -270,7 +270,7 @@ class KMeans(ClusteringModelBase):
         return {
             "__class__": type(self).__name__,
             "__module__": type(self).__module__,
-            "state": _encode(state),
+            "state": _embed(state),
         }
 
     @classmethod

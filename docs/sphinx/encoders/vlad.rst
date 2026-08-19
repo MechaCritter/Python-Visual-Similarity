@@ -1,5 +1,5 @@
-VLADEncoder
-===========
+VLADEmbedder
+============
 
 .. include:: ../../encoders/vlad.md
    :parser: myst_parser.sphinx_
@@ -8,7 +8,7 @@ VLADEncoder
 API reference
 -------------
 
-.. autoclass:: pyvisim.encoders.VLADEncoder
+.. autoclass:: pyvisim.encoders.VLADEmbedder
    :members:
    :inherited-members:
    :show-inheritance:
