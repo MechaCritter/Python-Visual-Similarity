@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyvisim"
 version = "0.8.2"
-description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
+description = "A Python library for image similarity analysis using Image Embedders and Neural Networks"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -14,14 +14,25 @@ authors = [
 ]
 requires-python = ">=3.10"
 classifiers = [
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Operating System :: OS Independent",
-]
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: Implementation :: CPython",
+  ]
 dependencies = [
     "numpy",
     "Pillow",
@@ -32,11 +43,6 @@ dependencies = [
     "requests",
 ]
 
-# To install PyTorch with CUDA support instead of the CPU-only default:
-#   uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-# Replace cu124 with the CUDA version matching your system (e.g. cu121, cu118).
-
-# Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
 [project.optional-dependencies]
 # Deep-learning features and models (DeepConvFeature, the datasets and
 # neural_networks modules, including ClipEmbedder) built on top of
@@ -54,7 +60,9 @@ search = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MechaCritter/Python-Visual-Similarity"
+Homepage = "https://mechacritter.github.io/Python-Visual-Similarity/"
+Source = "https://github.com/MechaCritter/Python-Visual-Similarity"
+Download = "https://pypi.org/project/pyvisim/#files"
 
 [tool.setuptools.packages.find]
 include = ["pyvisim", "pyvisim.*"]

@@ -12,15 +12,14 @@
 
 # Welcome to `pyvisim`!
 
-`pyvisim` is a Python library for computing image similarities using image encoders
-and neural networks.
+`pyvisim` is a Python library for computing image similarities using dense metrics and image embedders.
 
 📚 **Documentation**: <https://mechacritter.github.io/Python-Visual-Similarity/>
 
 ## Table of Contents
 
 1. [Installation](#installation)
-2. [Why **pyvisim**](#why-pyvisim)
+2. [Overview](#overview)
 3. [Pretrained Models](#pretrained-models)
 4. [Contributing](#contributing)
 5. [Get in Touch](#get-in-touch)
@@ -28,9 +27,6 @@ and neural networks.
 7. [License](#license)
 8. [References](#references)
 
-For a technical deep-dive into the library internals and the full API reference, see the
-[hosted documentation](https://mechacritter.github.io/Python-Visual-Similarity/) (also
-available in this repository as the [developer documentation](docs/overview.md)).
 
 ## Status
 
@@ -42,82 +38,55 @@ available in this repository as the [developer documentation](docs/overview.md))
 > The first stable release will have the version tag `v1.0.0` and will come approximately by the
 > end of `August 2026`.
 
-## Installation
+## Overview
 
-To use the library, you can simply install it via pip:
+TODO: add diagram showing how image embedding works
 
-```bash
-pip install pyvisim
-# For deep learning features and the OxfordFlowerDataset
-pip install "pyvisim[nn]"
-# For image search feature
-pip install "pyvisim[search]"
-```
+The goal of `pyvisim` is to become the largest collection of image similarity metrics in Python, varying from
+traditional methods like `PSNR`, `SSIM`, `Fisher Vectors`, and `VLAD` to deep learning methods like `CLIP` and `Siamese Networks`. Then, one can use these for image retrieval and clustering.
 
-or clone the repository and install it locally:
+Currently, one would need to install numerous libraries just to get all the metrics mentioned (for example, `scikit-image` + `opencv-python` for `Fisher Vectors` and `SSIM`, `open-clip` for `CLIP Embedder`). `pyvisim`
+depends on none of those. All the metrics are implemented using only `numpy`, `scipy` (for conventional metrics), and
+`torch` (for deep learning metrics).
 
-```bash
-git clone https://github.com/MechaCritter/Python-Visual-Similarity.git
-cd Python-Visual-Similarity
-pip install .
-```
-Note that the *notebooks are only available if you clone the repository.*
+### Accelerated Computation
 
-All experiments in this project was made on the Oxford Flower Dataset <ref>[7]</ref>, for which I
-have created a custom dataset class. To use this class, import it as follows:
+**Cython** kernels are used for some metrics to accelerate computation significantly compared
+to all reference libraries on the CPU. See, for example, [benchmark results of the `SSIM` implementation](docs/structural/README.md#benchmarking).
+
+### Examples
+
+#### Structural Similarity:
 
 ```python
-from pyvisim.datasets import OxfordFlowerDataset
-```
-For more details on the dataset, please refer to the [documentation](pyvisim/datasets/README.md).
+from pyvisim.structural import SSIM
 
-## Why `pyvisim`?
-
-`pyvisim` is designed to provide a simple and efficient way to compare images.
-
-### Quick Start
-
-With just a few lines of code, you can compute the similarity score between two images using the VLAD encoder:
-
-#### Example: Compute Similarity Score Using Vector of Locally Aggregated Descriptors (VLAD) <ref>[5]</ref>
-
-```python
-from pyvisim.encoders import VLADEncoder, PretrainedVLAD
-from pyvisim.datasets import OxfordFlowerDataset  # needs "nn" extra: install with `pip install "pyvisim[nn]"`
-
-# Load images from the Oxford Flower Dataset. Has to be NumPy Images!
-dataset = OxfordFlowerDataset()
-image1, *_  = dataset[0]
-image2, *_ = dataset[1]
-
-# Load a bundled pretrained VLAD encoder (RootSIFT features, k=256).
-# The feature extractor and similarity metric come with it.
-encoder = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
-
-# Compute the similarity score. By default, cosine similarity is used.
-similarity_score = encoder.similarity_score(image1, image2)
-
+ssim = SSIM()
+similarity_score = ssim.similarity_score(image1, image2)
 print(f"Similarity Score: {similarity_score}")
 ```
 
-By default the encoder uses cosine similarity. To use a different metric, pass
-its name; `"cosine"`, `"euclidean"`, `"l1"` and `"manhattan"` are supported:
+#### One-Shot similarity computation using the `CLIPEmbedder`:
 
 ```python
-encoder = VLADEncoder.from_pretrained(PretrainedVLAD.OXFORD102_K256_ROOTSIFT)
-encoder.similarity_func = "euclidean"
+from pyvisim.neural_networks import ClipEmbedder
+
+# Declare the Clip Embedder
+embedder = ClipEmbedder()
+
+# Compute the similarity score. By default, cosine similarity is used.
+similarity_score = embedder.similarity_score(image1, image2)
+print(f"Similarity Score: {similarity_score}")
 ```
 
-A fitted encoder can be saved to a `.encoder` file and restored later:
+#### Image retrieval:
 
 ```python
-path = encoder.save_to_disk("vlad_oxford102")  # writes vlad_oxford102.encoder
-encoder = VLADEncoder.load_from_disk(path)
+TODO: fill in after "encoder" API change
 ```
+
+
 You can also visit the [introduction notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/getting_started.ipynb) for more examples.
-
-I also provided various notebooks for different use-cases. Feel free to check them out, and let me know if you
-have any suggestions or questions!
 
 1. **Image Retrieval**  
    Retrieve the top-k most similar images from a dataset.  
@@ -174,6 +143,32 @@ have any suggestions or questions!
      ```
      See the [neural networks docs](pyvisim/neural_networks/README.md) for more details.
    - Possible use cases include face recognition, signature verification, or any image-based identity matching.
+
+## Installation
+
+To install the slim version without heavy deep learning stuff, run:
+
+```bash
+pip install pyvisim
+```
+
+Additional features include (note: these pull in heavy dependencies like `torch`):
+
+```bash
+# For deep learning features and the OxfordFlowerDataset
+pip install "pyvisim[nn]"
+# For image search feature
+pip install "pyvisim[search]"
+```
+
+All experiments in this project was made on the Oxford Flower Dataset
+<ref>[7]</ref>, for which I have created a custom dataset class. To use this
+class, import it as follows:
+
+```python
+from pyvisim.datasets import OxfordFlowerDataset
+```
+For more details on the dataset, please refer to the [documentation](pyvisim/datasets/README.md).
 
 ## Pretrained Models
 
