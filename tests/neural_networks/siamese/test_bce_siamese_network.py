@@ -11,8 +11,7 @@ from torchvision import transforms
 
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.neural_networks import BCESiameseNetwork
-
-from .._stubs import (
+from tests.neural_networks._stubs import (
     FlattenBackbone,
     MeanBackbone,
     build_stub_bce_model,
