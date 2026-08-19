@@ -133,7 +133,6 @@ disallow_untyped_calls = true
 no_implicit_optional = true
 check_untyped_defs = true
 exclude = ["^build/", "^dist/", "^\\.venv/", "^venv/"]
-plugins = ["numpy.typing.mypy_plugin"]
 
 # Vendored third-party code is kept byte-comparable with upstream and is not
 # held to this project's typing standards.
