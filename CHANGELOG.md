@@ -3,9 +3,14 @@
 ## [Unreleased]
 
 ### Fixed
+- `make test-types` no longer prints a `DeprecationWarning`: the
+  `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
+- The development interpreter is pinned to Python 3.10 (`.python-version`), the
+  project's minimum supported version and the one every CI job already uses.
 - The `ruff check` CI step no longer fails on import sorting (`I001`) in
   `tests/neural_networks/test_oxford_flowers_quick.py` and
   `test_oxford_flowers_slow.py`.
+
 ### Added
 - `NeuralImageEmbedder` (in `pyvisim.neural_networks`): the shared base for the
   neural embedders, both an `ImageEmbedderBase` and a `torch.nn.Module`.
@@ -18,6 +23,11 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- CI restores the Oxford Flowers dataset and the pretrained backbone weights from
+  the GitHub Actions cache instead of re-downloading them on every run; the new
+  `Warm asset cache` workflow keeps that cache populated on `main`.
+- The `similarity_func` registry in `pyvisim._utils` now maps the metric names
+  straight onto `pyvisim.distance`.
 - ℹ️ Dropped scikit-learn as a runtime dependency.
 - Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
 `pyvisim.structural`) metrics as well as their benchmark scripts against
@@ -25,8 +35,6 @@ existing implementations under `docs/pixelwise/benchmarks` and
 `docs/structural/benchmarks`.
 - `BCESiameseNetwork` (in `pyvisim.neural_networks`): the pair-classifying
   Siamese variant of Koch, Zemel & Salakhutdinov (2015).
-
-### Changed
 - The Siamese networks are split along a shared abstract base,
   `SiameseNetworkBase`.
 - Removed the Siamese Network's train scripts. This is now demonstrated
@@ -35,7 +43,7 @@ in a notebook in the "examples" repository.
 ### Breaking
 - ⚠️ `VLADEmbedder`, `FisherVectorEmbedder` and `Pipeline` moved from
   `pyvisim.encoders` to `pyvisim.classic`.
-- ⚠️ The bundled pretrained VLAD and Fisher Vector encoders are removed, together
+- ⚠️ The bundled pretrained VLAD and Fisher Vector encoders are removed to make the binary smaller, together
   with `from_pretrained`, `PretrainedVLAD`/`PretrainedFisher`, the deprecated
   `weights=` argument and `KMeansWeights`/`GMMWeights`. Train a vocabulary with
   `learn()` and persist it with `save_to_disk`/`load_from_disk` instead.
