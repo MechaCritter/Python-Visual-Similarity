@@ -156,7 +156,9 @@ ignore_missing_imports = true
 target-version = "py310"
 line-length = 88
 # _vendored folders hold third-party code kept byte-comparable with upstream.
-extend-exclude = ["*.ipynb", "_vendored"]
+# Markdown is prose: recent ruff versions reformat the Python code blocks inside
+# it, which re-wraps the hand-laid-out documentation examples at 'line-length'.
+extend-exclude = ["*.ipynb", "*.md", "_vendored"]
 
 [tool.ruff.lint]
 select = [
@@ -171,6 +173,14 @@ select = [
 ignore = [
   "E501",  # line-too-long (handled by the formatter)
 ]
+
+[tool.ruff.lint.isort]
+# Pin the first-party classification instead of leaving it to ruff's filesystem
+# heuristic, which resolves these names against the checkout layout and does not
+# agree across environments: CI sorted 'import pyvisim.<submodule>' into the
+# third-party block while local runs kept it first-party, so 'ruff check' failed
+# only in CI. Naming them here makes the sections deterministic everywhere.
+known-first-party = ["pyvisim", "tests"]
 
 [tool.ruff.format]
 quote-style = "double"
