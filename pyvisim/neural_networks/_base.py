@@ -73,24 +73,12 @@ class NeuralImageEmbedder(ImageEmbedderBase, torch.nn.Module):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        """
-        Embeds one or more images into a batch of embedding vectors.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images.
-        :param dims: Axis-label string describing the input axes (see
-            :mod:`pyvisim.typing`).
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: ``(N, embedding_dim)`` array holding one embedding per input
-            image.
-        """
         raise NotImplementedError
 
     @property
     def device(self) -> "torch.device":
         """
-        The device the model's parameters live on (read-only).
+        The device the model's parameters live on.
 
         Derived from the parameters themselves rather than cached, so it stays
         correct after the user moves the model with ``model.to(...)``.
