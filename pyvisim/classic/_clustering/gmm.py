@@ -112,17 +112,14 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
 
     @property
     def is_fitted(self) -> bool:
-        """Whether the model has been fitted (mixture parameters are stored)."""
         return self._means is not None
 
     @property
     def n_clusters(self) -> int:
-        """Number of mixture components of the GMM."""
         return self._n_components
 
     @property
     def n_features_in(self) -> int:
-        """Number of features the fitted model expects as input."""
         return int(self.means.shape[1])
 
     @property

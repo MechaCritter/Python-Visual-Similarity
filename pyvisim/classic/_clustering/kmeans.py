@@ -136,17 +136,14 @@ class KMeans(ClusteringModelBase):
 
     @property
     def is_fitted(self) -> bool:
-        """Whether the model has been fitted (centroids are stored)."""
         return self._cluster_centers is not None
 
     @property
     def n_clusters(self) -> int:
-        """Number of clusters of the K-Means model."""
         return self._n_clusters
 
     @property
     def n_features_in(self) -> int:
-        """Number of features the fitted model expects as input."""
         return int(self.cluster_centers.shape[1])
 
     @property
