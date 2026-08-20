@@ -234,30 +234,12 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        """
-        Embeds one or more images into a batch of embedding vectors.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: ``(N, embedding_dim)`` array holding one embedding per input
-            image.
-        :raises ValueError: If ``images`` contains no image.
-        """
         embeddings = self._embed_images(images, dims=dims, value_range=value_range)
         return cast(FloatNumpyArray, embeddings.cpu().numpy())
 
     @property
     def backbone(self) -> torch.nn.Module:
-        """The shared feature-extraction backbone (read-only)."""
+        """The shared feature-extraction backbone."""
         return self._backbone
 
     @property

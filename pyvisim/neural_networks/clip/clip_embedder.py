@@ -278,26 +278,6 @@ class ClipEmbedder(SimilarityMetric):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        """
-        Compute the similarity matrix between two image batches.
-
-        Both inputs are embedded with :meth:`embed` and the resulting
-        embedding batches are scored with ``similarity_func``.
-
-        :param image1: First (batch of) image(s) as ``MatLike``.
-        :param image2: Second (batch of) image(s) as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: Similarity matrix of shape ``(N, M)`` produced by
-            ``similarity_func``.
-        """
         embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
         embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
         return np.asarray(self.similarity_func(embeddings1, embeddings2))
