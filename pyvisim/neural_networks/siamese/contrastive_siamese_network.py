@@ -21,7 +21,19 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
     through the same shared-weight ``backbone`` and projection ``head`` to
     produce embeddings, which are L2-normalized so that cosine similarity
     reduces to a dot product. The network is trained so that similar images map
-    to nearby embeddings and dissimilar images map far apart.
+    to nearby embeddings and dissimilar images map far apart. Following diagram
+    visualizes this::
+
+        Input Image A ──► Backbone ──► Embedding Head ──► L2 Normalize ──► Embedding A
+                        │
+                        │ Shared Weights
+                        │
+        Input Image B ──► Backbone ──► Embedding Head ──► L2 Normalize ──► Embedding B
+
+        Embedding A + Embedding B
+                    │
+                    ▼
+            Contrastive Loss (training) / fixed metric, e.g. cosine (inference)
 
     `Contrastive loss` is used to train this network, which has the formula:
 

@@ -8,11 +8,6 @@ Neural networks
 API reference
 -------------
 
-.. autoclass:: pyvisim.neural_networks.NeuralImageEmbedder
-   :members:
-   :inherited-members: Module
-   :show-inheritance:
-
 .. autoclass:: pyvisim.neural_networks.ContrastiveSiameseNetwork
    :members:
    :inherited-members: Module

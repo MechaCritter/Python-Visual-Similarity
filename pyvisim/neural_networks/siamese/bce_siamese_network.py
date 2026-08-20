@@ -37,6 +37,13 @@ class BCESiameseNetwork(SiameseNetworkBase):
     (different class); :meth:`forward` returns raw logits so it composes with
     :class:`torch.nn.BCEWithLogitsLoss` in a numerically stable way.
 
+    Following diagram visualizes this::
+
+        Input Image A ──► Backbone ──► Embedding Head ──► Sigmoid ──► Features A ─┐
+                        │                                                   ├─► |A - B| ──► Scoring Layer ──► P(same class)
+        Input Image B ──► Backbone ──► Embedding Head ──► Sigmoid ──► Features B ─┘
+                (Shared Weights)
+
     NOTE
     ----
     The score is a *learned probability*, not a geometric similarity: it is
