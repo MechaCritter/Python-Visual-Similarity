@@ -32,7 +32,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 language = "en"
 
 # The narrative pages included from docs/ link to repository source files
-# (e.g. ../pyvisim/encoders/vlad.py), which have no HTML equivalent.
+# (e.g. ../pyvisim/classic/vlad.py), which have no HTML equivalent.
 # Their H1 titles are skipped via ':start-line: 1' so that each rST page owns
 # the top-level heading, which makes the included content start at H2.
 suppress_warnings = ["myst.xref_missing", "myst.header"]
@@ -62,7 +62,7 @@ autodoc_default_options = {
 # '.. include:: ... :parser: myst_parser.sphinx_'.
 # dollarmath renders the $$...$$ formulas
 myst_enable_extensions = ["colon_fence", "dollarmath"]
-# Generate anchors for headings so links such as 'weights.md#section' resolve.
+# Generate anchors for headings so links such as 'vlad.md#section' resolve.
 myst_heading_anchors = 3
 
 # -- Intersphinx ---------------------------------------------------------------

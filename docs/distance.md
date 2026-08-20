@@ -3,7 +3,7 @@
 File: [`pyvisim/distance.py`](../pyvisim/distance.py)
 
 Implementations of the pairwise metrics
-used to compare image encodings.
+used to compare image embeddings.
 
 The functions take two 2-D matrices, `x` of shape `(N, D)` and `y` of shape
 `(M, D)`, and return the full `(N, M)` pairwise result as float64:
@@ -19,8 +19,8 @@ The functions take two 2-D matrices, `x` of shape `(N, D)` and `y` of shape
 import numpy as np
 from pyvisim.distance import cosine_similarity, euclidean_distances
 
-x = np.random.rand(4, 128)   # 4 encodings
-y = np.random.rand(6, 128)   # 6 encodings
+x = np.random.rand(4, 128)   # 4 embeddings
+y = np.random.rand(6, 128)   # 6 embeddings
 
 cosine_similarity(x, y).shape      # (4, 6)
 euclidean_distances(x, y).shape    # (4, 6)

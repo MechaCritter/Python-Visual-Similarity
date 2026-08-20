@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.encoders import VLADEncoder
+from pyvisim.classic import VLADEmbedder
 from pyvisim.eval import top_k_accuracy, top_k_map
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 
@@ -24,13 +24,13 @@ def _to_rgb(image: np.ndarray) -> np.ndarray:
 def labelled_store(
     tmp_path_factory: pytest.TempPathFactory,
     category_train_images: dict[str, list[np.ndarray]],
-    learned_vlad_encoder: VLADEncoder,
+    learned_vlad_embedder: VLADEmbedder,
 ) -> tuple[InMemoryImageEmbeddingStore, dict[str, int]]:
     """A store over labelled gallery images and the path-to-label mapping.
 
     :param tmp_path_factory: pytest's session temp-directory factory.
     :param category_train_images: per-category training images.
-    :param learned_vlad_encoder: a fitted VLAD encoder.
+    :param learned_vlad_embedder: a fitted VLAD embedder.
     :returns: a ``(store, path_labels)`` pair.
     """
     directory = tmp_path_factory.mktemp("eval_gallery")
@@ -44,7 +44,7 @@ def labelled_store(
             path_labels[str(path)] = label
     store = InMemoryImageEmbeddingStore(
         paths,
-        learned_vlad_encoder,
+        learned_vlad_embedder,
         index_params={"nlist": 4, "nprobe": 4},
     )
     return store, path_labels

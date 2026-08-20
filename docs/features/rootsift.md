@@ -3,7 +3,7 @@
 File: [`_root_sift.py`](../../pyvisim/features/_root_sift.py)
 
 RootSIFT is SIFT with Hellinger-kernel normalization. It is the **default feature
-extractor** for both `VLADEncoder` and `FisherVectorEncoder`.
+extractor** for both `VLADEmbedder` and `FisherVectorEmbedder`.
 
 After computing standard SIFT descriptors, each descriptor is:
 
@@ -11,7 +11,7 @@ After computing standard SIFT descriptors, each descriptor is:
 2. element-wise square-rooted.
 
 Comparing these transformed vectors with the Euclidean/dot-product operations the
-encoders use is equivalent to comparing the original descriptors under the Hellinger
+embedders use is equivalent to comparing the original descriptors under the Hellinger
 kernel.
 
 ## Notes

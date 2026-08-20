@@ -11,7 +11,7 @@ gallery against one or more query images.
 from __future__ import annotations
 
 from ..functional import Candidate, retrieve_top_k_similar
-from ..typing import EmbeddingStore, Encoder, ImageInput
+from ..typing import Embedder, EmbeddingStore, ImageInput
 
 
 class ImageRetriever:
@@ -19,7 +19,7 @@ class ImageRetriever:
     Retrieve the most similar gallery images for a set of query images.
 
     :param store: The embedding store to search against. It already bundles the
-        gallery embeddings, their paths, the encoder and the accelerated index.
+        gallery embeddings, their paths, the embedder and the accelerated index.
     """
 
     def __init__(self, store: EmbeddingStore) -> None:
@@ -31,9 +31,9 @@ class ImageRetriever:
         return self._store
 
     @property
-    def encoder(self) -> Encoder:
-        """The encoder used to turn query images into feature vectors."""
-        return self._store.encoder
+    def embedder(self) -> Embedder:
+        """The embedder used to turn query images into feature vectors."""
+        return self._store.embedder
 
     def retrieve_top_k_similar(
         self,
@@ -44,7 +44,7 @@ class ImageRetriever:
         Return the top-k most similar gallery images for each query image.
 
         :param query_images: A single image or a batch/iterable of images to use
-            as queries. Anything accepted by the encoder is valid.
+            as queries. Anything accepted by the embedder is valid.
         :param k: Number of top similar gallery images to return per query.
         :return: One ranked list of :class:`~pyvisim.functional.Candidate`
             matches per query image, in the same order as ``query_images``.

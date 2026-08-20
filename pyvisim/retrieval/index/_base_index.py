@@ -53,7 +53,7 @@ class ImageIndex(abc.ABC):
     :param paths: Gallery image paths, in the same order as ``vectors``. Their
         order defines the integer ids used by the index.
     :param vectors: Gallery embedding vectors, shape ``(N, D)``. Row ``i`` is the
-        encoding of ``paths[i]``.
+        embedding of ``paths[i]``.
     :param quantizer: Distance metric to build the index for. ``"l2"`` uses
         Euclidean distance; ``"inner_product"`` uses the dot product and the
         gallery vectors are L2-normalised first, so it ranks by cosine
@@ -84,7 +84,7 @@ class ImageIndex(abc.ABC):
         gallery = np.array(vectors, dtype=np.float32)
         if gallery.ndim != 2:
             raise ValueError(
-                "Gallery encodings must form a 2-D (num_vectors, dim) matrix."
+                "Gallery embeddings must form a 2-D (num_vectors, dim) matrix."
             )
         if gallery.shape[0] == 0:
             raise ValueError("Cannot build an index from an empty gallery.")

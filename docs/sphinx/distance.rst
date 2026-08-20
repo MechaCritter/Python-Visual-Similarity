@@ -2,12 +2,12 @@ Distance metrics
 ================
 
 Implementations of the pairwise metrics used to
-compare image encodings. Each function takes two 2-D matrices of shape
+compare image embeddings. Each function takes two 2-D matrices of shape
 ``(N, D)`` and ``(M, D)`` and returns the full ``(N, M)`` pairwise result.
 
 These are the implementations behind the ``similarity_func`` names
 (``"cosine"``, ``"euclidean"``, ``"l1"``, ``"manhattan"``) accepted by the
-encoders.
+embedders.
 
 ``pyvisim.distance``
 --------------------

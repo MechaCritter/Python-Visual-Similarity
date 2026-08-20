@@ -15,10 +15,10 @@ from pyvisim.typing import FloatNumpyArray, ImageInput, UInt8NumpyArray
 NUM_GALLERY = 12
 
 
-class FlattenEncoder:
-    """Deterministic encoder flattening each RGB image into its pixel vector."""
+class FlattenEmbedder:
+    """Deterministic embedder flattening each RGB image into its pixel vector."""
 
-    def encode(
+    def embed(
         self,
         images: ImageInput,
         *,
@@ -58,7 +58,7 @@ def retriever(
         paths.append(str(path))
     store = InMemoryImageEmbeddingStore(
         paths,
-        FlattenEncoder(),
+        FlattenEmbedder(),
         "ivf-flat",
         quantizer="inner_product",
         index_params={"nlist": 2, "nprobe": 2},

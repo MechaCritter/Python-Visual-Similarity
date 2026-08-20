@@ -65,7 +65,7 @@ def _to_single_image(
     if len(images) != 1:
         raise ValueError(
             f"Expected a single image, but the input expands to {len(images)} images. "
-            "Feature extractors operate on one image at a time; use an encoder for "
+            "Feature extractors operate on one image at a time; use an embedder for "
             "batches."
         )
     return images[0]
