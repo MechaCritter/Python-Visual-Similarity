@@ -51,7 +51,7 @@ where:
 - $\gamma_t(i)$ is the soft assignment of descriptor $x_t$ to the $i$-th Gaussian.
 - $w_i$, $\mu_i$, and $\Sigma_i$ are the mixture weight, mean vector, and covariance matrix of the $i$-th Gaussian component.
 
-The final Fisher Vector $G^{X}_{\lambda}$ is the concatenation of the vectors $G^{X}_{i}$ for $i = 1, \ldots, K$, resulting in a $K \times d$-dimensional vector.[^1] This vector captures both the occurrence and distributional properties of the local descriptors.
+The final Fisher Vector $G^{X}_{\lambda}$ is the concatenation of the vectors $G^{X}_{i}$ for $i = 1, \ldots, K$, resulting in a $K \times d$-dimensional vector. This vector captures both the occurrence and distributional properties of the local descriptors.
 
 The resulting vector has shape `(2 * K * D + K,)`, where
 `K` is the number of GMM components and `D` is the local descriptor dimension (after
