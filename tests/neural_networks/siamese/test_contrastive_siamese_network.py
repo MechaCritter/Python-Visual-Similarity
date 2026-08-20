@@ -165,7 +165,7 @@ def test_embed_list_of_images(contrastive_model: ContrastiveSiameseNetwork) -> N
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx([1.0] * 3, abs=1e-5)
 
 
-def test_embed_batch_matches_single_encoding(
+def test_embed_batch_matches_single_embedding(
     contrastive_model: ContrastiveSiameseNetwork,
 ) -> None:
     """Batched embedding equals embedding each image individually."""

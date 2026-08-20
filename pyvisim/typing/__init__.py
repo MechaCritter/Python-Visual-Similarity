@@ -1,6 +1,6 @@
 """Public types used in pyvisim"""
 
-from .encoders import Encoder
+from .embedders import Embedder
 from .index import SearchIndex
 from .numeric import (
     Float32NumpyArray,
@@ -26,7 +26,7 @@ __all__ = [
     "FloatNumpyArray",
     "IntNumpyArray",
     "SimilarityFunc",
-    "Encoder",
+    "Embedder",
     "SearchIndex",
     "EmbeddingStore",
     "_to_image_list",

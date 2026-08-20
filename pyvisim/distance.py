@@ -2,13 +2,13 @@
 Pairwise distance and similarity metrics implemented in pure NumPy.
 
 This module hosts pyvisim's own implementations of the vector metrics used to
-compare image encodings: :func:`cosine_similarity`, :func:`euclidean_distances`
+compare image embeddings: :func:`cosine_similarity`, :func:`euclidean_distances`
 and :func:`manhattan_distances`. All three operate on 2-D ``(N, D)`` matrices
 and return a full ``(N, M)`` pairwise result computed with vectorized NumPy
 operations only.
 
 The higher-level, name-based metric registry lives in ``pyvisim._utils`` and
-is exposed through the ``similarity_func`` argument of the encoders.
+is exposed through the ``similarity_func`` argument of the embedders.
 """
 
 from __future__ import annotations
