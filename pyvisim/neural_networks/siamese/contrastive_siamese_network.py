@@ -1,8 +1,7 @@
 import numpy as np
 
-from ..._utils import get_similarity_func
 from ...lazy_import import OptionalImport
-from ...typing import FloatNumpyArray, ImageInput, SimilarityFunc
+from ...typing import FloatNumpyArray, ImageInput
 from ._base_siamese import SiameseNetworkBase
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
@@ -22,7 +21,19 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
     through the same shared-weight ``backbone`` and projection ``head`` to
     produce embeddings, which are L2-normalized so that cosine similarity
     reduces to a dot product. The network is trained so that similar images map
-    to nearby embeddings and dissimilar images map far apart.
+    to nearby embeddings and dissimilar images map far apart. Following diagram
+    visualizes this::
+
+        Input Image A ──► Backbone ──► Embedding Head ──► L2 Normalize ──► Embedding A
+                        │
+                        │ Shared Weights
+                        │
+        Input Image B ──► Backbone ──► Embedding Head ──► L2 Normalize ──► Embedding B
+
+        Embedding A + Embedding B
+                    │
+                    ▼
+            Contrastive Loss (training) / fixed metric, e.g. cosine (inference)
 
     `Contrastive loss` is used to train this network, which has the formula:
 
@@ -67,9 +78,8 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
             embedding_dim=embedding_dim,
             transform=transform,
             pretrained_backbone=pretrained_backbone,
+            similarity_func=similarity_func,
         )
-        self._similarity_func: SimilarityFunc
-        self.similarity_func = similarity_func
         self.to(torch.device(device))
 
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
@@ -110,7 +120,7 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
         """
         Computes the similarity matrix between two image batches.
 
-        Both inputs are encoded with :meth:`embed` and the resulting embedding
+        Both inputs are embedded with :meth:`embed` and the resulting embedding
         batches are scored with ``similarity_func``.
 
         :param image1: First (batch of) image(s) as ``MatLike``.
@@ -130,19 +140,3 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
         embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
         embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
         return np.asarray(self.similarity_func(embeddings1, embeddings2))
-
-    @property
-    def similarity_func(self) -> SimilarityFunc:
-        """The resolved similarity function callable."""
-        return self._similarity_func
-
-    @similarity_func.setter
-    def similarity_func(self, name: str) -> None:
-        """
-        Resolves and stores a built-in similarity metric by name.
-
-        :param name: One of ``"cosine"``, ``"euclidean"``, ``"l1"`` or
-            ``"manhattan"``.
-        :raises ValueError: If ``name`` is not a supported similarity metric.
-        """
-        self._similarity_func = get_similarity_func(name)

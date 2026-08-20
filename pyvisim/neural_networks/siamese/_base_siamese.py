@@ -1,13 +1,13 @@
 import abc
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
 from PIL import Image
 
-from ..._base_classes import SimilarityMetric
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput, MatLike
 from ...utils.image_utils import iter_images
+from .._base import NeuralImageEmbedder
 from .backbones import ResNetBackbone
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
@@ -17,7 +17,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 
-class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
+class SiameseNetworkBase(NeuralImageEmbedder):
     """
     Abstract base for Siamese image-similarity networks.
 
@@ -68,8 +68,9 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         embedding_dim: int = 128,
         transform: transforms.Compose | None = None,
         pretrained_backbone: bool = True,
+        similarity_func: str = "cosine",
     ):
-        super().__init__()
+        super().__init__(similarity_func=similarity_func)
         if embedding_dim <= 0:
             raise ValueError(
                 f"embedding_dim must be a positive integer, got {embedding_dim}."
@@ -84,36 +85,13 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """
-        Sets an attribute, routing property assignments through the property.
-
-        NOTE
-        ----
-        Since :class:`torch.nn.Module` overrides ``__setattr__`` and registers
-        any ``torch.nn.Module`` value directly in ``self._modules``, assigning
-        to a read-only property such as ``head`` would silently register an
-        orphan submodule instead of failing. Routing assignments to class-level
-        properties through ``property.__set__`` restores standard Python
-        semantics. Hence, this override was necessary.
-
-        :param name: Name of the attribute to set.
-        :param value: Value to assign.
-        :raises AttributeError: If ``name`` is a read-only property.
-        """
-        descriptor = getattr(type(self), name, None)
-        if isinstance(descriptor, property):
-            descriptor.__set__(self, value)
-            return
-        super().__setattr__(name, value)
-
     @abc.abstractmethod
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
         """
         Runs one branch of the Siamese network on a preprocessed batch.
 
         Both inputs of a pair go through this same shared-weight pass; it is
-        also the encoding used by :meth:`embed`.
+        also the embedding used by :meth:`embed`.
 
         :param x: Preprocessed image tensor of shape (batch, channels, H, W).
         :return: Branch output of shape (batch, embedding_dim).
@@ -208,7 +186,7 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         return cast(torch.Tensor, self._transform(pil_image))
 
     @torch.no_grad()
-    def _encode_images(
+    def _embed_images(
         self,
         images: ImageInput,
         *,
@@ -216,7 +194,7 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> torch.Tensor:
         """
-        Encodes one or more images into a batch of branch outputs.
+        Embeds one or more images into a batch of branch outputs.
 
         All images are preprocessed, stacked into a single batch and passed
         through :meth:`_forward_once`. The model is switched to eval mode so
@@ -274,18 +252,8 @@ class SiameseNetworkBase(torch.nn.Module, SimilarityMetric):
             image.
         :raises ValueError: If ``images`` contains no image.
         """
-        embeddings = self._encode_images(images, dims=dims, value_range=value_range)
+        embeddings = self._embed_images(images, dims=dims, value_range=value_range)
         return cast(FloatNumpyArray, embeddings.cpu().numpy())
-
-    @property
-    def device(self) -> torch.device:
-        """
-        The device the model's parameters live on (read-only).
-
-        Derived from the parameters themselves rather than cached, so it stays
-        correct after the user moves the model with ``model.to(...)``.
-        """
-        return next(self.parameters()).device
 
     @property
     def backbone(self) -> torch.nn.Module:

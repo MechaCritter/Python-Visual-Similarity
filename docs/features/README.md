@@ -2,7 +2,7 @@
 
 File: [`_features.py`](../../pyvisim/features/_features.py)
 
-A feature extractor maps one image to a `(N, D)` array of local descriptors. Encoders
+A feature extractor maps one image to a `(N, D)` array of local descriptors. Embedders
 consume these descriptors and aggregate them into a fixed-size vector.
 
 | Object | `output_dim` | Notes |

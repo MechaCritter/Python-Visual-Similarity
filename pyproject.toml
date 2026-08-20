@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyvisim"
 version = "0.8.2"
-description = "A Python library for image similarity analysis using Image Encoders and Neural Networks"
+description = "A Python library for image similarity analysis using Image Embedders and Neural Networks"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -61,7 +61,6 @@ include = ["pyvisim", "pyvisim.*"]
 
 [tool.setuptools.package-data]
 pyvisim = [
-    "res/model_files/*.encoder",
     "res/logging_config.yaml",
     "py.typed",
     "structural/_kernel/*.pyx",

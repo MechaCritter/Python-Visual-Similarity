@@ -161,17 +161,17 @@ def test_lambda_accepts_tensor() -> None:
 
 
 def test_deepconv_output_dim_with_spatial() -> None:
-    """With spatial encoding, ``output_dim`` is channels + 2."""
+    """With spatial embedding, ``output_dim`` is channels + 2."""
     extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_encoding=True, device="cpu"
+        _tiny_conv_model(), layer_index=-1, spatial_embedding=True, device="cpu"
     )
     assert extractor.output_dim == 12
 
 
 def test_deepconv_output_dim_no_spatial() -> None:
-    """Without spatial encoding, ``output_dim`` is the channel count."""
+    """Without spatial embedding, ``output_dim`` is the channel count."""
     extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_encoding=False, device="cpu"
+        _tiny_conv_model(), layer_index=-1, spatial_embedding=False, device="cpu"
     )
     assert extractor.output_dim == 10
 
@@ -179,7 +179,7 @@ def test_deepconv_output_dim_no_spatial() -> None:
 def test_deepconv_call_shape_with_spatial(rgb_image: ImageObj) -> None:
     """The call flattens the feature map to ``(Hf*Wf, output_dim)`` float32."""
     extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_encoding=True, device="cpu"
+        _tiny_conv_model(), layer_index=-1, spatial_embedding=True, device="cpu"
     )
     out = extractor(rgb_image.array)
     assert out.ndim == 2
@@ -189,9 +189,9 @@ def test_deepconv_call_shape_with_spatial(rgb_image: ImageObj) -> None:
 
 
 def test_deepconv_call_shape_no_spatial(rgb_image: ImageObj) -> None:
-    """Without spatial encoding the flattened map has ``output_dim`` columns."""
+    """Without spatial embedding the flattened map has ``output_dim`` columns."""
     extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_encoding=False, device="cpu"
+        _tiny_conv_model(), layer_index=-1, spatial_embedding=False, device="cpu"
     )
     out = extractor(rgb_image.array)
     assert out.shape == (224 * 224, 10)

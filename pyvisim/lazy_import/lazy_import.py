@@ -30,7 +30,7 @@ class OptionalImport:
         with OptionalImport(package="transformers", extra="neural") as _import:
             from transformers import AutoModel
 
-        class Encoder:
+        class Embedder:
             def __init__(self) -> None:
                 _import.check()  # raises here if transformers is missing
     """

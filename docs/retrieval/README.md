@@ -18,7 +18,7 @@ The store searches itself, so most of the time you just call it directly:
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 
 store = InMemoryImageEmbeddingStore(
-    gallery_paths, encoder, "ivf-flat",
+    gallery_paths, embedder, "ivf-flat",
     quantizer="inner_product", index_params={"nlist": 100, "nprobe": 8},
 )
 

@@ -41,7 +41,7 @@ class Lambda(FeatureExtractorBase):
         serialised.
 
         :raises TypeError: Always; pass ``feature_extractor`` explicitly when
-            loading an encoder that used a Lambda extractor.
+            loading an embedder that used a Lambda extractor.
         """
         raise TypeError(
             "Lambda feature extractors wrap a user-defined function and cannot "

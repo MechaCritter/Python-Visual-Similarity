@@ -10,8 +10,12 @@
 - The `ruff check` CI step no longer fails on import sorting (`I001`) in
   `tests/neural_networks/test_oxford_flowers_quick.py` and
   `test_oxford_flowers_slow.py`.
-  
+
 ### Added
+- `NeuralImageEmbedder` (in `pyvisim.neural_networks`): the shared base for the
+  neural embedders, both an `ImageEmbedderBase` and a `torch.nn.Module`.
+  `SiameseNetworkBase` now derives from it, so the Siamese networks and the
+  classic embedders expose the same `embed`/`similarity_score` surface.
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
   `PCA.from_sklearn`, plus `load_clustering_model_from_sklearn` on `VLADEncoder`
@@ -37,9 +41,18 @@ existing implementations under `docs/pixelwise/benchmarks` and
 in a notebook in the "examples" repository.
 
 ### Breaking
-- ⚠️ `similarity_func` no longer coerces its inputs: a 1-D vector now raises
-  `ValueError` instead of being reshaped, so pass `(N, D)` matrices yourself.
-  Encoders and neural networks are unaffected — `encode`/`embed` already do.
+- ⚠️ `VLADEmbedder`, `FisherVectorEmbedder` and `Pipeline` moved from
+  `pyvisim.encoders` to `pyvisim.classic`.
+- ⚠️ The bundled pretrained VLAD and Fisher Vector encoders are removed to make the binary smaller, together
+  with `from_pretrained`, `PretrainedVLAD`/`PretrainedFisher`, the deprecated
+  `weights=` argument and `KMeansWeights`/`GMMWeights`. Train a vocabulary with
+  `learn()` and persist it with `save_to_disk`/`load_from_disk` instead.
+- ⚠️ "Encoder" is now "embedder" throughout: `ImageEncoderBase` -> `ImageEmbedderBase`,
+  `VLADEncoder` -> `VLADEmbedder`, `FisherVectorEncoder` -> `FisherVectorEmbedder`,
+  the `Encoder` protocol -> `Embedder`, `encode()` -> `embed()` and `store.encoder`
+  -> `store.embedder`.
+- ⚠️ Saved models use the `.embedder` suffix and an `embedder_class` state key, so
+  existing `.encoder` files no longer load. Re-save them with `save_to_disk`.
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
   (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
   class now lives in `pyvisim.neural_networks.siamese._base_siamese`):
@@ -52,11 +65,11 @@ in a notebook in the "examples" repository.
   ```
 - ⚠️ The clustering models (`KMeans`, `DiagCovarGaussianMixture`, `PCA`,
   `ClusteringModelBase`) are now internal to the encoders package and moved from
-  `pyvisim.clustering` to `pyvisim.encoders._clustering`.
+  `pyvisim.clustering` to `pyvisim.classic._clustering`.
 - ⚠️ Encoder clustering parameters changed: pass `rng` instead of `random_state`
   inside `kmeans_params` / `gmm_params` / `pca_params` (see
-  [vlad.md](docs/encoders/vlad.md) and
-  [fisher_vector.md](docs/encoders/fisher_vector.md) for every accepted key).
+  [vlad.md](docs/classic/vlad.md) and
+  [fisher_vector.md](docs/classic/fisher_vector.md) for every accepted key).
 
 ## [0.8.2]
 
@@ -116,7 +129,7 @@ the `scipy` dependency could be dropped completely. Added test to verify
 that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
 - `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
 to be as little dependent on OpenCV as possible.
-- CLIP moved from `pyvisim.encoders` into `pyvisim.neural_networks` and dropped the
+- CLIP moved from `pyvisim.classic` into `pyvisim.neural_networks` and dropped the
   open_clip dependency entirely. The new `ClipEmbedder` runs pyvisim's own implementation
   of the CLIP image towers (Vision Transformer and modified ResNet) and loads pretrained
   safetensors weights from the Hugging Face Hub — verified numerically equivalent to
@@ -173,14 +186,14 @@ to be as little dependent on OpenCV as possible.
 ## [0.7.0] - 2026-07-03
 
 ### Added
-- `CLIPEncoder` (in `pyvisim.encoders`): a pretrained-CLIP image encoder built on
+- `CLIPEncoder` (in `pyvisim.classic`): a pretrained-CLIP image encoder built on
   open_clip. It maps an image straight to a CLIP embedding, so there's no feature
   extractor, clustering model, or `learn` step. Embeddings are L2-normalized by default,
   and it plugs into the usual `similarity_score` / `save_to_disk` / `load_from_disk`
   machinery.
 
   ```python
-  from pyvisim.encoders import CLIPEncoder
+  from pyvisim.classic import CLIPEncoder
 
   clip = CLIPEncoder(model_name="ViT-B-32", pretrained="laion2b_s34b_b79k")
   embeddings = clip.encode(images)
