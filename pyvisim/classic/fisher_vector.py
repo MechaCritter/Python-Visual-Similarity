@@ -102,23 +102,6 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float64NumpyArray:
-        """
-        Embed one or more images into Fisher Vector descriptors.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: ``(N, 2 × n_components × feature_dim + n_components)`` array of
-            Fisher Vector embeddings.
-        """
         all_embeddings = []
         for image in iter_images(images, dims=dims, value_range=value_range):
             descriptors: FloatNumpyArray = self.feature_extractor(image)

@@ -58,17 +58,6 @@ class Pipeline(SerializableImageEmbedder):
                 )
 
     def to_dict(self) -> dict[str, Any]:
-        """
-        Serialises the pipeline into a JSON-safe state dictionary.
-
-        Each member embedder is serialised with its own
-        :meth:`~pyvisim.classic.SerializableImageEmbedder.to_dict`, so every embedder
-        must be fitted.
-
-        :return: A JSON-safe pipeline description suitable for
-            :meth:`from_dict`.
-        :raises NotFittedError: If any member embedder is not fitted.
-        """
         return {
             "format_version": _PIPELINE_FORMAT_VERSION,
             "embedder_class": type(self).__name__,
@@ -78,12 +67,6 @@ class Pipeline(SerializableImageEmbedder):
 
     @classmethod
     def from_dict(cls, state: dict[str, Any]) -> "Pipeline":
-        """
-        Rebuilds a pipeline from a dictionary produced by :meth:`to_dict`.
-
-        :param state: A JSON-safe pipeline description from :meth:`to_dict`.
-        :return: A ready-to-use :class:`Pipeline` instance.
-        """
         # Imported lazily to avoid an import cycle with the embedder registry.
         from ._reconstruct import embedder_from_dict
 
@@ -100,26 +83,6 @@ class Pipeline(SerializableImageEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        """
-        Embed an image using all embedders in the pipeline.
-
-        The input is normalized once into canonical ``uint8`` ``(H, W, C)``
-        images (handling torch tensors and batches), then shared across every
-        embedder in the pipeline.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: embedded images using the combined embedders.
-        """
         image_list = list(iter_images(images, dims=dims, value_range=value_range))
         all_embeddings = []
         for metric in self.embedders:

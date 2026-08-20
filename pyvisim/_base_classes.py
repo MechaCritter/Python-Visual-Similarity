@@ -26,18 +26,18 @@ class SimilarityMetric(abc.ABC):
     @abc.abstractmethod
     def similarity_score(
         self,
-        image1: ImageInput,
-        image2: ImageInput,
+        images1: ImageInput,
+        images2: ImageInput,
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Compute a similarity score between two (batches of) images.
+        Compute the similarity scores matrix between two (batches of) images.
 
-        :param image1: First (batch of) image(s) as ``MatLike`` (NumPy array,
+        :param images1: First (batch of) image(s) as ``MatLike`` (NumPy array,
             torch tensor or array-like).
-        :param image2: Second (batch of) image(s) as ``MatLike``.
+        :param images2: Second (batch of) image(s) as ``MatLike``.
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
@@ -47,7 +47,7 @@ class SimilarityMetric(abc.ABC):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: A similarity score matrix
+        :return: The similarity score matrix of shape ``(len(images1), len(images2))``.
         """
         pass
 
@@ -129,14 +129,7 @@ class ImageEmbedderBase(SimilarityMetric):
     Base class for all image embedders.
 
     An image embedder turns an image into a vector representation that can be
-    used for indexing, retrieval, clustering or classification. This base only
-    knows how to embed images into vectors (:meth:`embed`) and how to compare
-    those vectors with a similarity function; everything else belongs to the
-    subclasses.
-
-    Both families of embedders build on it: the classic, feature-aggregating
-    ones (VLAD, Fisher Vector) and the neural ones
-    (:class:`~pyvisim.neural_networks.NeuralImageEmbedder`).
+    used for indexing, retrieval, clustering or classification.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
@@ -209,22 +202,6 @@ class ImageEmbedderBase(SimilarityMetric):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        """
-        Computes vector embeddings for two images and calculates the similarity score between them.
-
-        :param images1: First (batch of) image(s) as ``MatLike``.
-        :param images2: Second (batch of) image(s) as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: Similarity matrix between the two image batches.
-        """
         vector1 = self.embed(images1, dims=dims, value_range=value_range)
         vector2 = self.embed(images2, dims=dims, value_range=value_range)
         result = self.similarity_func(vector1, vector2)
