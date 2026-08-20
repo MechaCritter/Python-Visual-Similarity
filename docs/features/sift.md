@@ -3,7 +3,7 @@
 File: [`_sift.py`](../../pyvisim/features/_sift.py)
 
 Scale-Invariant Feature Transform descriptors. SIFT was the
-original local descriptor used for VLAD and Fisher Vector encoding.
+original local descriptor used for VLAD and Fisher Vector embedding.
 
 - `output_dim` is `128` (standard SIFT descriptor length).
 

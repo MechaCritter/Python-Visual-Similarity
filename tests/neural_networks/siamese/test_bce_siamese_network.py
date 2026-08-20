@@ -82,7 +82,7 @@ def test_embed_raises_not_implemented_error(bce_model: BCESiameseNetwork) -> Non
 
 
 def test_branch_applies_sigmoid_to_head_output() -> None:
-    """A uniform image encodes to the constant vector ``sigmoid(v / 255)``.
+    """A uniform image embeds to the constant vector ``sigmoid(v / 255)``.
 
     With a plain ``ToTensor`` transform, a 2x2 uniform image of value 51
     becomes 12 features of exactly ``0.2``; the identity head leaves them
@@ -94,7 +94,7 @@ def test_branch_applies_sigmoid_to_head_output() -> None:
         transform=transforms.Compose([transforms.ToTensor()]),
     )
     install_head(model, make_identity_head(12))
-    features = model._encode_images(make_solid_rgb_image(value=51, size=2)).numpy()
+    features = model._embed_images(make_solid_rgb_image(value=51, size=2)).numpy()
     assert features.shape == (1, 12)
     assert np.allclose(features, _sigmoid(51.0 / 255.0), atol=1e-6)
 
@@ -103,7 +103,7 @@ def test_branch_output_is_bounded_but_not_unit_norm(
     bce_model: BCESiameseNetwork,
 ) -> None:
     """Branch features lie strictly in ``(0, 1)`` and are not L2-normalized."""
-    features = bce_model._encode_images(
+    features = bce_model._embed_images(
         [make_random_rgb_image(seed=1), make_random_rgb_image(seed=2)]
     ).numpy()
     assert np.all(features > 0.0)
@@ -201,8 +201,8 @@ def test_similarity_score_uses_learned_scoring_layer(
     image1 = make_random_rgb_image(seed=1)
     image2 = make_random_rgb_image(seed=2)
 
-    h1 = bce_model._encode_images(image1).numpy()[0]
-    h2 = bce_model._encode_images(image2).numpy()[0]
+    h1 = bce_model._embed_images(image1).numpy()[0]
+    h2 = bce_model._embed_images(image2).numpy()[0]
     assert isinstance(bce_model.scorer, torch.nn.Linear)
     weights = bce_model.scorer.weight.detach().cpu().numpy()[0]
     bias = float(bce_model.scorer.bias.detach().cpu())
