@@ -2,18 +2,7 @@
 
 Both classic embedders multiply their output size by the local descriptor dimension
 `D`, so a 128-dimensional RootSIFT descriptor with 256 clusters already gives you a
-32768-dimensional VLAD vector. Running PCA over the descriptors before clustering was
-the standard way to keep that under control: halve `D` and you halve the embedding.
-It usually helps accuracy too, since it decorrelates the descriptor dimensions that
-the diagonal-covariance GMM behind the Fisher Vector assumes are independent anyway.
-
-Pass `pca_params` to either embedder to switch it on. The PCA is fitted first, inside
-`learn`, and the clustering model then learns from the projected descriptors:
-
-```python
-vlad = VLADEmbedder(n_clusters=256, pca_params={"n_components": 64})
-vlad.learn(images)
-```
+32768-dimensional VLAD vector. Running PCA over the descriptors before clustering helps reduce the output size and hence save memory and computation time.
 
 ## Parameters (`pca_params`)
 

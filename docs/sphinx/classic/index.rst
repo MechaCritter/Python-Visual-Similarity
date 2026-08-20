@@ -13,4 +13,3 @@ Classic embedders
    fisher_vector
    pipeline
    pca
-   image_embedder_base

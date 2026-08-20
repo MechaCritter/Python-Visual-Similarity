@@ -1,22 +1,63 @@
 # FisherVectorEmbedder
 
-File: [`fisher_vector.py`](../../pyvisim/classic/fisher_vector.py)
+The Fisher Vector solves both problems of the BoW model. First, it encodes higher-order statistics, such as the first and optionally second-order differences, instead of just counting the occurrences of visual words like BoW. This method is derived from the Fisher kernel framework, which describes a sample set's deviation from an average distribution. Secondly, the distribution of the local descriptors, unlike BoW and VLAD, is modeled by a Gaussian Mixture Model. This mitigates the hard assignment problem introduced by the K-Means algorithm, since each descriptor is assigned to multiple Gaussian components with different probabilities.
 
-The Fisher Vector, brought to image classification by Perronnin and Dance in 2007, was
-the strongest of the pre-deep-learning image embeddings; Fisher-Vector pipelines were
-the ones CNNs had to beat on ImageNet. Where VLAD asks "how far from the centroid?",
-the Fisher Vector asks "how would I have to nudge this generative model to make it
-explain the image?", and uses the answer as the embedding.
+## Computation
 
-It embeds an image into a vector of shape `(2 * K * D + K,)`, where
+### Fisher Kernel Framework
+
+Given a set of $T$ local descriptors $X = \{x_t; t = 1, \ldots, T\}$ extracted from an image, it is assumed that the generation process of $X$ can be modeled by an image-independent probability density function $u_{\lambda}$ with parameters $\lambda$ [Jégou et al., 2012]. The gradient vector $G^{X}_{\lambda}$ is obtained by computing the gradient of the log-likelihood of the sample set $X$ with respect to the parameters $\lambda$:
+
+$$
+G^{X}_{\lambda} = \frac{1}{T} \nabla_{\lambda} \log u_{\lambda}(X)
+$$
+
+where $G^{X}_{\lambda}$ describes the contribution of the parameters to the generation process [Perronnin & Dance, 2010].
+
+The Fisher kernel is then defined as:
+
+$$
+K(X, Y) = (G^{X}_{\lambda})^T F_{\lambda}^{-1} G^{Y}_{\lambda}
+$$
+
+where $F_{\lambda}$ is the Fisher information matrix, defined by:
+
+$$
+F_{\lambda} = \mathbb{E}_{x \sim u_{\lambda}} \left[ \nabla_{\lambda} \log u_{\lambda}(x) \nabla_{\lambda} \log u_{\lambda}(x)^T \right]
+$$
+
+$\mathcal{G}^{X}_{\lambda}$ is the Fisher Vector after applying the Cholesky decomposition on $F_{\lambda}^{-1} = L_{\lambda}^T L_{\lambda}$, and is computed as:
+
+$$
+\mathcal{G}_i^X = L_{\lambda} G^{X}_{\lambda}
+$$
+
+### Fisher Vector Computation
+
+As discussed, the Fisher Vector encodes each descriptor to multiple Gaussian components (also called "soft assignment"). The probability of a descriptor $x_t$ belonging to the $i$-th Gaussian is computed with the Gaussian Mixture Model.
+
+The Gaussian Mixture Model is chosen for $u_{\lambda}(x) = \sum_{i=1}^{K} w_i u_i(x)$, where $w_i, \mu_i, \Sigma_i$ are the mixture weights, mean vectors, and variance matrices of the Gaussian $u_i$. The Fisher Vector is then computed as:
+
+$$
+\gamma_t(i) = \frac{w_i u_i(x_t)}{\sum_{j=1}^{K} w_j u_j(x_t)}
+$$
+
+$$
+\mathcal{G}_i^X = \frac{1}{T \sqrt{w_i}} \sum_{t=1}^{T} \gamma_t(i)\, \sigma_i^{-1} (x_t - \mu_i)
+$$
+
+where:
+
+- $\gamma_t(i)$ is the soft assignment of descriptor $x_t$ to the $i$-th Gaussian.
+- $w_i$, $\mu_i$, and $\Sigma_i$ are the mixture weight, mean vector, and covariance matrix of the $i$-th Gaussian component.
+
+The final Fisher Vector $G^{X}_{\lambda}$ is the concatenation of the vectors $G^{X}_{i}$ for $i = 1, \ldots, K$, resulting in a $K \times d$-dimensional vector.[^1] This vector captures both the occurrence and distributional properties of the local descriptors.
+
+The resulting vector has shape `(2 * K * D + K,)`, where
 `K` is the number of GMM components and `D` is the local descriptor dimension (after
-optional PCA). The `2 * K * D` term comes from the mean and variance gradients, and
-the `+ K` term from the mixture-weight gradients.
+optional PCA).
 
-## Constructing one
-
-Fisher Vectors always cluster with a Gaussian Mixture Model, configured through the
-embedder:
+## Usage
 
 ```python
 from pyvisim.classic import FisherVectorEmbedder
@@ -27,14 +68,15 @@ fisher = FisherVectorEmbedder(
     pca_params={"n_components": 64}, # optional; omit for no PCA
 )
 fisher.learn(images)                 # fits the PCA (if any) then the GMM
-```
 
-`n_components` is passed directly, not inside `gmm_params` (doing both raises a
-`ValueError`). The GMM uses diagonal covariances; passing any other `covariance_type`
-in `gmm_params` raises a `ValueError`, since the Fisher Vector math assumes diagonal
-covariances. Save a fitted embedder with `fisher.save_to_disk("fisher")` and reload it
-with `FisherVectorEmbedder.load_from_disk("fisher.embedder")`, see
-[image_embedder_base.md](image_embedder_base.md).
+embedding = fisher.embed(image)      # Embed image into a Fisher Vector
+
+similarity = fisher.similarity_score(image1, image2)  # Cosine similarity between two images
+
+fisher.save_to_disk("fisher.embedder")    # Save the embedder to disk
+
+fisher = FisherVectorEmbedder.load_from_disk("fisher.embedder")  # Load the embedder from disk
+```
 
 ## GMM parameters (`gmm_params`)
 
@@ -46,28 +88,9 @@ with `FisherVectorEmbedder.load_from_disk("fisher.embedder")`, see
 | `reg_covar` | `1e-6` | Non-negative regularisation added to (and floored on) the per-feature variances, keeping them strictly positive when a component collapses or dies. |
 | `rng` | `None` | Seed (`int`) or `numpy.random.Generator` for reproducible fitting. |
 
-For example, a fully reproducible embedder that keeps the best of five EM runs:
+## PCA parameters (`pca_params`)
 
-```python
-fisher = FisherVectorEmbedder(n_components=256, gmm_params={"rng": 0, "n_init": 5})
-```
-
-## How `embed` works
-
-For each image:
-
-1. Extract local descriptors (default `RootSIFT`) and apply PCA if set.
-2. Compute **soft assignments**: the GMM posterior probability of each descriptor
-   belonging to each component (`predict_proba`).
-3. Accumulate the sufficient statistics (`pp_sum`, `pp_x`, `pp_x_2`) needed for the
-   gradients.
-4. Compute the gradients of the GMM log-likelihood with respect to its parameters:
-   - `d_pi`: gradient w.r.t. mixture weights (first-order).
-   - `d_mu`: gradient w.r.t. means (first-order).
-   - `d_sigma`: gradient w.r.t. variances (second-order). This is what VLAD lacks.
-5. Apply the analytical diagonal Fisher information normalization (dividing by the
-   square roots involving the mixture weights and covariances).
-6. Concatenate `[d_pi, d_mu, d_sigma]`, then power-normalize and L2-normalize.
+See [PCA](https://mechacritter.github.io/Python-Visual-Similarity/classic/pca.html).
 
 ## References
 
