@@ -1,20 +1,18 @@
 # Neural networks
 
-Following is implemented:
+This module includes neural networks (`torch.nn.Module`, or neural network - based - embedders) that
+learns to distinguish between images.
 
-* `ContrastiveSiameseNetwork` L2-normalizes the resulting embeddings and trains them with a
-  contrastive loss so similar images land close together and dissimilar ones end up far apart;
-  similarity is a fixed metric (cosine by default) on the embeddings.
-* `BCESiameseNetwork` feeds the component-wise L1 distance of sigmoid-activated branch
-  features into a learned scoring layer and returns the probability that both images show the
-  same class (Koch et al., 2015); it trains as a binary classifier over pairs.
-* **`ClipEmbedder`**, pretrained CLIP embeddings from pyvisim's own implementation of
-  the CLIP image towers. Weights come as safetensors files from the Hugging Face Hub,
-  with open_clip-style variant names and pretrained tags (`"ViT-B-32"` + `"openai"`,
-  `"laion2b_s34b_b79k"`, ...; 67 combinations supported). There's no training step:
-  call `embed(images)` and you get L2-normalized embeddings back.
+## References
 
-Everything here needs the `nn` extra: `pip install "pyvisim[nn]"`.
+1. **Siamese Neural Networks for One-shot Image Recognition** (Koch, Zemel, & Salakhutdinov, 2015)
+https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf
 
-For install notes, code examples, and the training walkthrough, see the
-[module README](../../pyvisim/neural_networks/README.md).
+2. **Dimensionality Reduction by Learning an Invariant Mapping** (Hadsell, Chopra, & LeCun, 2006)
+http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+
+3. **Deep Residual Learning for Image Recognition**
+https://arxiv.org/abs/1512.03385
+
+4. **Learning Transferable Visual Models From Natural Language Supervision** (Radford et al., 2021)
+https://arxiv.org/abs/2103.00020

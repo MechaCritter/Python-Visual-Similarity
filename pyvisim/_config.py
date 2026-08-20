@@ -11,7 +11,6 @@ os.makedirs(LOG_FOLDER, exist_ok=True)
 LOG_FILE_PATH = LOG_FOLDER / "log_msgs.log"
 
 RES_FOLDER = ROOT / "pyvisim/res"
-MODEL_FILES_PATH = RES_FOLDER / "model_files"
 LOGGER_FILE = RES_FOLDER / "logging_config.yaml"
 LOCAL_LOGGER_FILE = ROOT / "logger_config.yaml.local"
 
