@@ -107,22 +107,22 @@ class SSIM(DenseMetricBase):
 
     @property
     def window_size(self) -> int:
-        """Side length of the Gaussian window, in pixels (read-only)."""
+        """Side length of the Gaussian window, in pixels."""
         return self._window_size
 
     @property
     def sigma(self) -> float:
-        """Standard deviation of the Gaussian window (read-only)."""
+        """Standard deviation of the Gaussian window."""
         return self._sigma
 
     @property
     def k1(self) -> float:
-        """Luminance stabilization constant (read-only)."""
+        """Luminance stabilization constant."""
         return self._k1
 
     @property
     def k2(self) -> float:
-        """Contrast stabilization constant (read-only)."""
+        """Contrast stabilization constant."""
         return self._k2
 
     def _validate_image_shape(self, height: int, width: int) -> None:

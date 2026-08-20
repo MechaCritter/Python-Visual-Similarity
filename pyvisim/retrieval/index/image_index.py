@@ -72,7 +72,6 @@ class ImageIndexIVFFlat(ImageIndex):
 
     @property
     def cluster_centers(self) -> Float32NumpyArray:
-        """Coordinates of the ``nlist`` cell centroids, shape ``(nlist, D)``."""
         return self._coarse_centroids()
 
     def _learn_index(self, vectors: FloatNumpyArray) -> Any:
@@ -175,7 +174,6 @@ class ImageIndexIVFPQ(ImageIndex):
 
     @property
     def cluster_centers(self) -> Float32NumpyArray:
-        """Coordinates of the ``nlist`` cell centroids, shape ``(nlist, D)``."""
         return self._coarse_centroids()
 
     def _learn_index(self, vectors: FloatNumpyArray) -> Any:

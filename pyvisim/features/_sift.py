@@ -79,18 +79,6 @@ class SIFT(FeatureExtractorBase, _SIFT):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        """
-        Extracts SIFT features from an image.
-
-        :param image: Input image as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels.
-            For example, ``"HWC"`` is height × width × channels (NumPy
-            layout, **default**); ``"CHW"`` is channels × height × width (PyTorch
-            layout). See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in.
-        :return: ``(num_keypoints, output_dim)`` array of SIFT descriptors.
-        """
         canonical = _to_single_image(image, dims=dims, value_range=value_range)
         grayscale = self._to_grayscale(canonical)
         try:
