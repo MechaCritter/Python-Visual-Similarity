@@ -17,6 +17,8 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
     from torchvision import transforms
     from torchvision.models import VGG16_Weights, vgg16
 
+    from ..utils.torch_utils import decode_state_dict, encode_state_dict
+
 setup_logging()
 
 
@@ -101,41 +103,6 @@ def _build_torchvision_model(arch: str, *, pretrained: bool) -> torch.nn.Module:
             "Provide 'feature_extractor' explicitly when loading."
         )
     return builder(pretrained)
-
-
-def _encode_state_dict(model: torch.nn.Module) -> dict[str, Any]:
-    """
-    Embed a model's ``state_dict`` as array nodes for the embedder serializer.
-
-    :param model: The model whose weights are serialised.
-    :return: A mapping of parameter name to an embedded array node. The embedder
-        serializer extracts these arrays into the ``.embedder`` file's tensors.
-    """
-    embedded: dict[str, Any] = {}
-    for name, tensor in model.state_dict().items():
-        array = tensor.detach().cpu().numpy()
-        embedded[name] = {
-            "__ndarray__": True,
-            "data": array,
-            "dtype": str(array.dtype),
-            "shape": list(array.shape),
-            "order": "C",
-        }
-    return embedded
-
-
-def _decode_state_dict(state_dict: dict[str, Any]) -> dict[str, torch.Tensor]:
-    """
-    Rebuild a model ``state_dict`` from arrays restored by the embedder loader.
-
-    :param state_dict: Mapping of parameter name to NumPy array (restored from
-        the ``.embedder`` file's tensors).
-    :return: A mapping of parameter name to torch tensor.
-    """
-    return {
-        name: torch.from_numpy(np.ascontiguousarray(array))
-        for name, array in state_dict.items()
-    }
 
 
 class DeepConvFeature(FeatureExtractorBase):
@@ -304,7 +271,7 @@ class DeepConvFeature(FeatureExtractorBase):
             "device": self.device,
         }
         if not self._is_default_model:
-            config["state_dict"] = _encode_state_dict(self._model)
+            config["state_dict"] = encode_state_dict(self._model)
         return config
 
     @classmethod
@@ -331,7 +298,7 @@ class DeepConvFeature(FeatureExtractorBase):
             device = "cpu"
         model = _build_torchvision_model(arch, pretrained=default_model)
         if not default_model:
-            model.load_state_dict(_decode_state_dict(config["state_dict"]))
+            model.load_state_dict(decode_state_dict(config["state_dict"]))
         return cls(
             backbone=model,
             target_submodule=config.get("target_submodule"),

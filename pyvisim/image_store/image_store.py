@@ -13,8 +13,6 @@ from typing import Any
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from ..classic._reconstruct import embedder_from_dict, embedder_to_dict
-from ..classic._serialization import load_state, save_state
 from ..functional import Candidate, retrieve_top_k_similar
 from ..retrieval.index import (
     ImageIndex,
@@ -24,6 +22,12 @@ from ..retrieval.index import (
     ImageIndexScalarQuantizer,
 )
 from ..retrieval.index._base_index import Quantizer
+from ..serialization import (
+    embedder_from_dict,
+    embedder_to_dict,
+    load_state,
+    save_state,
+)
 from ..typing import Embedder, Float32NumpyArray, ImageInput, IntNumpyArray
 
 #: Index-type strings mapped to the index class that implements them.

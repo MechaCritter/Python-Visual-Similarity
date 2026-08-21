@@ -1,5 +1,6 @@
 import abc
-from typing import cast
+import warnings
+from typing import Any, cast
 
 import numpy as np
 from PIL import Image
@@ -34,11 +35,6 @@ class SiameseNetworkBase(NeuralImageEmbedder):
       (Koch, Zemel & Salakhutdinov, 2015). It has no similarity-preserving
       embedding space and therefore overrides :meth:`embed` to raise
       :class:`NotImplementedError`.
-
-    Subclasses must implement :meth:`_forward_once` (the single-branch pass
-    used by :meth:`embed`) and :meth:`similarity_score`, and must finish their
-    ``__init__`` with ``self.to(torch.device(device))`` so that every submodule
-    they register ends up on the requested device.
 
     References:
     ===========
@@ -75,8 +71,11 @@ class SiameseNetworkBase(NeuralImageEmbedder):
             raise ValueError(
                 f"embedding_dim must be a positive integer, got {embedding_dim}."
             )
+        self._backbone_name = backbone
+        self._embedding_dim = embedding_dim
         self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)
 
+        self._has_custom_transform = transform is not None
         if transform is not None:
             self._transform = transform
         else:
@@ -84,6 +83,34 @@ class SiameseNetworkBase(NeuralImageEmbedder):
 
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
+
+    def _serialization_config(self) -> dict[str, Any]:
+        """
+        Return the architecture description needed to rebuild this network.
+
+        A custom ``transform`` is *not* serialised: torchvision transforms are
+        arbitrary callables with no portable description. Reloading a network
+        that was built with one therefore falls back to the backbone's default
+        ImageNet preprocessing, which is worth a warning since it changes the
+        embeddings.
+
+        :return: A JSON-safe mapping of constructor arguments.
+        """
+        if self._has_custom_transform:
+            warnings.warn(
+                f"The custom transform of this {type(self).__name__} is not "
+                "serialised; the reloaded network will use the default "
+                f"{self._backbone_name} ImageNet preprocessing and therefore "
+                "produce different embeddings. Re-apply the transform after "
+                "loading to reproduce them.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        return {
+            "backbone": self._backbone_name,
+            "embedding_dim": self._embedding_dim,
+            "device": str(self.device),
+        }
 
     @abc.abstractmethod
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:

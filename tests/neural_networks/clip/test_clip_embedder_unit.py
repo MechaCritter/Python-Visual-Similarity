@@ -1,89 +1,30 @@
 """Fast unit tests for :class:`pyvisim.neural_networks.ClipEmbedder`.
 
-The real checkpoints weigh hundreds of megabytes, so a tiny CLIP variant is
-registered on top of the real registry and its checkpoint is written to disk
-as a real safetensors file. Everything else -- model building, weight
-loading, preprocessing, batching, normalization, similarity scoring and
-configuration validation -- runs through the production code path. Tests
-against the real published weights live in ``test_clip_embedder.py`` and run
-in the slow suite.
+The tests run against the tiny CLIP variant registered by
+:mod:`._tiny_clip` (see the ``tiny_variant`` and ``embedder`` fixtures in
+``conftest.py``), so model building, weight loading, preprocessing, batching,
+normalization, similarity scoring and configuration validation all run
+through the production code path without downloading anything. Tests against
+the real published weights live in ``test_clip_embedder.py`` and run in the
+slow suite.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pytest
-import torch
-from safetensors.torch import save_file
 
 from pyvisim.neural_networks import ClipEmbedder
-from pyvisim.neural_networks.clip import CheckpointSpec, VisionConfig
-from pyvisim.neural_networks.clip import _registry as registry_module
 from pyvisim.neural_networks.clip import clip_embedder as clip_embedder_module
-from pyvisim.neural_networks.clip._model import build_vision_model
 
-#: Name, tag and architecture of the tiny test-only variant.
-_VARIANT = "tiny-ViT"
-_TAG = "test"
-_CONFIG = VisionConfig(
-    embed_dim=8, image_size=32, width=16, layers=2, patch_size=16, head_width=8
-)
-
-
-@pytest.fixture()
-def tiny_variant(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
-    """Register a tiny CLIP variant whose checkpoint lives in ``tmp_path``."""
-    checkpoint = tmp_path / "open_clip_model.safetensors"
-    torch.manual_seed(0)
-    model = build_vision_model(_CONFIG, quick_gelu=True)
-    save_file(
-        {f"visual.{key}": value for key, value in model.state_dict().items()},
-        str(checkpoint),
-    )
-    spec = CheckpointSpec(repo_id="pyvisim-tests/tiny-clip", quick_gelu=True)
-    monkeypatch.setitem(registry_module.MODEL_CONFIGS, _VARIANT, _CONFIG)
-    monkeypatch.setitem(registry_module.PRETRAINED, _VARIANT, {_TAG: spec})
-    monkeypatch.setattr(
-        clip_embedder_module,
-        "fetch_checkpoint",
-        lambda variant, pretrained, cache_dir=None: checkpoint,
-    )
-    return _VARIANT
-
-
-@pytest.fixture()
-def embedder(tiny_variant: str) -> ClipEmbedder:
-    """A ``ClipEmbedder`` built on the tiny variant."""
-    return ClipEmbedder(tiny_variant, _TAG, device="cpu")
+from ._tiny_clip import CONFIG as _CONFIG
+from ._tiny_clip import TAG as _TAG
+from ._tiny_clip import VARIANT as _VARIANT
 
 
 def _random_image(seed: int = 0) -> np.ndarray:
     rng = np.random.default_rng(seed)
     return rng.integers(0, 256, size=(48, 64, 3), dtype=np.uint8)
-
-
-# §1 device resolution
-
-
-def test_resolve_device_falls_back_to_cpu_without_cuda(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Without CUDA, both auto-select and an explicit request yield ``cpu``."""
-    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
-    assert clip_embedder_module._resolve_device(None) == "cpu"
-    assert clip_embedder_module._resolve_device("cuda") == "cpu"
-    assert clip_embedder_module._resolve_device("cpu") == "cpu"
-
-
-def test_resolve_device_prefers_cuda_when_available(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """With CUDA available, auto-select and an explicit request yield ``cuda``."""
-    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
-    assert clip_embedder_module._resolve_device(None) == "cuda"
-    assert clip_embedder_module._resolve_device("cuda") == "cuda"
 
 
 # §2 embed behaviour

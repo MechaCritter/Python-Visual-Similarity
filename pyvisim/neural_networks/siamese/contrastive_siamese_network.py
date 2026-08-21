@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 from ...lazy_import import OptionalImport
@@ -7,6 +9,8 @@ from ._base_siamese import SiameseNetworkBase
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
+
+    from ...utils.torch_utils import resolve_device
 
 _torch_import.check()
 
@@ -81,6 +85,24 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
             similarity_func=similarity_func,
         )
         self.to(torch.device(device))
+
+    @classmethod
+    def _from_config(cls, config: dict[str, Any]) -> "ContrastiveSiameseNetwork":
+        """
+        Rebuilds the network described by a serialised configuration.
+
+        The backbone is built without its ImageNet weights.
+
+        :param config: Mapping produced by
+            :meth:`~pyvisim.neural_networks.NeuralImageEmbedder._serialization_config`.
+        :return: A network whose architecture matches ``config``.
+        """
+        return cls(
+            backbone=config["backbone"],
+            embedding_dim=config["embedding_dim"],
+            device=resolve_device(config["device"]),
+            pretrained_backbone=False,
+        )
 
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
         """

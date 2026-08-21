@@ -1,14 +1,20 @@
 """
 safetensors-backed serialization for image embedders.
 
-An embedder is described by a nested, JSON-safe state dictionary (clustering
-model, optional PCA, normalization hyperparameters, similarity-metric name and
-feature-extractor configuration). This module stores that description as a
-``.embedder`` file in the `safetensors <https://github.com/huggingface/safetensors>`_
-format: every NumPy array is written as a binary tensor, while the surrounding
-structure and scalar values are stored as a single JSON blob in the file's
-metadata.
+An embedder is described by a nested, JSON-safe state dictionary: for the
+classic embedders that is the clustering model, optional PCA, normalization
+hyperparameters, similarity-metric name and feature-extractor configuration;
+for the neural ones it is the architecture description plus the model's
+``state_dict``. This module stores that description as a ``.embedder`` file in
+the `safetensors <https://github.com/huggingface/safetensors>`_ format: every
+NumPy array is written as a binary tensor, while the surrounding structure and
+scalar values are stored as a single JSON blob in the file's metadata.
+
+The module also holds the class-name dispatch that turns an embedder into such
+a state dictionary and back.
 """
+
+from __future__ import annotations
 
 import json
 import pathlib
@@ -18,10 +24,27 @@ import numpy as np
 from safetensors import SafetensorError, safe_open
 from safetensors.numpy import save_file
 
-from ..typing import NumpyArray
+from ..typing import Embedder, NumpyArray
 
 #: Metadata key under which the embedder JSON skeleton is stored.
 _METADATA_KEY = "pyvisim_embedder"
+
+
+def decode_array_node(value: Any) -> NumpyArray:
+    """
+    Restore the array held by an ``__ndarray__`` node.
+
+    Values that already are arrays (because they were restored from the
+    file's binary tensors) are returned as such, so callers can consume a
+    state dictionary regardless of whether it went through a file.
+
+    :param value: An ``__ndarray__`` node or an array-like value.
+    :return: The array the node describes.
+    """
+    if isinstance(value, dict) and value.get("__ndarray__"):
+        array = np.asarray(value["data"], dtype=value["dtype"]).reshape(value["shape"])
+        return np.asfortranarray(array) if value.get("order") == "F" else array
+    return np.asarray(value)
 
 
 def _arrays_to_tensors(
@@ -146,3 +169,91 @@ def load_embedder_state(path: pathlib.Path) -> dict[str, Any]:
         return load_state(path, _METADATA_KEY)
     except ValueError as error:
         raise ValueError(f"File {path} is not a valid .embedder file.") from error
+
+
+def embedder_to_dict(embedder: Embedder) -> dict[str, Any]:
+    """
+    Serialise an embedder into a JSON-safe state dictionary.
+
+    :param embedder: A :class:`~pyvisim._base_classes.ImageEmbedderBase`
+        subclass instance or a :class:`~pyvisim.classic.Pipeline`.
+    :return: The embedder's ``to_dict`` output.
+    :raises TypeError: If ``embedder`` does not expose a ``to_dict`` method.
+    """
+    to_dict = getattr(embedder, "to_dict", None)
+    if not callable(to_dict):
+        raise TypeError(
+            f"Embedder of type {type(embedder).__name__!r} is not serialisable; "
+            "it must implement a 'to_dict' method."
+        )
+    return dict(to_dict())
+
+
+def _classic_embedder_classes() -> dict[str, Any]:
+    """
+    Return the classic embedder classes that can be reconstructed.
+
+    :return: A mapping of class name to embedder class.
+    """
+    # Imported lazily so this leaf module never feeds back into the embedder
+    # package's import graph at module-load time.
+    from ..classic.fisher_vector import FisherVectorEmbedder
+    from ..classic.pipeline import Pipeline
+    from ..classic.vlad import VLADEmbedder
+
+    return {
+        "VLADEmbedder": VLADEmbedder,
+        "FisherVectorEmbedder": FisherVectorEmbedder,
+        "Pipeline": Pipeline,
+    }
+
+
+def _neural_embedder_classes() -> dict[str, Any]:
+    """
+    Return the neural embedder classes that can be reconstructed.
+
+    The neural embedders need the optional ``nn`` extra; when it is not
+    installed they are simply not registered, so the classic embedders stay
+    loadable on a torch-free installation.
+
+    :return: A mapping of class name to embedder class, empty if torch is
+        not installed.
+    """
+    try:
+        from ..neural_networks import (
+            BCESiameseNetwork,
+            ClipEmbedder,
+            ContrastiveSiameseNetwork,
+        )
+    except ImportError:
+        return {}
+
+    return {
+        "BCESiameseNetwork": BCESiameseNetwork,
+        "ClipEmbedder": ClipEmbedder,
+        "ContrastiveSiameseNetwork": ContrastiveSiameseNetwork,
+    }
+
+
+def embedder_from_dict(state: dict[str, Any]) -> Embedder:
+    """
+    Rebuild an embedder from a dictionary produced by :func:`embedder_to_dict`.
+
+    :param state: A serialised embedder description with an ``embedder_class`` key.
+    :return: The reconstructed embedder instance.
+    :raises ValueError: If ``state`` lacks a known ``embedder_class``.
+    """
+    # ``Any`` because the registered classes share a ``from_dict`` classmethod
+    # that the structural ``Embedder`` protocol does not declare.
+    registry: dict[str, Any] = {
+        **_classic_embedder_classes(),
+        **_neural_embedder_classes(),
+    }
+    embedder_class = state.get("embedder_class")
+    if embedder_class not in registry:
+        raise ValueError(
+            f"Cannot reconstruct embedder of class {embedder_class!r}. "
+            f"Known classes are: {sorted(registry)}."
+        )
+    embedder: Embedder = registry[embedder_class].from_dict(state)
+    return embedder
