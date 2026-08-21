@@ -1,11 +1,9 @@
-import abc
-import pathlib
 import warnings
 from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
-from .._base_classes import FeatureExtractorBase, ImageEmbedderBase
+from .._base_classes import FeatureExtractorBase, SerializableImageEmbedder
 from .._config import setup_logging
 from .._errors import NotFittedError
 from ..features._registry import feature_extractor_from_dict
@@ -16,11 +14,9 @@ from ..typing import (
 )
 from ..utils.image_utils import iter_images
 from ._clustering import PCA, ClusteringModelBase
-from ._serialization import load_embedder_state, save_embedder_state
 
 setup_logging()
 
-_EMBEDDER_FILE_SUFFIX = ".embedder"
 _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION = 1
 _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
     # TODO: when the next _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION comes, check if
@@ -29,96 +25,7 @@ _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bo
     #
     # However, (2, 1) might not be True!!
 }
-_EmbedderT = TypeVar("_EmbedderT", bound="SerializableImageEmbedder")
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
-
-
-class SerializableImageEmbedder(ImageEmbedderBase):
-    """
-    Base for embedders that persist to a ``.embedder`` file.
-
-    Adds the serialization contract on top of
-    :class:`~pyvisim._base_classes.ImageEmbedderBase`: subclasses describe
-    themselves as a JSON-safe state via :meth:`to_dict` / :meth:`from_dict`, and
-    this class turns that state into a file and back. Neural embedders do not
-    use this path; they are persisted with the usual torch checkpoints.
-
-    :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    """
-
-    #: Keys a serialised state must contain to be a valid embedder file.
-    #: Subclasses extend this with their own required keys.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func"}
-    )
-
-    @abc.abstractmethod
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialises this embedder into a JSON-safe state dictionary.
-
-        Every concrete embedder must define how it serialises itself. The
-        returned mapping has to contain at least the keys listed in
-        :attr:`_STATE_KEYS` (notably ``"embedder_class"``) so that
-        :meth:`load_from_disk` can validate the file and dispatch it to the
-        right class. Arrays may be embedded as ``__ndarray__`` nodes; the
-        serialization layer stores them as binary tensors.
-
-        :return: A JSON-safe embedder description suitable for :meth:`from_dict`.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abc.abstractmethod
-    def from_dict(cls: type[_EmbedderT], state: dict[str, Any]) -> _EmbedderT:
-        """
-        Rebuilds an embedder from a dictionary produced by :meth:`to_dict`.
-
-        :param state: A JSON-safe embedder description from :meth:`to_dict`.
-        :return: A ready-to-use embedder instance.
-        """
-        raise NotImplementedError
-
-    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
-        """
-        Saves the serialised state of this embedder to a ``.embedder`` file.
-
-        :param path: Target file path. The ``.embedder`` suffix is appended if missing.
-        :return: The path of the written file.
-        :raises NotFittedError: If the embedder is not ready to be serialised
-            (see :meth:`to_dict`).
-        """
-        path = pathlib.Path(path)
-        if path.suffix != _EMBEDDER_FILE_SUFFIX:
-            path = path.with_name(path.name + _EMBEDDER_FILE_SUFFIX)
-        save_embedder_state(self.to_dict(), path)
-        return path
-
-    @classmethod
-    def load_from_disk(
-        cls: type[_EmbedderT],
-        path: str | pathlib.Path,
-    ) -> _EmbedderT:
-        """
-        Loads an embedder previously saved with :meth:`save_to_disk`.
-
-        :param path: Path to the ``.embedder`` file.
-        :return: A ready-to-use embedder instance.
-        :raises ValueError: If the file is not a valid ``.embedder`` file or
-            was saved by a different embedder class.
-        """
-        state = load_embedder_state(pathlib.Path(path))
-        if not cls._STATE_KEYS.issubset(state):
-            raise ValueError(f"File {path} is not a valid .embedder file.")
-        # TODO: in the future, verify the file's format version against the
-        # class-specific compatibility table before reconstructing.
-        if state["embedder_class"] != cls.__name__:
-            raise ValueError(
-                f"File {path} was saved by {state['embedder_class']}. "
-                f"Load it with {state['embedder_class']}.load_from_disk instead."
-            )
-        return cls.from_dict(state)
 
 
 class FeatureBasedEmbedder(SerializableImageEmbedder):

@@ -3,6 +3,19 @@
 This module includes neural networks (`torch.nn.Module`, or neural network - based - embedders) that
 learns to distinguish between images.
 
+# Table of contents
+
+- [Contrastive Siamese Network](contrastive_siamese.md)
+- [BCE Siamese Network](bce_siamese.md)
+- [CLIP Embedder](clip.md)
+
+## Serialization
+
+Every class in this module can be serialized via method
+`to_dict` and deserialized via `from_dict`, or `save_to_disk` and `load_from_disk` to save/load to/from a file. `pyvisim` only uses `safetensors` format for (de)serialization, which mitigates the risk of deserializing malicious objects.
+
+You can, of course, also use `torch.save` and `torch.load` as conventionally used in PyTorch.
+
 ## References
 
 1. **Siamese Neural Networks for One-shot Image Recognition** (Koch, Zemel, & Salakhutdinov, 2015)

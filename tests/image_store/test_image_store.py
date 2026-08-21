@@ -9,6 +9,7 @@ from PIL import Image
 from pyvisim.classic import Pipeline, VLADEmbedder
 from pyvisim.functional import Candidate
 from pyvisim.image_store import InMemoryImageEmbeddingStore
+from pyvisim.neural_networks import ContrastiveSiameseNetwork
 
 
 @pytest.fixture(scope="module")
@@ -318,6 +319,36 @@ def test_save_load_preserves_embedder(
 
     assert np.allclose(from_loaded_store, from_store, atol=1e-5)
     assert np.allclose(from_loaded_store, from_direct, atol=1e-5)
+
+
+def test_save_load_preserves_a_neural_embedder(
+    gallery_paths: list[str],
+    tmp_path_factory: pytest.TempPathFactory,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """A store built on a neural embedder round-trips through disk.
+
+    The neural embedder travels inside the store file with its weights, so
+    the reloaded store embeds a probe image exactly like the original one.
+    """
+    embedder = ContrastiveSiameseNetwork(
+        embedding_dim=8, pretrained_backbone=False, similarity_func="cosine"
+    )
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:4],
+        embedder,
+        "ivf-flat",
+        index_params={"nlist": 2, "nprobe": 2},
+    )
+    target = tmp_path_factory.mktemp("rt_neural_embedder")
+    loaded = InMemoryImageEmbeddingStore.load_from_disk(
+        store.save_to_disk(target / "store.safetensors")
+    )
+    assert isinstance(loaded.embedder, ContrastiveSiameseNetwork)
+
+    gray = category_train_images_flat[0]
+    probe = np.stack([gray, gray, gray], axis=-1)
+    assert np.array_equal(loaded.embedder.embed(probe), embedder.embed(probe))
 
 
 def test_load_missing_file_raises(

@@ -9,6 +9,7 @@ from typing import Any, TypeVar
 import numpy as np
 
 from ..._errors import NotFittedError
+from ...serialization import decode_array_node
 from ...typing import FloatNumpyArray
 
 _ClusteringModelT = TypeVar("_ClusteringModelT", bound="ClusteringModelBase")
@@ -61,12 +62,7 @@ def _decode(value: Any) -> Any:
     """
     if isinstance(value, dict):
         if value.get("__ndarray__"):
-            array = np.asarray(value["data"], dtype=value["dtype"]).reshape(
-                value["shape"]
-            )
-            if value.get("order") == "F":
-                array = np.asfortranarray(array)
-            return array
+            return decode_array_node(value)
         return {key: _decode(item) for key, item in value.items()}
     if isinstance(value, list):
         return [_decode(item) for item in value]

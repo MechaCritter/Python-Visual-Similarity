@@ -4,27 +4,21 @@ The embedder pairs the image towers implemented in :mod:`._model` with
 pretrained safetensors weights downloaded from the Hugging Face Hub (see
 :mod:`._registry`), so no third-party CLIP library is needed. Every variant
 of open_clip's registry whose image tower is a standard CLIP Vision
-Transformer or modified ResNet -- including all original OpenAI models -- is
+Transformer or modified ResNet, including all original OpenAI models, is
 supported.
-
-:mod:`torch` and :mod:`torchvision` are optional dependencies installed by
-the ``nn`` extra (``pip install "pyvisim[nn]"``).
 """
 
 from pathlib import Path
-from typing import cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 from PIL import Image
 
-from ..._base_classes import SimilarityMetric
-from ..._utils import get_similarity_func
+from ..._base_classes import SerializableImageEmbedder
 from ...lazy_import import OptionalImport
 from ...typing import (
     Float32NumpyArray,
-    FloatNumpyArray,
     ImageInput,
-    SimilarityFunc,
     UInt8NumpyArray,
 )
 from ...utils.image_utils import iter_images
@@ -40,23 +34,17 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
 
+    from ...utils.torch_utils import (
+        decode_state_dict,
+        encode_state_dict,
+        resolve_device,
+    )
     from ._model import build_vision_model, load_vision_weights
 
 _torch_import.check()
 
-
-def _resolve_device(device: str | None) -> str:
-    """
-    Resolve a requested device, falling back to CPU when CUDA is unavailable.
-
-    :param device: ``"cuda"``, ``"cpu"`` or ``None`` to auto-select.
-    :return: ``"cuda"`` if requested/available, otherwise ``"cpu"``.
-    """
-    if device is None:
-        return "cuda" if torch.cuda.is_available() else "cpu"
-    if device == "cuda" and not torch.cuda.is_available():
-        return "cpu"
-    return device
+#: On-disk format version of the serialised CLIP embedder state.
+_CLIP_EMBEDDER_FORMAT_VERSION = 1
 
 
 def _build_preprocess(
@@ -92,7 +80,7 @@ def _build_preprocess(
     )
 
 
-class ClipEmbedder(SimilarityMetric):
+class ClipEmbedder(SerializableImageEmbedder):
     """
     Embeds images with a pretrained CLIP model.
 
@@ -142,6 +130,11 @@ class ClipEmbedder(SimilarityMetric):
         Proc. ICML, PMLR 139, pp. 8748-8763, 2021.
     """
 
+    #: Keys a serialised state must contain to be a valid embedder file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"embedder_class", "similarity_func", "config", "state_dict"}
+    )
+
     def __init__(
         self,
         variant: str = "ViT-B-32",
@@ -152,20 +145,89 @@ class ClipEmbedder(SimilarityMetric):
         similarity_func: str = "cosine",
         cache_dir: str | Path | None = None,
     ) -> None:
+        super().__init__(similarity_func=similarity_func)
+        self._build(variant, pretrained, device=device, normalize=normalize)
+        load_vision_weights(
+            self._model, fetch_checkpoint(variant, pretrained, cache_dir=cache_dir)
+        )
+
+    @classmethod
+    def _from_config(cls, config: dict[str, Any]) -> "ClipEmbedder":
+        """
+        Build an embedder skeleton from a serialised configuration.
+
+        The pretrained checkpoint is deliberately *not* downloaded: the caller
+        restores the weights right after from the serialised ``state_dict``,
+        which makes the download both wasteful and a needless network
+        dependency. The instance is therefore created without running
+        :meth:`__init__`, whose contract is to return a ready-to-use embedder
+        with the pretrained weights loaded.
+
+        :param config: The ``"config"`` mapping produced by :meth:`to_dict`.
+        :return: A randomly initialized embedder matching ``config``.
+        :raises ValueError: If ``variant`` or ``pretrained`` is not supported.
+        """
+        embedder = cls.__new__(cls)
+        SerializableImageEmbedder.__init__(embedder)
+        embedder._build(
+            config["variant"],
+            config["pretrained"],
+            device=config["device"],
+            normalize=config["normalize"],
+        )
+        return embedder
+
+    def _build(
+        self,
+        variant: str,
+        pretrained: str,
+        *,
+        device: str | None,
+        normalize: bool,
+    ) -> None:
+        """
+        Build the image tower and the preprocessing of a checkpoint.
+
+        The architecture, the preprocessing statistics and the activation
+        function all follow from the ``variant`` / ``pretrained`` pair, so this
+        sets up everything but the weights, which the caller loads.
+
+        :param variant: CLIP variant name.
+        :param pretrained: Pretrained tag naming the weights.
+        :param device: Device to run the model on, or ``None`` to auto-select.
+        :param normalize: Whether to L2-normalize the returned embeddings.
+        :raises ValueError: If ``variant`` or ``pretrained`` is not supported.
+        """
         self._config = get_model_config(variant)
         self._spec = get_checkpoint_spec(variant, pretrained)
         self._variant = variant.replace("/", "-")
         self._pretrained = pretrained
         self._normalize = normalize
-        self._device = _resolve_device(device)
-        self._similarity_func: SimilarityFunc
-        self._similarity_func_name: str
-        self.similarity_func = similarity_func
-        checkpoint_path = fetch_checkpoint(variant, pretrained, cache_dir=cache_dir)
+        self._device = resolve_device(device)
         model = build_vision_model(self._config, quick_gelu=self._spec.quick_gelu)
-        load_vision_weights(model, checkpoint_path)
         self._model = model.eval().to(self._device)
         self._transform = _build_preprocess(self._config, self._spec)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format_version": _CLIP_EMBEDDER_FORMAT_VERSION,
+            "embedder_class": type(self).__name__,
+            "similarity_func": self._similarity_func_name,
+            "config": {
+                "variant": self._variant,
+                "pretrained": self._pretrained,
+                "normalize": self._normalize,
+                "device": self._device,
+            },
+            "state_dict": encode_state_dict(self._model),
+        }
+
+    @classmethod
+    def from_dict(cls, state: dict[str, Any]) -> "ClipEmbedder":
+        embedder = cls._from_config(state["config"])
+        embedder.similarity_func = state["similarity_func"]
+        embedder._model.load_state_dict(decode_state_dict(state["state_dict"]))
+        return embedder
 
     @property
     def variant(self) -> str:
@@ -179,7 +241,6 @@ class ClipEmbedder(SimilarityMetric):
 
     @property
     def device(self) -> str:
-        """The device the model runs on (``"cpu"`` or ``"cuda"``)."""
         return self._device
 
     @property
@@ -196,23 +257,6 @@ class ClipEmbedder(SimilarityMetric):
     def image_size(self) -> int:
         """Side length in pixels of the square model input."""
         return self._config.image_size
-
-    @property
-    def similarity_func(self) -> SimilarityFunc:
-        """The resolved similarity function callable."""
-        return self._similarity_func
-
-    @similarity_func.setter
-    def similarity_func(self, name: str) -> None:
-        """
-        Resolve and store a built-in similarity metric by name.
-
-        :param name: One of ``"cosine"``, ``"euclidean"``, ``"l1"`` or
-            ``"manhattan"``.
-        :raises ValueError: If ``name`` is not a supported similarity metric.
-        """
-        self._similarity_func = get_similarity_func(name)
-        self._similarity_func_name = name
 
     def _preprocess(self, image: UInt8NumpyArray) -> "torch.Tensor":
         """
@@ -236,28 +280,6 @@ class ClipEmbedder(SimilarityMetric):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        """
-        Embed one or more images into CLIP embeddings.
-
-        All images are preprocessed, stacked into a single batch and passed
-        through the image tower in one forward pass. When ``normalize`` is
-        set, the embeddings are L2-normalized.
-
-        :param images: A single ``MatLike`` image, a batched array, or an
-            iterable of images. Consider using an iterator for large datasets.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
-            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-            See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in;
-            converted into the canonical ``[0, 255]`` range.
-        :return: ``(N, embedding_dim)`` array holding one embedding per input
-            image.
-        :raises ValueError: If ``images`` contains no image.
-        """
         tensors = [
             self._preprocess(image)
             for image in iter_images(images, dims=dims, value_range=value_range)
@@ -269,18 +291,6 @@ class ClipEmbedder(SimilarityMetric):
         if self._normalize:
             features = features / features.norm(dim=-1, keepdim=True)
         return np.asarray(features.float().cpu().numpy(), dtype=np.float32)
-
-    def similarity_score(
-        self,
-        image1: ImageInput,
-        image2: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
-        embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
-        embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
-        return np.asarray(self.similarity_func(embeddings1, embeddings2))
 
     def __repr__(self) -> str:
         return (
