@@ -1,10 +1,12 @@
 import abc
 import logging
-from typing import Any
+import pathlib
+from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
 from ._utils import get_similarity_func
+from .serialization import load_embedder_state, save_embedder_state
 from .typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -12,6 +14,11 @@ from .typing import (
     MatLike,
     SimilarityFunc,
 )
+
+#: Suffix of the files written by :meth:`SerializableImageEmbedder.save_to_disk`.
+EMBEDDER_FILE_SUFFIX = ".embedder"
+
+_EmbedderT = TypeVar("_EmbedderT", bound="SerializableImageEmbedder")
 
 
 class SimilarityMetric(abc.ABC):
@@ -211,3 +218,93 @@ class ImageEmbedderBase(SimilarityMetric):
         return (
             self.__class__.__name__ + f"(similarity_func={self.similarity_func_name})"
         )
+
+
+class SerializableImageEmbedder(ImageEmbedderBase):
+    """
+    Base for embedders that persist to a ``.embedder`` file.
+
+    Adds the serialization contract on top of :class:`ImageEmbedderBase`:
+    subclasses describe themselves as a JSON-safe state via :meth:`to_dict` /
+    :meth:`from_dict`, and this class turns that state into a file and back.
+    Both the classic embedders and the neural ones use this path, so a
+    ``.embedder`` file is always a
+    `safetensors <https://github.com/huggingface/safetensors>`_ file.
+
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    """
+
+    #: Keys a serialised state must contain to be a valid embedder file.
+    #: Subclasses extend this with their own required keys.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"embedder_class", "similarity_func"}
+    )
+
+    @abc.abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialises this embedder into a JSON-safe state dictionary.
+
+        Every concrete embedder must define how it serialises itself. The
+        returned mapping has to contain at least the keys listed in
+        :attr:`_STATE_KEYS` (notably ``"embedder_class"``) so that
+        :meth:`load_from_disk` can validate the file and dispatch it to the
+        right class. Arrays may be embedded as ``__ndarray__`` nodes; the
+        serialization layer stores them as binary tensors.
+
+        :return: A JSON-safe embedder description suitable for :meth:`from_dict`.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    def from_dict(cls: type[_EmbedderT], state: dict[str, Any]) -> _EmbedderT:
+        """
+        Rebuilds an embedder from a state dictionary (see :meth:`to_dict` to see
+        the expected format).
+
+        :param state: A JSON-safe embedder description.
+        :return: A ready-to-use embedder instance.
+        """
+        raise NotImplementedError
+
+    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+        """
+        Saves the serialised state of this embedder to a ``.embedder`` file.
+
+        :param path: Target file path. The ``.embedder`` suffix is appended if missing.
+        :return: The path of the written file.
+        :raises NotFittedError: If the embedder is not ready to be serialised
+            (see :meth:`to_dict`).
+        """
+        path = pathlib.Path(path)
+        if path.suffix != EMBEDDER_FILE_SUFFIX:
+            path = path.with_name(path.name + EMBEDDER_FILE_SUFFIX)
+        save_embedder_state(self.to_dict(), path)
+        return path
+
+    @classmethod
+    def load_from_disk(
+        cls: type[_EmbedderT],
+        path: str | pathlib.Path,
+    ) -> _EmbedderT:
+        """
+        Loads an embedder previously saved with :meth:`save_to_disk`.
+
+        :param path: Path to the ``.embedder`` file.
+        :return: A ready-to-use embedder instance.
+        :raises ValueError: If the file is not a valid ``.embedder`` file or
+            was saved by a different embedder class.
+        """
+        state = load_embedder_state(pathlib.Path(path))
+        if not cls._STATE_KEYS.issubset(state):
+            raise ValueError(f"File {path} is not a valid .embedder file.")
+        # TODO: in the future, verify the file's format version against the
+        # class-specific compatibility table before reconstructing.
+        if state["embedder_class"] != cls.__name__:
+            raise ValueError(
+                f"File {path} was saved by {state['embedder_class']}. "
+                f"Load it with {state['embedder_class']}.load_from_disk instead."
+            )
+        return cls.from_dict(state)
