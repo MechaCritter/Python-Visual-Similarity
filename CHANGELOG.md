@@ -12,8 +12,13 @@
   `test_oxford_flowers_slow.py`.
 
 ### Added
+- The embedders of `pyvisim.neural_networks` (`ClipEmbedder`,
+  `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serialisable to a
+  safetensors `.embedder` file via `save_to_disk`/`load_from_disk`, weights
+  included; a reloaded embedder produces identical embeddings without downloading
+  any pretrained weights.
 - `NeuralImageEmbedder` (in `pyvisim.neural_networks`): the shared base for the
-  neural embedders, both an `ImageEmbedderBase` and a `torch.nn.Module`.
+  neural embedders, both a `SerializableImageEmbedder` and a `torch.nn.Module`.
   `SiameseNetworkBase` now derives from it, so the Siamese networks and the
   classic embedders expose the same `embed`/`similarity_score` surface.
 - Clustering models can now be built from a fitted scikit-learn estimator:

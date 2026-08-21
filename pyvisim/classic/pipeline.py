@@ -3,12 +3,12 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
+from .._base_classes import SerializableImageEmbedder
 from ..typing import (
     FloatNumpyArray,
     ImageInput,
 )
 from ..utils.image_utils import iter_images
-from ._base_embedder import SerializableImageEmbedder
 
 #: On-disk format version of the serialised pipeline state.
 _PIPELINE_FORMAT_VERSION = 1
@@ -68,7 +68,7 @@ class Pipeline(SerializableImageEmbedder):
     @classmethod
     def from_dict(cls, state: dict[str, Any]) -> "Pipeline":
         # Imported lazily to avoid an import cycle with the embedder registry.
-        from ._reconstruct import embedder_from_dict
+        from ..serialization import embedder_from_dict
 
         embedders = [
             cast(SerializableImageEmbedder, embedder_from_dict(embedder_state))
