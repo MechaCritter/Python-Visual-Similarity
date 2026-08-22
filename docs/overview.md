@@ -13,7 +13,17 @@
 embedders, ...
 - [Dataset](dataset/): `torch` Datasets
 
+The abstract bases every public class derives from live in two places:
+`pyvisim/_base_classes.py` (`SimilarityMetric`, `FeatureExtractorBase`,
+`ImageEmbedderBase`, `SerializableImageEmbedder`) and `pyvisim/base/`
+(`DenseMetricBase`, shared by the dense metrics).
+
 ## Design decisions worth knowing
 
 - **Serialization uses safetensors `.embedder` format.**:  
   Pickling is explicitly avoided out of safety reasons.
+
+## TODO
+
+- Move `pyvisim/_base_classes.py` into `pyvisim/base/`, so that all abstract
+  bases live in one module.
