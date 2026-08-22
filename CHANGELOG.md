@@ -12,6 +12,10 @@
   `test_oxford_flowers_slow.py`.
 
 ### Added
+- `get_transform(backbone)` (in `pyvisim.neural_networks.siamese`) returns the
+  preprocessing transform registered for a backbone. It replaces the private
+  `SiameseNetworkBase._get_imagenet_transform`, so a backbone that was not
+  trained on ImageNet can register its own preprocessing.
 - The embedders of `pyvisim.neural_networks` (`ClipEmbedder`,
   `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serialisable to a
   safetensors `.embedder` file via `save_to_disk`/`load_from_disk`, weights
