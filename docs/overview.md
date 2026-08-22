@@ -5,6 +5,7 @@
 - [Typing](typing.md): Public types.
 - [Distance](distance.md): the distance metrics that compare embeddings.
 - [Structural](structural/): SSIM and MSSSIM
+- [Pixelwise](pixelwise/): PSNR
 - [Classic](classic/): Classical embedding methods pre deep learning era.
 - [Image store](image_store.md): Image Store for retrieval
 - [Features](features/): Image Feature extractors
