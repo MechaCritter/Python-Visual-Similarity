@@ -15,6 +15,8 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
 
+    from ...utils.torch_utils import resolve_device
+
 _torch_import.check()
 
 
@@ -101,8 +103,9 @@ class SiameseNetworkBase(NeuralImageEmbedder):
                 f"The custom transform of this {type(self).__name__} is not "
                 "serialised; the reloaded network will use the preprocessing "
                 f"registered for the {self._backbone_name} backbone and "
-                "therefore produce different embeddings. Re-apply the "
-                "transform after loading to reproduce them.",
+                "therefore produce different embeddings. Pass the transform "
+                f"back with {type(self).__name__}.load_from_disk(path, "
+                "transform=...) to reproduce them.",
                 FutureWarning,
                 stacklevel=2,
             )
@@ -111,6 +114,39 @@ class SiameseNetworkBase(NeuralImageEmbedder):
             "embedding_dim": self._embedding_dim,
             "device": str(self.device),
         }
+
+    @classmethod
+    def _from_config(
+        cls,
+        config: dict[str, Any],
+        *,
+        transform: "transforms.Compose | None" = None,
+        **kwargs: Any,
+    ) -> "SiameseNetworkBase":
+        """
+        Rebuilds the network described by a serialised configuration.
+
+        The backbone is built without its ImageNet weights, which
+        :meth:`~pyvisim.neural_networks.NeuralImageEmbedder.from_dict`
+        overwrites with the serialised ones anyway.
+
+        :param config: Mapping produced by :meth:`_serialization_config`.
+        :param transform: The processing transform to give the rebuilt network.
+            The serialised state cannot hold one, so a network that was built
+            with a custom transform only gets it back when it is passed here;
+            ``None`` (default) falls back to the preprocessing registered for
+            the backbone.
+        :return: A network whose architecture matches ``config``.
+        :raises TypeError: If an unsupported keyword argument is passed.
+        """
+        cls._reject_unsupported_kwargs(kwargs)
+        network = cls(
+            backbone=config["backbone"],
+            embedding_dim=config["embedding_dim"],
+            transform=transform,
+            pretrained_backbone=False,
+        )
+        return network.to(resolve_device(config["device"]))
 
     @abc.abstractmethod
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:

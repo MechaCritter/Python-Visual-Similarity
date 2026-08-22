@@ -101,7 +101,9 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
 
     @classmethod
     @abc.abstractmethod
-    def _from_config(cls, config: dict[str, Any]) -> "NeuralImageEmbedder":
+    def _from_config(
+        cls, config: dict[str, Any], **kwargs: Any
+    ) -> "NeuralImageEmbedder":
         """
         Rebuild an embedder skeleton from a serialised configuration.
 
@@ -110,6 +112,8 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
         the serialised ``state_dict``.
 
         :param config: Mapping produced by :meth:`_serialization_config`.
+        :param kwargs: Objects the configuration cannot describe, forwarded
+            from :meth:`~pyvisim._base_classes.SerializableImageEmbedder.load_from_disk`.
         :return: An embedder whose architecture matches ``config``.
         """
         raise NotImplementedError
@@ -125,9 +129,9 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
 
     @classmethod
     def from_dict(
-        cls: type[_NeuralEmbedderT], state: dict[str, Any]
+        cls: type[_NeuralEmbedderT], state: dict[str, Any], **kwargs: Any
     ) -> _NeuralEmbedderT:
-        embedder = cast(_NeuralEmbedderT, cls._from_config(state["config"]))
+        embedder = cast(_NeuralEmbedderT, cls._from_config(state["config"], **kwargs))
         embedder.similarity_func = state["similarity_func"]
         embedder.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder.eval()

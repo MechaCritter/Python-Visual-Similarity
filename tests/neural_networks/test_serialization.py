@@ -183,19 +183,76 @@ def test_loading_does_not_download_pretrained_weights(
     assert requested == [None]
 
 
-# §4 a custom transform cannot be serialised
+# §4 a custom transform is passed back on load
+
+
+def _custom_transform() -> transforms.Compose:
+    """A transform that differs from the registered resnet18 preprocessing."""
+    return transforms.Compose([transforms.Resize((64, 64)), transforms.ToTensor()])
+
+
+def _network_with_custom_transform() -> ContrastiveSiameseNetwork:
+    """An untrained contrastive network preprocessing with `_custom_transform`."""
+    torch.manual_seed(0)
+    return ContrastiveSiameseNetwork(
+        embedding_dim=EMBEDDING_DIM,
+        transform=_custom_transform(),
+        pretrained_backbone=False,
+    )
 
 
 def test_custom_transform_warns_when_serialised(tmp_path: Path) -> None:
     """Serialising a network built with a custom transform warns loudly."""
-    torch.manual_seed(0)
-    network = ContrastiveSiameseNetwork(
-        embedding_dim=EMBEDDING_DIM,
-        transform=transforms.Compose([transforms.Resize(64), transforms.ToTensor()]),
-        pretrained_backbone=False,
-    )
+    network = _network_with_custom_transform()
     with pytest.warns(FutureWarning, match="custom transform"):
         network.save_to_disk(tmp_path / "siamese")
+
+
+def test_custom_transform_can_be_passed_back_on_load(tmp_path: Path) -> None:
+    """Handing the transform to ``load_from_disk`` reproduces the embeddings."""
+    network = _network_with_custom_transform()
+    images = [make_random_rgb_image(seed=1), make_random_rgb_image(seed=2)]
+    expected = network.embed(images)
+
+    with pytest.warns(FutureWarning, match="custom transform"):
+        path = network.save_to_disk(tmp_path / "siamese")
+    reloaded = ContrastiveSiameseNetwork.load_from_disk(
+        path, transform=_custom_transform()
+    )
+
+    assert np.array_equal(reloaded.embed(images), expected)
+
+
+def test_omitting_the_transform_falls_back_to_the_registered_one(
+    tmp_path: Path,
+) -> None:
+    """Without the transform the reloaded network preprocesses differently.
+
+    This is what the serialization warning is about: the embeddings of the
+    reloaded network are not the ones the saved network produced.
+    """
+    network = _network_with_custom_transform()
+    images = [make_random_rgb_image(seed=1)]
+    expected = network.embed(images)
+
+    with pytest.warns(FutureWarning, match="custom transform"):
+        path = network.save_to_disk(tmp_path / "siamese")
+    reloaded = ContrastiveSiameseNetwork.load_from_disk(path)
+
+    assert not np.array_equal(reloaded.embed(images), expected)
+
+
+def test_load_from_disk_rejects_an_unsupported_keyword(tmp_path: Path) -> None:
+    """A keyword the embedder does not take fails instead of being ignored.
+
+    ``preprocessing`` is a plausible but wrong name for ``transform``; passing
+    it must not leave the network silently using the registered preprocessing.
+    """
+    path = _contrastive_network().save_to_disk(tmp_path / "siamese")
+    with pytest.raises(TypeError, match="'preprocessing'"):
+        ContrastiveSiameseNetwork.load_from_disk(
+            path, preprocessing=_custom_transform()
+        )
 
 
 def test_default_transform_does_not_warn(tmp_path: Path) -> None:

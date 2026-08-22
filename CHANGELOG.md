@@ -12,6 +12,11 @@
   `test_oxford_flowers_slow.py`.
 
 ### Added
+- `load_from_disk` now forwards keyword arguments to `from_dict`, so an
+  embedder can be handed the objects its file cannot hold. The Siamese
+  networks use it for their transform:
+  `ContrastiveSiameseNetwork.load_from_disk(path, transform=transform)`
+  restores the exact embeddings of a network built with a custom one.
 - `get_transform(backbone)` (in `pyvisim.neural_networks.siamese`) returns the
   preprocessing transform registered for a backbone. It replaces the private
   `SiameseNetworkBase._get_imagenet_transform`, so a backbone that was not
