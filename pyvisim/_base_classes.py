@@ -268,8 +268,8 @@ class SerializableImageEmbedder(ImageEmbedderBase):
 
         :param state: A JSON-safe embedder description.
         :param kwargs: Objects the state cannot describe, forwarded by
-            :meth:`load_from_disk`. Subclasses that accept none reject them
-            with :meth:`_reject_unsupported_kwargs`.
+            :meth:`load_from_disk`. Subclasses that accept none raises
+            an error if ``kwargs`` is not empty.
         :return: A ready-to-use embedder instance.
         """
         raise NotImplementedError
@@ -277,13 +277,7 @@ class SerializableImageEmbedder(ImageEmbedderBase):
     @classmethod
     def _reject_unsupported_kwargs(cls, kwargs: dict[str, Any]) -> None:
         """
-        Rejects deserialization objects this embedder does not take.
-
-        :meth:`load_from_disk` forwards its keyword arguments to
-        :meth:`from_dict`, which is how an embedder receives the pieces of
-        itself that no serialised state can hold (a torchvision transform, for
-        instance). An embedder that needs none of them calls this so that a
-        misspelled or misplaced name fails loudly instead of being ignored.
+        Raises a :class:`TypeError` if ``kwargs`` is not empty.
 
         :param kwargs: The forwarded keyword arguments.
         :raises TypeError: If ``kwargs`` is not empty.
@@ -321,9 +315,7 @@ class SerializableImageEmbedder(ImageEmbedderBase):
         Not every part of an embedder survives serialization: an arbitrary
         callable such as a torchvision transform has no portable description,
         so it is left out of the file. Pass such an object back here as a
-        keyword argument and it reaches the embedder being rebuilt, e.g.
-        ``ContrastiveSiameseNetwork.load_from_disk(path, transform=transform)``.
-        Which ones an embedder takes is documented on its :meth:`from_dict`.
+        keyword argument.
 
         :param path: Path to the ``.embedder`` file.
         :param kwargs: Objects the file cannot hold, forwarded to

@@ -38,18 +38,9 @@ class ResNetBackbone(nn.Module):
         return x.flatten(1)
 
 
-def _imagenet_transform() -> "transforms.Compose":
-    """
-    Builds the standard ImageNet evaluation preprocessing.
-
-    Resizes the shortest side to 256, center-crops to 224x224, converts to a
-    ``[0, 1]`` tensor and normalizes with the ImageNet channel statistics, as
-    torchvision documents for the models trained on ImageNet. Reference:
-    https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
-
-    :return: The composed torchvision transform.
-    """
-    return transforms.Compose(
+_TRANSFORM_REGISTRY: dict[str, Callable[[], "transforms.Compose"]] = {
+    # Source: https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
+    "resnet18": lambda: transforms.Compose(
         [
             transforms.Resize(256),
             transforms.CenterCrop(224),
@@ -59,15 +50,7 @@ def _imagenet_transform() -> "transforms.Compose":
                 std=[0.229, 0.224, 0.225],
             ),
         ]
-    )
-
-
-#: Preprocessing transform of every supported backbone, keyed by backbone name.
-#: The values are builders rather than instances, so each model owns the
-#: transform it is given. Registering a backbone that was not trained on
-#: ImageNet is a matter of adding its own builder here.
-_TRANSFORM_REGISTRY: dict[str, Callable[[], "transforms.Compose"]] = {
-    "resnet18": _imagenet_transform,
+    ),
 }
 
 

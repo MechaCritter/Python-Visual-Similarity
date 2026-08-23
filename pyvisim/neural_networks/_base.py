@@ -112,7 +112,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
         the serialised ``state_dict``.
 
         :param config: Mapping produced by :meth:`_serialization_config`.
-        :param kwargs: Objects the configuration cannot describe, forwarded
+        :param kwargs: Parameters the configuration alone cannot describe, forwarded
             from :meth:`~pyvisim._base_classes.SerializableImageEmbedder.load_from_disk`.
         :return: An embedder whose architecture matches ``config``.
         """
