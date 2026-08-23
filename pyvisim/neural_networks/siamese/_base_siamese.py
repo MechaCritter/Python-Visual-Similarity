@@ -9,11 +9,13 @@ from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput, MatLike
 from ...utils.image_utils import iter_images
 from .._base import NeuralImageEmbedder
-from .backbones import ResNetBackbone
+from .backbones import ResNetBackbone, get_transform
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
+
+    from ...utils.torch_utils import resolve_device
 
 _torch_import.check()
 
@@ -49,8 +51,8 @@ class SiameseNetworkBase(NeuralImageEmbedder):
     :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
     :param embedding_dim: Dimensionality of the projected embedding space.
     :param transform: processing transform applied to every input image. If
-        ``None``, the default ImageNet preprocessing is used depending
-        on the backbone. See :meth:`_get_imagenet_transform`.
+        ``None``, the preprocessing registered for the backbone is used. See
+        :func:`~pyvisim.neural_networks.siamese.backbones.get_transform`.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the network from a checkpoint, set this
         to ``False`` to avoid downloading the weights again.
@@ -75,11 +77,10 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         self._embedding_dim = embedding_dim
         self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)
 
-        self._has_custom_transform = transform is not None
         if transform is not None:
             self._transform = transform
         else:
-            self._transform = self._get_imagenet_transform(backbone)
+            self._transform = get_transform(backbone)
 
         output_dim = cast(int, self._backbone.output_dim)
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
@@ -88,29 +89,62 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         """
         Return the architecture description needed to rebuild this network.
 
-        A custom ``transform`` is *not* serialised: torchvision transforms are
-        arbitrary callables with no portable description. Reloading a network
-        that was built with one therefore falls back to the backbone's default
-        ImageNet preprocessing, which is worth a warning since it changes the
-        embeddings.
+        The transform is stored as its ``repr`` rather than as the pipeline
+        itself, which no JSON-safe state can hold. It is not used to rebuild
+        the preprocessing; :meth:`_from_config` only compares the transform of
+        the rebuilt network against it.
 
         :return: A JSON-safe mapping of constructor arguments.
         """
-        if self._has_custom_transform:
-            warnings.warn(
-                f"The custom transform of this {type(self).__name__} is not "
-                "serialised; the reloaded network will use the default "
-                f"{self._backbone_name} ImageNet preprocessing and therefore "
-                "produce different embeddings. Re-apply the transform after "
-                "loading to reproduce them.",
-                FutureWarning,
-                stacklevel=2,
-            )
         return {
             "backbone": self._backbone_name,
             "embedding_dim": self._embedding_dim,
             "device": str(self.device),
+            "transform": repr(self._transform),
         }
+
+    @classmethod
+    def _from_config(
+        cls,
+        config: dict[str, Any],
+        *,
+        transform: "transforms.Compose | None" = None,
+        **kwargs: Any,
+    ) -> "SiameseNetworkBase":
+        """
+        Rebuilds the network described by a serialised configuration.
+
+        :param config: Mapping produced by :meth:`_serialization_config`.
+        :param transform: The processing transform to give the rebuilt network.
+            The serialised state cannot hold one, so a network that was built
+            with a custom transform only gets it back when it is passed here;
+            ``None`` (default) falls back to the preprocessing registered for
+            the backbone and warns if that is not what the saved network used.
+        :return: A network whose architecture matches ``config``.
+        :raises TypeError: If an unsupported keyword argument is passed.
+        """
+        cls._reject_unsupported_kwargs(kwargs)
+        network = cls(
+            backbone=config["backbone"],
+            embedding_dim=config["embedding_dim"],
+            transform=transform,
+            pretrained_backbone=False,
+        )
+
+        if (
+            serialized_transform := config.get("transform")
+        ) is not None and serialized_transform != repr(network._transform):
+            warnings.warn(
+                f"The transform of this {type(network).__name__} differs from the one "
+                "the saved network was built with, so the reloaded network will "
+                f"produce different embeddings. Saved: {serialized_transform}; "
+                f"current: {network._transform!r}. Pass the original transform back "
+                f"with {type(network).__name__}.load_from_disk(path, transform=...) "
+                "to reproduce them.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        return network.to(resolve_device(config["device"]))
 
     @abc.abstractmethod
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
@@ -141,39 +175,6 @@ class SiameseNetworkBase(NeuralImageEmbedder):
                 f"Unsupported backbone: {backbone!r}. Supported backbones: 'resnet18'."
             )
 
-    @staticmethod
-    def _get_imagenet_transform(backbone: str) -> transforms.Compose:
-        """
-        Returns the preprocessing transform for the given backbone.
-
-        NOTE
-        ----
-        This assumes that the backbone trained on ImageNet.
-
-        :param backbone: The name of the backbone network.
-        :return: A torchvision transform that resizes, normalizes, and converts
-            images to tensors.
-        """
-        # The backbone of ResNet-18 as it was trained on ImageNet. Reference:
-        # https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
-        if backbone == "resnet18":
-            return transforms.Compose(
-                [
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),  # this also rescales the pixel values to [0, 1]
-                    transforms.Normalize(
-                        mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225],
-                    ),
-                ]
-            )
-        else:
-            raise ValueError(
-                f"Unsupported backbone: {backbone!r}; no default ImageNet transform "
-                f"is available. Supported backbones: 'resnet18'."
-            )
-
     def _preprocess(
         self,
         image: MatLike,
@@ -184,14 +185,15 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         Preprocesses an image into a model-ready tensor.
 
         The input is rescaled from ``value_range`` to ``[0, 1]`` and routed
-        through PIL; the image is then resized to 224x224 and normalized with
-        the standard ImageNet statistics.
+        through PIL; the resulting image is then passed through the network's
+        ``transform``.
 
         :param image: Input image as a ``MatLike`` array.
         :param dims: Channel layout of the input, ``"HWC"`` (height x width x
             channels) or ``"CHW"`` (channels x height x width).
         :param value_range: The ``(low, high)`` range the input values live in.
-        :return: A normalized image tensor of shape (channels, 224, 224).
+        :return: The transformed image tensor, of the shape the network's
+            ``transform`` produces.
         :raises ValueError: If ``dims`` is not ``"HWC"`` or ``"CHW"``, or if
             ``value_range`` does not satisfy ``low < high``.
         """

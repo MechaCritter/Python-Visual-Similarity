@@ -15,6 +15,11 @@
   `test_oxford_flowers_slow.py`.
 
 ### Added
+- `load_from_disk` now forwards keyword arguments to `from_dict`, so an
+  embedder can be handed the objects its file cannot hold. The Siamese
+  networks use it for their transform:
+  `ContrastiveSiameseNetwork.load_from_disk(path, transform=transform)`
+  restores the exact embeddings of a network built with a custom one.
 - The embedders of `pyvisim.neural_networks` (`ClipEmbedder`,
   `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serialisable to a
   safetensors `.embedder` file via `save_to_disk`/`load_from_disk`, weights
@@ -31,6 +36,9 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- The Siamese networks now store the `repr` of their transform in the `.embedder`
+  file and warn on `load_from_disk` when the rebuilt network's transform differs
+  from it, instead of warning on every save of a custom transform.
 - `tqdm` and `requests` are no longer runtime dependencies of the core
   package; they moved into the `nn` extra. Only `pyvisim.datasets` uses them,
   and that module already requires `torch` from the same extra.

@@ -226,6 +226,15 @@ def test_load_invalid_file_raises(tmp_path: Path) -> None:
         VLADEmbedder.load_from_disk(bad)
 
 
+def test_load_rejects_deserialization_kwargs(
+    learned_vlad: VLADEmbedder, tmp_path: Path
+) -> None:
+    """A classic embedder is fully described by its file and takes no extras."""
+    path = learned_vlad.save_to_disk(tmp_path / "model")
+    with pytest.raises(TypeError, match="'transform'"):
+        VLADEmbedder.load_from_disk(path, transform=object())
+
+
 def test_load_wrong_class_raises(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:
     """Loading a VLAD file with the Fisher loader raises ``ValueError``."""
     path = learned_vlad.save_to_disk(tmp_path / "model")
