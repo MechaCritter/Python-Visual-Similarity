@@ -28,8 +28,6 @@ dependencies = [
     "platformdirs",
     "safetensors",
     "scipy",
-    "tqdm",
-    "requests",
 ]
 
 # To install PyTorch with CUDA support instead of the CPU-only default:
@@ -38,17 +36,16 @@ dependencies = [
 
 # Optional extras. Install with e.g. 'pip install "pyvisim[nn]"'.
 [project.optional-dependencies]
-# Deep-learning features and models (DeepConvFeature, the datasets and
-# neural_networks modules, including ClipEmbedder) built on top of
-# torch / torchvision. huggingface_hub downloads the pretrained CLIP
-# checkpoints from the Hugging Face Hub.
+# Deep-learning features and models including DeepConvFeature, the datasets and
+# neural_networks modules.
 nn = [
     "torch",
     "torchvision",
     "huggingface_hub",
+    "requests",
+    "tqdm",
 ]
-# Accelerated nearest-neighbour search and retrieval (ImageIndex,
-# InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.
+# Accelerated nearest-neighbour search and retrieval.
 search = [
     "faiss-cpu",
 ]
@@ -83,10 +80,15 @@ fmt = [
 test = [
     "pytest",
     "pytest-cov",
+    # Reference implementation of the PSNR baseline tests
+    # (skimage.metrics.peak_signal_noise_ratio).
+    "scikit-image",
     "scipy",
     # Reference implementation for the clustering/PCA equivalence tests and
     # the from_sklearn conversion tests.
     "scikit-learn",
+    # for tests/features/test_sift.py to download its reference image.
+    "requests",
 ]
 docs = [
     "sphinx",

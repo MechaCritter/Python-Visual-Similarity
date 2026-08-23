@@ -28,4 +28,5 @@ together with all of their public methods.
    neural_networks/index
    distance
    structural/index
+   pixelwise/index
    functions

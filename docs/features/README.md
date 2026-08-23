@@ -1,9 +1,13 @@
 # Features
 
-File: [`_features.py`](../../pyvisim/features/_features.py)
-
 A feature extractor maps one image to a `(N, D)` array of local descriptors. Embedders
-consume these descriptors and aggregate them into a fixed-size vector.
+consume these descriptors and aggregate them into a fixed-size vector:
+
+```text
+image -> feature extractor -> local descriptors -> embedder -> embedding
+```
+
+The table below includes feature extractors currently implemented in `pyvisim`.
 
 | Object | `output_dim` | Notes |
 |--------|--------------|-------|

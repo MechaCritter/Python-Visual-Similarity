@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- `PSNR.similarity_score` accepts a channel-less grayscale image again: a 2-D
+  array passed with the default `dims="HWC"` raised instead of being read as
+  single-channel, unlike `SSIM` and the rest of the library.
 - `make test-types` no longer prints a `DeprecationWarning`: the
   `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
 - The development interpreter is pinned to Python 3.10 (`.python-version`), the
@@ -36,6 +39,9 @@
 - The Siamese networks now store the `repr` of their transform in the `.embedder`
   file and warn on `load_from_disk` when the rebuilt network's transform differs
   from it, instead of warning on every save of a custom transform.
+- `tqdm` and `requests` are no longer runtime dependencies of the core
+  package; they moved into the `nn` extra. Only `pyvisim.datasets` uses them,
+  and that module already requires `torch` from the same extra.
 - CI restores the Oxford Flowers dataset and the pretrained backbone weights from
   the GitHub Actions cache instead of re-downloading them on every run; the new
   `Warm asset cache` workflow keeps that cache populated on `main`.
