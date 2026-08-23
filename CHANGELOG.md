@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- `PSNR.similarity_score` accepts a channel-less grayscale image again: a 2-D
+  array passed with the default `dims="HWC"` raised instead of being read as
+  single-channel, unlike `SSIM` and the rest of the library.
 - `make test-types` no longer prints a `DeprecationWarning`: the
   `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
 - The development interpreter is pinned to Python 3.10 (`.python-version`), the

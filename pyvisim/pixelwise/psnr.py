@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from .._base_classes import SimilarityMetric
+from ..features._utils import grayscale_dims
+from ..lazy_import import is_tensor
 from ..typing import Float64NumpyArray, ImageInput, UInt8NumpyArray
 from ..utils.cython_utils import get_kernel_threads
 from ..utils.image_utils import iter_images
@@ -22,6 +24,10 @@ def _stack_images(
     value_range: tuple[float, float],
 ) -> UInt8NumpyArray:
     """Collect the canonical images of one input into a ``(N, H, W[, C])`` stack."""
+    if isinstance(images, np.ndarray) or is_tensor(images):
+        # A single channel-less array (e.g. a 2-D grayscale image with the
+        # default "HWC") keeps working, like elsewhere in the library.
+        dims = grayscale_dims(images, dims)
     image_list = list(iter_images(images, dims=dims, value_range=value_range))
     shapes = {image.shape for image in image_list}
     if len(shapes) > 1:
