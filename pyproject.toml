@@ -80,6 +80,9 @@ fmt = [
 test = [
     "pytest",
     "pytest-cov",
+    # Reference implementation of the PSNR baseline tests
+    # (skimage.metrics.peak_signal_noise_ratio).
+    "scikit-image",
     "scipy",
     # Reference implementation for the clustering/PCA equivalence tests and
     # the from_sklearn conversion tests.
