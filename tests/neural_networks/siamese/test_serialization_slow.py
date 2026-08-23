@@ -3,12 +3,9 @@
 The fast suite in ``tests/neural_networks/test_serialization.py`` keeps
 itself offline: it builds the networks with an untrained backbone (or a stub
 one) and scores synthetic images. These tests take the opposite route and
-serialise the model a user actually builds -- the ImageNet-pretrained
-ResNet-18 backbone, run on real flower images -- so the round trip is checked
-over millions of real weights instead of a handful of random ones. Both
-networks are covered: :class:`ContrastiveSiameseNetwork` through its
-embeddings, :class:`BCESiameseNetwork` through its pair scores, since it has
-no embedding space of its own.
+serialise the model a user actually builds: the ImageNet-pretrained
+ResNet-18 backbone, run on real flower images, so the round trip is checked
+over real weights instead of random ones.
 
 The module is marked ``slow`` because constructing the networks downloads the
 pretrained weights.
@@ -29,7 +26,7 @@ from pyvisim.typing import UInt8NumpyArray
 pytestmark = pytest.mark.slow
 
 #: Indices of the flower images every test is run on.
-_IMAGE_INDICES = (0, 1, 2)
+_IMAGE_INDICES = (7, 10, 15, 1000)
 
 #: Embedding size of the networks, the constructor default.
 _EMBEDDING_DIM = 128
