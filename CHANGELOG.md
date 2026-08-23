@@ -17,10 +17,6 @@
   networks use it for their transform:
   `ContrastiveSiameseNetwork.load_from_disk(path, transform=transform)`
   restores the exact embeddings of a network built with a custom one.
-- `get_transform(backbone)` (in `pyvisim.neural_networks.siamese`) returns the
-  preprocessing transform registered for a backbone. It replaces the private
-  `SiameseNetworkBase._get_imagenet_transform`, so a backbone that was not
-  trained on ImageNet can register its own preprocessing.
 - The embedders of `pyvisim.neural_networks` (`ClipEmbedder`,
   `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serialisable to a
   safetensors `.embedder` file via `save_to_disk`/`load_from_disk`, weights
@@ -37,6 +33,9 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- The Siamese networks now store the `repr` of their transform in the `.embedder`
+  file and warn on `load_from_disk` when the rebuilt network's transform differs
+  from it, instead of warning on every save of a custom transform.
 - CI restores the Oxford Flowers dataset and the pretrained backbone weights from
   the GitHub Actions cache instead of re-downloading them on every run; the new
   `Warm asset cache` workflow keeps that cache populated on `main`.

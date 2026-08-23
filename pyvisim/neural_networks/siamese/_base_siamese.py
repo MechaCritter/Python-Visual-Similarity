@@ -77,7 +77,6 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         self._embedding_dim = embedding_dim
         self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)
 
-        self._has_custom_transform = transform is not None
         if transform is not None:
             self._transform = transform
         else:
@@ -90,29 +89,18 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         """
         Return the architecture description needed to rebuild this network.
 
-        A custom ``transform`` is *not* serialised: torchvision transforms are
-        arbitrary callables with no portable description. Reloading a network
-        that was built with one therefore falls back to the preprocessing
-        registered for its backbone, which is worth a warning since it changes
-        the embeddings.
+        The transform is stored as its ``repr`` rather than as the pipeline
+        itself, which no JSON-safe state can hold. It is not used to rebuild
+        the preprocessing; :meth:`_from_config` only compares the transform of
+        the rebuilt network against it.
 
         :return: A JSON-safe mapping of constructor arguments.
         """
-        if self._has_custom_transform:
-            warnings.warn(
-                f"The custom transform of this {type(self).__name__} is not "
-                "serialised; the reloaded network will use the preprocessing "
-                f"registered for the {self._backbone_name} backbone and "
-                "therefore produce different embeddings. Pass the transform "
-                f"back with {type(self).__name__}.load_from_disk(path, "
-                "transform=...) to reproduce them.",
-                FutureWarning,
-                stacklevel=2,
-            )
         return {
             "backbone": self._backbone_name,
             "embedding_dim": self._embedding_dim,
             "device": str(self.device),
+            "transform": repr(self._transform),
         }
 
     @classmethod
@@ -126,16 +114,12 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         """
         Rebuilds the network described by a serialised configuration.
 
-        The backbone is built without its ImageNet weights, which
-        :meth:`~pyvisim.neural_networks.NeuralImageEmbedder.from_dict`
-        overwrites with the serialised ones anyway.
-
         :param config: Mapping produced by :meth:`_serialization_config`.
         :param transform: The processing transform to give the rebuilt network.
             The serialised state cannot hold one, so a network that was built
             with a custom transform only gets it back when it is passed here;
             ``None`` (default) falls back to the preprocessing registered for
-            the backbone.
+            the backbone and warns if that is not what the saved network used.
         :return: A network whose architecture matches ``config``.
         :raises TypeError: If an unsupported keyword argument is passed.
         """
@@ -146,6 +130,20 @@ class SiameseNetworkBase(NeuralImageEmbedder):
             transform=transform,
             pretrained_backbone=False,
         )
+
+        if (
+            serialized_transform := config.get("transform")
+        ) is not None and serialized_transform != repr(network._transform):
+            warnings.warn(
+                f"The transform of this {type(network).__name__} differs from the one "
+                "the saved network was built with, so the reloaded network will "
+                f"produce different embeddings. Saved: {serialized_transform}; "
+                f"current: {network._transform!r}. Pass the original transform back "
+                f"with {type(network).__name__}.load_from_disk(path, transform=...) "
+                "to reproduce them.",
+                FutureWarning,
+                stacklevel=2,
+            )
         return network.to(resolve_device(config["device"]))
 
     @abc.abstractmethod
@@ -195,7 +193,7 @@ class SiameseNetworkBase(NeuralImageEmbedder):
             channels) or ``"CHW"`` (channels x height x width).
         :param value_range: The ``(low, high)`` range the input values live in.
         :return: The transformed image tensor, of the shape the network's
-            ``transform`` produces (channels, 224, 224) for ``resnet18``.
+            ``transform`` produces.
         :raises ValueError: If ``dims`` is not ``"HWC"`` or ``"CHW"``, or if
             ``value_range`` does not satisfy ``low < high``.
         """

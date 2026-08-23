@@ -61,8 +61,8 @@ class BCESiameseNetwork(SiameseNetworkBase):
     :param embedding_dim: Dimensionality of the twin feature vectors that the
         scoring layer compares.
     :param transform: processing transform applied to every input image. If
-        ``None``, the preprocessing registered for the backbone is used. See
-        :func:`~pyvisim.neural_networks.siamese.backbones.get_transform`.
+        ``None``, the default ImageNet preprocessing is used depending
+        on the backbone.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``BCESiameseNetwork`` from a
