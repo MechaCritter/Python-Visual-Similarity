@@ -68,7 +68,7 @@ have created a custom dataset class. To use this class, import it as follows:
 ```python
 from pyvisim.datasets import OxfordFlowerDataset
 ```
-For more details on the dataset, please refer to the [documentation](pyvisim/datasets/README.md).
+For more details on the dataset, please refer to the [documentation](docs/dataset/oxford_flower_dataset.md).
 
 ## Why `pyvisim`?
 
@@ -170,7 +170,7 @@ have any suggestions or questions!
      classifier = BCESiameseNetwork(backbone="resnet18", embedding_dim=128)
      probability = classifier.similarity_score(image1, image2)  # P(same class) in (0, 1)
      ```
-     See the [neural networks docs](pyvisim/neural_networks/README.md) for more details.
+     See the [neural networks docs](docs/neural_networks/README.md) for more details.
    - Possible use cases include face recognition, signature verification, or any image-based identity matching.
 
 ### Notes
