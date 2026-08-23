@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.0] - 2026-08-23
 
 ### Fixed
 - `PSNR.similarity_score` accepts a channel-less grayscale image again: a 2-D
