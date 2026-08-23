@@ -1,11 +1,7 @@
 # ClipEmbedder
 
-File: [`neural_networks/clip/clip_embedder.py`](../../pyvisim/neural_networks/clip/clip_embedder.py)
-
-Embeds images with a pretrained CLIP image tower. The tower is implemented inside
-`pyvisim`, so no third-party CLIP library is needed; only the safetensors weights are
-downloaded from the Hugging Face Hub on first use and cached there. Embeddings are
-L2-normalized by default, which makes the cosine similarity a plain dot product.
+Embeds images with a pretrained CLIP image tower. Embeddings are L2-normalized
+by default, which makes the cosine similarity a plain dot product.
 
 ```python
 from pyvisim.neural_networks import ClipEmbedder
@@ -18,9 +14,8 @@ score = embedder.similarity_score(image1, image2)     # (1, 1) cosine similarity
 ## Supported models
 
 Variant names and pretrained tags follow
-[open_clip](https://github.com/mlfoundations/open_clip); OpenAI-style spellings such as
-`"ViT-B/32"` are accepted as aliases of `"ViT-B-32"`. Every combination of a variant and
-one of its tags below resolves to a checkpoint on the Hub, 67 in total:
+[open_clip](https://github.com/mlfoundations/open_clip). OpenAI-style spellings such as
+`"ViT-B/32"` are accepted as aliases of `"ViT-B-32"`.
 
 | Variant | Embedding dim | Input size | Pretrained tags |
 |---|---|---|---|
@@ -59,15 +54,14 @@ The `-quickgelu` names are open_clip spellings kept for compatibility, not separ
 architectures: whether the tower uses the QuickGELU activation of the original OpenAI
 models or the exact GELU of newer checkpoints is read off the checkpoint itself. A
 variant and its `-quickgelu` twin therefore build the same model for every tag they
-share; the plain name only exists separately because some of them offer extra tags
+share. The plain name only exists separately because some of them offer extra tags
 (for example `ViT-B-32` adds the LAION and DataComp checkpoints).
 
-The same lists are available at runtime, which is the authoritative source if this page
-ever falls behind:
+To print all supported variants and pretrained tags, use these helper functions:
 
 ```python
 from pyvisim.neural_networks.clip import available_pretrained, available_variants
 
-available_variants()                  # every supported variant name
-available_pretrained("ViT-B-32")      # every pretrained tag of one variant
+print(available_variants())                  # every supported variant name
+print(available_pretrained("ViT-B-32"))      # every pretrained tag of one variant
 ```

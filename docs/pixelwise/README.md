@@ -1,15 +1,12 @@
 # Pixelwise metrics
 
-Contains the metric `PSNR`, which compares two images pixel by pixel. Unlike the
-[structural](../structural/) metrics, it makes no attempt to model perception: it only
-measures how far the pixel values of one image are from another, which is what makes it
-the standard reporting metric for image compression, denoising and reconstruction.
-
 ## PSNR
 
 The peak signal-to-noise ratio relates the largest possible pixel value (the *peak
-signal*) to the mean squared error between the two images (the *noise*). Given two
-images x and y of `N` pixels each, `PSNR(x, y)` is defined as:
+signal*) to the mean squared error between the two images (the *noise*). It is mainly
+used to measure reconstruction or compression quality.
+
+Given two images x and y of `N` pixels each, `PSNR(x, y)` is defined as:
 
 $$
 \text{MSE}(x, y) = \frac{1}{N} \sum_{i=1}^{N} \left(x_i - y_i\right)^2
@@ -20,15 +17,9 @@ $$
 where $\text{MAX}$ is the peak value of the pixel range, 255 for the canonical `uint8`
 images `pyvisim` normalizes every input to. The result is reported in decibels: it grows
 as the two images move closer together, and identical images give `MSE = 0` and therefore
-`inf`. Because the logarithm compresses the scale, the usual reading is comparative --
-30 dB is better than 25 dB for the same pair of images -- and typical values for lossy
+`inf`. Because the logarithm compresses the scale, the usual reading is comparative:
+30 dB is better than 25 dB for the same pair of images, and typical values for lossy
 compression land between 30 and 50 dB.
-
-Being an average over independent pixels, PSNR is blind to *where* the error sits: a
-distortion concentrated in one salient region and the same amount of error spread thinly
-over the whole image score alike, even though a viewer would not rate them equally. Use
-`SSIM` or `MSSSIM` from [`pyvisim.structural`](../structural/) when that difference
-matters.
 
 ## Usage
 
