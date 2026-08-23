@@ -28,6 +28,9 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- `tqdm` and `requests` are no longer runtime dependencies of the core
+  package; they moved into the `nn` extra. Only `pyvisim.datasets` uses them,
+  and that module already requires `torch` from the same extra.
 - CI restores the Oxford Flowers dataset and the pretrained backbone weights from
   the GitHub Actions cache instead of re-downloading them on every run; the new
   `Warm asset cache` workflow keeps that cache populated on `main`.
