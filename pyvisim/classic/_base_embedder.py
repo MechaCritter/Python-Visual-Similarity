@@ -397,17 +397,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
 
     @classmethod
     def from_dict(
-        cls: type[_ClusteringEmbedderT], state: dict[str, Any]
+        cls: type[_ClusteringEmbedderT], state: dict[str, Any], **kwargs: Any
     ) -> _ClusteringEmbedderT:
-        """
-        Rebuilds an embedder from a dictionary produced by :meth:`to_dict`.
-
-        The caller is responsible for dispatching ``state["embedder_class"]`` to
-        the matching embedder class; this method trusts that ``cls`` is correct.
-
-        :param state: A JSON-safe embedder description from :meth:`to_dict`.
-        :return: A ready-to-use embedder instance.
-        """
+        cls._reject_unsupported_kwargs(kwargs)
         embedder = cls(
             feature_extractor=feature_extractor_from_dict(state["feature_extractor"]),
             similarity_func=state["similarity_func"],

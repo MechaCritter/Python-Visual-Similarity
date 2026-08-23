@@ -223,7 +223,8 @@ class ClipEmbedder(SerializableImageEmbedder):
         }
 
     @classmethod
-    def from_dict(cls, state: dict[str, Any]) -> "ClipEmbedder":
+    def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "ClipEmbedder":
+        cls._reject_unsupported_kwargs(kwargs)
         embedder = cls._from_config(state["config"])
         embedder.similarity_func = state["similarity_func"]
         embedder._model.load_state_dict(decode_state_dict(state["state_dict"]))

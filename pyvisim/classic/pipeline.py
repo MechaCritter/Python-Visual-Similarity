@@ -66,7 +66,8 @@ class Pipeline(SerializableImageEmbedder):
         }
 
     @classmethod
-    def from_dict(cls, state: dict[str, Any]) -> "Pipeline":
+    def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "Pipeline":
+        cls._reject_unsupported_kwargs(kwargs)
         # Imported lazily to avoid an import cycle with the embedder registry.
         from ..serialization import embedder_from_dict
 

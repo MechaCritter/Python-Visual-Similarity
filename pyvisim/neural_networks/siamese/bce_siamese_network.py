@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import cast
 
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput
@@ -7,8 +7,6 @@ from ._base_siamese import SiameseNetworkBase
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
-
-    from ...utils.torch_utils import resolve_device
 
 _torch_import.check()
 
@@ -64,7 +62,7 @@ class BCESiameseNetwork(SiameseNetworkBase):
         scoring layer compares.
     :param transform: processing transform applied to every input image. If
         ``None``, the default ImageNet preprocessing is used depending
-        on the backbone. See :meth:`_get_imagenet_transform`.
+        on the backbone.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``BCESiameseNetwork`` from a
@@ -89,24 +87,6 @@ class BCESiameseNetwork(SiameseNetworkBase):
         )
         self._scorer: torch.nn.Module = torch.nn.Linear(embedding_dim, 1)
         self.to(torch.device(device))
-
-    @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> "BCESiameseNetwork":
-        """
-        Rebuilds the network described by a serialised configuration.
-
-        The backbone is built without its ImageNet weights.
-
-        :param config: Mapping produced by
-            :meth:`~pyvisim.neural_networks.NeuralImageEmbedder._serialization_config`.
-        :return: A network whose architecture matches ``config``.
-        """
-        return cls(
-            backbone=config["backbone"],
-            embedding_dim=config["embedding_dim"],
-            device=resolve_device(config["device"]),
-            pretrained_backbone=False,
-        )
 
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
         """

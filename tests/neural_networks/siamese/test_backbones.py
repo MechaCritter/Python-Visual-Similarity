@@ -1,11 +1,12 @@
-"""Tests for :class:`pyvisim.neural_networks.siamese.ResNetBackbone`."""
+"""Tests for the backbones and their preprocessing registry."""
 
 from __future__ import annotations
 
 import pytest
 import torch
+from torchvision import transforms
 
-from pyvisim.neural_networks.siamese import ResNetBackbone
+from pyvisim.neural_networks.siamese import ResNetBackbone, get_transform
 
 
 @pytest.fixture(scope="module")
@@ -66,3 +67,36 @@ def test_pretrained_backbone_loads_imagenet_weights() -> None:
     backbone = ResNetBackbone(pretrained=True)
     features = backbone(torch.randn(1, 3, 224, 224))
     assert features.shape == (1, 512)
+
+
+# The preprocessing registry
+
+
+def test_get_transform_of_resnet18_is_the_imagenet_pipeline() -> None:
+    """The resnet18 transform is the documented ImageNet pipeline.
+
+    Resize to 256, center-crop to 224, convert to tensor and normalize with
+    the ImageNet channel statistics.
+    """
+    steps = get_transform("resnet18").transforms
+    assert [type(step) for step in steps] == [
+        transforms.Resize,
+        transforms.CenterCrop,
+        transforms.ToTensor,
+        transforms.Normalize,
+    ]
+    assert steps[0].size == 256
+    assert steps[1].size == (224, 224)
+    assert steps[3].mean == [0.485, 0.456, 0.406]
+    assert steps[3].std == [0.229, 0.224, 0.225]
+
+
+def test_get_transform_returns_a_fresh_transform() -> None:
+    """Each call builds its own transform, so no model shares one."""
+    assert get_transform("resnet18") is not get_transform("resnet18")
+
+
+def test_get_transform_of_unknown_backbone_raises() -> None:
+    """Requesting the transform of an unregistered backbone raises."""
+    with pytest.raises(ValueError, match="Unsupported backbone"):
+        get_transform("alexnet")
