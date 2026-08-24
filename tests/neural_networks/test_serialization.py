@@ -19,7 +19,11 @@ import torch
 from torchvision import transforms
 
 from pyvisim._base_classes import SerializableImageEmbedder
-from pyvisim.neural_networks import BCESiameseNetwork, ContrastiveSiameseNetwork
+from pyvisim.neural_networks import (
+    BCESiameseNetwork,
+    ContrastiveSiameseNetwork,
+    TripletNeuralNetwork,
+)
 from pyvisim.neural_networks import backbones as backbones_module
 from pyvisim.neural_networks.backbones import BackboneWithHead
 from pyvisim.serialization import embedder_from_dict, embedder_to_dict
@@ -44,11 +48,19 @@ def _bce_network() -> BCESiameseNetwork:
     return BCESiameseNetwork(embedding_dim=EMBEDDING_DIM, pretrained_backbone=False)
 
 
+def _triplet_network() -> TripletNeuralNetwork:
+    """Build an untrained triplet network with reproducible weights."""
+    torch.manual_seed(0)
+    return TripletNeuralNetwork(embedding_dim=EMBEDDING_DIM, pretrained_backbone=False)
+
+
 # §1 the serialization contract
 
 
 @pytest.mark.parametrize(
-    "network", [_contrastive_network, _bce_network], ids=["contrastive", "bce"]
+    "network",
+    [_contrastive_network, _bce_network, _triplet_network],
+    ids=["contrastive", "bce", "triplet"],
 )
 def test_neural_embedders_are_serializable_embedders(
     network: Callable[[], BackboneWithHead],
@@ -100,6 +112,24 @@ def test_contrastive_scores_are_identical_after_serialization(
     reloaded = ContrastiveSiameseNetwork.load_from_disk(path)
 
     assert np.array_equal(reloaded.similarity_score(image1, image2), expected)
+
+
+def test_triplet_embeddings_are_identical_after_serialization(
+    tmp_path: Path,
+) -> None:
+    """A reloaded triplet network embeds images bit-identically.
+
+    The embedding space is the whole point of a triplet network, so the
+    trained projection is what has to survive the round trip.
+    """
+    network = _triplet_network()
+    images = [make_random_rgb_image(seed=1), make_random_rgb_image(seed=2)]
+    expected = network.embed(images)
+
+    path = network.save_to_disk(tmp_path / "triplet")
+    reloaded = TripletNeuralNetwork.load_from_disk(path)
+
+    assert np.array_equal(reloaded.embed(images), expected)
 
 
 def test_bce_scores_are_identical_after_serialization(tmp_path: Path) -> None:
@@ -292,4 +322,16 @@ def test_registry_round_trip_restores_the_embeddings() -> None:
     reloaded = embedder_from_dict(embedder_to_dict(network))
 
     assert isinstance(reloaded, ContrastiveSiameseNetwork)
+    assert np.array_equal(reloaded.embed(images), expected)
+
+
+def test_registry_round_trip_restores_a_triplet_network() -> None:
+    """A network missing from the registry would fail to rebuild by class name."""
+    network = _triplet_network()
+    images = [make_random_rgb_image(seed=4)]
+    expected = network.embed(images)
+
+    reloaded = embedder_from_dict(embedder_to_dict(network))
+
+    assert isinstance(reloaded, TripletNeuralNetwork)
     assert np.array_equal(reloaded.embed(images), expected)
