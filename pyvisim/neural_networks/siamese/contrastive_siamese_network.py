@@ -1,8 +1,5 @@
-import numpy as np
-
 from ...lazy_import import OptionalImport
-from ...typing import FloatNumpyArray, ImageInput
-from ._base_siamese import SiameseNetworkBase
+from ..backbones import BackboneWithHead
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
@@ -11,7 +8,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 
-class ContrastiveSiameseNetwork(SiameseNetworkBase):
+class ContrastiveSiameseNetwork(BackboneWithHead):
     """
     Siamese network trained with a contrastive loss, proposed in
     `Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
@@ -108,15 +105,3 @@ class ContrastiveSiameseNetwork(SiameseNetworkBase):
         :return: L2-normalized embeddings of shape (batch, embedding_dim).
         """
         return self._forward_once(x)
-
-    def similarity_score(
-        self,
-        image1: ImageInput,
-        image2: ImageInput,
-        *,
-        dims: str = "HWC",
-        value_range: tuple[float, float] = (0.0, 255.0),
-    ) -> FloatNumpyArray:
-        embeddings1 = self.embed(image1, dims=dims, value_range=value_range)
-        embeddings2 = self.embed(image2, dims=dims, value_range=value_range)
-        return np.asarray(self.similarity_func(embeddings1, embeddings2))
