@@ -169,8 +169,8 @@ class TripletLoss(torch.nn.Module):
         :param labels: Class labels of shape (batch,); any dtype supporting
             equality comparison (integers in practice).
         :return: The scalar loss.
-        :raises ValueError: If the embeddings or labels are malformed (see
-            :func:`~pyvisim.neural_networks.losses._utils.validate_embeddings_and_labels`).
+        :raises ValueError: If ``embeddings`` is not 2-dimensional, if ``labels``
+            is not 1-dimensional, or if the two disagree on the batch size.
         """
         distances = _pairwise_euclidean_distances(embeddings, squared=self.squared)
         pos_mask = _positive_pair_mask(labels)
