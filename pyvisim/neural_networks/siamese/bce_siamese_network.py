@@ -2,7 +2,7 @@ from typing import cast
 
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput
-from ._base_siamese import SiameseNetworkBase
+from ..backbones import BackboneWithHead
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
@@ -11,7 +11,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 
-class BCESiameseNetwork(SiameseNetworkBase):
+class BCESiameseNetwork(BackboneWithHead):
     """
     Siamese network that classifies image pairs, proposed in
     `Koch, G., Zemel, R., & Salakhutdinov, R. (2015). Siamese Neural Networks
@@ -151,15 +151,14 @@ class BCESiameseNetwork(SiameseNetworkBase):
     @torch.no_grad()
     def similarity_score(
         self,
-        image1: ImageInput,
-        image2: ImageInput,
+        images1: ImageInput,
+        images2: ImageInput,
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-
-        features1 = self._embed_images(image1, dims=dims, value_range=value_range)
-        features2 = self._embed_images(image2, dims=dims, value_range=value_range)
+        features1 = self._embed_images(images1, dims=dims, value_range=value_range)
+        features2 = self._embed_images(images2, dims=dims, value_range=value_range)
         distances = torch.abs(features1.unsqueeze(1) - features2.unsqueeze(0))
         probabilities = torch.sigmoid(self._score_distances(distances))
         return cast(FloatNumpyArray, probabilities.cpu().numpy())

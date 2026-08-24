@@ -20,8 +20,8 @@ from torchvision import transforms
 
 from pyvisim._base_classes import SerializableImageEmbedder
 from pyvisim.neural_networks import BCESiameseNetwork, ContrastiveSiameseNetwork
-from pyvisim.neural_networks.siamese import backbones as backbones_module
-from pyvisim.neural_networks.siamese._base_siamese import SiameseNetworkBase
+from pyvisim.neural_networks import backbones as backbones_module
+from pyvisim.neural_networks.backbones import BackboneWithHead
 from pyvisim.serialization import embedder_from_dict, embedder_to_dict
 
 from ._stubs import make_random_rgb_image
@@ -51,7 +51,7 @@ def _bce_network() -> BCESiameseNetwork:
     "network", [_contrastive_network, _bce_network], ids=["contrastive", "bce"]
 )
 def test_neural_embedders_are_serializable_embedders(
-    network: Callable[[], SiameseNetworkBase],
+    network: Callable[[], BackboneWithHead],
 ) -> None:
     """Every neural embedder inherits the ``.embedder`` file contract."""
     assert isinstance(network(), SerializableImageEmbedder)
