@@ -10,10 +10,10 @@ import numpy as np
 import torch
 
 from pyvisim.neural_networks import BCESiameseNetwork, ContrastiveSiameseNetwork
-from pyvisim.neural_networks.siamese._base_siamese import SiameseNetworkBase
+from pyvisim.neural_networks.backbones import BackboneWithHead
 from pyvisim.typing import UInt8NumpyArray
 
-_SiameseT = TypeVar("_SiameseT", bound=SiameseNetworkBase)
+_SiameseT = TypeVar("_SiameseT", bound=BackboneWithHead)
 
 
 class FlattenBackbone(torch.nn.Module):
@@ -79,7 +79,7 @@ def build_stub_bce_model(
     return _build_stub_network(BCESiameseNetwork, backbone_module, **kwargs)
 
 
-def install_head(model: SiameseNetworkBase, head: torch.nn.Module) -> None:
+def install_head(model: BackboneWithHead, head: torch.nn.Module) -> None:
     """Install a projection head on the model's private ``_head`` attribute.
 
     The public ``head`` property is read-only by design (see the dedicated

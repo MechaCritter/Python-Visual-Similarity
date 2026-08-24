@@ -1,63 +1,120 @@
+"""
+Feature-extraction backbones and the shared base for the networks built from a
+backbone and a projection head.
+"""
+
 import abc
 import warnings
+from collections.abc import Callable
 from typing import Any, cast
 
 import numpy as np
 from PIL import Image
 
-from ...lazy_import import OptionalImport
-from ...typing import FloatNumpyArray, ImageInput, MatLike
-from ...utils.image_utils import iter_images
-from .._base import NeuralImageEmbedder
-from .backbones import ResNetBackbone, get_transform
+from ..lazy_import import OptionalImport
+from ..typing import FloatNumpyArray, ImageInput, MatLike
+from ..utils.image_utils import iter_images
+from ._base import NeuralImageEmbedder
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
-    from torchvision import transforms
+    import torch.nn as nn
+    from torchvision import models, transforms
 
-    from ...utils.torch_utils import resolve_device
+    from ..utils.torch_utils import resolve_device
 
 _torch_import.check()
 
 
-class SiameseNetworkBase(NeuralImageEmbedder):
+class ResNetBackbone(nn.Module):
     """
-    Abstract base for Siamese image-similarity networks.
+    ResNet-18 backbone with its final fully-connected layer removed.
 
-    A Siamese network passes both inputs through the *same* shared-weight
-    ``backbone`` and projection ``head``; concrete subclasses only differ in
-    what they do with the two branch outputs:
+    The classification head is stripped so the network outputs raw features;
+    ``output_dim`` reports their dimensionality (512 for ResNet-18).
 
-    - :class:`ContrastiveSiameseNetwork` compares the branch embeddings with a
-      fixed metric (e.g. cosine) and is trained with a contrastive loss
-      (Hadsell, Chopra & LeCun, 2006).
-    - :class:`BCESiameseNetwork` feeds the component-wise L1 distance of
-      the branch features into a learned scoring layer that outputs the
-      probability of the two images belonging to the same class
-      (Koch, Zemel & Salakhutdinov, 2015). It has no similarity-preserving
-      embedding space and therefore overrides :meth:`embed` to raise
-      :class:`NotImplementedError`.
+    :param pretrained: Whether to load the default ImageNet-pretrained weights.
+    """
 
-    References:
-    ===========
-    [1] Koch, G., Zemel, R., & Salakhutdinov, R. (2015). Siamese Neural Networks
-    for One-shot Image Recognition. ICML Deep Learning Workshop.
+    def __init__(self, pretrained: bool = True) -> None:
+        super().__init__()
+        weights = models.ResNet18_Weights.DEFAULT if pretrained else None
+        base = models.resnet18(weights=weights)
+        self.features = nn.Sequential(*list(base.children())[:-1])
+        self.output_dim = base.fc.in_features
 
-    [2] Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
-    by Learning an Invariant Mapping. In Proceedings of the 2006 IEEE
-    Computer Society Conference on Computer Vision and Pattern Recognition
-    (CVPR), Vol. 2, 1735-1742. https://doi.org/10.1109/CVPR.2006.100
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Extracts flattened backbone features.
 
-    :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
+        :param x: Input image tensor of shape (batch, channels, H, W).
+        :return: Feature tensor of shape (batch, output_dim).
+        """
+        x = self.features(x)
+        return x.flatten(1)
+
+
+_TRANSFORM_REGISTRY: dict[str, Callable[[], "transforms.Compose"]] = {
+    # Source: https://docs.pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
+    "resnet18": lambda: transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),  # this also rescales the pixel values to [0, 1]
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
+        ]
+    ),
+}
+
+
+def get_transform(backbone: str) -> "transforms.Compose":
+    """
+    Returns the preprocessing transform the given backbone was trained with.
+
+    :param backbone: Name of the backbone network, e.g. ``"resnet18"``.
+    :return: A fresh torchvision transform for that backbone.
+    :raises ValueError: If no transform is registered for ``backbone``.
+    """
+    if backbone not in _TRANSFORM_REGISTRY:
+        raise ValueError(
+            f"Unsupported backbone: {backbone!r}; no preprocessing transform is "
+            f"registered for it. Supported backbones: "
+            f"{', '.join(repr(name) for name in _TRANSFORM_REGISTRY)}."
+        )
+    return _TRANSFORM_REGISTRY[backbone]()
+
+
+class BackboneWithHead(NeuralImageEmbedder):
+    """
+    Abstract base for embedders made of a feature backbone and a projection head.
+
+    Every image goes through the same two stages: a pretrained
+    feature-extraction ``backbone`` and a projection ``head`` that maps its
+    features into the embedding space.
+
+    NOTE
+    ----
+    - The serialization stores the transform as its ``repr`` because `transforms.Compose`
+    is stateful and hence not JSON-safe. Upon deserialization, if the transform does
+    not match the one the network was built with, a warning is issued.
+
+    :param backbone: name of feature-extraction network.
     :param embedding_dim: Dimensionality of the projected embedding space.
     :param transform: processing transform applied to every input image. If
         ``None``, the preprocessing registered for the backbone is used. See
-        :func:`~pyvisim.neural_networks.siamese.backbones.get_transform`.
+        :func:`~pyvisim.neural_networks.backbones.get_transform`.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the network from a checkpoint, set this
         to ``False`` to avoid downloading the weights again.
-    :raises ValueError: If ``embedding_dim`` is not a positive integer or if
-        ``backbone`` is not a supported backbone name.
+    :param similarity_func: Name of the built-in similarity metric used to score
+        two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
+        or ``"manhattan"``.
+    :raises ValueError: If ``embedding_dim`` is not a positive integer, if
+        ``backbone`` is not a supported backbone name, or if ``similarity_func``
+        is not a supported similarity metric.
     """
 
     def __init__(
@@ -86,16 +143,6 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         self._head: torch.nn.Module = torch.nn.Linear(output_dim, embedding_dim)
 
     def _serialization_config(self) -> dict[str, Any]:
-        """
-        Return the architecture description needed to rebuild this network.
-
-        The transform is stored as its ``repr`` rather than as the pipeline
-        itself, which no JSON-safe state can hold. It is not used to rebuild
-        the preprocessing; :meth:`_from_config` only compares the transform of
-        the rebuilt network against it.
-
-        :return: A JSON-safe mapping of constructor arguments.
-        """
         return {
             "backbone": self._backbone_name,
             "embedding_dim": self._embedding_dim,
@@ -110,19 +157,7 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         *,
         transform: "transforms.Compose | None" = None,
         **kwargs: Any,
-    ) -> "SiameseNetworkBase":
-        """
-        Rebuilds the network described by a serialised configuration.
-
-        :param config: Mapping produced by :meth:`_serialization_config`.
-        :param transform: The processing transform to give the rebuilt network.
-            The serialised state cannot hold one, so a network that was built
-            with a custom transform only gets it back when it is passed here;
-            ``None`` (default) falls back to the preprocessing registered for
-            the backbone and warns if that is not what the saved network used.
-        :return: A network whose architecture matches ``config``.
-        :raises TypeError: If an unsupported keyword argument is passed.
-        """
+    ) -> "BackboneWithHead":
         cls._reject_unsupported_kwargs(kwargs)
         network = cls(
             backbone=config["backbone"],
@@ -149,13 +184,10 @@ class SiameseNetworkBase(NeuralImageEmbedder):
     @abc.abstractmethod
     def _forward_once(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Runs one branch of the Siamese network on a preprocessed batch.
-
-        Both inputs of a pair go through this same shared-weight pass; it is
-        also the embedding used by :meth:`embed`.
+        Runs the shared-weight pass of the network on a preprocessed batch.
 
         :param x: Preprocessed image tensor of shape (batch, channels, H, W).
-        :return: Branch output of shape (batch, embedding_dim).
+        :return: Projected features of shape (batch, embedding_dim).
         """
 
     @staticmethod
@@ -223,7 +255,7 @@ class SiameseNetworkBase(NeuralImageEmbedder):
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> torch.Tensor:
         """
-        Embeds one or more images into a batch of branch outputs.
+        Embeds one or more images into a batch of shared-weight pass outputs.
 
         All images are preprocessed, stacked into a single batch and passed
         through :meth:`_forward_once`. The model is switched to eval mode so
