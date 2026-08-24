@@ -7,6 +7,7 @@ learns to distinguish between images.
 
 - [Contrastive Siamese Network](contrastive_siamese.md)
 - [BCE Siamese Network](bce_siamese.md)
+- [Triplet Neural Network](triplet.md)
 - [CLIP Embedder](clip.md)
 
 ## Serialization
@@ -24,8 +25,14 @@ https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf
 2. **Dimensionality Reduction by Learning an Invariant Mapping** (Hadsell, Chopra, & LeCun, 2006)
 http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
-3. **Deep Residual Learning for Image Recognition**
+3. **Deep Metric Learning Using Triplet Network** (Hoffer & Ailon, 2014)
+https://arxiv.org/abs/1412.6622
+
+4. **FaceNet: A Unified Embedding for Face Recognition and Clustering** (Schroff, Kalenichenko, & Philbin, 2015)
+https://doi.org/10.1109/CVPR.2015.7298682
+
+5. **Deep Residual Learning for Image Recognition**
 https://arxiv.org/abs/1512.03385
 
-4. **Learning Transferable Visual Models From Natural Language Supervision** (Radford et al., 2021)
+6. **Learning Transferable Visual Models From Natural Language Supervision** (Radford et al., 2021)
 https://arxiv.org/abs/2103.00020

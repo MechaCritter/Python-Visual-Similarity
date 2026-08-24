@@ -11,4 +11,5 @@ Neural networks
 
    contrastive_siamese
    bce_siamese
+   triplet
    clip
