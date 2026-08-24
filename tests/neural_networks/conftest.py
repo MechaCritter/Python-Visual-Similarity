@@ -1,4 +1,4 @@
-"""Oxford Flowers fixtures shared by the Siamese integration tests."""
+"""Oxford Flowers fixtures shared by the neural network integration tests."""
 
 from __future__ import annotations
 

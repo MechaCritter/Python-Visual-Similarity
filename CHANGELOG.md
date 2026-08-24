@@ -1,5 +1,10 @@
 # Changelog
 
+## [UNRELEASED]
+
+### Added
+- Added `Triplet Neural Network` under `pyvisim.neural_networks` with `TripletLoss`.
+
 ## [0.9.0] - 2026-08-23
 
 ### Fixed

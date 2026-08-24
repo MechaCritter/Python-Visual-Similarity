@@ -224,6 +224,7 @@ def _neural_embedder_classes() -> dict[str, Any]:
             BCESiameseNetwork,
             ClipEmbedder,
             ContrastiveSiameseNetwork,
+            TripletNeuralNetwork,
         )
     except ImportError:
         return {}
@@ -232,6 +233,7 @@ def _neural_embedder_classes() -> dict[str, Any]:
         "BCESiameseNetwork": BCESiameseNetwork,
         "ClipEmbedder": ClipEmbedder,
         "ContrastiveSiameseNetwork": ContrastiveSiameseNetwork,
+        "TripletNeuralNetwork": TripletNeuralNetwork,
     }
 
 
