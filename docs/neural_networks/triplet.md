@@ -5,10 +5,9 @@ negative (different class). Training pulls the anchor towards the positive and p
 it away from the negative by at least a margin. Embeddings come out L2-normalized, so
 cosine similarity is a plain dot product.
 
-<!-- ## Training with online mining
+## Training with online mining
 
-TODO: add train notebook and reference it here
- -->
+See [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/triplet_network.ipynb)
 
 ## Mining strategies
 
