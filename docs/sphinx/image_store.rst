@@ -12,3 +12,9 @@ API reference
    :members:
    :inherited-members:
    :show-inheritance:
+
+.. autoclass:: pyvisim.image_store.HnswIndex
+   :members:
+
+.. autoclass:: pyvisim.image_store.BruteForceIndex
+   :members:

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0", "numpy"]
+requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0", "numpy", "pybind11>=3.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -64,6 +64,8 @@ pyvisim = [
     "structural/_kernel/*.pyi",
     "features/_vendored/sift/*.pyx",
     "features/_vendored/sift/*.pxd",
+    "image_store/_index/_vendored/hnswlib/hnswlib/*.h",
+    "image_store/_index/_vendored/hnswlib/python-bindings/*.cpp",
 ]
 
 # Dependencies groups to isolate test env from production env
@@ -99,6 +101,7 @@ docs = [
 build = [
     "cython",
     "setuptools",
+    "pybind11>=3.0.0",
 ]
 # Reference implementations and tooling for the notebooks/benchmark_*.ipynb
 # notebooks and docs/structural/benchmarks/generate_benchmark.py; scikit-learn
@@ -116,6 +119,9 @@ bench = [
 # publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+# The published wheels run on machines other than the one that builds them, so
+# the C++ extension is compiled without '-march=native' (see setup.py).
+environment = { PYVISIM_NO_NATIVE = "1" }
 # Skip 32-bit and musl targets: scipy ships no wheels for them.
 skip = ["*-musllinux_*", "*_i686", "*-win32"]
 
