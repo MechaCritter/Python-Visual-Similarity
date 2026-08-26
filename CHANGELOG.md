@@ -26,8 +26,8 @@
   indexes, so lower is more similar. An `ExternalSearchIndex` reports whatever
   its own metric produces.
 - The index owns the gallery vectors and the store keeps no second copy, so
-  `store.embeddings` is read-only. On an `HnswIndex` it is decoded out of the
-  graph, which makes every access a fresh copy.
+  `store.embeddings` is read-only. Both built-in indexes decode it out of their
+  own storage, which makes every access a fresh copy.
 - Store files are written in a new layout; a store saved by an earlier version
   cannot be loaded by this one.
 

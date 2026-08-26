@@ -21,9 +21,6 @@ SUPPORTED_SPACES = ("cosine", "l2", "ip")
 #: Literal alias for the accepted ``space`` argument.
 Space = Literal["cosine", "l2", "ip"]
 
-#: Guard keeping the normalisation of a zero vector finite.
-_NORM_EPSILON = 1e-30
-
 
 def validate_space(space: str) -> None:
     """
@@ -64,18 +61,6 @@ def as_gallery_matrix(vectors: FloatNumpyArray) -> Float32NumpyArray:
     return gallery
 
 
-def l2_normalize(matrix: Float32NumpyArray) -> Float32NumpyArray:
-    """
-    Scale every row of a matrix to unit length, in place.
-
-    :param matrix: The ``(N, D)`` matrix to normalise.
-    :return: The same matrix, with unit-length rows.
-    """
-    norms = np.sqrt(np.einsum("ij,ij->i", matrix, matrix))
-    matrix /= (norms + _NORM_EPSILON)[:, None]
-    return matrix
-
-
 def as_read_only(matrix: Float32NumpyArray) -> Float32NumpyArray:
     """
     Mark a matrix as read-only so its owner stays the only writer.
@@ -85,6 +70,17 @@ def as_read_only(matrix: Float32NumpyArray) -> Float32NumpyArray:
     """
     matrix.flags.writeable = False
     return matrix
+
+
+def as_decoded_gallery(vectors: FloatNumpyArray) -> Float32NumpyArray:
+    """
+    Shape the vectors an index decoded into the matrix it hands out.
+
+    :param vectors: The ``(N, D)`` block an index read back out of its own
+        storage.
+    :return: The block as a contiguous read-only float32 matrix.
+    """
+    return as_read_only(np.ascontiguousarray(vectors, dtype=np.float32))
 
 
 def as_query_matrix(query_vectors: FloatNumpyArray, dim: int) -> Float32NumpyArray:

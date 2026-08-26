@@ -10,11 +10,10 @@ from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 from ._bindings import _hnswlib
 from ._utils import (
     Space,
+    as_decoded_gallery,
     as_gallery_matrix,
     as_query_matrix,
-    as_read_only,
     is_explicit_thread_count,
-    l2_normalize,
     pad_results,
     validate_k,
     validate_space,
@@ -30,8 +29,8 @@ class BruteForceIndex(_hnswlib.BFIndex):
     galleries small enough to scan and the baseline to measure an approximate
     index against.
 
-    The index owns the gallery vectors: they are copied in at construction time
-    and handed back as a read-only matrix, so no second copy is held.
+    The index owns the gallery vectors: they are copied into it at construction
+    time and read back on demand, so no second copy is held.
 
     :param vectors: Gallery embedding vectors, shape ``(N, D)``.
     :param space: Metric space to search in, ``"cosine"``, ``"l2"`` or ``"ip"``.
@@ -53,38 +52,26 @@ class BruteForceIndex(_hnswlib.BFIndex):
         gallery = as_gallery_matrix(vectors)
         super().__init__(space, gallery.shape[1])
 
-        self.init_index(gallery.shape[0])
+        self._num_vectors = int(gallery.shape[0])
+        self.init_index(self._num_vectors)
         if is_explicit_thread_count(num_threads):
             self.set_num_threads(int(num_threads))
-        self._vectors = self._store_gallery(gallery)
-
-    def _store_gallery(self, gallery: Float32NumpyArray) -> Float32NumpyArray:
-        """
-        Add the gallery to the index and keep it as the read-only matrix.
-
-        :param gallery: A fresh contiguous ``(N, D)`` float32 matrix.
-        :return: The stored matrix, normalised in cosine space and locked
-            against writes.
-        """
-        if self.space == "cosine":
-            # The index normalises its own copy, so the matrix kept here is
-            # normalised too and both describe the same gallery.
-            l2_normalize(gallery)
-        self.add_items(gallery, np.arange(gallery.shape[0]))
-        return as_read_only(gallery)
+        self.add_items(gallery, np.arange(self._num_vectors))
 
     @property
     def vectors(self) -> Float32NumpyArray:
         """
-        The ``(N, D)`` gallery matrix, read-only.
+        The ``(N, D)`` gallery matrix, read back from the index.
 
-        In cosine space the vectors are L2-normalised, the form they were
-        indexed in. Rebuild the index with :meth:`update` to change them.
+        The index stores each vector next to its id, so every access copies them
+        out into a fresh read-only array. In cosine space they come back
+        L2-normalised, the form they were indexed in.
         """
-        return self._vectors
+        decoded = self.get_items(np.arange(self._num_vectors), return_type="numpy")
+        return as_decoded_gallery(decoded)
 
     def __len__(self) -> int:
-        return int(self._vectors.shape[0])
+        return self._num_vectors
 
     def __repr__(self) -> str:
         return (
@@ -134,6 +121,7 @@ class BruteForceIndex(_hnswlib.BFIndex):
                 f"New vectors have dimensionality {gallery.shape[1]}, but the "
                 f"index was built for {self.dim}."
             )
+        self._num_vectors = int(gallery.shape[0])
         self.reset_index()
-        self.init_index(gallery.shape[0])
-        self._vectors = self._store_gallery(gallery)
+        self.init_index(self._num_vectors)
+        self.add_items(gallery, np.arange(self._num_vectors))

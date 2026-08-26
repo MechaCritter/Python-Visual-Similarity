@@ -100,17 +100,21 @@ def test_cosine_index_stores_normalized_vectors(vectors: np.ndarray) -> None:
         assert np.allclose(norms, 1.0, atol=1e-5)
 
 
-def test_hnsw_decodes_a_fresh_array_per_access(vectors: np.ndarray) -> None:
-    """The HNSW graph decodes its vectors anew on every access."""
-    index = HnswIndex(vectors)
-    assert index.vectors is not index.vectors
-    assert np.array_equal(index.vectors, index.vectors)
+def test_indexes_decode_a_fresh_array_per_access(vectors: np.ndarray) -> None:
+    """An index decodes its vectors anew on every access.
+
+    Both indexes keep the gallery in their own storage and no second copy
+    beside it, so the matrix they hand out is decoded on demand.
+    """
+    for index in (HnswIndex(vectors), BruteForceIndex(vectors)):
+        assert index.vectors is not index.vectors
+        assert np.array_equal(index.vectors, index.vectors)
 
 
-def test_brute_force_hands_out_its_own_matrix(vectors: np.ndarray) -> None:
-    """The brute-force index owns one matrix and hands out that one."""
-    index = BruteForceIndex(vectors)
-    assert index.vectors is index.vectors
+def test_indexes_return_the_gallery_they_were_given(vectors: np.ndarray) -> None:
+    """In a space that stores the vectors as given, they come back unchanged."""
+    for index in (HnswIndex(vectors, space="l2"), BruteForceIndex(vectors, space="l2")):
+        assert np.allclose(index.vectors, vectors, atol=1e-6)
 
 
 def test_both_indexes_store_the_same_gallery(vectors: np.ndarray) -> None:

@@ -10,9 +10,9 @@ from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 from ._bindings import _hnswlib
 from ._utils import (
     Space,
+    as_decoded_gallery,
     as_gallery_matrix,
     as_query_matrix,
-    as_read_only,
     is_explicit_thread_count,
     pad_results,
     validate_k,
@@ -86,12 +86,11 @@ class HnswIndex(_hnswlib.Index):
         The ``(N, D)`` gallery matrix, read back from the graph.
 
         The graph stores the vectors in its own layout, so each access decodes
-        them into a fresh read-only array rather than handing out a view. In
-        cosine space they come back L2-normalised, the form they were indexed
-        in.
+        them into a fresh read-only array. In cosine space they come back
+        L2-normalised, the form they were indexed in.
         """
         decoded = self.get_items(np.arange(self._num_vectors), return_type="numpy")
-        return as_read_only(np.ascontiguousarray(decoded, dtype=np.float32))
+        return as_decoded_gallery(decoded)
 
     @property
     def ef_search(self) -> int:
