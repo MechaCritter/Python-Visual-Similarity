@@ -45,10 +45,6 @@ nn = [
     "requests",
     "tqdm",
 ]
-# Accelerated nearest-neighbour search and retrieval.
-search = [
-    "faiss-cpu",
-]
 
 [project.urls]
 Homepage = "https://github.com/MechaCritter/Python-Visual-Similarity"
@@ -91,6 +87,8 @@ test = [
     "scikit-learn",
     # for tests/features/test_sift.py to download its reference image.
     "requests",
+    # Reference external index of the ExternalSearchIndex tests
+    "faiss-cpu",
 ]
 docs = [
     "sphinx",
@@ -115,8 +113,8 @@ bench = [
     "ipykernel",
 ]
 
-# Per-platform wheel builds for the compiled Cython extension, run by the
-# publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
+# Per-platform wheel builds for the compiled extensions, run by the publish
+# workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
 # The published wheels run on machines other than the one that builds them, so
@@ -151,7 +149,6 @@ ignore_missing_imports = true
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
-  "faiss.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",

@@ -7,9 +7,8 @@
 - [Structural](structural/): SSIM and MSSSIM
 - [Pixelwise](pixelwise/): PSNR
 - [Classic](classic/): Classical embedding methods pre deep learning era.
-- [Image store](image_store.md): Image Store for retrieval
+- [Image similarity retrieval](image_similarity_retrieval/): Image store and its search indexes
 - [Features](features/): Image Feature extractors
-- [Retrieval](retrieval/): Image Retrieval tools
 - [Neural networks](neural_networks/): Siamese Networks, Triplet Networks, CLIP
 embedders, ...
 - [Dataset](dataset/): `torch` Datasets
