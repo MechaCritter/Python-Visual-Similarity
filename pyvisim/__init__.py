@@ -8,8 +8,6 @@ __all__ = [
     "distance",
     "features",
     "eval",
-    "functional",
     "image_store",
-    "retrieval",
     "typing",
 ]
