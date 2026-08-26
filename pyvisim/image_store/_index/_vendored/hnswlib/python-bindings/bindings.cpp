@@ -189,19 +189,6 @@ class Index {
     }
 
 
-    /* Vendoring change: drop the graph so that init_new_index can build a new
-     * one over a replaced gallery. */
-    void reset_index() {
-        if (appr_alg) {
-            delete appr_alg;
-            appr_alg = NULL;
-        }
-        cur_l = 0;
-        ep_added = true;
-        index_inited = false;
-    }
-
-
     void init_new_index(
         size_t maxElements,
         size_t M,
@@ -777,18 +764,6 @@ class BFIndex {
     }
 
 
-    /* Vendoring change: drop the stored vectors so that init_new_index can
-     * build a new index over a replaced gallery. */
-    void reset_index() {
-        if (alg) {
-            delete alg;
-            alg = NULL;
-        }
-        cur_l = 0;
-        index_inited = false;
-    }
-
-
     size_t getMaxElements() const {
         return alg->maxelements_;
     }
@@ -955,10 +930,9 @@ class BFIndex {
 };
 
 
-/* Vendoring change: PYBIND11_PLUGIN was removed in pybind11 3.0, so the module
- * is declared with PYBIND11_MODULE and named after the extension it is built
- * as (pyvisim.image_store._index._vendored._hnswlib). */
-PYBIND11_MODULE(_hnswlib, m) {
+PYBIND11_PLUGIN(hnswlib) {
+        py::module m("hnswlib");
+
         py::class_<Index<float>>(m, "Index")
         .def(py::init(&Index<float>::createFromParams), py::arg("params"))
            /* WARNING: Index::createFromIndex is not thread-safe with Index::addItems */
@@ -971,7 +945,6 @@ PYBIND11_MODULE(_hnswlib, m) {
             py::arg("ef_construction") = 200,
             py::arg("random_seed") = 100,
             py::arg("allow_replace_deleted") = false)
-        .def("reset_index", &Index<float>::reset_index)
         .def("knn_query",
             &Index<float>::knnQuery_return_numpy,
             py::arg("data"),
@@ -1042,7 +1015,6 @@ PYBIND11_MODULE(_hnswlib, m) {
         py::class_<BFIndex<float>>(m, "BFIndex")
         .def(py::init<const std::string &, const int>(), py::arg("space"), py::arg("dim"))
         .def("init_index", &BFIndex<float>::init_new_index, py::arg("max_elements"))
-        .def("reset_index", &BFIndex<float>::reset_index)
         .def("knn_query",
             &BFIndex<float>::knnQuery_return_numpy,
             py::arg("data"),
@@ -1059,7 +1031,6 @@ PYBIND11_MODULE(_hnswlib, m) {
         })
         .def("get_max_elements", &BFIndex<float>::getMaxElements)
         .def("get_current_count", &BFIndex<float>::getCurrentCount)
-        .def_readwrite("num_threads", &BFIndex<float>::num_threads_default)
-        .def_readonly("space", &BFIndex<float>::space_name)
-        .def_readonly("dim", &BFIndex<float>::dim);
+        .def_readwrite("num_threads", &BFIndex<float>::num_threads_default);
+        return m.ptr();
 }
