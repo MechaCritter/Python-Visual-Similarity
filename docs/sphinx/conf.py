@@ -39,12 +39,12 @@ suppress_warnings = ["myst.xref_missing", "myst.header"]
 
 # -- Autodoc -------------------------------------------------------------------
 
-# The 'nn' and 'search' extras are not required to build the documentation:
-# any optional dependency that is missing from the environment is mocked so
-# that autodoc can still import every module.
+# The 'nn' extra is not required to build the documentation: any optional
+# dependency that is missing from the environment is mocked so that autodoc can
+# still import every module.
 autodoc_mock_imports = [
     module
-    for module in ("torch", "torchvision", "torchaudio", "open_clip", "faiss")
+    for module in ("torch", "torchvision", "torchaudio", "open_clip")
     if importlib.util.find_spec(module) is None
 ]
 

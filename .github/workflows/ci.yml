@@ -31,7 +31,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group types --extra nn --extra search
+        run: uv sync --group types --extra nn
 
       - name: Run mypy
         run: uv run --group types mypy pyvisim/
@@ -92,7 +92,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group test --extra nn --extra search
+        run: uv sync --group test --extra nn
 
       # The dataset lands in the platform-specific user cache directory.
       - name: Resolve the dataset cache directory
@@ -153,7 +153,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group test --extra nn --extra search
+        run: uv sync --group test --extra nn
 
       - name: Resolve the dataset cache directory
         id: dataset-cache
