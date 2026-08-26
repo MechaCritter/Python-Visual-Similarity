@@ -1,5 +1,41 @@
 # Changelog
 
+## [UNRELEASED] - 2026-08-26
+
+### Added
+- `HnswIndex` and `BruteForceIndex` (in `pyvisim.image_store`): an approximate
+  HNSW graph and an exhaustive scan, both compiled into the package and built
+  in cosine space by default.
+- `ExternalSearchIndex` (in `pyvisim.image_store`): searches through an index
+  built elsewhere. `ExternalSearchIndex.from_faiss_index(index, vectors=None)`
+  adapts any FAISS index without FAISS being a dependency of this library.
+- `InMemoryImageEmbeddingStore.retrieve_top_k_similar` ranks the gallery against
+  query images and returns `Candidate` matches, both now owned by the store.
+- `InMemoryImageEmbeddingStore.save_to_disk` takes the gallery `vectors` to
+  write, for an index that hands back an approximation of what it was given.
+- `InMemoryImageEmbeddingStore.load_from_disk` forwards keyword arguments:
+  `search_index=...` restores a store onto a rebuilt external index, and
+  anything else reaches the embedder.
+
+### Changed
+- ⚠️ The store's `index_type` parameter is now `search_index`, which takes
+  `"hnsw"`, `None` for a brute-force scan, or an `ExternalSearchIndex`. Its
+  `quantizer` parameter is now `space`, taking `"cosine"` (the default), `"l2"`
+  or `"ip"`.
+- ⚠️ The scores of `Candidate` and `search` are distances for the built-in
+  indexes, so lower is more similar. An `ExternalSearchIndex` reports whatever
+  its own metric produces.
+- The index owns the gallery vectors and the store keeps no second copy, so
+  `store.embeddings` is read-only. Both built-in indexes decode it out of their
+  own storage, which makes every access a fresh copy.
+- Store files are written in a new layout; a store saved by an earlier version
+  cannot be loaded by this one.
+
+### Removed
+- ⚠️ `pyvisim.retrieval` (`ImageRetriever`, `ImageIndex` and the FAISS-backed
+  IVF indexes) and `pyvisim.functional`. The store now covers both.
+- ⚠️ The `search` extra, along with the `faiss-cpu` dependency behind it.
+
 ## [0.9.1] - 2026-08-24
 
 ### Added
