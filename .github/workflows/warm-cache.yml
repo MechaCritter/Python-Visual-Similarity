@@ -67,13 +67,13 @@ jobs:
           echo "path=${path}" >> "$GITHUB_OUTPUT"
 
       - name: Restore the Oxford Flowers dataset
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.dataset-cache.outputs.path }}
           key: pyvisim-dataset-${{ runner.os }}-v1
 
       - name: Restore the pretrained backbone weights
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.TORCH_HOME }}
           key: pyvisim-torch-${{ runner.os }}-${{ hashFiles('uv.lock') }}
