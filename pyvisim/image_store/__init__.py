@@ -1,5 +1,12 @@
 """In-memory image embedding storage and retrieval."""
 
-from .image_store import InMemoryImageEmbeddingStore
+from ._index import BruteForceIndex, ExternalSearchIndex, HnswIndex
+from .image_store import Candidate, InMemoryImageEmbeddingStore
 
-__all__ = ["InMemoryImageEmbeddingStore"]
+__all__ = [
+    "BruteForceIndex",
+    "Candidate",
+    "ExternalSearchIndex",
+    "HnswIndex",
+    "InMemoryImageEmbeddingStore",
+]

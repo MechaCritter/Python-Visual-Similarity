@@ -1,9 +1,5 @@
-pyvisim.image_store
-===================
-
-.. include:: ../image_store.md
-   :parser: myst_parser.sphinx_
-   :start-line: 1
+Image Store
+===========
 
 API reference
 -------------
@@ -12,3 +8,7 @@ API reference
    :members:
    :inherited-members:
    :show-inheritance:
+
+.. include:: ../../image_similarity_retrieval/image_store.md
+   :parser: myst_parser.sphinx_
+   :start-line: 1

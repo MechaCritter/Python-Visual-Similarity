@@ -42,11 +42,7 @@ def labelled_store(
             Image.fromarray(_to_rgb(image)).save(path)
             paths.append(str(path))
             path_labels[str(path)] = label
-    store = InMemoryImageEmbeddingStore(
-        paths,
-        learned_vlad_embedder,
-        index_params={"nlist": 4, "nprobe": 4},
-    )
+    store = InMemoryImageEmbeddingStore(paths, learned_vlad_embedder)
     return store, path_labels
 
 

@@ -49,8 +49,6 @@ To use the library, you can simply install it via pip:
 pip install pyvisim
 # For deep learning features and the OxfordFlowerDataset
 pip install "pyvisim[nn]"
-# For image search feature
-pip install "pyvisim[search]"
 ```
 
 or clone the repository and install it locally:
@@ -122,19 +120,18 @@ have any suggestions or questions!
    - Use embedding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
    [this juptyer notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
    - For large galleries, build an `InMemoryImageEmbeddingStore` over your image paths;
-     it indexes the embeddings and searches them for you (needs the `search` extra:
-     `pip install "pyvisim[search]"`):
+     it indexes the embeddings and searches them for you:
 
      ```python
      from pyvisim.image_store import InMemoryImageEmbeddingStore
 
      store = InMemoryImageEmbeddingStore(
-         gallery_paths, embedder, "ivf-flat",
-         quantizer="inner_product", index_params={"nlist": 100},
+         gallery_paths, embedder, "hnsw",
+         space="cosine", index_params={"m": 32},
      )
      results = store.retrieve_top_k_similar(query_images, k=5)
      ```
-     See the [retrieval docs](docs/retrieval/README.md) for more information.
+     See the [image similarity retrieval docs](docs/image_similarity_retrieval/README.md) for more information.
    - Example use: Building a fast image search engine for photo management software.
 
 2. **Deep Learning Embeddings**  
