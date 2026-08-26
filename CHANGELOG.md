@@ -1,6 +1,6 @@
 # Changelog
 
-## [UNRELEASED] - 2026-08-26
+## [0.9.2] - 2026-08-26
 
 ### Added
 - `HnswIndex` and `BruteForceIndex` (in `pyvisim.image_store`): an approximate
