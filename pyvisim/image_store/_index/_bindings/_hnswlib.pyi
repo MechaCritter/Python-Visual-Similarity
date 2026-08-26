@@ -1,4 +1,4 @@
-"""Type stubs for the compiled hnswlib bindings (see hnswlib/python-bindings)."""
+"""Type stubs for the compiled search structures (see _hnswlib.cpp)."""
 
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
@@ -82,6 +82,11 @@ class BFIndex:
         num_threads: int = ...,
         filter: Callable[[int], bool] | None = ...,
     ) -> tuple[npt.NDArray[np.uint64], npt.NDArray[np.float32]]: ...
+    def get_items(
+        self,
+        ids: Sequence[int] | npt.NDArray[Any] | None = ...,
+        return_type: Literal["numpy", "list"] = ...,
+    ) -> Any: ...
     def delete_vector(self, label: int) -> None: ...
     def set_num_threads(self, num_threads: int) -> None: ...
     def save_index(self, path_to_index: str) -> None: ...

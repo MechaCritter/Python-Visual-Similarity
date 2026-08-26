@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from pyvisim.image_store import BruteForceIndex, HnswIndex
-from pyvisim.image_store._index._vendored import _hnswlib
+from pyvisim.image_store._index._bindings import _hnswlib
 
 
 @pytest.fixture(scope="module")

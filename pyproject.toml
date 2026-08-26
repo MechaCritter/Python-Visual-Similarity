@@ -60,6 +60,9 @@ pyvisim = [
     "structural/_kernel/*.pyi",
     "features/_vendored/sift/*.pyx",
     "features/_vendored/sift/*.pxd",
+    "image_store/_index/_bindings/*.cpp",
+    "image_store/_index/_bindings/*.h",
+    "image_store/_index/_bindings/*.pyi",
     "image_store/_index/_vendored/hnswlib/hnswlib/*.h",
     "image_store/_index/_vendored/hnswlib/python-bindings/*.cpp",
 ]

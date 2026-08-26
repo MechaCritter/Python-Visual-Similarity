@@ -1,11 +1,4 @@
-"""
-Exhaustive nearest-neighbour search over a gallery.
-
-:class:`BruteForceIndex` extends the compiled ``hnswlib`` brute-force index with
-the surface the image store searches through. It compares every query against
-every gallery vector, so its results are exact: the reference an approximate
-index such as :class:`~pyvisim.image_store.HnswIndex` is measured against.
-"""
+"""Exhaustive nearest-neighbour search over a gallery."""
 
 from __future__ import annotations
 
@@ -14,6 +7,7 @@ from typing import cast
 import numpy as np
 
 from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ._bindings import _hnswlib
 from ._utils import (
     Space,
     as_gallery_matrix,
@@ -25,7 +19,6 @@ from ._utils import (
     validate_k,
     validate_space,
 )
-from ._vendored import _hnswlib
 
 
 class BruteForceIndex(_hnswlib.BFIndex):

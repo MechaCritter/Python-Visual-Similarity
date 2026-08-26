@@ -13,9 +13,12 @@ from setuptools.command.build_ext import build_ext
 #: Root of the vendored hnswlib sources.
 _HNSWLIB_ROOT = "pyvisim/image_store/_index/_vendored/hnswlib"
 
-#: Name of the C++ extension built from the vendored hnswlib bindings. Only this
+#: Directory of the sources extending the vendored search structures.
+_HNSWLIB_BINDINGS_ROOT = "pyvisim/image_store/_index/_bindings"
+
+#: Name of the C++ extension built from the hnswlib bindings. Only this
 #: extension receives the C++ compile flags probed by :class:`BuildExt`.
-_HNSWLIB_EXT_NAME = "pyvisim.image_store._index._vendored._hnswlib"
+_HNSWLIB_EXT_NAME = "pyvisim.image_store._index._bindings._hnswlib"
 
 #: ``-march=native`` tunes the binary for the building machine, which is wrong
 #: for a redistributable wheel. Set this environment variable to drop it.
@@ -171,17 +174,26 @@ def _extensions() -> list[Extension]:
 
 def _hnswlib_extension() -> Extension:
     """
-    Declare the C++ extension built from the vendored hnswlib bindings.
+    Declare the C++ extension built on the vendored hnswlib bindings.
 
-    :return: The pybind11 ``Extension`` exposing hnswlib's ``Index``/``BFIndex``.
+    The vendored sources are pulled in by the bindings of this package, which
+    extend them, so the extension is built from a single translation unit.
+
+    :return: The pybind11 ``Extension`` exposing the ``Index``/``BFIndex``
+        search structures.
     """
     return Extension(
         _HNSWLIB_EXT_NAME,
-        [f"{_HNSWLIB_ROOT}/python-bindings/bindings.cpp"],
+        [f"{_HNSWLIB_BINDINGS_ROOT}/_hnswlib.cpp"],
         include_dirs=[
             pybind11.get_include(),
             numpy.get_include(),
             f"{_HNSWLIB_ROOT}/hnswlib",
+        ],
+        depends=[
+            f"{_HNSWLIB_BINDINGS_ROOT}/pyvisim_index.h",
+            f"{_HNSWLIB_BINDINGS_ROOT}/upstream_index.h",
+            f"{_HNSWLIB_ROOT}/python-bindings/bindings.cpp",
         ],
         language="c++",
     )

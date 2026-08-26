@@ -1,10 +1,4 @@
-"""
-Approximate nearest-neighbour search over an HNSW graph.
-
-:class:`HnswIndex` extends the compiled ``hnswlib`` index with the surface the
-image store searches through: a gallery matrix goes in at construction time, and
-batched queries come back as ``(scores, ids)`` blocks.
-"""
+"""Approximate nearest-neighbour search over an HNSW graph."""
 
 from __future__ import annotations
 
@@ -13,6 +7,7 @@ from typing import cast
 import numpy as np
 
 from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ._bindings import _hnswlib
 from ._utils import (
     Space,
     as_gallery_matrix,
@@ -23,7 +18,6 @@ from ._utils import (
     validate_k,
     validate_space,
 )
-from ._vendored import _hnswlib
 
 
 class HnswIndex(_hnswlib.Index):
