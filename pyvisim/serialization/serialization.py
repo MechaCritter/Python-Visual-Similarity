@@ -237,13 +237,16 @@ def _neural_embedder_classes() -> dict[str, Any]:
     }
 
 
-def embedder_from_dict(state: dict[str, Any]) -> Embedder:
+def embedder_from_dict(state: dict[str, Any], **kwargs: Any) -> Embedder:
     """
     Rebuild an embedder from a dictionary produced by :func:`embedder_to_dict`.
 
     :param state: A serialised embedder description with an ``embedder_class`` key.
+    :param kwargs: Objects the description cannot hold, such as a torchvision
+        transform, forwarded to the embedder's ``from_dict``.
     :return: The reconstructed embedder instance.
     :raises ValueError: If ``state`` lacks a known ``embedder_class``.
+    :raises TypeError: If the embedder does not take one of ``kwargs``.
     """
     # ``Any`` because the registered classes share a ``from_dict`` classmethod
     # that the structural ``Embedder`` protocol does not declare.
@@ -257,5 +260,5 @@ def embedder_from_dict(state: dict[str, Any]) -> Embedder:
             f"Cannot reconstruct embedder of class {embedder_class!r}. "
             f"Known classes are: {sorted(registry)}."
         )
-    embedder: Embedder = registry[embedder_class].from_dict(state)
+    embedder: Embedder = registry[embedder_class].from_dict(state, **kwargs)
     return embedder

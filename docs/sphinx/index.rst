@@ -22,8 +22,7 @@ together with all of their public methods.
 
    classic/index
    features/index
-   image_store
-   retrieval/index
+   image_retrieval/index
    dataset/index
    neural_networks/index
    distance

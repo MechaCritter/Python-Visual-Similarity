@@ -5,7 +5,7 @@ This module defines :class:`EmbeddingStore`, a :class:`typing.Protocol` capturin
 the surface that retrieval and evaluation rely on: the gallery embeddings and
 their paths, the embedder that produced them, and an accelerated
 nearest-neighbour search. :class:`pyvisim.image_store.InMemoryImageEmbeddingStore`
-satisfies it structurally, so the functional helpers stay decoupled from the
+satisfies it structurally, so the evaluation helpers stay decoupled from the
 concrete store implementation.
 """
 

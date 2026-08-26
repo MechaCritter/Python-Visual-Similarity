@@ -46,13 +46,15 @@ class Embedder(Protocol):
 A structural type (a `typing.Protocol`) for anything that turns images into vectors: all
 it needs is an `embed` method. `VLADEmbedder`, `FisherVectorEmbedder`, and `Pipeline` all
 satisfy it without inheriting from it. That's what lets
-[`InMemoryImageEmbeddingStore`](image_store.md) accept any of them without importing the
+[`InMemoryImageEmbeddingStore`](image_similarity_retrieval/image_store.md) accept any of them without importing the
 concrete embedder classes.
 
 There's a matching `EmbeddingStore` protocol too (the gallery surface that retrieval and
 evaluation rely on: `paths`, `embeddings`, `embedder`, and `search`).
-`InMemoryImageEmbeddingStore` satisfies it structurally, so `retrieve_top_k_similar`,
-`top_k_map`, and `top_k_accuracy` stay decoupled from the concrete store.
+`InMemoryImageEmbeddingStore` satisfies it structurally, so `top_k_map` and
+`top_k_accuracy` stay decoupled from the concrete store. `SearchIndex` describes the
+other half, what a store searches through: the `vectors` an index owns, its `dim`, and
+its own `search`.
 
 ## The `dims` string
 

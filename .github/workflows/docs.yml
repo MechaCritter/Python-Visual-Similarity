@@ -40,10 +40,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
-      # The 'nn' and 'search' extras are installed so that autodoc
-      # documents the real classes instead of mocked placeholders.
+      # The 'nn' extra is installed so that autodoc documents the real
+      # classes instead of mocked placeholders.
       - name: Install dependencies
-        run: uv sync --group docs --extra nn --extra search
+        run: uv sync --group docs --extra nn
 
       - name: Build HTML documentation
         run: uv run --group docs sphinx-build -W -b html docs/sphinx docs/sphinx/_build/html
