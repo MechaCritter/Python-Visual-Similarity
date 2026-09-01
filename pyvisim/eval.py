@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from ._utils import cosine_similarity_2d
+from .distance import cosine_similarity
 from .typing import EmbeddingStore, MatLike
 
 __all__ = ["top_k_map", "top_k_accuracy"]
@@ -27,22 +27,22 @@ def top_k_map(
     :param image_labels: Corresponding labels for the query images.
     :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
         (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
-        embeddings and the encoder.
+        embeddings and the embedder.
     :param path_labels_dict: dict {img_path: label}
     :param k: Number of top results to consider.
     :return: mAP
     """
     all_vectors = np.asarray(store.embeddings)
     all_paths = store.paths
-    encoder = store.encoder
+    embedder = store.embedder
 
     APs = []
     for query_img, true_label in zip(images, image_labels, strict=True):
-        query_vec = encoder.encode(query_img)
+        query_vec = embedder.embed(query_img)
         if query_vec.ndim == 1:
             query_vec = query_vec.reshape(1, -1)
 
-        sims = cosine_similarity_2d(query_vec, all_vectors)[0]
+        sims = cosine_similarity(query_vec, all_vectors)[0]
 
         # Sort by descending similarity
         sorted_idx = np.argsort(-sims)
@@ -86,24 +86,24 @@ def top_k_accuracy(
     :param image_labels: List of true labels for each query image.
     :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
         (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
-        embeddings and the encoder.
+        embeddings and the embedder.
     :param path_labels_dict: dict {path: label}.
     :param k: Number of top results to check for a correct match.
     :return: Top-k accuracy (float) in the range [0, 1].
     """
     all_paths = store.paths
     all_vectors = np.asarray(store.embeddings)
-    encoder = store.encoder
+    embedder = store.embedder
     correct_count = 0
     num_images = 0
 
     for query_img, true_label in zip(images, image_labels, strict=True):
         num_images += 1
-        q_vec = encoder.encode(query_img)
+        q_vec = embedder.embed(query_img)
         if q_vec.ndim == 1:
             q_vec = q_vec.reshape(1, -1)
 
-        sims = cosine_similarity_2d(q_vec, all_vectors)[0]
+        sims = cosine_similarity(q_vec, all_vectors)[0]
         sorted_idx = np.argsort(-sims)[:k]  # top-k
 
         # Check if any of the top-k share the query's label

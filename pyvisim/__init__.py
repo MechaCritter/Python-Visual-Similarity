@@ -1,15 +1,13 @@
 """
-pyvisim: A Python library for image similarity analysis using Image Encoders and Neural Networks.
+pyvisim: A Python library for image similarity analysis using Image Embedders and Neural Networks.
 """
 
 __all__ = [
+    "classic",
     "datasets",
     "distance",
-    "encoders",
     "features",
     "eval",
-    "functional",
     "image_store",
-    "retrieval",
     "typing",
 ]

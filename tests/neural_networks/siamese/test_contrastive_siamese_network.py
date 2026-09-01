@@ -67,36 +67,7 @@ def test_device_attribute_is_torch_device() -> None:
     assert model.device == torch.device("cpu")
 
 
-# §2 default ImageNet transform
-
-
-def test_imagenet_transform_for_resnet18() -> None:
-    """The resnet18 default transform is the documented ImageNet pipeline.
-
-    Resize to 256, center-crop to 224, convert to tensor and normalize with
-    the ImageNet channel statistics.
-    """
-    transform = ContrastiveSiameseNetwork._get_imagenet_transform("resnet18")
-    steps = transform.transforms
-    assert [type(step) for step in steps] == [
-        transforms.Resize,
-        transforms.CenterCrop,
-        transforms.ToTensor,
-        transforms.Normalize,
-    ]
-    assert steps[0].size == 256
-    assert steps[1].size == (224, 224)
-    assert steps[3].mean == [0.485, 0.456, 0.406]
-    assert steps[3].std == [0.229, 0.224, 0.225]
-
-
-def test_imagenet_transform_unknown_backbone_raises() -> None:
-    """Requesting the default transform for an unknown backbone raises."""
-    with pytest.raises(ValueError, match="Unsupported backbone"):
-        ContrastiveSiameseNetwork._get_imagenet_transform("alexnet")
-
-
-# §3 forward: mathematical correctness on trivial examples
+# §2 forward: mathematical correctness on trivial examples
 
 
 def test_forward_l2_normalizes_embeddings() -> None:
@@ -134,7 +105,7 @@ def test_forward_applies_head_before_normalizing() -> None:
     assert torch.allclose(embedding, expected, atol=1e-6)
 
 
-# §4 embed: shapes, layouts and value ranges
+# §3 embed: shapes, layouts and value ranges
 
 
 @pytest.fixture
@@ -165,7 +136,7 @@ def test_embed_list_of_images(contrastive_model: ContrastiveSiameseNetwork) -> N
     assert np.linalg.norm(embeddings, axis=1) == pytest.approx([1.0] * 3, abs=1e-5)
 
 
-def test_embed_batch_matches_single_encoding(
+def test_embed_batch_matches_single_embedding(
     contrastive_model: ContrastiveSiameseNetwork,
 ) -> None:
     """Batched embedding equals embedding each image individually."""
@@ -247,7 +218,7 @@ def test_embed_restores_training_mode(
     assert contrastive_model.training is False
 
 
-# §5 embed: mathematical correctness through the full public path
+# §4 embed: mathematical correctness through the full public path
 
 
 def test_embed_of_uniform_image_is_uniform_unit_vector() -> None:
@@ -287,7 +258,7 @@ def test_embed_preserves_pixel_ratios() -> None:
     assert np.allclose(embeddings[0], expected, atol=1e-6)
 
 
-# §6 similarity_score
+# §5 similarity_score
 
 
 def test_similarity_of_identical_images_is_one(
@@ -361,7 +332,7 @@ def test_unknown_similarity_func_raises() -> None:
         build_stub_model(MeanBackbone(), embedding_dim=4, similarity_func="bogus")
 
 
-# §7 head and backbone properties (read-only by design)
+# §6 head and backbone properties (read-only by design)
 
 
 def test_head_property_returns_current_head(
@@ -401,7 +372,7 @@ def test_backbone_is_read_only(contrastive_model: ContrastiveSiameseNetwork) -> 
     assert contrastive_model.backbone is original_backbone
 
 
-# §8 device handling
+# §7 device handling
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
@@ -414,7 +385,7 @@ def test_embed_on_cuda_returns_cpu_numpy() -> None:
     assert embeddings.shape == (1, 4)
 
 
-# §9 Oxford Flowers integration: real data through the stub backbone
+# §8 Oxford Flowers integration: real data through the stub backbone
 
 
 def test_embed_on_flower_images_is_deterministic(

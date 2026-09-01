@@ -13,13 +13,16 @@ def test_public_exports() -> None:
     from pyvisim.neural_networks import (
         BCESiameseNetwork,
         ContrastiveSiameseNetwork,
+        TripletNeuralNetwork,
     )
-    from pyvisim.neural_networks.losses import ContrastiveLoss
+    from pyvisim.neural_networks.losses import ContrastiveLoss, TripletLoss
     from pyvisim.neural_networks.siamese import ResNetBackbone
 
     assert ContrastiveSiameseNetwork is not None
     assert BCESiameseNetwork is not None
+    assert TripletNeuralNetwork is not None
     assert ContrastiveLoss is not None
+    assert TripletLoss is not None
     assert ResNetBackbone is not None
 
 

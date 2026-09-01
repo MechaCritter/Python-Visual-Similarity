@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0", "numpy"]
+requires = ["setuptools>=77.0.0", "wheel", "Cython>=3.0.0", "numpy", "pybind11>=3.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyvisim"
-version = "0.8.2"
+version = "0.9.2"
 description = "A Python library for image similarity analysis using Image Embedders and Neural Networks"
 readme = "README.md"
 license = "MIT"
@@ -39,24 +39,17 @@ dependencies = [
     "platformdirs",
     "safetensors",
     "scipy",
-    "tqdm",
-    "requests",
 ]
 
 [project.optional-dependencies]
-# Deep-learning features and models (DeepConvFeature, the datasets and
-# neural_networks modules, including ClipEmbedder) built on top of
-# torch / torchvision. huggingface_hub downloads the pretrained CLIP
-# checkpoints from the Hugging Face Hub.
+# Deep-learning features and models including DeepConvFeature, the datasets and
+# neural_networks modules.
 nn = [
     "torch",
     "torchvision",
     "huggingface_hub",
-]
-# Accelerated nearest-neighbour search and retrieval (ImageIndex,
-# InMemoryImageEmbeddingStore, ImageRetriever) built on top of faiss.
-search = [
-    "faiss-cpu",
+    "requests",
+    "tqdm",
 ]
 
 [project.urls]
@@ -69,13 +62,17 @@ include = ["pyvisim", "pyvisim.*"]
 
 [tool.setuptools.package-data]
 pyvisim = [
-    "res/model_files/*.encoder",
     "res/logging_config.yaml",
     "py.typed",
     "structural/_kernel/*.pyx",
     "structural/_kernel/*.pyi",
     "features/_vendored/sift/*.pyx",
     "features/_vendored/sift/*.pxd",
+    "image_store/_index/_bindings/*.cpp",
+    "image_store/_index/_bindings/*.h",
+    "image_store/_index/_bindings/*.pyi",
+    "image_store/_index/_vendored/hnswlib/hnswlib/*.h",
+    "image_store/_index/_vendored/hnswlib/python-bindings/*.cpp",
 ]
 
 # Dependencies groups to isolate test env from production env
@@ -92,10 +89,17 @@ fmt = [
 test = [
     "pytest",
     "pytest-cov",
+    # Reference implementation of the PSNR baseline tests
+    # (skimage.metrics.peak_signal_noise_ratio).
+    "scikit-image",
     "scipy",
     # Reference implementation for the clustering/PCA equivalence tests and
     # the from_sklearn conversion tests.
     "scikit-learn",
+    # for tests/features/test_sift.py to download its reference image.
+    "requests",
+    # Reference external index of the ExternalSearchIndex tests
+    "faiss-cpu",
 ]
 docs = [
     "sphinx",
@@ -106,6 +110,7 @@ docs = [
 build = [
     "cython",
     "setuptools",
+    "pybind11>=3.0.0",
 ]
 # Reference implementations and tooling for the notebooks/benchmark_*.ipynb
 # notebooks and docs/structural/benchmarks/generate_benchmark.py; scikit-learn
@@ -119,10 +124,13 @@ bench = [
     "ipykernel",
 ]
 
-# Per-platform wheel builds for the compiled Cython extension, run by the
-# publish workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
+# Per-platform wheel builds for the compiled extensions, run by the publish
+# workflow (.github/workflows/publish_pypi.yml) via cibuildwheel.
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+# The published wheels run on machines other than the one that builds them, so
+# the C++ extension is compiled without '-march=native' (see setup.py).
+environment = { PYVISIM_NO_NATIVE = "1" }
 # Skip 32-bit and musl targets: scipy ships no wheels for them.
 skip = ["*-musllinux_*", "*_i686", "*-win32"]
 
@@ -141,7 +149,6 @@ disallow_untyped_calls = true
 no_implicit_optional = true
 check_untyped_defs = true
 exclude = ["^build/", "^dist/", "^\\.venv/", "^venv/"]
-plugins = ["numpy.typing.mypy_plugin"]
 
 # Vendored third-party code is kept byte-comparable with upstream and is not
 # held to this project's typing standards.
@@ -153,7 +160,6 @@ ignore_missing_imports = true
 # Third-party libraries that ship without type stubs or a py.typed marker.
 [[tool.mypy.overrides]]
 module = [
-  "faiss.*",
   "scipy.*",
   "sklearn.*",
   "torchvision.*",

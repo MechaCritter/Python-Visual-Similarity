@@ -1,0 +1,14 @@
+Image Store
+===========
+
+API reference
+-------------
+
+.. autoclass:: pyvisim.image_store.InMemoryImageEmbeddingStore
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
+.. include:: ../../image_similarity_retrieval/image_store.md
+   :parser: myst_parser.sphinx_
+   :start-line: 1

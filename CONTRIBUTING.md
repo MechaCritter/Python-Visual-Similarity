@@ -68,6 +68,27 @@ please run this command to compile them:
 make build-ext
 ```
 
+## Working with vendored modules
+
+Vendored files (files placed in folders named `_vendored`) are copied from their original sources. Checklist when vendoring
+third-party repositories (See [hnswlib](pyvisim/image_store/_index/_vendored/README.md) for an example):
+
+- [ ] The files remain unchanged from the original source and for
+the rest of their lifetime inside `pyvisim`. If modifications are necessary, use class inheritance or overwrite methods in separate files.
+- [ ] You have added a note in the `README.md` of the vendored folder and stated which files are copies of which file in the original source.
+- [ ] You have created a copy of the license that the original source uses and placed it in `THIRD_PARTY/` folder.
+
+## Downloaded test assets
+
+Parts of the test suite need the Oxford Flowers dataset and the pretrained
+torchvision backbones, which are downloaded on first use into the platform cache
+directory (and into `TORCH_HOME` for the weights). You can fetch
+them upfront to save some time in the CI:
+
+```bash
+uv run python .github/scripts/prefetch_assets.py
+```
+
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.

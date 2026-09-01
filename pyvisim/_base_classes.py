@@ -1,13 +1,29 @@
 import abc
 import logging
-from typing import Any
+import pathlib
+from typing import Any, ClassVar, TypeVar
 
-from .typing import Float32NumpyArray, FloatNumpyArray, ImageInput, MatLike
+import numpy as np
+
+from ._utils import get_similarity_func
+from .serialization import load_embedder_state, save_embedder_state
+from .typing import (
+    Float32NumpyArray,
+    FloatNumpyArray,
+    ImageInput,
+    MatLike,
+    SimilarityFunc,
+)
+
+#: Suffix of the files written by :meth:`SerializableImageEmbedder.save_to_disk`.
+EMBEDDER_FILE_SUFFIX = ".embedder"
+
+_EmbedderT = TypeVar("_EmbedderT", bound="SerializableImageEmbedder")
 
 
 class SimilarityMetric(abc.ABC):
     """
-    Abstract base for all similarity encoders.
+    Abstract base for all similarity metrics.
 
     All concrete similarity metric classes must inherit from this class.
     """
@@ -17,18 +33,18 @@ class SimilarityMetric(abc.ABC):
     @abc.abstractmethod
     def similarity_score(
         self,
-        image1: ImageInput,
-        image2: ImageInput,
+        images1: ImageInput,
+        images2: ImageInput,
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
         """
-        Compute a similarity score between two (batches of) images.
+        Compute the similarity scores matrix between two (batches of) images.
 
-        :param image1: First (batch of) image(s) as ``MatLike`` (NumPy array,
+        :param images1: First (batch of) image(s) as ``MatLike`` (NumPy array,
             torch tensor or array-like).
-        :param image2: Second (batch of) image(s) as ``MatLike``.
+        :param images2: Second (batch of) image(s) as ``MatLike``.
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
@@ -38,7 +54,7 @@ class SimilarityMetric(abc.ABC):
             See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
-        :return: A similarity score matrix
+        :return: The similarity score matrix of shape ``(len(images1), len(images2))``.
         """
         pass
 
@@ -113,3 +129,210 @@ class FeatureExtractorBase(abc.ABC):
         :return: A JSON-safe mapping of constructor arguments.
         """
         return {}
+
+
+class ImageEmbedderBase(SimilarityMetric):
+    """
+    Base class for all image embedders.
+
+    An image embedder turns an image into a vector representation that can be
+    used for indexing, retrieval, clustering or classification.
+
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    """
+
+    def __init__(self, similarity_func: str = "cosine"):
+        # Set important attributes via setters to trigger error handling
+        self._similarity_func: SimilarityFunc
+        self._similarity_func_name: str
+        self.similarity_func = similarity_func
+
+    @property
+    def similarity_func(self) -> SimilarityFunc:
+        """The resolved similarity function callable."""
+        return self._similarity_func
+
+    @similarity_func.setter
+    def similarity_func(self, name: str) -> None:
+        """
+        Resolves and stores a built-in similarity metric by name.
+
+        :param name: One of ``"cosine"``, ``"euclidean"``, ``"l1"`` or
+            ``"manhattan"``.
+        :raises ValueError: If ``name`` is not a supported similarity metric.
+        """
+        self._similarity_func = get_similarity_func(name)
+        self._similarity_func_name = name
+
+    @property
+    def similarity_func_name(self) -> str:
+        """The name of the configured similarity metric (e.g. ``"cosine"``)."""
+        return self._similarity_func_name
+
+    @abc.abstractmethod
+    def embed(
+        self,
+        images: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> FloatNumpyArray:
+        """
+        Embeds one or more images into a batch of vector representations.
+
+        Each image is normalized to a canonical ``uint8`` ``(H, W, C)`` array
+        before feature extraction, so NumPy arrays, torch tensors and other
+        array-like inputs are all accepted. When a batch axis is present (via
+        ``dims``), every image in the batch is embedded.
+
+        :param images: A single ``MatLike`` image, a batched array, or an
+            iterable of images. Consider using an iterator for large datasets.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+            (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
+            width × channels (NumPy/OpenCV single-image layout, **default**);
+            ``"CHW"`` is channels × height × width (PyTorch single-image layout);
+            ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
+            See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: vector representations of the given images
+        """
+        raise NotImplementedError
+
+    def similarity_score(
+        self,
+        images1: ImageInput,
+        images2: ImageInput,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> Float32NumpyArray:
+        vector1 = self.embed(images1, dims=dims, value_range=value_range)
+        vector2 = self.embed(images2, dims=dims, value_range=value_range)
+        result = self.similarity_func(vector1, vector2)
+        return np.asarray(result, dtype=np.float32)
+
+    def __repr__(self) -> str:
+        return (
+            self.__class__.__name__ + f"(similarity_func={self.similarity_func_name})"
+        )
+
+
+class SerializableImageEmbedder(ImageEmbedderBase):
+    """
+    Base for embedders that persist to a ``.embedder`` file.
+
+    Adds the serialization contract on top of :class:`ImageEmbedderBase`:
+    subclasses describe themselves as a JSON-safe state via :meth:`to_dict` /
+    :meth:`from_dict`, and this class turns that state into a file and back.
+    Both the classic embedders and the neural ones use this path, so a
+    ``.embedder`` file is always a
+    `safetensors <https://github.com/huggingface/safetensors>`_ file.
+
+    :param similarity_func: Name of the built-in similarity metric to use. One of
+        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    """
+
+    #: Keys a serialised state must contain to be a valid embedder file.
+    #: Subclasses extend this with their own required keys.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {"embedder_class", "similarity_func"}
+    )
+
+    @abc.abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialises this embedder into a JSON-safe state dictionary.
+
+        Every concrete embedder must define how it serialises itself. The
+        returned mapping has to contain at least the keys listed in
+        :attr:`_STATE_KEYS` (notably ``"embedder_class"``) so that
+        :meth:`load_from_disk` can validate the file and dispatch it to the
+        right class. Arrays may be embedded as ``__ndarray__`` nodes; the
+        serialization layer stores them as binary tensors.
+
+        :return: A JSON-safe embedder description suitable for :meth:`from_dict`.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    def from_dict(
+        cls: type[_EmbedderT], state: dict[str, Any], **kwargs: Any
+    ) -> _EmbedderT:
+        """
+        Rebuilds an embedder from a state dictionary (see :meth:`to_dict` to see
+        the expected format).
+
+        :param state: A JSON-safe embedder description.
+        :param kwargs: Objects the state cannot describe, forwarded by
+            :meth:`load_from_disk`. Subclasses that accept none raises
+            an error if ``kwargs`` is not empty.
+        :return: A ready-to-use embedder instance.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def _reject_unsupported_kwargs(cls, kwargs: dict[str, Any]) -> None:
+        """
+        Raises a :class:`TypeError` if ``kwargs`` is not empty.
+
+        :param kwargs: The forwarded keyword arguments.
+        :raises TypeError: If ``kwargs`` is not empty.
+        """
+        if kwargs:
+            names = ", ".join(repr(name) for name in sorted(kwargs))
+            raise TypeError(
+                f"{cls.__name__} does not take the deserialization argument(s) {names}."
+            )
+
+    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
+        """
+        Saves the serialised state of this embedder to a ``.embedder`` file.
+
+        :param path: Target file path. The ``.embedder`` suffix is appended if missing.
+        :return: The path of the written file.
+        :raises NotFittedError: If the embedder is not ready to be serialised
+            (see :meth:`to_dict`).
+        """
+        path = pathlib.Path(path)
+        if path.suffix != EMBEDDER_FILE_SUFFIX:
+            path = path.with_name(path.name + EMBEDDER_FILE_SUFFIX)
+        save_embedder_state(self.to_dict(), path)
+        return path
+
+    @classmethod
+    def load_from_disk(
+        cls: type[_EmbedderT],
+        path: str | pathlib.Path,
+        **kwargs: Any,
+    ) -> _EmbedderT:
+        """
+        Loads an embedder previously saved with :meth:`save_to_disk`.
+
+        Not every part of an embedder survives serialization: an arbitrary
+        callable such as a torchvision transform has no portable description,
+        so it is left out of the file. Pass such an object back here as a
+        keyword argument.
+
+        :param path: Path to the ``.embedder`` file.
+        :param kwargs: Objects the file cannot hold, forwarded to
+            :meth:`from_dict`.
+        :return: A ready-to-use embedder instance.
+        :raises ValueError: If the file is not a valid ``.embedder`` file or
+            was saved by a different embedder class.
+        :raises TypeError: If the embedder does not take one of ``kwargs``.
+        """
+        state = load_embedder_state(pathlib.Path(path))
+        if not cls._STATE_KEYS.issubset(state):
+            raise ValueError(f"File {path} is not a valid .embedder file.")
+        # TODO: in the future, verify the file's format version against the
+        # class-specific compatibility table before reconstructing.
+        if state["embedder_class"] != cls.__name__:
+            raise ValueError(
+                f"File {path} was saved by {state['embedder_class']}. "
+                f"Load it with {state['embedder_class']}.load_from_disk instead."
+            )
+        return cls.from_dict(state, **kwargs)

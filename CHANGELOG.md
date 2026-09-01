@@ -1,12 +1,75 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.2] - 2026-08-26
+
+### Added
+- `HnswIndex` and `BruteForceIndex` (in `pyvisim.image_store`): an approximate
+  HNSW graph and an exhaustive scan, both compiled into the package and built
+  in cosine space by default.
+- `ExternalSearchIndex` (in `pyvisim.image_store`): searches through an index
+  built elsewhere. `ExternalSearchIndex.from_faiss_index(index, vectors=None)`
+  adapts any FAISS index without FAISS being a dependency of this library.
+- `InMemoryImageEmbeddingStore.retrieve_top_k_similar` ranks the gallery against
+  query images and returns `Candidate` matches, both now owned by the store.
+- `InMemoryImageEmbeddingStore.save_to_disk` takes the gallery `vectors` to
+  write, for an index that hands back an approximation of what it was given.
+- `InMemoryImageEmbeddingStore.load_from_disk` forwards keyword arguments:
+  `search_index=...` restores a store onto a rebuilt external index, and
+  anything else reaches the embedder.
+
+### Changed
+- ⚠️ The store's `index_type` parameter is now `search_index`, which takes
+  `"hnsw"`, `None` for a brute-force scan, or an `ExternalSearchIndex`. Its
+  `quantizer` parameter is now `space`, taking `"cosine"` (the default), `"l2"`
+  or `"ip"`.
+- ⚠️ The scores of `Candidate` and `search` are distances for the built-in
+  indexes, so lower is more similar. An `ExternalSearchIndex` reports whatever
+  its own metric produces.
+- The index owns the gallery vectors and the store keeps no second copy, so
+  `store.embeddings` is read-only. Both built-in indexes decode it out of their
+  own storage, which makes every access a fresh copy.
+- Store files are written in a new layout; a store saved by an earlier version
+  cannot be loaded by this one.
+
+### Removed
+- ⚠️ `pyvisim.retrieval` (`ImageRetriever`, `ImageIndex` and the FAISS-backed
+  IVF indexes) and `pyvisim.functional`. The store now covers both.
+- ⚠️ The `search` extra, along with the `faiss-cpu` dependency behind it.
+
+## [0.9.1] - 2026-08-24
+
+### Added
+- Added `Triplet Neural Network` under `pyvisim.neural_networks` with `TripletLoss`.
+
+## [0.9.0] - 2026-08-23
 
 ### Fixed
+- `PSNR.similarity_score` accepts a channel-less grayscale image again: a 2-D
+  array passed with the default `dims="HWC"` raised instead of being read as
+  single-channel, unlike `SSIM` and the rest of the library.
+- `make test-types` no longer prints a `DeprecationWarning`: the
+  `numpy.typing.mypy_plugin` entry is removed from the mypy configuration.
+- The development interpreter is pinned to Python 3.10 (`.python-version`), the
+  project's minimum supported version and the one every CI job already uses.
 - The `ruff check` CI step no longer fails on import sorting (`I001`) in
   `tests/neural_networks/test_oxford_flowers_quick.py` and
   `test_oxford_flowers_slow.py`.
+
 ### Added
+- `load_from_disk` now forwards keyword arguments to `from_dict`, so an
+  embedder can be handed the objects its file cannot hold. The Siamese
+  networks use it for their transform:
+  `ContrastiveSiameseNetwork.load_from_disk(path, transform=transform)`
+  restores the exact embeddings of a network built with a custom one.
+- The embedders of `pyvisim.neural_networks` (`ClipEmbedder`,
+  `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serialisable to a
+  safetensors `.embedder` file via `save_to_disk`/`load_from_disk`, weights
+  included; a reloaded embedder produces identical embeddings without downloading
+  any pretrained weights.
+- `NeuralImageEmbedder` (in `pyvisim.neural_networks`): the shared base for the
+  neural embedders, both a `SerializableImageEmbedder` and a `torch.nn.Module`.
+  `SiameseNetworkBase` now derives from it, so the Siamese networks and the
+  classic embedders expose the same `embed`/`similarity_score` surface.
 - Clustering models can now be built from a fitted scikit-learn estimator:
   `KMeans.from_sklearn`, `DiagCovarGaussianMixture.from_sklearn` and
   `PCA.from_sklearn`, plus `load_clustering_model_from_sklearn` on `VLADEncoder`
@@ -14,6 +77,17 @@
   a vocabulary you already trained with scikit-learn.
 
 ### Changed
+- The Siamese networks now store the `repr` of their transform in the `.embedder`
+  file and warn on `load_from_disk` when the rebuilt network's transform differs
+  from it, instead of warning on every save of a custom transform.
+- `tqdm` and `requests` are no longer runtime dependencies of the core
+  package; they moved into the `nn` extra. Only `pyvisim.datasets` uses them,
+  and that module already requires `torch` from the same extra.
+- CI restores the Oxford Flowers dataset and the pretrained backbone weights from
+  the GitHub Actions cache instead of re-downloading them on every run; the new
+  `Warm asset cache` workflow keeps that cache populated on `main`.
+- The `similarity_func` registry in `pyvisim._utils` now maps the metric names
+  straight onto `pyvisim.distance`.
 - ℹ️ Dropped scikit-learn as a runtime dependency.
 - Added PSNR (under `pyvisim.pixelwise`) and SSIM/MSSSIM (under
 `pyvisim.structural`) metrics as well as their benchmark scripts against
@@ -21,14 +95,24 @@ existing implementations under `docs/pixelwise/benchmarks` and
 `docs/structural/benchmarks`.
 - `BCESiameseNetwork` (in `pyvisim.neural_networks`): the pair-classifying
   Siamese variant of Koch, Zemel & Salakhutdinov (2015).
-
-### Changed
 - The Siamese networks are split along a shared abstract base,
   `SiameseNetworkBase`.
 - Removed the Siamese Network's train scripts. This is now demonstrated
 in a notebook in the "examples" repository.
 
 ### Breaking
+- ⚠️ `VLADEmbedder`, `FisherVectorEmbedder` and `Pipeline` moved from
+  `pyvisim.encoders` to `pyvisim.classic`.
+- ⚠️ The bundled pretrained VLAD and Fisher Vector encoders are removed to make the binary smaller, together
+  with `from_pretrained`, `PretrainedVLAD`/`PretrainedFisher`, the deprecated
+  `weights=` argument and `KMeansWeights`/`GMMWeights`. Train a vocabulary with
+  `learn()` and persist it with `save_to_disk`/`load_from_disk` instead.
+- ⚠️ "Encoder" is now "embedder" throughout: `ImageEncoderBase` -> `ImageEmbedderBase`,
+  `VLADEncoder` -> `VLADEmbedder`, `FisherVectorEncoder` -> `FisherVectorEmbedder`,
+  the `Encoder` protocol -> `Embedder`, `encode()` -> `embed()` and `store.encoder`
+  -> `store.embedder`.
+- ⚠️ Saved models use the `.embedder` suffix and an `embedder_class` state key, so
+  existing `.encoder` files no longer load. Re-save them with `save_to_disk`.
 - ⚠️ `SiameseNeuralNetwork` is renamed to `ContrastiveSiameseNetwork`
   (`pyvisim.neural_networks.siamese.siamese_neural_network` is gone; the base
   class now lives in `pyvisim.neural_networks.siamese._base_siamese`):
@@ -41,11 +125,11 @@ in a notebook in the "examples" repository.
   ```
 - ⚠️ The clustering models (`KMeans`, `DiagCovarGaussianMixture`, `PCA`,
   `ClusteringModelBase`) are now internal to the encoders package and moved from
-  `pyvisim.clustering` to `pyvisim.encoders._clustering`.
+  `pyvisim.clustering` to `pyvisim.classic._clustering`.
 - ⚠️ Encoder clustering parameters changed: pass `rng` instead of `random_state`
   inside `kmeans_params` / `gmm_params` / `pca_params` (see
-  [vlad.md](docs/encoders/vlad.md) and
-  [fisher_vector.md](docs/encoders/fisher_vector.md) for every accepted key).
+  [vlad.md](docs/classic/vlad.md) and
+  [fisher_vector.md](docs/classic/fisher_vector.md) for every accepted key).
 
 ## [0.8.2]
 
@@ -105,7 +189,7 @@ the `scipy` dependency could be dropped completely. Added test to verify
 that the new loader loads the same data as `scipy.io.loadmat` on the Oxford-102 Flowers dataset.
 - `read_image_rgb` in `_utils` now uses `Pillow` to open instead of `cv2.imread` as plan
 to be as little dependent on OpenCV as possible.
-- CLIP moved from `pyvisim.encoders` into `pyvisim.neural_networks` and dropped the
+- CLIP moved from `pyvisim.classic` into `pyvisim.neural_networks` and dropped the
   open_clip dependency entirely. The new `ClipEmbedder` runs pyvisim's own implementation
   of the CLIP image towers (Vision Transformer and modified ResNet) and loads pretrained
   safetensors weights from the Hugging Face Hub — verified numerically equivalent to
@@ -162,14 +246,14 @@ to be as little dependent on OpenCV as possible.
 ## [0.7.0] - 2026-07-03
 
 ### Added
-- `CLIPEncoder` (in `pyvisim.encoders`): a pretrained-CLIP image encoder built on
+- `CLIPEncoder` (in `pyvisim.classic`): a pretrained-CLIP image encoder built on
   open_clip. It maps an image straight to a CLIP embedding, so there's no feature
   extractor, clustering model, or `learn` step. Embeddings are L2-normalized by default,
   and it plugs into the usual `similarity_score` / `save_to_disk` / `load_from_disk`
   machinery.
 
   ```python
-  from pyvisim.encoders import CLIPEncoder
+  from pyvisim.classic import CLIPEncoder
 
   clip = CLIPEncoder(model_name="ViT-B-32", pretrained="laion2b_s34b_b79k")
   embeddings = clip.encode(images)

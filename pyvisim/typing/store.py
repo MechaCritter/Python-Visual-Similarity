@@ -3,15 +3,15 @@ Structural type describing the embedding-store interface used by retrieval.
 
 This module defines :class:`EmbeddingStore`, a :class:`typing.Protocol` capturing
 the surface that retrieval and evaluation rely on: the gallery embeddings and
-their paths, the encoder that produced them, and an accelerated
+their paths, the embedder that produced them, and an accelerated
 nearest-neighbour search. :class:`pyvisim.image_store.InMemoryImageEmbeddingStore`
-satisfies it structurally, so the functional helpers stay decoupled from the
+satisfies it structurally, so the evaluation helpers stay decoupled from the
 concrete store implementation.
 """
 
 from typing import Protocol, runtime_checkable
 
-from .encoders import Encoder
+from .embedders import Embedder
 from .numeric import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
 
@@ -21,7 +21,7 @@ class EmbeddingStore(Protocol):
     Protocol for an in-memory gallery of image embeddings.
 
     An embedding store pairs a gallery of feature vectors (and their image
-    paths) with the encoder that produced them and an accelerated index used to
+    paths) with the embedder that produced them and an accelerated index used to
     search the gallery.
     """
 
@@ -36,8 +36,8 @@ class EmbeddingStore(Protocol):
         ...
 
     @property
-    def encoder(self) -> Encoder:
-        """The encoder that produced the gallery and encodes queries."""
+    def embedder(self) -> Embedder:
+        """The embedder that produced the gallery and embeds queries."""
         ...
 
     def search(

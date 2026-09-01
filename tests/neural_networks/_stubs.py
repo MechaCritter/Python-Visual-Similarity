@@ -9,11 +9,15 @@ from unittest import mock
 import numpy as np
 import torch
 
-from pyvisim.neural_networks import BCESiameseNetwork, ContrastiveSiameseNetwork
-from pyvisim.neural_networks.siamese._base_siamese import SiameseNetworkBase
+from pyvisim.neural_networks import (
+    BCESiameseNetwork,
+    ContrastiveSiameseNetwork,
+    TripletNeuralNetwork,
+)
+from pyvisim.neural_networks.backbones import BackboneWithHead
 from pyvisim.typing import UInt8NumpyArray
 
-_SiameseT = TypeVar("_SiameseT", bound=SiameseNetworkBase)
+_NetworkT = TypeVar("_NetworkT", bound=BackboneWithHead)
 
 
 class FlattenBackbone(torch.nn.Module):
@@ -48,16 +52,17 @@ class MeanBackbone(torch.nn.Module):
 
 
 def _build_stub_network(
-    model_cls: type[_SiameseT], backbone_module: torch.nn.Module, **kwargs: object
-) -> _SiameseT:
-    """Install a projection head on the model's private ``_head`` attribute.
+    model_cls: type[_NetworkT], backbone_module: torch.nn.Module, **kwargs: object
+) -> _NetworkT:
+    """Build a network whose backbone resolver returns the given stub module.
 
-    The public ``head`` property is read-only by design (see the dedicated
-    read-only property tests), so tests that need a controlled head install
-    it directly on the private attribute.
+    Patching ``_get_backbone`` keeps the construction path of the real class
+    intact while skipping the ResNet-18 the network would otherwise build.
 
-    :param model: The model to modify.
-    :param head: The replacement projection head.
+    :param model_cls: The network class to instantiate.
+    :param backbone_module: The stub backbone to build the network on.
+    :param kwargs: Constructor arguments forwarded to ``model_cls``.
+    :return: The constructed network.
     """
     with mock.patch.object(
         model_cls,
@@ -79,7 +84,13 @@ def build_stub_bce_model(
     return _build_stub_network(BCESiameseNetwork, backbone_module, **kwargs)
 
 
-def install_head(model: SiameseNetworkBase, head: torch.nn.Module) -> None:
+def build_stub_triplet_model(
+    backbone_module: torch.nn.Module, **kwargs: object
+) -> TripletNeuralNetwork:
+    return _build_stub_network(TripletNeuralNetwork, backbone_module, **kwargs)
+
+
+def install_head(model: BackboneWithHead, head: torch.nn.Module) -> None:
     """Install a projection head on the model's private ``_head`` attribute.
 
     The public ``head`` property is read-only by design (see the dedicated

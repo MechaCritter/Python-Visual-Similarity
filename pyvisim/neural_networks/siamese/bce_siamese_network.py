@@ -2,7 +2,7 @@ from typing import cast
 
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput
-from ._base_siamese import SiameseNetworkBase
+from ..backbones import BackboneWithHead
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
@@ -11,7 +11,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 
-class BCESiameseNetwork(SiameseNetworkBase):
+class BCESiameseNetwork(BackboneWithHead):
     """
     Siamese network that classifies image pairs, proposed in
     `Koch, G., Zemel, R., & Salakhutdinov, R. (2015). Siamese Neural Networks
@@ -37,6 +37,13 @@ class BCESiameseNetwork(SiameseNetworkBase):
     (different class); :meth:`forward` returns raw logits so it composes with
     :class:`torch.nn.BCEWithLogitsLoss` in a numerically stable way.
 
+    Following diagram visualizes this::
+
+        Input Image A ──► Backbone ──► Embedding Head ──► Sigmoid ──► Features A ─┐
+                        │                                                   ├─► |A - B| ──► Scoring Layer ──► P(same class)
+        Input Image B ──► Backbone ──► Embedding Head ──► Sigmoid ──► Features B ─┘
+                (Shared Weights)
+
     NOTE
     ----
     The score is a *learned probability*, not a geometric similarity: it is
@@ -55,7 +62,7 @@ class BCESiameseNetwork(SiameseNetworkBase):
         scoring layer compares.
     :param transform: processing transform applied to every input image. If
         ``None``, the default ImageNet preprocessing is used depending
-        on the backbone. See :meth:`_get_imagenet_transform`.
+        on the backbone.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``BCESiameseNetwork`` from a
@@ -144,15 +151,14 @@ class BCESiameseNetwork(SiameseNetworkBase):
     @torch.no_grad()
     def similarity_score(
         self,
-        image1: ImageInput,
-        image2: ImageInput,
+        images1: ImageInput,
+        images2: ImageInput,
         *,
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-
-        features1 = self._encode_images(image1, dims=dims, value_range=value_range)
-        features2 = self._encode_images(image2, dims=dims, value_range=value_range)
+        features1 = self._embed_images(images1, dims=dims, value_range=value_range)
+        features2 = self._embed_images(images2, dims=dims, value_range=value_range)
         distances = torch.abs(features1.unsqueeze(1) - features2.unsqueeze(0))
         probabilities = torch.sigmoid(self._score_distances(distances))
         return cast(FloatNumpyArray, probabilities.cpu().numpy())

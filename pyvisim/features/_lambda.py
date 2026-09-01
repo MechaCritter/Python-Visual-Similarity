@@ -41,7 +41,7 @@ class Lambda(FeatureExtractorBase):
         serialised.
 
         :raises TypeError: Always; pass ``feature_extractor`` explicitly when
-            loading an encoder that used a Lambda extractor.
+            loading an embedder that used a Lambda extractor.
         """
         raise TypeError(
             "Lambda feature extractors wrap a user-defined function and cannot "
@@ -57,17 +57,5 @@ class Lambda(FeatureExtractorBase):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        """
-        Extracts features from an image using the user-defined function.
-
-        :param image: Input image as ``MatLike``.
-        :param dims: Axis-label string, one character per array axis in order:
-            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels.
-            For example, ``"HWC"`` is height × width × channels (NumPy/OpenCV
-            layout, **default**); ``"CHW"`` is channels × height × width (PyTorch
-            layout). See :mod:`pyvisim.typing`.
-        :param value_range: The ``(low, high)`` range the input values live in.
-        :return: Feature descriptors returned by ``func``.
-        """
         image = _to_single_image(image, dims=dims, value_range=value_range)
         return self.func(image)

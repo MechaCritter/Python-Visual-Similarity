@@ -59,7 +59,7 @@ from ..lazy_import import is_tensor
 NumpyArray = npt.NDArray[np.generic]
 #: NumPy array of uint8 values (canonical image layout).
 UInt8NumpyArray = npt.NDArray[np.uint8]
-#: NumPy array of float32 values (feature descriptors and encodings).
+#: NumPy array of float32 values (feature descriptors and embeddings).
 Float32NumpyArray = npt.NDArray[np.float32]
 #: NumPy array of float64 values (model outputs computed in double precision).
 Float64NumpyArray = npt.NDArray[np.float64]

@@ -1,20 +1,38 @@
 # Neural networks
 
-Following is implemented:
+This module includes neural networks (`torch.nn.Module`, or neural network - based - embedders) that
+learns to distinguish between images.
 
-* `ContrastiveSiameseNetwork` L2-normalizes the resulting embeddings and trains them with a
-  contrastive loss so similar images land close together and dissimilar ones end up far apart;
-  similarity is a fixed metric (cosine by default) on the embeddings.
-* `BCESiameseNetwork` feeds the component-wise L1 distance of sigmoid-activated branch
-  features into a learned scoring layer and returns the probability that both images show the
-  same class (Koch et al., 2015); it trains as a binary classifier over pairs.
-* **`ClipEmbedder`**, pretrained CLIP embeddings from pyvisim's own implementation of
-  the CLIP image towers. Weights come as safetensors files from the Hugging Face Hub,
-  with open_clip-style variant names and pretrained tags (`"ViT-B-32"` + `"openai"`,
-  `"laion2b_s34b_b79k"`, ...; 67 combinations supported). There's no training step:
-  call `embed(images)` and you get L2-normalized embeddings back.
+# Table of contents
 
-Everything here needs the `nn` extra: `pip install "pyvisim[nn]"`.
+- [Contrastive Siamese Network](contrastive_siamese.md)
+- [BCE Siamese Network](bce_siamese.md)
+- [Triplet Neural Network](triplet.md)
+- [CLIP Embedder](clip.md)
 
-For install notes, code examples, and the training walkthrough, see the
-[module README](../../pyvisim/neural_networks/README.md).
+## Serialization
+
+Every class in this module can be serialized via method
+`to_dict` and deserialized via `from_dict`, or `save_to_disk` and `load_from_disk` to save/load to/from a file. `pyvisim` only uses `safetensors` format for (de)serialization, which mitigates the risk of deserializing malicious objects.
+
+You can, of course, also use `torch.save` and `torch.load` as conventionally used in PyTorch.
+
+## References
+
+1. **Siamese Neural Networks for One-shot Image Recognition** (Koch, Zemel, & Salakhutdinov, 2015)
+https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf
+
+2. **Dimensionality Reduction by Learning an Invariant Mapping** (Hadsell, Chopra, & LeCun, 2006)
+http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+
+3. **Deep Metric Learning Using Triplet Network** (Hoffer & Ailon, 2014)
+https://arxiv.org/abs/1412.6622
+
+4. **FaceNet: A Unified Embedding for Face Recognition and Clustering** (Schroff, Kalenichenko, & Philbin, 2015)
+https://doi.org/10.1109/CVPR.2015.7298682
+
+5. **Deep Residual Learning for Image Recognition**
+https://arxiv.org/abs/1512.03385
+
+6. **Learning Transferable Visual Models From Natural Language Supervision** (Radford et al., 2021)
+https://arxiv.org/abs/2103.00020
