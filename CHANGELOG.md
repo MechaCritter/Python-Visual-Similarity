@@ -14,6 +14,9 @@
 - `FeatureExtractorBase.extract_batch` extracts a batch of images and returns
   one feature array per image. Extractors that can do a whole batch in one go
   override it; the default extracts one image at a time.
+- `DeepConvFeature` pushes a whole batch through its backbone in one forward
+  pass. A custom `transform` that keeps the input size leaves the images
+  unstackable, and they are then extracted one at a time as before.
 
 ### Changed
 - ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the
