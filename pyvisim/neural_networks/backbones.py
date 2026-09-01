@@ -13,7 +13,7 @@ from PIL import Image
 
 from ..lazy_import import OptionalImport
 from ..typing import FloatNumpyArray, ImageInput, MatLike
-from ..utils.image_utils import iter_images
+from ..utils.image_utils import iter_image_batches
 from ._base import NeuralImageEmbedder
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
@@ -112,6 +112,9 @@ class BackboneWithHead(NeuralImageEmbedder):
     :param similarity_func: Name of the built-in similarity metric used to score
         two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
         or ``"manhattan"``.
+    :param batch_size: Number of images per forward pass. ``-1`` (default)
+        embeds the whole input in a single pass; a positive value bounds the
+        activation memory one pass needs.
     :raises ValueError: If ``embedding_dim`` is not a positive integer, if
         ``backbone`` is not a supported backbone name, or if ``similarity_func``
         is not a supported similarity metric.
@@ -124,8 +127,10 @@ class BackboneWithHead(NeuralImageEmbedder):
         transform: transforms.Compose | None = None,
         pretrained_backbone: bool = True,
         similarity_func: str = "cosine",
+        *,
+        batch_size: int = -1,
     ):
-        super().__init__(similarity_func=similarity_func)
+        super().__init__(similarity_func=similarity_func, batch_size=batch_size)
         if embedding_dim <= 0:
             raise ValueError(
                 f"embedding_dim must be a positive integer, got {embedding_dim}."
@@ -257,8 +262,9 @@ class BackboneWithHead(NeuralImageEmbedder):
         """
         Embeds one or more images into a batch of shared-weight pass outputs.
 
-        All images are preprocessed, stacked into a single batch and passed
-        through :meth:`_forward_once`. The model is switched to eval mode so
+        The images are preprocessed and passed through :meth:`_forward_once` in
+        batches of at most :attr:`batch_size`, which bounds how much activation
+        memory one forward pass needs. The model is switched to eval mode so
         that ``BatchNorm`` and ``Dropout`` behave correctly during inference,
         and the previous training state is restored afterwards so the training
         loop is not disrupted.
@@ -276,14 +282,19 @@ class BackboneWithHead(NeuralImageEmbedder):
         was_training = self.training
         self.eval()
         try:
-            tensors = [
-                self._preprocess(image)
-                for image in iter_images(images, dims=dims, value_range=value_range)
+            embeddings = [
+                self._forward_once(
+                    torch.stack([self._preprocess(image) for image in batch]).to(
+                        self.device
+                    )
+                )
+                for batch in iter_image_batches(
+                    images, self.batch_size, dims=dims, value_range=value_range
+                )
             ]
-            if not tensors:
+            if not embeddings:
                 raise ValueError("Expected at least one image to embed, got none.")
-            batch = torch.stack(tensors).to(self.device)
-            return self._forward_once(batch)
+            return torch.cat(embeddings)
         finally:
             if was_training:
                 self.train()

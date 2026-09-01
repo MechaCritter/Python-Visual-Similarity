@@ -17,6 +17,10 @@
 - `DeepConvFeature` pushes a whole batch through its backbone in one forward
   pass. A custom `transform` that keeps the input size leaves the images
   unstackable, and they are then extracted one at a time as before.
+- `ClipEmbedder`, `ContrastiveSiameseNetwork`, `TripletNeuralNetwork` and
+  `BCESiameseNetwork` take a `batch_size` that splits their forward passes and
+  bounds the activation memory of each. `-1` (the default) keeps embedding the
+  whole input in one pass.
 
 ### Changed
 - ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the
