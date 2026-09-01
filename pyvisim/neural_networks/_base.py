@@ -17,7 +17,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 #: On-disk format version of the serialised neural embedder state.
-_NEURAL_EMBEDDER_FORMAT_VERSION = 1
+_NEURAL_EMBEDDER_FORMAT_VERSION = 2
 
 _NeuralEmbedderT = TypeVar("_NeuralEmbedderT", bound="NeuralImageEmbedder")
 
@@ -43,7 +43,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
 
     #: Keys a serialised state must contain to be a valid embedder file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func", "config", "state_dict"}
+        {"embedder_class", "similarity_func", "batch_size", "config", "state_dict"}
     )
 
     def __init__(self, similarity_func: str = "cosine") -> None:
@@ -123,6 +123,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
             "format_version": _NEURAL_EMBEDDER_FORMAT_VERSION,
             "embedder_class": type(self).__name__,
             "similarity_func": self._similarity_func_name,
+            "batch_size": self.batch_size,
             "config": self._serialization_config(),
             "state_dict": encode_state_dict(self),
         }
@@ -133,6 +134,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     ) -> _NeuralEmbedderT:
         embedder = cast(_NeuralEmbedderT, cls._from_config(state["config"], **kwargs))
         embedder.similarity_func = state["similarity_func"]
+        embedder._restore_batch_size(state)
         embedder.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder.eval()
 

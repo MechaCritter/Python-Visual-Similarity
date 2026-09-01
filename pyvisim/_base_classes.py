@@ -26,9 +26,60 @@ class SimilarityMetric(abc.ABC):
     Abstract base for all similarity metrics.
 
     All concrete similarity metric classes must inherit from this class.
+
+    Every metric processes its input in batches. What one batch holds depends
+    on the metric (images, image pairs, ...).
+
+    :param batch_size: Number of items processed per batch. ``-1`` (default)
+        processes the whole input as a single batch.
+    :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
+        integer.
     """
 
     _logger = logging.getLogger("Similarity_Metrics")
+
+    def __init__(self, batch_size: int = -1) -> None:
+        self._batch_size: int
+        # Assign via the property setter to trigger validation.
+        self.batch_size = batch_size
+
+    @property
+    def batch_size(self) -> int:
+        """
+        Number of items processed per batch (``-1`` = the whole input at once).
+        """
+        return self._batch_size
+
+    @batch_size.setter
+    def batch_size(self, batch_size: int) -> None:
+        self._batch_size = self._validate_batch_size(batch_size)
+
+    def set_batch_size(self, batch_size: int) -> None:
+        """
+        Sets the number of items processed per batch.
+
+        :param batch_size: A positive integer, or ``-1`` to process the whole
+            input as a single batch.
+        :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
+            integer.
+        """
+        self.batch_size = batch_size
+
+    @staticmethod
+    def _validate_batch_size(batch_size: int) -> int:
+        """
+        Raises ValueError if ``batch_size`` is neither ``-1`` nor a positive integer.
+        """
+        if not isinstance(batch_size, int):
+            raise ValueError(
+                f"batch_size must be an integer, got {type(batch_size).__name__}."
+            )
+        if batch_size != -1 and batch_size < 1:
+            raise ValueError(
+                "batch_size must be a positive integer or -1 (process the "
+                f"whole input as one batch), got {batch_size}."
+            )
+        return batch_size
 
     @abc.abstractmethod
     def similarity_score(
@@ -140,10 +191,13 @@ class ImageEmbedderBase(SimilarityMetric):
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param batch_size: Number of images embedded per batch. ``-1`` (default)
+        embeds the whole input as a single batch.
     """
 
-    def __init__(self, similarity_func: str = "cosine"):
+    def __init__(self, similarity_func: str = "cosine", *, batch_size: int = -1):
         # Set important attributes via setters to trigger error handling
+        super().__init__(batch_size=batch_size)
         self._similarity_func: SimilarityFunc
         self._similarity_func_name: str
         self.similarity_func = similarity_func
@@ -233,13 +287,26 @@ class SerializableImageEmbedder(ImageEmbedderBase):
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param batch_size: Number of images embedded per batch. ``-1`` (default)
+        embeds the whole input as a single batch.
     """
 
     #: Keys a serialised state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func"}
+        {"embedder_class", "similarity_func", "batch_size"}
     )
+
+    def _restore_batch_size(self, state: dict[str, Any]) -> None:
+        """
+        Adopts the batch size recorded in a serialised state.
+
+        :param state: A JSON-safe embedder description.
+        :raises KeyError: If the state carries no batch size.
+        :raises ValueError: If the stored batch size is neither ``-1`` nor a
+            positive integer.
+        """
+        self.set_batch_size(state["batch_size"])
 
     @abc.abstractmethod
     def to_dict(self) -> dict[str, Any]:
@@ -248,10 +315,8 @@ class SerializableImageEmbedder(ImageEmbedderBase):
 
         Every concrete embedder must define how it serialises itself. The
         returned mapping has to contain at least the keys listed in
-        :attr:`_STATE_KEYS` (notably ``"embedder_class"``) so that
-        :meth:`load_from_disk` can validate the file and dispatch it to the
-        right class. Arrays may be embedded as ``__ndarray__`` nodes; the
-        serialization layer stores them as binary tensors.
+        :attr:`_STATE_KEYS`. Arrays may be embedded as ``__ndarray__`` nodes;
+        the serialization layer stores them as binary tensors.
 
         :return: A JSON-safe embedder description suitable for :meth:`from_dict`.
         """

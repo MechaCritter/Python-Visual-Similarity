@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Every similarity metric now takes a `batch_size` argument, exposes it as the
+  `batch_size` attribute and takes a new value through `set_batch_size`. `-1`
+  processes the whole input as one batch.
+- Serializable embedders store their batch size, so a reloaded embedder runs
+  with the batch size it was saved with.
+
+### Changed
+- ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the
+  whole input as one batch.
+- ⚠️ The batch size is a required key of the `.embedder` format, so a file
+  written by an earlier release cannot be loaded by this one.
+
 ## [0.9.2] - 2026-08-26
 
 ### Added

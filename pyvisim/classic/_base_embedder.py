@@ -17,13 +17,15 @@ from ._clustering import PCA, ClusteringModelBase
 
 setup_logging()
 
-_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION = 1
+_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION = 2
 _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
-    # TODO: when the next _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION comes, check if
-    # it's forward / backward compatible, then add entries like:
-    # (1, 2): True,  # version 1 can read files from version 2
+    # Version 2 adds the "batch_size" key, which version 1 ignores but version 2
+    # requires, so the compatibility only holds in one direction.
+    (1, 2): True,  # version 1 can read files from version 2
+    (2, 1): False,  # version 2 cannot read files from version 1
     #
-    # However, (2, 1) might not be True!!
+    # TODO: when the next _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION comes, check if
+    # it's forward / backward compatible, then add entries like the ones above.
 }
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
 
@@ -116,6 +118,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             "flatten",
             "raise_error_when_pca_incompatible",
             "similarity_func",
+            "batch_size",
             "feature_extractor",
         }
     )
@@ -392,6 +395,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             "flatten": self.flatten,
             "raise_error_when_pca_incompatible": self.raise_error_when_pca_incompatible,
             "similarity_func": self._similarity_func_name,
+            "batch_size": self.batch_size,
             "feature_extractor": self._feature_extractor.to_dict(),
         }
 
@@ -411,6 +415,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
                 "raise_error_when_pca_incompatible"
             ],
         )
+        embedder._restore_batch_size(state)
         if state["pca"] is not None:
             embedder._set_pca(PCA.from_dict(state["pca"]))
         embedder._set_clustering_model(

@@ -89,10 +89,11 @@ class PSNR(SimilarityMetric):
     environment variable to override the team size.
 
     :param batch_size: Maximum number of images per batch processed in one
-        kernel call. ``None`` (default) processes each full batch at once,
+        kernel call. ``-1`` (default) processes each full batch at once,
         which is fastest; set a smaller value to bound the peak memory of the
         kernel's per-pair block sums for very large batches.
-    :raises ValueError: If ``batch_size`` is not ``None`` or a positive integer.
+    :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
+        integer.
 
     Example:
 
@@ -103,12 +104,8 @@ class PSNR(SimilarityMetric):
     array([[inf]])
     """
 
-    def __init__(self, batch_size: int | None = None) -> None:
-        if batch_size is not None and batch_size < 1:
-            raise ValueError(
-                f"batch_size must be a positive integer, got {batch_size}."
-            )
-        self._batch_size = batch_size
+    def __init__(self, batch_size: int = -1) -> None:
+        super().__init__(batch_size=batch_size)
 
     def similarity_score(
         self,
@@ -144,8 +141,9 @@ class PSNR(SimilarityMetric):
         )
         if scores.size == 0:
             return scores
-        step1 = self._batch_size or len(batch1)
-        step2 = self._batch_size or len(batch2)
+        whole_input = self._batch_size == -1
+        step1 = len(batch1) if whole_input else self._batch_size
+        step2 = len(batch2) if whole_input else self._batch_size
         for start1 in range(0, len(batch1), step1):
             chunk1 = batch1[start1 : start1 + step1]
             for start2 in range(0, len(batch2), step2):
@@ -156,4 +154,4 @@ class PSNR(SimilarityMetric):
         return scores
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(batch_size={self._batch_size!r})"
+        return f"{self.__class__.__name__}(batch_size={self.batch_size})"

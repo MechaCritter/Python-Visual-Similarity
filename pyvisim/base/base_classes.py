@@ -88,24 +88,6 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor positive.
     """
 
-    def __init__(self, batch_size: int = -1):
-        # Assign via the property setter to trigger validation.
-        self.batch_size = batch_size
-
-    @property
-    def batch_size(self) -> int:
-        """Maximum number of image pairs scored per chunk (``-1`` = no limit)."""
-        return self._batch_size
-
-    @batch_size.setter
-    def batch_size(self, batch_size: int) -> None:
-        if batch_size != -1 and batch_size < 1:
-            raise ValueError(
-                "batch_size must be -1 (score the whole input as one batch) "
-                f"or a positive integer, got {batch_size}."
-            )
-        self._batch_size = batch_size
-
     def similarity_score(
         self,
         image1: ImageInput,

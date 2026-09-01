@@ -195,14 +195,32 @@ def test_empty_input_yields_an_empty_matrix(checkerboard_image: ImageObj) -> Non
     assert scores.shape == (0, 1)
 
 
-@pytest.mark.parametrize("batch_size", [0, -1])
+@pytest.mark.parametrize("batch_size", [0, -2])
 def test_invalid_batch_size_raises(batch_size: int) -> None:
-    """``batch_size`` must be ``None`` or a positive integer."""
+    """``batch_size`` must be ``-1`` or a positive integer."""
     with pytest.raises(ValueError, match="batch_size must be a positive integer"):
         PSNR(batch_size=batch_size)
 
 
+def test_batch_size_none_is_rejected() -> None:
+    """``None`` no longer spells "one batch"; ``-1`` does."""
+    with pytest.raises(ValueError, match="batch_size must be an integer"):
+        PSNR(batch_size=None)  # type: ignore[arg-type]
+
+
+def test_set_batch_size_changes_chunking(
+    checkerboard_image: ImageObj, noisy_checkerboard_image: ImageObj
+) -> None:
+    """``set_batch_size`` rechunks the metric without changing its scores."""
+    images = [checkerboard_image.array, noisy_checkerboard_image.array]
+    metric = PSNR()
+    whole = metric.similarity_score(images, images)
+    metric.set_batch_size(1)
+    assert metric.batch_size == 1
+    np.testing.assert_array_equal(whole, metric.similarity_score(images, images))
+
+
 def test_repr() -> None:
     """The repr states the configured batch size."""
-    assert repr(PSNR()) == "PSNR(batch_size=None)"
+    assert repr(PSNR()) == "PSNR(batch_size=-1)"
     assert repr(PSNR(batch_size=4)) == "PSNR(batch_size=4)"

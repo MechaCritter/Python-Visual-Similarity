@@ -44,7 +44,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 #: On-disk format version of the serialised CLIP embedder state.
-_CLIP_EMBEDDER_FORMAT_VERSION = 1
+_CLIP_EMBEDDER_FORMAT_VERSION = 2
 
 
 def _build_preprocess(
@@ -132,7 +132,7 @@ class ClipEmbedder(SerializableImageEmbedder):
 
     #: Keys a serialised state must contain to be a valid embedder file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func", "config", "state_dict"}
+        {"embedder_class", "similarity_func", "batch_size", "config", "state_dict"}
     )
 
     def __init__(
@@ -213,6 +213,7 @@ class ClipEmbedder(SerializableImageEmbedder):
             "format_version": _CLIP_EMBEDDER_FORMAT_VERSION,
             "embedder_class": type(self).__name__,
             "similarity_func": self._similarity_func_name,
+            "batch_size": self.batch_size,
             "config": {
                 "variant": self._variant,
                 "pretrained": self._pretrained,
@@ -227,6 +228,7 @@ class ClipEmbedder(SerializableImageEmbedder):
         cls._reject_unsupported_kwargs(kwargs)
         embedder = cls._from_config(state["config"])
         embedder.similarity_func = state["similarity_func"]
+        embedder._restore_batch_size(state)
         embedder._model.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder
 

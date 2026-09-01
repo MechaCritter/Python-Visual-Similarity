@@ -11,7 +11,7 @@ from ..typing import (
 from ..utils.image_utils import iter_images
 
 #: On-disk format version of the serialised pipeline state.
-_PIPELINE_FORMAT_VERSION = 1
+_PIPELINE_FORMAT_VERSION = 2
 
 
 class Pipeline(SerializableImageEmbedder):
@@ -32,7 +32,7 @@ class Pipeline(SerializableImageEmbedder):
 
     #: Keys a serialised state must contain to be a valid pipeline file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "classic", "similarity_func"}
+        {"embedder_class", "classic", "similarity_func", "batch_size"}
     )
 
     def __init__(
@@ -63,6 +63,7 @@ class Pipeline(SerializableImageEmbedder):
             "embedder_class": type(self).__name__,
             "classic": [embedder.to_dict() for embedder in self.embedders],
             "similarity_func": self._similarity_func_name,
+            "batch_size": self.batch_size,
         }
 
     @classmethod
@@ -75,7 +76,9 @@ class Pipeline(SerializableImageEmbedder):
             cast(SerializableImageEmbedder, embedder_from_dict(embedder_state))
             for embedder_state in state["classic"]
         ]
-        return cls(embedders, similarity_func=state["similarity_func"])
+        pipeline = cls(embedders, similarity_func=state["similarity_func"])
+        pipeline._restore_batch_size(state)
+        return pipeline
 
     def embed(
         self,
