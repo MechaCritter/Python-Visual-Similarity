@@ -1,6 +1,7 @@
 import abc
 import logging
 import pathlib
+from collections.abc import Sequence
 from typing import Any, ClassVar, TypeVar
 
 import numpy as np
@@ -145,6 +146,35 @@ class FeatureExtractorBase(abc.ABC):
         :return: Feature descriptors (NumPy array).
         """
         pass
+
+    def extract_batch(
+        self,
+        images: Sequence[MatLike],
+        /,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> list[Float32NumpyArray]:
+        """
+        Extracts features from a batch of images.
+
+        Returns one ``(N_i, D)`` feature array per image, in input order, since
+        the number of descriptors an image yields varies from image to image.
+        This default implementation extracts one image at a time; extractors
+        that can do the whole batch in one go (e.g. a single forward pass
+        through a neural network) override it.
+
+        :param images: Batch of images, each a ``MatLike`` (NumPy array, torch
+            tensor or array-like) normalized to a canonical ``uint8``
+            ``(H, W, C)`` image before extraction.
+        :param dims: Axis-label string, one character per array axis in order:
+            ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels.
+            It applies to every image of the batch. See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in;
+            converted into the canonical ``[0, 255]`` range.
+        :return: One ``(N_i, D)`` feature array per input image.
+        """
+        return [self(image, dims=dims, value_range=value_range) for image in images]
 
     @property
     @abc.abstractmethod

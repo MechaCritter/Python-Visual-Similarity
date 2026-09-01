@@ -8,6 +8,12 @@
   processes the whole input as one batch.
 - Serializable embedders store their batch size, so a reloaded embedder runs
   with the batch size it was saved with.
+- `VLADEmbedder` and `FisherVectorEmbedder` take a `batch_size`. The images of
+  a batch are extracted, reduced, assigned and normalized as one matrix instead
+  of one image at a time; `1` (the default) keeps walking the input as a stream.
+- `FeatureExtractorBase.extract_batch` extracts a batch of images and returns
+  one feature array per image. Extractors that can do a whole batch in one go
+  override it; the default extracts one image at a time.
 
 ### Changed
 - ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the

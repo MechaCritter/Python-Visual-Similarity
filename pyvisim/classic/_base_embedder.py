@@ -1,4 +1,5 @@
 import warnings
+from collections.abc import Iterator
 from typing import Any, ClassVar, TypeVar
 
 import numpy as np
@@ -9,10 +10,12 @@ from .._errors import NotFittedError
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
 from ..typing import (
+    Float32NumpyArray,
     FloatNumpyArray,
     ImageInput,
+    IntNumpyArray,
 )
-from ..utils.image_utils import iter_images
+from ..utils.image_utils import iter_image_batches
 from ._clustering import PCA, ClusteringModelBase
 
 setup_logging()
@@ -40,15 +43,20 @@ class FeatureBasedEmbedder(SerializableImageEmbedder):
         ``__call__``). Defaults to :class:`~pyvisim.features.RootSIFT`.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param batch_size: Number of images whose features are extracted together.
+        ``1`` (default) walks the input one image at a time, so an iterable of
+        images stays a stream; ``-1`` processes the whole input as one batch.
     """
 
     def __init__(
         self,
         feature_extractor: FeatureExtractorBase | None = None,
         similarity_func: str = "cosine",
+        *,
+        batch_size: int = 1,
     ):
         self._feature_extractor: FeatureExtractorBase
-        super().__init__(similarity_func=similarity_func)
+        super().__init__(similarity_func=similarity_func, batch_size=batch_size)
         self.feature_extractor = (
             feature_extractor if feature_extractor is not None else RootSIFT()
         )
@@ -102,7 +110,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     :param pca: PCA model for dimensionality reduction (optional). Subclasses build
     it from the ``pca_params`` dictionary passed to their constructors.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
-                                        than the PCA model's output size, an Error will be raised"""
+                                        than the PCA model's output size, an Error will be raised
+    :param batch_size: Number of images whose features are extracted, projected
+    and embedded together. ``-1`` processes the whole input as one batch."""
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
 
@@ -134,6 +144,8 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         flatten: bool = True,
         pca: PCA | None = None,
         raise_error_when_pca_incompatible: bool = True,
+        *,
+        batch_size: int = 1,
     ):
         # Set important attributes via setters to trigger error handling
         self._clustering_model: ClusteringModelBase | None = None
@@ -148,7 +160,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         # The feature extractor setter validates against the (currently unset)
         # PCA / clustering model, so both must already exist as ``None`` above.
         super().__init__(
-            feature_extractor=feature_extractor, similarity_func=similarity_func
+            feature_extractor=feature_extractor,
+            similarity_func=similarity_func,
+            batch_size=batch_size,
         )
 
         if pca is not None:
@@ -268,6 +282,40 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
 
         self._pca = pca
 
+    def _iter_descriptor_batches(
+        self,
+        images: ImageInput,
+        *,
+        dims: str,
+        value_range: tuple[float, float],
+    ) -> Iterator[tuple[Float32NumpyArray, IntNumpyArray]]:
+        """
+        Generator that yields the stacked descriptors of one image batch at a
+        time.
+
+        Every image of a batch reaches the feature extractor in a single
+        :meth:`~pyvisim._base_classes.FeatureExtractorBase.extract_batch` call,
+        and the descriptors it returns are concatenated into one ``(N, D)``
+        array. Whatever runs next (the PCA, the clustering model) therefore
+        sees the batch as one matrix instead of one image at a time. The
+        descriptors are the raw extractor output: the PCA is left to
+        :meth:`_project`, since :meth:`learn` has to fit it on them first.
+        """
+        for batch in iter_image_batches(
+            images, self.batch_size, dims=dims, value_range=value_range
+        ):
+            # The batch holds canonical uint8 (H, W[, C]) images already, so
+            # the extractor is called with the default dims and value range.
+            per_image = self.feature_extractor.extract_batch(batch)
+            counts = np.array([len(features) for features in per_image], dtype=np.intp)
+            yield np.concatenate(per_image), counts
+
+    def _project(self, descriptors: FloatNumpyArray) -> FloatNumpyArray:
+        """Reduces descriptors with the configured PCA, if there is one."""
+        if self.pca:
+            return self.pca.transform(descriptors.astype(np.float32))
+        return descriptors
+
     def learn(
         self,
         images: ImageInput,
@@ -280,8 +328,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         """
         Learns the visual vocabulary from the given images.
 
-        The clustering model configured at initialization (with the
-        scikit-learn parameters passed to the embedder constructor) is fitted
+        The clustering model configured at initialization is fitted
         on the extracted features. If a PCA model is configured, the features
         are reduced with it first (fitting it beforehand if necessary).
 
@@ -312,8 +359,10 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             )
         features: FloatNumpyArray = np.vstack(
             [
-                self.feature_extractor(image)
-                for image in iter_images(images, dims=dims, value_range=value_range)
+                descriptors
+                for descriptors, _ in self._iter_descriptor_batches(
+                    images, dims=dims, value_range=value_range
+                )
             ]
         )
         print("[INFO] Learning the visual vocabulary with the following parameters:")
