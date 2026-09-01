@@ -82,65 +82,23 @@ print(f"Similarity Score: {similarity_score}")
 #### Image retrieval:
 
 ```python
-TODO: fill in after "encoder" API change
+from pyvisim.neural_networks import ClipEmbedder
+from pyvisim.image_store import InMemoryImageEmbeddingStore
+
+embedder = ClipEmbedder()
+
+image_store = InMemoryImageEmbeddingStore(
+    image_paths=train_image_paths,
+    embedder=embedder,
+    search_index="hnsw",
+    index_params={"m": 16, "ef_construction": 200},
+)
+
+candidates = image_store.retrieve_top_k_similar(image, k=5)[0] # returns a tuple of (image_path, similarity_score)
 ```
 
-You can also visit the [introduction notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/getting_started.ipynb) for more examples.
-
-1. **Image Retrieval**  
-   Retrieve the top-k most similar images from a dataset.  
-   - Use embedding methods like VLAD or Fisher Vectors to quickly find the most relevant matches. Please visit
-   [this juptyer notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/vlad_and_fisher_with_vgg16_deep_features.ipynb) for an example.
-   - For large galleries, build an `InMemoryImageEmbeddingStore` over your image paths;
-     it indexes the embeddings and searches them for you:
-
-     ```python
-     from pyvisim.image_store import InMemoryImageEmbeddingStore
-
-     store = InMemoryImageEmbeddingStore(
-         gallery_paths, embedder, "hnsw",
-         space="cosine", index_params={"m": 32},
-     )
-     results = store.retrieve_top_k_similar(query_images, k=5)
-     ```
-     See the [image similarity retrieval docs](docs/image_similarity_retrieval/README.md) for more information.
-   - Example use: Building a fast image search engine for photo management software.
-
-2. **Deep Learning Embeddings**  
-   - Generate VLAD or Fisher vectors from neural network embeddings, e.g., VGG16 or other models.
-   - Enhance your deep learning pipeline by leveraging traditional embedding methods on top of CNN features.
-   - Or skip the aggregation entirely and use `ClipEmbedder` (in `pyvisim.neural_networks`)
-   for ready-made CLIP embeddings, loaded straight from OpenAI's official checkpoints.
-   - The VGG16 deep-feature path (`DeepConvFeature`) and `ClipEmbedder` both need the `nn`
-   extra: `pip install "pyvisim[nn]"`.
-
-3. **Image Clustering**  
-   - Cluster images based on their similarities to group them by category or content. An example and benchmarking
-    can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/clustering_images_using_fv.ipynb).
-   - Useful for organizing unlabeled data or generating pseudo-labels for further training.
-
-4. **Pipeline for Combining Multiple Embedders**  
-   - Chain various embedders in a single pipeline. An example can be found in [this notebook](https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/pipeline.ipynb).
-   - Achieve more robust similarity metrics by blending different feature representations.
-
-5. **Siamese Networks**  
-   - Learn a similarity function directly from pairs of images with a Siamese network (needs the `nn` extra: `pip install "pyvisim[nn]"`).
-   - Two variants are available: `ContrastiveSiameseNetwork` compares L2-normalized embeddings with a fixed
-   metric and trains with the bundled `ContrastiveLoss` (Hadsell, Chopra & LeCun, 2006), while
-   `BCESiameseNetwork` learns the comparison itself and returns the probability that two images
-   show the same class (Koch et al., 2015). Both come with a ready-to-run training script:
-
-     ```python
-     from pyvisim.neural_networks import ContrastiveSiameseNetwork, BCESiameseNetwork
-
-     model = ContrastiveSiameseNetwork(backbone="resnet18", embedding_dim=128)
-     score = model.similarity_score(image1, image2)  # cosine similarity in [-1, 1]
-
-     classifier = BCESiameseNetwork(backbone="resnet18", embedding_dim=128)
-     probability = classifier.similarity_score(image1, image2)  # P(same class) in (0, 1)
-     ```
-     See the [neural networks docs](docs/neural_networks/README.md) for more details.
-   - Possible use cases include face recognition, signature verification, or any image-based identity matching.
+For more examples, please refer to the [`pyvisim` Examples
+Repository](https://github.com/MechaCritter/Python-Visual-Similarity-Examples).
 
 ## Installation
 
@@ -155,8 +113,6 @@ Additional features include (note: these pull in heavy dependencies like `torch`
 ```bash
 # For deep learning features and the OxfordFlowerDataset
 pip install "pyvisim[nn]"
-# For image search feature
-pip install "pyvisim[search]"
 ```
 
 All experiments in this project was made on the Oxford Flower Dataset
@@ -192,19 +148,3 @@ You are welcome to implement any of these features or suggest new ones!
 
 ## License
 This project is licensed under the terms of the MIT license.
-
-## References
-
-[1] Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng, "Refining Deep Convolutional Features for
-Improving Fine-Grained Image Recognition," EURASIP Journal on Image and Video Processing, 2017. \
-[2] Relja Arandjelović and Andrew Zisserman, 'All About VLAD', Department of Engineering Science, University of Oxford. \
-[3] E. Spyromitros-Xioufis, S. Papadopoulos, I. Kompatsiaris, G. Tsoumakas, and I. Vlahavas, "An Empirical Study on the
-Combination of SURF Features with VLAD Vectors for Image Search," Informatics and Telematics Institute, Center for Research and
-Technology Hellas, Thessaloniki, Greece; Department of Informatics, Aristotle University of Thessaloniki, Greece. \
-[4] Relja Arandjelović and Andrew Zisserman, "Three things everyone should know to improve object retrieval," Department of  
-Engineering Science, University of Oxford. \
-[5] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid, "Aggregating Local
-Image Descriptors into Compact Codes," IEEE. \
-[6] Liangliang Wang and Deepu Rajan, "An Image Similarity Descriptor for Classification Tasks," J. Vis. Commun.
-Image R., vol. 71, pp. 102847, 2020. \
-[7] [Oxford Flower Dataset](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/).
