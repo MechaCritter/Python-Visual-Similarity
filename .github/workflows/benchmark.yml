@@ -1,8 +1,9 @@
 name: Benchmarks
 
-# Regenerates the docs benchmark barplots and publishes them to the orphan
-# 'benchmark-assets' branch. The 'Docs' workflow overlays that branch onto the
-# GitHub Pages site. Trigger it from the Actions
+# Regenerates the docs benchmark barplots and publishes them under 'benchmark/'
+# on the orphan 'assets' branch, which holds every binary the repository serves
+# but does not track on 'main'. The 'Docs' workflow overlays that folder onto
+# the GitHub Pages site. Trigger it from the Actions
 # tab (or run it locally with `act`) whenever the benchmark numbers change.
 on:
   workflow_dispatch:
@@ -13,7 +14,7 @@ permissions:
 
 # Serialize publishes so concurrent runs cannot race on the assets branch.
 concurrency:
-  group: benchmark-assets
+  group: assets
   cancel-in-progress: false
 
 env:
@@ -59,23 +60,40 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Publish barplots to the benchmark-assets branch
+      # The branch is republished as a single orphan commit so that rewriting
+      # binaries never grows its history. Whatever the branch already carries is
+      # fetched first, so assets other than 'benchmark/' survive the push.
+      - name: Publish barplots to the assets branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          staging="$(mktemp -d)"
-          find docs -path '*/benchmarks/*_runtime_barplot.png' -exec cp -v {} "$staging/" \;
-          if [ -z "$(ls -A "$staging")" ]; then
+          barplots="$(mktemp -d)"
+          find docs -path '*/benchmarks/*_runtime_barplot.png' -exec cp -v {} "$barplots/" \;
+          if [ -z "$(ls -A "$barplots")" ]; then
             echo "No barplots were produced; nothing to publish." >&2
             exit 1
           fi
+
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          staging="$(mktemp -d)"
           cd "$staging"
-          git init -q -b benchmark-assets
+          if git ls-remote --exit-code --heads "$remote" assets >/dev/null 2>&1; then
+            git init -q
+            git fetch -q --depth=1 "$remote" assets
+            git reset -q --hard FETCH_HEAD
+            # Drop the fetched history: the shallow parent cannot be pushed, and
+            # the branch is meant to keep only its latest state anyway.
+            rm -rf .git
+          fi
+
+          rm -rf benchmark
+          mkdir -p benchmark
+          cp "$barplots"/*.png benchmark/
+
+          git init -q -b assets
           git add -A
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -q -m "Publish benchmark barplots (${GITHUB_SHA})"
-          git push -f \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            HEAD:benchmark-assets
+          git push -f "$remote" HEAD:assets
