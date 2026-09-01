@@ -7,8 +7,9 @@ from .._base_classes import SerializableImageEmbedder
 from ..typing import (
     FloatNumpyArray,
     ImageInput,
+    UInt8NumpyArray,
 )
-from ..utils.image_utils import iter_images
+from ..utils.image_utils import iter_image_batches
 
 #: On-disk format version of the serialised pipeline state.
 _PIPELINE_FORMAT_VERSION = 2
@@ -26,6 +27,9 @@ class Pipeline(SerializableImageEmbedder):
     :param embedders: A list of SerializableImageEmbedder instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param batch_size: Number of images handed to the embedders at a time.
+        ``-1`` (default) hands them the whole input at once. Each embedder
+        still applies its own batch size within a batch of this one.
     """
 
     _logger = logging.getLogger("Pipeline")
@@ -39,10 +43,12 @@ class Pipeline(SerializableImageEmbedder):
         self,
         embedders: list[SerializableImageEmbedder],
         similarity_func: str = "cosine",
+        *,
+        batch_size: int = -1,
     ):
         self._check_valid_embedders(embedders)
         self.embedders = embedders
-        super().__init__(similarity_func=similarity_func)
+        super().__init__(similarity_func=similarity_func, batch_size=batch_size)
 
     def _check_valid_embedders(
         self, embedders: list[SerializableImageEmbedder]
@@ -87,7 +93,22 @@ class Pipeline(SerializableImageEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        image_list = list(iter_images(images, dims=dims, value_range=value_range))
+        all_embeddings = [
+            self._embed_batch(batch)
+            for batch in iter_image_batches(
+                images, self.batch_size, dims=dims, value_range=value_range
+            )
+        ]
+        return np.vstack(all_embeddings)
+
+    def _embed_batch(self, batch: list[UInt8NumpyArray]) -> FloatNumpyArray:
+        """
+        Embeds one batch of images with every embedder and joins the results.
+
+        :param batch: Canonical ``uint8`` images of shape ``(H, W[, C])``.
+        :return: A ``(len(batch), total_feature_dim)`` array holding the
+            embedders' vectors side by side, in the pipeline's order.
+        """
         all_embeddings = []
         for metric in self.embedders:
             # Each embedder has to be flattened to be usable here. Embedders that
@@ -97,12 +118,12 @@ class Pipeline(SerializableImageEmbedder):
             if has_flatten:
                 original_flatten = metric.flatten  # type: ignore[attr-defined]
                 metric.flatten = True  # type: ignore[attr-defined]
-            embeddings = metric.embed(
-                image_list
-            )  # Each of size (num_imgs, feature_dim)
-            all_embeddings.append(embeddings)
-            if has_flatten:
-                metric.flatten = original_flatten  # type: ignore[attr-defined]
+            try:
+                # Each of size (num_imgs, feature_dim)
+                all_embeddings.append(metric.embed(batch))
+            finally:
+                if has_flatten:
+                    metric.flatten = original_flatten  # type: ignore[attr-defined]
         return np.hstack(all_embeddings)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:

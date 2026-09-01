@@ -21,6 +21,8 @@
   `BCESiameseNetwork` take a `batch_size` that splits their forward passes and
   bounds the activation memory of each. `-1` (the default) keeps embedding the
   whole input in one pass.
+- `Pipeline` takes a `batch_size` bounding how many images it hands its
+  embedders at a time. Each embedder still applies its own batch size within.
 
 ### Changed
 - ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the
