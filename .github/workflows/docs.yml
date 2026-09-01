@@ -48,20 +48,27 @@ jobs:
       - name: Build HTML documentation
         run: uv run --group docs sphinx-build -W -b html docs/sphinx docs/sphinx/_build/html
 
-      # The 'Benchmarks' workflow publishes them to the orphan
-      # 'benchmark-assets' branch, and they are overlaid here so the absolute
+      # The 'Benchmarks' workflow publishes them under 'benchmark/' on the
+      # orphan 'assets' branch, and they are overlaid here so the absolute
       # '_IMAGE_BASE_URL' links in the docs resolve..
       - name: Overlay benchmark barplots from the assets branch
         run: |
           set -euo pipefail
           dest="docs/sphinx/_build/html/benchmarks"
-          if git ls-remote --exit-code --heads origin benchmark-assets >/dev/null 2>&1; then
-            git fetch --depth=1 origin benchmark-assets
+          if git ls-remote --exit-code --heads origin assets >/dev/null 2>&1; then
+            git fetch --depth=1 origin assets
+            if ! git ls-tree --name-only FETCH_HEAD benchmark | grep -q .; then
+              echo "::notice::The assets branch carries no 'benchmark/' folder yet."
+              exit 0
+            fi
             mkdir -p "$dest"
-            git archive FETCH_HEAD | tar -x -C "$dest"
+            # Only the 'benchmark/' folder belongs on Pages; the branch may
+            # carry unrelated binaries. '--strip-components=1' drops that
+            # prefix so the published URLs stay under '/benchmarks/'.
+            git archive FETCH_HEAD benchmark | tar -x --strip-components=1 -C "$dest"
             echo "Overlaid $(find "$dest" -type f | wc -l) benchmark image(s)."
           else
-            echo "::notice::No benchmark-assets branch yet. Run the Benchmarks workflow once to generate it."
+            echo "::notice::No assets branch yet. Run the Benchmarks workflow once to generate it."
           fi
 
       - name: Configure GitHub Pages
