@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -11,6 +13,7 @@ from torchvision import transforms
 
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.neural_networks import BCESiameseNetwork
+from pyvisim.neural_networks import backbones as backbones_module
 
 from .._stubs import (
     FlattenBackbone,
@@ -25,6 +28,8 @@ from .._stubs import (
 
 #: Embedding size of the shared ``bce_model`` fixture.
 EMBEDDING_DIM = 4
+
+BATCH_SIZES = [2, 3, 4, 6, 16]
 
 
 def _sigmoid(x: float) -> float:
@@ -325,3 +330,98 @@ def test_flower_similarity_is_symmetric(
     forward_score = bce_model.similarity_score(batch_a, batch_b)
     backward_score = bce_model.similarity_score(batch_b, batch_a)
     assert np.allclose(forward_score, backward_score.T, atol=1e-6)
+
+
+# §8 batching
+
+
+@pytest.fixture
+def sample_images() -> list[np.ndarray]:
+    """Four distinct RGB images, enough for every batch size to split them.
+
+    :return: Four ``(32, 32, 3)`` ``uint8`` arrays.
+    """
+    return [make_random_rgb_image(seed) for seed in (1, 2, 3, 4)]
+
+
+@pytest.mark.parametrize("batch_size", BATCH_SIZES)
+def test_batch_size_does_not_change_the_scores(
+    bce_model: BCESiameseNetwork, sample_images: list[np.ndarray], batch_size: int
+) -> None:
+    """Batching only regroups the forward passes: the matrix stays the same."""
+    bce_model.set_batch_size(1)
+    one_by_one = bce_model.similarity_score(sample_images[:2], sample_images[2:])
+    bce_model.set_batch_size(batch_size)
+    np.testing.assert_allclose(
+        bce_model.similarity_score(sample_images[:2], sample_images[2:]),
+        one_by_one,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+
+
+def test_the_whole_input_as_one_batch_does_not_change_the_scores(
+    bce_model: BCESiameseNetwork, sample_images: list[np.ndarray]
+) -> None:
+    """``-1`` scores the input in one pass, for the same matrix as ``1`` does."""
+    bce_model.set_batch_size(1)
+    one_by_one = bce_model.similarity_score(sample_images[:2], sample_images[2:])
+    bce_model.set_batch_size(-1)
+    np.testing.assert_allclose(
+        bce_model.similarity_score(sample_images[:2], sample_images[2:]),
+        one_by_one,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+
+
+@pytest.mark.parametrize(("n_images", "batch_size"), [(5, 2), (3, 4)])
+def test_the_last_batch_holds_the_remaining_images(
+    bce_model: BCESiameseNetwork,
+    monkeypatch: pytest.MonkeyPatch,
+    n_images: int,
+    batch_size: int,
+) -> None:
+    """The last batch holds ``N % batch_size`` images, however small ``N`` is."""
+    batch_lengths: list[int] = []
+    iter_batches = backbones_module.iter_image_batches
+
+    def record(images: object, size: int, **kwargs: object) -> Iterator[list[object]]:
+        for batch in iter_batches(images, size, **kwargs):  # type: ignore[arg-type]
+            batch_lengths.append(len(batch))
+            yield batch
+
+    monkeypatch.setattr(backbones_module, "iter_image_batches", record)
+    bce_model.set_batch_size(batch_size)
+    images = [make_random_rgb_image(seed) for seed in range(n_images)]
+    bce_model.similarity_score(images, images[:1])
+    # The second (single image) batch adds one full pass of its own.
+    assert batch_lengths[-2] == n_images % batch_size
+    assert sum(batch_lengths) == n_images + 1
+
+
+def test_score_matrix_shape_for_a_single_image(
+    bce_model: BCESiameseNetwork, sample_images: list[np.ndarray]
+) -> None:
+    """A single image keeps its own row of the matrix."""
+    assert bce_model.similarity_score(sample_images[:1], sample_images[:2]).shape == (
+        1,
+        2,
+    )
+
+
+def test_scoring_nothing_raises(
+    bce_model: BCESiameseNetwork, sample_images: list[np.ndarray]
+) -> None:
+    """An input holding no image is an error, not an empty score matrix."""
+    with pytest.raises(ValueError, match="at least one image"):
+        bce_model.similarity_score([], sample_images[:2])
+
+
+def test_batch_size_survives_a_checkpoint_round_trip(tmp_path: Path) -> None:
+    """A saved network comes back with the batch size it was saved with."""
+    network = BCESiameseNetwork(
+        embedding_dim=4, pretrained_backbone=False, batch_size=3
+    )
+    path = network.save_to_disk(tmp_path / "network")
+    assert BCESiameseNetwork.load_from_disk(path).batch_size == 3
