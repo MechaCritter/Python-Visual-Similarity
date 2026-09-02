@@ -30,6 +30,8 @@
   whole input at once. Pass `batch_size=-1` for the previous behaviour.
 - ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the
   whole input as one batch, and defaults to `16` rather than to the whole input.
+- ⚠️ `PSNR` raises on a batch holding no image instead of returning an empty
+  score matrix, which is what every other metric already did.
 - ⚠️ The batch size is a required key of the `.embedder` format, so a file
   written by an earlier release cannot be loaded by this one.
 
