@@ -43,9 +43,8 @@ class FeatureBasedEmbedder(SerializableImageEmbedder):
         ``__call__``). Defaults to :class:`~pyvisim.features.RootSIFT`.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param batch_size: Number of images whose features are extracted together.
-        ``1`` (default) walks the input one image at a time, so an iterable of
-        images stays a stream; ``-1`` processes the whole input as one batch.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     """
 
     def __init__(
@@ -53,7 +52,7 @@ class FeatureBasedEmbedder(SerializableImageEmbedder):
         feature_extractor: FeatureExtractorBase | None = None,
         similarity_func: str = "cosine",
         *,
-        batch_size: int = 1,
+        batch_size: int = 16,
     ):
         self._feature_extractor: FeatureExtractorBase
         super().__init__(similarity_func=similarity_func, batch_size=batch_size)
@@ -111,8 +110,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     it from the ``pca_params`` dictionary passed to their constructors.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, an Error will be raised
-    :param batch_size: Number of images whose features are extracted, projected
-    and embedded together. ``-1`` processes the whole input as one batch."""
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
+    """
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
 
@@ -145,7 +145,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         pca: PCA | None = None,
         raise_error_when_pca_incompatible: bool = True,
         *,
-        batch_size: int = 1,
+        batch_size: int = 16,
     ):
         # Set important attributes via setters to trigger error handling
         self._clustering_model: ClusteringModelBase | None = None

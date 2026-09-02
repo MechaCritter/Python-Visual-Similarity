@@ -63,9 +63,11 @@ def iter_image_batches(
     a whole. The last batch may be shorter than ``batch_size``; an input
     holding no image yields no batch at all.
 
+    ``batch_size=-1`` yields the whole input as a single batch.
+
     :param images: A single ``MatLike`` object or an iterable of ``MatLike`` images.
-    :param batch_size: Number of images per batch, or ``-1`` to yield the whole
-        input as a single batch.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :param dims: Axis-label string, one character per array axis in order:
         ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
         (e.g. RGB), ``"B"`` = batch size. See :mod:`pyvisim.typing`.

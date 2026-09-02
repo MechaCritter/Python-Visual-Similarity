@@ -39,8 +39,8 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param batch_size: Number of images per forward pass. ``-1`` (default)
-        embeds the whole input in a single pass.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     """
 
     #: Keys a serialised state must contain to be a valid embedder file.
@@ -49,7 +49,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     )
 
     def __init__(
-        self, similarity_func: str = "cosine", *, batch_size: int = -1
+        self, similarity_func: str = "cosine", *, batch_size: int = 16
     ) -> None:
         # torch.nn.Module.__init__ creates the attribute dicts that its
         # __setattr__ relies on, so it has to run before anything is assigned.

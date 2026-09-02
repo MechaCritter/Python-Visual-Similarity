@@ -56,8 +56,8 @@ class ContrastiveSiameseNetwork(BackboneWithHead):
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``ContrastiveSiameseNetwork`` from a
         checkpoint, set this to ``False`` to avoid downloading the weights again.
-    :param batch_size: Number of images per forward pass. ``-1`` (default)
-        embeds the whole input in a single pass.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``embedding_dim`` is not a positive integer, if
         ``backbone`` is not a supported backbone name, or if ``similarity_func``
         is not a supported similarity metric.
@@ -72,7 +72,7 @@ class ContrastiveSiameseNetwork(BackboneWithHead):
         device: str | torch.device = "cpu",
         pretrained_backbone: bool = True,
         *,
-        batch_size: int = -1,
+        batch_size: int = 16,
     ):
         super().__init__(
             backbone=backbone,

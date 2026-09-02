@@ -31,24 +31,23 @@ class SimilarityMetric(abc.ABC):
     Every metric processes its input in batches. What one batch holds depends
     on the metric (images, image pairs, ...).
 
-    :param batch_size: Number of items processed per batch. ``-1`` (default)
-        processes the whole input as a single batch.
+    Setting ``batch_size=-1`` would treat the whole input as a single batch.
+
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
         integer.
     """
 
     _logger = logging.getLogger("Similarity_Metrics")
 
-    def __init__(self, batch_size: int = -1) -> None:
+    def __init__(self, batch_size: int = 16) -> None:
         self._batch_size: int
         # Assign via the property setter to trigger validation.
         self.batch_size = batch_size
 
     @property
     def batch_size(self) -> int:
-        """
-        Number of items processed per batch (``-1`` = the whole input at once).
-        """
         return self._batch_size
 
     @batch_size.setter
@@ -59,8 +58,8 @@ class SimilarityMetric(abc.ABC):
         """
         Sets the number of items processed per batch.
 
-        :param batch_size: A positive integer, or ``-1`` to process the whole
-            input as a single batch.
+        :param batch_size: Maximum number of images processed in a single
+            batch. Set to ``-1`` to process all images as a single batch.
         :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
             integer.
         """
@@ -221,11 +220,11 @@ class ImageEmbedderBase(SimilarityMetric):
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param batch_size: Number of images embedded per batch. ``-1`` (default)
-        embeds the whole input as a single batch.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     """
 
-    def __init__(self, similarity_func: str = "cosine", *, batch_size: int = -1):
+    def __init__(self, similarity_func: str = "cosine", *, batch_size: int = 16):
         # Set important attributes via setters to trigger error handling
         super().__init__(batch_size=batch_size)
         self._similarity_func: SimilarityFunc
@@ -317,8 +316,8 @@ class SerializableImageEmbedder(ImageEmbedderBase):
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param batch_size: Number of images embedded per batch. ``-1`` (default)
-        embeds the whole input as a single batch.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     """
 
     #: Keys a serialised state must contain to be a valid embedder file.

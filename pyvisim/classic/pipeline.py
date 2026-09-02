@@ -27,9 +27,8 @@ class Pipeline(SerializableImageEmbedder):
     :param embedders: A list of SerializableImageEmbedder instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param batch_size: Number of images handed to the embedders at a time.
-        ``-1`` (default) hands them the whole input at once. Each embedder
-        still applies its own batch size within a batch of this one.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     """
 
     _logger = logging.getLogger("Pipeline")
@@ -44,7 +43,7 @@ class Pipeline(SerializableImageEmbedder):
         embedders: list[SerializableImageEmbedder],
         similarity_func: str = "cosine",
         *,
-        batch_size: int = -1,
+        batch_size: int = 16,
     ):
         self._check_valid_embedders(embedders)
         self.embedders = embedders

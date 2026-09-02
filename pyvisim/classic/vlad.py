@@ -73,8 +73,8 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
-    :param batch_size: Number of images whose features are extracted, projected
-        and encoded together.``-1`` processes the whole input as one batch.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
 
     .. rubric:: References
 
@@ -98,7 +98,7 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         similarity_func: str = "cosine",
         raise_error_when_pca_incompatible: bool = False,
         *,
-        batch_size: int = 1,
+        batch_size: int = 16,
     ) -> None:
         if kmeans_params and "n_clusters" in kmeans_params:
             raise ValueError(

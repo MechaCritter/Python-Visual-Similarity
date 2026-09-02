@@ -112,9 +112,8 @@ class BackboneWithHead(NeuralImageEmbedder):
     :param similarity_func: Name of the built-in similarity metric used to score
         two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
         or ``"manhattan"``.
-    :param batch_size: Number of images per forward pass. ``-1`` (default)
-        embeds the whole input in a single pass; a positive value bounds the
-        activation memory one pass needs.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``embedding_dim`` is not a positive integer, if
         ``backbone`` is not a supported backbone name, or if ``similarity_func``
         is not a supported similarity metric.
@@ -128,7 +127,7 @@ class BackboneWithHead(NeuralImageEmbedder):
         pretrained_backbone: bool = True,
         similarity_func: str = "cosine",
         *,
-        batch_size: int = -1,
+        batch_size: int = 16,
     ):
         super().__init__(similarity_func=similarity_func, batch_size=batch_size)
         if embedding_dim <= 0:

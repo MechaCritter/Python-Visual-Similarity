@@ -114,8 +114,8 @@ class ClipEmbedder(SerializableImageEmbedder):
         is stored in. Defaults to the standard Hub cache
         (``~/.cache/huggingface/hub``), so weights already downloaded via
         open_clip's Hub downloads are reused.
-    :param batch_size: Number of images per forward pass through the image
-        tower. ``-1`` (default) embeds the whole input in a single pass.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``variant``, ``pretrained`` or
         ``similarity_func`` is not supported, or the checkpoint does not
         match the architecture.
@@ -146,7 +146,7 @@ class ClipEmbedder(SerializableImageEmbedder):
         normalize: bool = True,
         similarity_func: str = "cosine",
         cache_dir: str | Path | None = None,
-        batch_size: int = -1,
+        batch_size: int = 16,
     ) -> None:
         super().__init__(similarity_func=similarity_func, batch_size=batch_size)
         self._build(variant, pretrained, device=device, normalize=normalize)

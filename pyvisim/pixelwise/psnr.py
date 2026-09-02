@@ -88,10 +88,8 @@ class PSNR(SimilarityMetric):
     team of four threads by default; set the ``PYVISIM_NUM_THREADS``
     environment variable to override the team size.
 
-    :param batch_size: Maximum number of images per batch processed in one
-        kernel call. ``-1`` (default) processes each full batch at once,
-        which is fastest; set a smaller value to bound the peak memory of the
-        kernel's per-pair block sums for very large batches.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
         integer.
 
@@ -104,7 +102,7 @@ class PSNR(SimilarityMetric):
     array([[inf]])
     """
 
-    def __init__(self, batch_size: int = -1) -> None:
+    def __init__(self, batch_size: int = 16) -> None:
         super().__init__(batch_size=batch_size)
 
     def similarity_score(
