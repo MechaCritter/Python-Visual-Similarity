@@ -1,5 +1,40 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Every similarity metric now takes a `batch_size` argument, exposes it as the
+  `batch_size` attribute and takes a new value through `set_batch_size`. It
+  defaults to `16` everywhere; `-1` turns the splitting off and processes the
+  whole input as one batch, whatever its size.
+- Serializable embedders store their batch size, so a reloaded embedder runs
+  with the batch size it was saved with.
+- `VLADEmbedder` and `FisherVectorEmbedder` take a `batch_size`. The images of
+  a batch are extracted, reduced, assigned and normalized as one matrix instead
+  of one image at a time, and an iterable input stays a stream.
+- `FeatureExtractorBase.extract_batch` extracts a batch of images and returns
+  one feature array per image. Extractors that can do a whole batch in one go
+  override it; the default extracts one image at a time.
+- `DeepConvFeature` pushes a whole batch through its backbone in one forward
+  pass. A custom `transform` that keeps the input size leaves the images
+  unstackable, and they are then extracted one at a time as before.
+- `ClipEmbedder`, `ContrastiveSiameseNetwork`, `TripletNeuralNetwork` and
+  `BCESiameseNetwork` take a `batch_size` that splits their forward passes and
+  bounds the activation memory of each.
+- `Pipeline` takes a `batch_size` bounding how many images it hands its
+  embedders at a time. Each embedder still applies its own batch size within.
+
+### Changed
+- ⚠️ `SSIM` and `MSSSIM` score 16 image pairs per batch instead of two, and
+  the neural embedders now embed 16 images per forward pass instead of the
+  whole input at once. Pass `batch_size=-1` for the previous behaviour.
+- ⚠️ `PSNR` takes `batch_size=-1` instead of `batch_size=None` to score the
+  whole input as one batch, and defaults to `16` rather than to the whole input.
+- ⚠️ `PSNR` raises on a batch holding no image instead of returning an empty
+  score matrix, which is what every other metric already did.
+- ⚠️ The batch size is a required key of the `.embedder` format, so a file
+  written by an earlier release cannot be loaded by this one.
+
 ## [0.9.2] - 2026-08-26
 
 ### Added

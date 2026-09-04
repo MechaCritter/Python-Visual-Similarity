@@ -9,12 +9,34 @@ import numpy as np
 import pytest
 
 from pyvisim.pixelwise import PSNR
+from pyvisim.pixelwise import psnr as psnr_module
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
 
 #: Peak value of the canonical ``uint8`` range, the ``MAX`` of the PSNR formula.
 PEAK_SIGNAL = 255.0
+
+BATCH_SIZES = [2, 3, 4, 6, 16]
+
+
+@pytest.fixture
+def gallery(
+    checkerboard_image: ImageObj,
+    noisy_checkerboard_image: ImageObj,
+    stripes_image: ImageObj,
+    black_image: ImageObj,
+    white_image: ImageObj,
+) -> list[np.ndarray]:
+    """Five distinct images of identical shape, to be batched in every way."""
+    return [
+        checkerboard_image.array,
+        noisy_checkerboard_image.array,
+        stripes_image.array,
+        black_image.array,
+        white_image.array,
+    ]
+
 
 # Scores
 
@@ -116,23 +138,51 @@ def test_score_matrix_shape(
     assert scores[2, 1] == math.inf
 
 
-@pytest.mark.parametrize("batch_size", [1, 2, 5])
+@pytest.mark.parametrize("batch_size", BATCH_SIZES)
 def test_batch_size_does_not_change_scores(
-    checkerboard_image: ImageObj,
-    noisy_checkerboard_image: ImageObj,
-    stripes_image: ImageObj,
+    gallery: list[np.ndarray], batch_size: int
+) -> None:
+    """Chunked scoring returns exactly the matrix of one image per batch."""
+    images1, images2 = gallery[:4], gallery[:2]
+    one_by_one = PSNR(batch_size=1).similarity_score(images1, images2)
+    chunked = PSNR(batch_size=batch_size).similarity_score(images1, images2)
+    np.testing.assert_array_equal(chunked, one_by_one)
+
+
+def test_the_whole_input_as_one_batch_does_not_change_scores(
+    gallery: list[np.ndarray],
+) -> None:
+    """``-1`` scores every pair in one go, for the same matrix as ``1`` does."""
+    images1, images2 = gallery[:4], gallery[:2]
+    one_by_one = PSNR(batch_size=1).similarity_score(images1, images2)
+    whole = PSNR(batch_size=-1).similarity_score(images1, images2)
+    np.testing.assert_array_equal(whole, one_by_one)
+
+
+@pytest.mark.parametrize(("n_images", "batch_size"), [(5, 2), (3, 4)])
+def test_the_last_batch_holds_the_remaining_images(
+    gallery: list[np.ndarray],
+    monkeypatch: pytest.MonkeyPatch,
+    n_images: int,
     batch_size: int,
 ) -> None:
-    """Chunked scoring returns exactly the same matrix as one big batch."""
-    images1 = [
-        checkerboard_image.array,
-        noisy_checkerboard_image.array,
-        stripes_image.array,
-    ]
-    images2 = [checkerboard_image.array, noisy_checkerboard_image.array]
-    whole = PSNR().similarity_score(images1, images2)
-    chunked = PSNR(batch_size=batch_size).similarity_score(images1, images2)
-    np.testing.assert_array_equal(whole, chunked)
+    """The last chunk holds ``N % batch_size`` images, however small ``N`` is."""
+    chunk_sizes: list[int] = []
+    score_chunk = psnr_module._peak_signal_noise_ratio
+
+    def record(batch1: np.ndarray, batch2: np.ndarray) -> np.ndarray:
+        chunk_sizes.append(len(batch1))
+        return score_chunk(batch1, batch2)
+
+    monkeypatch.setattr(psnr_module, "_peak_signal_noise_ratio", record)
+    PSNR(batch_size=batch_size).similarity_score(gallery[:n_images], gallery[:1])
+    assert chunk_sizes[-1] == n_images % batch_size
+    assert sum(chunk_sizes) == n_images
+
+
+def test_score_matrix_shape_for_a_single_image(gallery: list[np.ndarray]) -> None:
+    """A single image keeps its own row of the matrix."""
+    assert PSNR().similarity_score(gallery[:1], gallery[:2]).shape == (1, 2)
 
 
 def test_batched_array_input(
@@ -189,20 +239,25 @@ def test_grayscale_against_rgb_raises(checkerboard_image: ImageObj) -> None:
         PSNR().similarity_score(checkerboard_image.array, rgb)
 
 
-def test_empty_input_yields_an_empty_matrix(checkerboard_image: ImageObj) -> None:
-    """An empty batch is a valid gallery of zero images: the matrix has no rows."""
-    scores = PSNR().similarity_score([], checkerboard_image.array)
-    assert scores.shape == (0, 1)
+def test_empty_input_raises(checkerboard_image: ImageObj) -> None:
+    """An empty image collection is rejected."""
+    with pytest.raises(ValueError, match="at least one image"):
+        PSNR().similarity_score([], checkerboard_image.array)
 
 
-@pytest.mark.parametrize("batch_size", [0, -1])
-def test_invalid_batch_size_raises(batch_size: int) -> None:
-    """``batch_size`` must be ``None`` or a positive integer."""
-    with pytest.raises(ValueError, match="batch_size must be a positive integer"):
-        PSNR(batch_size=batch_size)
+def test_set_batch_size_changes_chunking(
+    checkerboard_image: ImageObj, noisy_checkerboard_image: ImageObj
+) -> None:
+    """``set_batch_size`` rechunks the metric without changing its scores."""
+    images = [checkerboard_image.array, noisy_checkerboard_image.array]
+    metric = PSNR()
+    whole = metric.similarity_score(images, images)
+    metric.set_batch_size(1)
+    assert metric.batch_size == 1
+    np.testing.assert_array_equal(whole, metric.similarity_score(images, images))
 
 
 def test_repr() -> None:
     """The repr states the configured batch size."""
-    assert repr(PSNR()) == "PSNR(batch_size=None)"
+    assert repr(PSNR()) == "PSNR(batch_size=16)"
     assert repr(PSNR(batch_size=4)) == "PSNR(batch_size=4)"
