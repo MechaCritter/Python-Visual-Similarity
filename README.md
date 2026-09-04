@@ -12,21 +12,20 @@
 
 # Welcome to `pyvisim`!
 
-`pyvisim` is a Python library for computing image similarities using image embedders
-and neural networks.
+`pyvisim` is a computer vision library for computing image similarities using traditional and deep learning methods.
 
 📚 **Documentation**: <https://mechacritter.github.io/Python-Visual-Similarity/>
 
 ## Table of Contents
 
-1. [Installation](#installation)
-2. [Overview](#overview)
-4. [Contributing](#contributing)
-5. [Get in Touch](#get-in-touch)
-6. [TODO](#todo)
-7. [License](#license)
-8. [References](#references)
-
+- [Status](#status)
+- [Overview](#overview)
+  - [Accelerated Computation](#accelerated-computation)
+  - [Examples](#examples)
+- [Installation](#installation)
+- [Contributing](#contributing)
+- [Get in Touch](#get-in-touch)
+- [License](#license)
 
 ## Status
 
@@ -40,23 +39,23 @@ and neural networks.
 
 ## Overview
 
-TODO: add diagram showing how image embedding works
+![Architecture Diagram](https://raw.githubusercontent.com/MechaCritter/Python-Visual-Similarity/assets/docs/architecture/image_embeddings.drawio.png)
 
 The goal of `pyvisim` is to become the largest collection of image similarity metrics in Python, varying from
 traditional methods like `PSNR`, `SSIM`, `Fisher Vectors`, and `VLAD` to deep learning methods like `CLIP` and `Siamese Networks`. Then, one can use these for image retrieval and clustering.
 
 Currently, one would need to install numerous libraries just to get all the metrics mentioned (for example, `scikit-image` + `opencv-python` for `Fisher Vectors` and `SSIM`, `open-clip` for `CLIP Embedder`). `pyvisim`
-depends on none of those. All the metrics are implemented using only `numpy`, `scipy` (for conventional metrics), and
-`torch` (for deep learning metrics).
+attempts to close this gap by implementing all metrics using only `numpy`, `scipy` (for conventional metrics), and
+`torch` (for deep learning metrics), plus making them more user-friendly with a simple Object-Oriented code design.
 
 ### Accelerated Computation
 
-**Cython** kernels are used for some metrics to accelerate computation significantly compared
+**Cython** kernels and **C++ libraries** are used for some metrics to accelerate computation significantly compared
 to all reference libraries on the CPU. See, for example, [benchmark results of the `SSIM` implementation](docs/structural/README.md#benchmarking).
 
 ### Examples
 
-#### Structural Similarity:
+#### `Structural Similarity` (see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/structural/index.html)):
 
 ```python
 from pyvisim.structural import SSIM
@@ -66,7 +65,7 @@ similarity_score = ssim.similarity_score(image1, image2)
 print(f"Similarity Score: {similarity_score}")
 ```
 
-#### One-Shot similarity computation using the `CLIPEmbedder`:
+#### One-Shot similarity computation using the `CLIPEmbedder`(see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/neural_networks/clip.html)):
 
 ```python
 from pyvisim.neural_networks import ClipEmbedder
@@ -79,7 +78,7 @@ similarity_score = embedder.similarity_score(image1, image2)
 print(f"Similarity Score: {similarity_score}")
 ```
 
-#### Image retrieval:
+#### `Image retrieval` (see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/image_retrieval/image_store.html)):
 
 ```python
 from pyvisim.neural_networks import ClipEmbedder
@@ -102,7 +101,7 @@ Repository](https://github.com/MechaCritter/Python-Visual-Similarity-Examples).
 
 ## Installation
 
-To install the slim version without heavy deep learning stuff, run:
+To install the slim version (**without** deep learning features):
 
 ```bash
 pip install pyvisim
@@ -121,30 +120,13 @@ more details on the dataset, please refer to the [documentation](pyvisim/dataset
 
 ## Contributing
 
-We love contributions of all kinds—whether it’s suggesting new features, fixing bugs, or writing docs! Here’s how you
-can get involved:
-
-1. **Fork** this repository.  
-2. **Create a new branch** for your changes.  
-3. **Open a pull request** with a clear description of your idea or fix.
-
-We welcome all feedback and hope to build a supportive community around pyvisim!
+See [the contributing guidelines](CONTRIBUTING.md).
 
 ## Get in Touch
 If you have any questions or just want to say hi, feel free to:
 - Open an issue on [GitHub](https://github.com/MechaCritter/similarity_metrics_of_images/issues).
 - Write me an email at [vunhathuy234@gmail.com](mailto:vunhathuy234@gmail.com).
 - Connect on [LinkedIn](https://www.linkedin.com/in/nhat-huy-vu-80495111b/) to follow my work and share your thoughts.
-
-## TODO
-
-The features below are planned for future releases:
-
-- Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
-paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>
-- Add support for **vision transformers** for the `DeepConvFeature` class.
-
-You are welcome to implement any of these features or suggest new ones!
 
 ## License
 This project is licensed under the terms of the MIT license.
