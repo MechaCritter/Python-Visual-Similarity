@@ -89,6 +89,38 @@ them upfront to save some time in the CI:
 uv run python .github/scripts/prefetch_assets.py
 ```
 
+## Adding binary files to the docs
+
+Binary files (images, diagrams, screenshots, benchmark barplots) are **not** committed to `main`. They must be committed to the orphan `assets` branch and referenced from the docs and the `README.md` through
+absolute `https://raw.githubusercontent.com/.../assets/...` URLs. This prevents these files from bloating the repository history.
+
+To add new binary files, place them under `docs/<topic>/` on that branch (e.g. `docs/architecture/`).
+
+> [!WARNING]
+> **Do not** add any file under `benchmarks/` as this
+folder is wiped and regenerated on every benchmark run.
+
+In short, you can run the following commands:
+
+```bash
+cd "$(mktemp -d)"
+git clone -q --depth 1 --branch assets https://github.com/MechaCritter/Python-Visual-Similarity.git .
+
+# add/replace whatever images you want here
+mkdir -p docs/<topic> && cp ~/path/to/my-image.png docs/<topic>/
+
+git checkout -q --orphan squashed
+git add -A
+git commit -q -m "Publish assets"
+git push -f origin squashed:assets
+```
+
+Then link the image from the docs or the `README.md`:
+
+```markdown
+![My image](https://raw.githubusercontent.com/MechaCritter/Python-Visual-Similarity/assets/docs/<topic>/my-image.png)
+```
+
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.
