@@ -41,11 +41,11 @@
 
 ![Architecture Diagram](https://raw.githubusercontent.com/MechaCritter/Python-Visual-Similarity/assets/docs/architecture/image_embeddings.drawio.png)
 
-The goal of `pyvisim` is to become the largest collection of image similarity metrics in Python, varying from
+The goal of `pyvisim` is to become the largest collection of image similarity metrics, varying from
 traditional methods like `PSNR`, `SSIM`, `Fisher Vectors`, and `VLAD` to deep learning methods like `CLIP` and `Siamese Networks`. Then, one can use these for image retrieval and clustering.
 
 Currently, one would need to install numerous libraries just to get all the metrics mentioned (for example, `scikit-image` + `opencv-python` for `Fisher Vectors` and `SSIM`, `open-clip` for `CLIP Embedder`). `pyvisim`
-attempts to close this gap by implementing all metrics using only `numpy`, `scipy` (for conventional metrics), and
+attempts to close this gap by implementing as many metrics as possible using only `numpy`, `scipy` (for conventional metrics), and
 `torch` (for deep learning metrics), plus making them more user-friendly with a simple Object-Oriented code design.
 
 ### Accelerated Computation
