@@ -27,3 +27,6 @@ The abstract bases every public class derives from live in two places:
 
 - Move `pyvisim/_base_classes.py` into `pyvisim/base/`, so that all abstract
   bases live in one module.
+- Add **tensor sketch approximation** and **mutual information** analysis for Fisher Vector, according to this
+paper by Weixia Zhang, Jia Yan, Wenxuan Shi, Tianpeng Feng, and Dexiang Deng <sup>[1](#references)</sup>
+- Add support for **vision transformers** for the `DeepConvFeature` class.
