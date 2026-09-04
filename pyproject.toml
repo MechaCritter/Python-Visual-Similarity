@@ -114,6 +114,7 @@ bench = [
     "matplotlib",
     "nbclient",
     "ipykernel",
+    "psutil",
 ]
 
 # Per-platform wheel builds for the compiled extensions, run by the publish

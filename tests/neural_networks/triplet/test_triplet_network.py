@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -12,6 +14,7 @@ from torchvision import transforms
 from pyvisim._errors import InvalidImageError
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.neural_networks import TripletNeuralNetwork
+from pyvisim.neural_networks import backbones as backbones_module
 from pyvisim.neural_networks.losses import TripletLoss
 
 from .._stubs import (
@@ -23,6 +26,8 @@ from .._stubs import (
     make_random_rgb_image,
     make_solid_rgb_image,
 )
+
+BATCH_SIZES = [2, 3, 4, 6, 16]
 
 # §1 construction and backbone resolution
 
@@ -528,3 +533,106 @@ def test_labeled_flower_batch_yields_a_positive_mined_loss(
     loss = TripletLoss(margin=0.5, mining="batch_all")(embeddings, labels)
 
     assert loss.item() > 0
+
+
+# §10 batching
+
+
+@pytest.fixture
+def sample_images() -> list[np.ndarray]:
+    """Four distinct RGB images, enough for every batch size to split them.
+
+    :return: Four ``(32, 32, 3)`` ``uint8`` arrays.
+    """
+    return [make_random_rgb_image(seed) for seed in (1, 2, 3, 4)]
+
+
+@pytest.mark.parametrize("batch_size", BATCH_SIZES)
+def test_batch_size_does_not_change_the_embeddings(
+    triplet_model: TripletNeuralNetwork,
+    sample_images: list[np.ndarray],
+    batch_size: int,
+) -> None:
+    """Batching only regroups the forward passes: the rows stay in place."""
+    triplet_model.set_batch_size(1)
+    one_by_one = triplet_model.embed(sample_images)
+    scores = triplet_model.similarity_score(sample_images[:2], sample_images[2:])
+    triplet_model.set_batch_size(batch_size)
+    np.testing.assert_allclose(
+        triplet_model.embed(sample_images), one_by_one, rtol=1e-6, atol=1e-6
+    )
+    np.testing.assert_allclose(
+        triplet_model.similarity_score(sample_images[:2], sample_images[2:]),
+        scores,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+
+
+def test_the_whole_input_as_one_batch_does_not_change_the_embeddings(
+    triplet_model: TripletNeuralNetwork, sample_images: list[np.ndarray]
+) -> None:
+    """``-1`` embeds the input in one pass, for the same rows as ``1`` does."""
+    triplet_model.set_batch_size(1)
+    one_by_one = triplet_model.embed(sample_images)
+    scores = triplet_model.similarity_score(sample_images[:2], sample_images[2:])
+    triplet_model.set_batch_size(-1)
+    np.testing.assert_allclose(
+        triplet_model.embed(sample_images), one_by_one, rtol=1e-6, atol=1e-6
+    )
+    np.testing.assert_allclose(
+        triplet_model.similarity_score(sample_images[:2], sample_images[2:]),
+        scores,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+
+
+def test_embedding_image_by_image_matches_the_whole_input(
+    triplet_model: TripletNeuralNetwork, sample_images: list[np.ndarray]
+) -> None:
+    """One call per image stacks into what one call over the input returns."""
+    triplet_model.set_batch_size(1)
+    one_at_a_time = np.vstack([triplet_model.embed([image]) for image in sample_images])
+    np.testing.assert_allclose(
+        triplet_model.embed(sample_images), one_at_a_time, rtol=1e-6, atol=1e-6
+    )
+
+
+@pytest.mark.parametrize(("n_images", "batch_size"), [(5, 2), (3, 4)])
+def test_the_last_batch_holds_the_remaining_images(
+    triplet_model: TripletNeuralNetwork,
+    monkeypatch: pytest.MonkeyPatch,
+    n_images: int,
+    batch_size: int,
+) -> None:
+    """The last batch holds ``N % batch_size`` images, however small ``N`` is."""
+    batch_lengths: list[int] = []
+    iter_batches = backbones_module.iter_image_batches
+
+    def record(images: object, size: int, **kwargs: object) -> Iterator[list[object]]:
+        for batch in iter_batches(images, size, **kwargs):  # type: ignore[arg-type]
+            batch_lengths.append(len(batch))
+            yield batch
+
+    monkeypatch.setattr(backbones_module, "iter_image_batches", record)
+    triplet_model.set_batch_size(batch_size)
+    triplet_model.embed([make_random_rgb_image(seed) for seed in range(n_images)])
+    assert batch_lengths[-1] == n_images % batch_size
+    assert sum(batch_lengths) == n_images
+
+
+def test_embedding_matrix_shape_for_a_single_image(
+    triplet_model: TripletNeuralNetwork, sample_images: list[np.ndarray]
+) -> None:
+    """A single image keeps its own row of the embedding matrix."""
+    assert triplet_model.embed(sample_images[:1]).shape == (1, 4)
+
+
+def test_batch_size_survives_a_checkpoint_round_trip(tmp_path: Path) -> None:
+    """A saved network comes back with the batch size it was saved with."""
+    network = TripletNeuralNetwork(
+        embedding_dim=4, pretrained_backbone=False, batch_size=3
+    )
+    path = network.save_to_disk(tmp_path / "network")
+    assert TripletNeuralNetwork.load_from_disk(path).batch_size == 3

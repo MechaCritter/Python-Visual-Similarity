@@ -21,7 +21,7 @@ from ...typing import (
     ImageInput,
     UInt8NumpyArray,
 )
-from ...utils.image_utils import iter_images
+from ...utils.image_utils import iter_image_batches
 from ._registry import (
     CheckpointSpec,
     VisionConfig,
@@ -44,7 +44,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 _torch_import.check()
 
 #: On-disk format version of the serialised CLIP embedder state.
-_CLIP_EMBEDDER_FORMAT_VERSION = 1
+_CLIP_EMBEDDER_FORMAT_VERSION = 2
 
 
 def _build_preprocess(
@@ -114,6 +114,8 @@ class ClipEmbedder(SerializableImageEmbedder):
         is stored in. Defaults to the standard Hub cache
         (``~/.cache/huggingface/hub``), so weights already downloaded via
         open_clip's Hub downloads are reused.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``variant``, ``pretrained`` or
         ``similarity_func`` is not supported, or the checkpoint does not
         match the architecture.
@@ -132,7 +134,7 @@ class ClipEmbedder(SerializableImageEmbedder):
 
     #: Keys a serialised state must contain to be a valid embedder file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func", "config", "state_dict"}
+        {"embedder_class", "similarity_func", "batch_size", "config", "state_dict"}
     )
 
     def __init__(
@@ -144,8 +146,9 @@ class ClipEmbedder(SerializableImageEmbedder):
         normalize: bool = True,
         similarity_func: str = "cosine",
         cache_dir: str | Path | None = None,
+        batch_size: int = 16,
     ) -> None:
-        super().__init__(similarity_func=similarity_func)
+        super().__init__(similarity_func=similarity_func, batch_size=batch_size)
         self._build(variant, pretrained, device=device, normalize=normalize)
         load_vision_weights(
             self._model, fetch_checkpoint(variant, pretrained, cache_dir=cache_dir)
@@ -213,6 +216,7 @@ class ClipEmbedder(SerializableImageEmbedder):
             "format_version": _CLIP_EMBEDDER_FORMAT_VERSION,
             "embedder_class": type(self).__name__,
             "similarity_func": self._similarity_func_name,
+            "batch_size": self.batch_size,
             "config": {
                 "variant": self._variant,
                 "pretrained": self._pretrained,
@@ -227,6 +231,7 @@ class ClipEmbedder(SerializableImageEmbedder):
         cls._reject_unsupported_kwargs(kwargs)
         embedder = cls._from_config(state["config"])
         embedder.similarity_func = state["similarity_func"]
+        embedder._restore_batch_size(state)
         embedder._model.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder
 
@@ -274,6 +279,20 @@ class ClipEmbedder(SerializableImageEmbedder):
         return cast(torch.Tensor, self._transform(pil_image))
 
     @torch.no_grad()
+    def _embed_batch(self, batch: list[UInt8NumpyArray]) -> Float32NumpyArray:
+        """
+        Runs one batch of canonical images through the image tower.
+
+        :param batch: Canonical ``uint8`` images of shape ``(H, W[, C])``.
+        :return: The ``(len(batch), embedding_dim)`` embeddings, L2-normalized
+            when ``normalize`` is on.
+        """
+        tensors = torch.stack([self._preprocess(image) for image in batch])
+        features = self._model(tensors.to(self._device))
+        if self._normalize:
+            features = features / features.norm(dim=-1, keepdim=True)
+        return np.asarray(features.float().cpu().numpy(), dtype=np.float32)
+
     def embed(
         self,
         images: ImageInput,
@@ -281,17 +300,15 @@ class ClipEmbedder(SerializableImageEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        tensors = [
-            self._preprocess(image)
-            for image in iter_images(images, dims=dims, value_range=value_range)
+        embeddings = [
+            self._embed_batch(batch)
+            for batch in iter_image_batches(
+                images, self.batch_size, dims=dims, value_range=value_range
+            )
         ]
-        if not tensors:
+        if not embeddings:
             raise ValueError("Expected at least one image to embed, got none.")
-        batch = torch.stack(tensors).to(self._device)
-        features = self._model(batch)
-        if self._normalize:
-            features = features / features.norm(dim=-1, keepdim=True)
-        return np.asarray(features.float().cpu().numpy(), dtype=np.float32)
+        return np.vstack(embeddings)
 
     def __repr__(self) -> str:
         return (

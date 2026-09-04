@@ -27,7 +27,7 @@ from pyvisim.structural import MSSSIM, SSIM
 ssim = SSIM()
 scores = ssim.similarity_score(image1, image2)       # (1, 1) matrix
 
-msssim = MSSSIM(batch_size=4)
+msssim = MSSSIM(batch_size=16)
 matrix = msssim.similarity_score(gallery, queries)   # (N, M) matrix
 ```
 

@@ -12,6 +12,26 @@ from pyvisim.structural import SSIM
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
 
+BATCH_SIZES = [2, 4, 6, 12, 16]
+
+
+@pytest.fixture
+def gallery(
+    checkerboard_image: ImageObj,
+    noisy_checkerboard_image: ImageObj,
+    stripes_image: ImageObj,
+    black_image: ImageObj,
+    white_image: ImageObj,
+) -> list[np.ndarray]:
+    """Five distinct images of identical shape, to be batched in every way."""
+    return [
+        checkerboard_image.array,
+        noisy_checkerboard_image.array,
+        stripes_image.array,
+        black_image.array,
+        white_image.array,
+    ]
+
 
 # ---------------------------------------------------------------------------
 # Scores
@@ -99,23 +119,52 @@ def test_score_matrix_shape(
     assert scores[2, 1] == pytest.approx(1.0, abs=1e-12)
 
 
-@pytest.mark.parametrize("batch_size", [1, 2, 5])
+@pytest.mark.parametrize("batch_size", BATCH_SIZES)
 def test_batch_size_does_not_change_scores(
-    checkerboard_image: ImageObj,
-    noisy_checkerboard_image: ImageObj,
-    stripes_image: ImageObj,
+    gallery: list[np.ndarray], batch_size: int
+) -> None:
+    """Chunked scoring returns exactly the matrix of one pair per batch."""
+    images1, images2 = gallery[:3], gallery[:2]
+    one_by_one = SSIM(batch_size=1).similarity_score(images1, images2)
+    chunked = SSIM(batch_size=batch_size).similarity_score(images1, images2)
+    np.testing.assert_array_equal(chunked, one_by_one)
+
+
+def test_the_whole_input_as_one_batch_does_not_change_scores(
+    gallery: list[np.ndarray],
+) -> None:
+    """``-1`` scores every pair in one go, for the same matrix as ``1`` does."""
+    images1, images2 = gallery[:3], gallery[:2]
+    one_by_one = SSIM(batch_size=1).similarity_score(images1, images2)
+    whole = SSIM(batch_size=-1).similarity_score(images1, images2)
+    np.testing.assert_array_equal(whole, one_by_one)
+
+
+@pytest.mark.parametrize(("n_pairs", "batch_size"), [(5, 2), (3, 4)])
+def test_the_last_batch_holds_the_remaining_pairs(
+    gallery: list[np.ndarray],
+    monkeypatch: pytest.MonkeyPatch,
+    n_pairs: int,
     batch_size: int,
 ) -> None:
-    """Chunked scoring returns exactly the same matrix as one big batch."""
-    images1 = [
-        checkerboard_image.array,
-        noisy_checkerboard_image.array,
-        stripes_image.array,
-    ]
-    images2 = [checkerboard_image.array, noisy_checkerboard_image.array]
-    whole = SSIM(batch_size=-1).similarity_score(images1, images2)
-    chunked = SSIM(batch_size=batch_size).similarity_score(images1, images2)
-    np.testing.assert_array_equal(whole, chunked)
+    """The last batch holds ``N % batch_size`` pairs, however small ``N`` is."""
+    metric = SSIM(batch_size=batch_size)
+    batch_lengths: list[int] = []
+    score_pairs = metric._score_pairs
+
+    def record(images1: np.ndarray, images2: np.ndarray) -> np.ndarray:
+        batch_lengths.append(len(images1))
+        return score_pairs(images1, images2)
+
+    monkeypatch.setattr(metric, "_score_pairs", record)
+    metric.similarity_score(gallery[:n_pairs], gallery[:1])
+    assert batch_lengths[-1] == n_pairs % batch_size
+    assert sum(batch_lengths) == n_pairs
+
+
+def test_score_matrix_shape_for_a_single_image(gallery: list[np.ndarray]) -> None:
+    """A single image keeps its own row of the matrix."""
+    assert SSIM().similarity_score(gallery[:1], gallery[:2]).shape == (1, 2)
 
 
 def test_batched_array_input(
@@ -166,12 +215,6 @@ def test_mixed_shapes_within_batch_raise(
         )
 
 
-def test_empty_input_raises(checkerboard_image: ImageObj) -> None:
-    """An empty image collection is rejected."""
-    with pytest.raises(ValueError, match="at least one image"):
-        SSIM().similarity_score([], checkerboard_image.array)
-
-
 @pytest.mark.parametrize(
     ("kwargs", "match"),
     [
@@ -180,8 +223,6 @@ def test_empty_input_raises(checkerboard_image: ImageObj) -> None:
         ({"sigma": 0.0}, "sigma"),
         ({"k1": 0.0}, "k1 and k2"),
         ({"k2": -0.03}, "k1 and k2"),
-        ({"batch_size": 0}, "batch_size"),
-        ({"batch_size": -2}, "batch_size"),
     ],
 )
 def test_invalid_parameters_raise(kwargs: dict[str, float], match: str) -> None:
@@ -190,17 +231,14 @@ def test_invalid_parameters_raise(kwargs: dict[str, float], match: str) -> None:
         SSIM(**kwargs)  # type: ignore[arg-type]
 
 
-def test_batch_size_setter_validates() -> None:
-    """Reassigning ``batch_size`` goes through the same validation."""
-    metric = SSIM()
-    metric.batch_size = 4
-    assert metric.batch_size == 4
-    with pytest.raises(ValueError, match="batch_size"):
-        metric.batch_size = 0
+def test_empty_input_raises(checkerboard_image: ImageObj) -> None:
+    """An empty image collection is rejected."""
+    with pytest.raises(ValueError, match="at least one image"):
+        SSIM().similarity_score([], checkerboard_image.array)
 
 
 def test_repr() -> None:
     """``repr`` reports the metric configuration."""
     assert repr(SSIM()) == (
-        "SSIM(window_size=11, sigma=1.5, k1=0.01, k2=0.03, batch_size=2)"
+        "SSIM(window_size=11, sigma=1.5, k1=0.01, k2=0.03, batch_size=16)"
     )

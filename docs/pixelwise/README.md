@@ -29,7 +29,7 @@ from pyvisim.pixelwise import PSNR
 psnr = PSNR()
 scores = psnr.similarity_score(image1, image2)      # (1, 1) matrix, in decibels
 
-batched = PSNR(batch_size=4)
+batched = PSNR(batch_size=16)
 matrix = batched.similarity_score(gallery, queries)  # (N, M) matrix
 ```
 
