@@ -67,6 +67,8 @@ class BCESiameseNetwork(BackboneWithHead):
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``BCESiameseNetwork`` from a
         checkpoint, set this to ``False`` to avoid downloading the weights again.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``embedding_dim`` is not a positive integer or if
         ``backbone`` is not a supported backbone name.
     """
@@ -78,12 +80,15 @@ class BCESiameseNetwork(BackboneWithHead):
         transform: transforms.Compose | None = None,
         device: str | torch.device = "cpu",
         pretrained_backbone: bool = True,
+        *,
+        batch_size: int = 16,
     ):
         super().__init__(
             backbone=backbone,
             embedding_dim=embedding_dim,
             transform=transform,
             pretrained_backbone=pretrained_backbone,
+            batch_size=batch_size,
         )
         self._scorer: torch.nn.Module = torch.nn.Linear(embedding_dim, 1)
         self.to(torch.device(device))

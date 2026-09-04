@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 
 import numpy as np
 
@@ -367,6 +367,54 @@ class DeepConvFeature(FeatureExtractorBase):
 
         self.hook = self.selected_layer_module.register_forward_hook(hook_fn)
 
+    def _feature_maps(self, batch: torch.Tensor) -> Float32NumpyArray:
+        """
+        Runs a preprocessed batch through the model and returns the hooked maps.
+
+        The model only runs so that the forward hook fires; its own output is
+        discarded, and the hook detaches what it captures, so the pass needs no
+        autograd graph.
+
+        :param batch: Preprocessed image tensor of shape ``(B, C, H, W)``.
+        :return: The captured ``(B, C, Hf, Wf)`` feature maps as a NumPy array.
+        :raises RuntimeError: If the forward hook captured nothing.
+        """
+        self.model.eval()
+        self.model.to(self.device)
+        with torch.no_grad():
+            self.model(batch.to(self.device))
+        if self.buffer is None:
+            raise RuntimeError("Forward hook did not capture any features.")
+        return cast(Float32NumpyArray, self.buffer.cpu().numpy())
+
+    def _to_descriptors(self, feature_maps: Float32NumpyArray) -> Float32NumpyArray:
+        """
+        Flattens hooked feature maps into one descriptor per spatial location.
+
+        The normalized ``(x / Wf, y / Hf)`` coordinates are laid out once and
+        shared by the whole batch, since every feature map of a batch has the
+        same spatial size.
+
+        :param feature_maps: The ``(B, C, Hf, Wf)`` maps captured by the hook.
+        :return: A ``(B, Hf * Wf, D)`` array, with ``D`` the channel count plus
+            two when spatial coordinates are appended.
+        """
+        n_images, channels, height, width = feature_maps.shape
+        descriptors: Float32NumpyArray = feature_maps.reshape(
+            n_images, channels, -1
+        ).transpose(0, 2, 1)
+        if not self.spatial_embedding:
+            return descriptors
+        rows, columns = np.meshgrid(
+            np.arange(height, dtype=np.float32) / height,
+            np.arange(width, dtype=np.float32) / width,
+            indexing="ij",
+        )
+        coords = np.stack((columns.ravel(), rows.ravel()), axis=1)
+        return np.concatenate(
+            [descriptors, np.broadcast_to(coords, (n_images, *coords.shape))], axis=2
+        )
+
     @_check_output_shape
     def __call__(
         self,
@@ -382,8 +430,9 @@ class DeepConvFeature(FeatureExtractorBase):
 
         The input is normalized to a canonical ``uint8`` ``(H, W, C)`` image
         and then passed through ``self.transform`` (which converts it to a
-        tensor in ``[0, 1]``). Batches are handled at the embedder level, so a
-        single image is expected here.
+        tensor in ``[0, 1]``).
+
+        For the batched version, use :meth:`extract_batch` instead.
 
         :param image: Input image as ``MatLike`` (e.g. a NumPy ``(H, W, C)``
             array or a torch ``(C, H, W)`` tensor; pass ``dims`` accordingly).
@@ -397,31 +446,51 @@ class DeepConvFeature(FeatureExtractorBase):
                  D = number_of_channels (+ 2 if spatial coords are appended).
         """
         image = _to_single_image(image, dims=dims, value_range=value_range)
-        input_tensor = self.transform(image).unsqueeze(0).to(self.device)
+        input_tensor = self.transform(image).unsqueeze(0)
+        return cast(
+            Float32NumpyArray, self._to_descriptors(self._feature_maps(input_tensor))[0]
+        )
 
-        self.model.eval()
-        self.model.to(self.device)
-        _ = self.model(input_tensor)  # we only care about the hook's output
-        if self.buffer is None:
-            raise RuntimeError("Forward hook did not capture any features.")
+    def extract_batch(
+        self,
+        images: Sequence[MatLike],
+        /,
+        *,
+        dims: str = "HWC",
+        value_range: tuple[float, float] = (0.0, 255.0),
+    ) -> list[Float32NumpyArray]:
+        """
+        Extracts the descriptors of a whole batch in a single forward pass.
 
-        # Convert the captured feature map to NumPy
-        feature_map = self.buffer.cpu().numpy()  # shape: (1, C, Hf, Wf)
-        feature_map = feature_map[0]  # Remove batch dimension
+        The default ``transform`` resizes every image to a fixed size, so the
+        batch stacks into one tensor. A custom ``transform`` that preserves the
+        input size does not, and the images are then extracted one at a time.
 
-        C, Hf, Wf = feature_map.shape
-        feature_map = feature_map.reshape(C, -1).T  # shape: (Hf*Wf, C)
+        :param images: Batch of images, each a ``MatLike`` (NumPy array, torch
+            tensor or array-like).
+        :param dims: Axis-label string describing the layout of every image of
+            the batch. See :mod:`pyvisim.typing`.
+        :param value_range: The ``(low, high)`` range the input values live in.
+        :return: One ``(Hf * Wf, D)`` descriptor array per input image.
+        """
+        tensors, tensor_shapes = [], set()
+        for image in images:
+            single_image = _to_single_image(image, dims=dims, value_range=value_range)
+            transformed_image = self.transform(single_image)
+            tensors.append(transformed_image)
+            tensor_shapes.add(transformed_image.shape)
 
-        if self.spatial_embedding:
-            coords = []
-            for y in range(Hf):
-                for x in range(Wf):
-                    coords.append([x / Wf, y / Hf])  # (x/Wf, y/Hf)
-            coords_array = np.array(coords, dtype=np.float32)  # shape: (Hf*Wf, 2)
-            # Concatenate
-            feature_map = np.hstack([feature_map, coords_array])  # shape: (Hf*Wf, C+2)
+        if not tensors:
+            return []
 
-        return feature_map
+        if len(tensor_shapes) > 1:
+            self._logger.warning(
+                "Images have different shapes after transform, which prevents "
+                "batch processing. Falling back to single-image extraction."
+            )
+            return super().extract_batch(images, dims=dims, value_range=value_range)
+
+        return list(self._to_descriptors(self._feature_maps(torch.stack(tensors))))
 
     def __repr__(self) -> str:
         return (

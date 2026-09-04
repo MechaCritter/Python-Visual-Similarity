@@ -1,3 +1,4 @@
+import itertools
 from collections.abc import Iterable, Iterator
 
 import numpy as np
@@ -46,3 +47,46 @@ def iter_images(
             yield from _to_image_list(image, grayscale_dims(image, dims), value_range)
         return
     yield from _to_image_list(images, dims, value_range)
+
+
+def iter_image_batches(
+    images: ImageInput,
+    batch_size: int,
+    dims: str = "HWC",
+    value_range: tuple[float, float] = (0.0, 255.0),
+) -> Iterator[list[UInt8NumpyArray]]:
+    """
+    Yield canonical per-image arrays in batches of at most ``batch_size``.
+
+    The images are normalized by :func:`iter_images` and grouped lazily, so an
+    iterable input is consumed one batch at a time and never held in memory as
+    a whole. The last batch may be shorter than ``batch_size``; an input
+    holding no image yields no batch at all.
+
+    ``batch_size=-1`` yields the whole input as a single batch.
+
+    :param images: A single ``MatLike`` object or an iterable of ``MatLike`` images.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
+    :param dims: Axis-label string, one character per array axis in order:
+        ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
+        (e.g. RGB), ``"B"`` = batch size. See :mod:`pyvisim.typing`.
+    :param value_range: The ``(low, high)`` range the input values live in
+        (default ``(0.0, 255.0)``).
+    :return: An iterator over lists of at most ``batch_size`` ``uint8`` images
+        of shape ``(H, W[, C])``.
+    :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive integer.
+    :raises InvalidImageError: If a string/bytes object is passed as an image.
+    """
+    if batch_size != -1 and batch_size < 1:
+        raise ValueError(
+            "batch_size must be a positive integer or -1 (process the whole "
+            f"input as one batch), got {batch_size}."
+        )
+    image_iterator = iter_images(images, dims=dims, value_range=value_range)
+    if batch_size == -1:
+        if batch := list(image_iterator):
+            yield batch
+        return
+    while batch := list(itertools.islice(image_iterator, batch_size)):
+        yield batch

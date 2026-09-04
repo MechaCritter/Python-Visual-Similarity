@@ -63,7 +63,8 @@ def _iter_pair_chunks(
 
     :param n_rows: Number of images in the first batch.
     :param n_cols: Number of images in the second batch.
-    :param batch_size: Maximum number of image pairs per chunk, or ``-1``.
+    :param batch_size: Maximum number of image pairs processed in a single
+        batch. Set to ``-1`` to process all images as a single batch.
     :return: An iterator of ``(rows, cols)`` integer index arrays.
     """
     n_pairs = n_rows * n_cols
@@ -82,29 +83,10 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
     :meth:`similarity_score` provides the shared pipeline around it: input
     normalization, shape validation and memory-bounded pair batching.
 
-    :param batch_size: Maximum number of image pairs scored per vectorized
-        chunk. Bounds peak memory when scoring large batches. ``-1`` (default)
-        treats the whole input as a single batch.
+    :param batch_size: Maximum number of image pairs processed in a single
+        batch. Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor positive.
     """
-
-    def __init__(self, batch_size: int = -1):
-        # Assign via the property setter to trigger validation.
-        self.batch_size = batch_size
-
-    @property
-    def batch_size(self) -> int:
-        """Maximum number of image pairs scored per chunk (``-1`` = no limit)."""
-        return self._batch_size
-
-    @batch_size.setter
-    def batch_size(self, batch_size: int) -> None:
-        if batch_size != -1 and batch_size < 1:
-            raise ValueError(
-                "batch_size must be -1 (score the whole input as one batch) "
-                f"or a positive integer, got {batch_size}."
-            )
-        self._batch_size = batch_size
 
     def similarity_score(
         self,

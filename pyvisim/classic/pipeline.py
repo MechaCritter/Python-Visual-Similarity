@@ -7,11 +7,12 @@ from .._base_classes import SerializableImageEmbedder
 from ..typing import (
     FloatNumpyArray,
     ImageInput,
+    UInt8NumpyArray,
 )
-from ..utils.image_utils import iter_images
+from ..utils.image_utils import iter_image_batches
 
 #: On-disk format version of the serialised pipeline state.
-_PIPELINE_FORMAT_VERSION = 1
+_PIPELINE_FORMAT_VERSION = 2
 
 
 class Pipeline(SerializableImageEmbedder):
@@ -26,23 +27,27 @@ class Pipeline(SerializableImageEmbedder):
     :param embedders: A list of SerializableImageEmbedder instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
     """
 
     _logger = logging.getLogger("Pipeline")
 
     #: Keys a serialised state must contain to be a valid pipeline file.
     _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "classic", "similarity_func"}
+        {"embedder_class", "classic", "similarity_func", "batch_size"}
     )
 
     def __init__(
         self,
         embedders: list[SerializableImageEmbedder],
         similarity_func: str = "cosine",
+        *,
+        batch_size: int = 16,
     ):
         self._check_valid_embedders(embedders)
         self.embedders = embedders
-        super().__init__(similarity_func=similarity_func)
+        super().__init__(similarity_func=similarity_func, batch_size=batch_size)
 
     def _check_valid_embedders(
         self, embedders: list[SerializableImageEmbedder]
@@ -63,6 +68,7 @@ class Pipeline(SerializableImageEmbedder):
             "embedder_class": type(self).__name__,
             "classic": [embedder.to_dict() for embedder in self.embedders],
             "similarity_func": self._similarity_func_name,
+            "batch_size": self.batch_size,
         }
 
     @classmethod
@@ -75,7 +81,9 @@ class Pipeline(SerializableImageEmbedder):
             cast(SerializableImageEmbedder, embedder_from_dict(embedder_state))
             for embedder_state in state["classic"]
         ]
-        return cls(embedders, similarity_func=state["similarity_func"])
+        pipeline = cls(embedders, similarity_func=state["similarity_func"])
+        pipeline._restore_batch_size(state)
+        return pipeline
 
     def embed(
         self,
@@ -84,7 +92,22 @@ class Pipeline(SerializableImageEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> FloatNumpyArray:
-        image_list = list(iter_images(images, dims=dims, value_range=value_range))
+        all_embeddings = [
+            self._embed_batch(batch)
+            for batch in iter_image_batches(
+                images, self.batch_size, dims=dims, value_range=value_range
+            )
+        ]
+        return np.vstack(all_embeddings)
+
+    def _embed_batch(self, batch: list[UInt8NumpyArray]) -> FloatNumpyArray:
+        """
+        Embeds one batch of images with every embedder and joins the results.
+
+        :param batch: Canonical ``uint8`` images of shape ``(H, W[, C])``.
+        :return: A ``(len(batch), total_feature_dim)`` array holding the
+            embedders' vectors side by side, in the pipeline's order.
+        """
         all_embeddings = []
         for metric in self.embedders:
             # Each embedder has to be flattened to be usable here. Embedders that
@@ -94,12 +117,12 @@ class Pipeline(SerializableImageEmbedder):
             if has_flatten:
                 original_flatten = metric.flatten  # type: ignore[attr-defined]
                 metric.flatten = True  # type: ignore[attr-defined]
-            embeddings = metric.embed(
-                image_list
-            )  # Each of size (num_imgs, feature_dim)
-            all_embeddings.append(embeddings)
-            if has_flatten:
-                metric.flatten = original_flatten  # type: ignore[attr-defined]
+            try:
+                # Each of size (num_imgs, feature_dim)
+                all_embeddings.append(metric.embed(batch))
+            finally:
+                if has_flatten:
+                    metric.flatten = original_flatten  # type: ignore[attr-defined]
         return np.hstack(all_embeddings)
 
     # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
