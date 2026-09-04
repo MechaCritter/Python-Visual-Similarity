@@ -23,7 +23,11 @@ def _stack_images(
     dims: str,
     value_range: tuple[float, float],
 ) -> UInt8NumpyArray:
-    """Collect the canonical images of one input into a ``(N, H, W[, C])`` stack."""
+    """
+    Collect the canonical images of one input into a ``(N, H, W[, C])`` stack.
+
+    :raises ValueError: If no image is given or the images differ in shape.
+    """
     if isinstance(images, np.ndarray) or is_tensor(images):
         # A single channel-less array (e.g. a 2-D grayscale image with the
         # default "HWC") keeps working, like elsewhere in the library.
@@ -35,7 +39,7 @@ def _stack_images(
             f"PSNR requires images of identical shape, got {sorted(shapes)}."
         )
     if not image_list:
-        return np.empty((0, 0), dtype=np.uint8)
+        raise ValueError("Expected at least one image, got none.")
     if len(image_list) == 1:
         # A view instead of np.stack's copy; the batch is only read from.
         return image_list[0][np.newaxis]
@@ -88,11 +92,10 @@ class PSNR(SimilarityMetric):
     team of four threads by default; set the ``PYVISIM_NUM_THREADS``
     environment variable to override the team size.
 
-    :param batch_size: Maximum number of images per batch processed in one
-        kernel call. ``None`` (default) processes each full batch at once,
-        which is fastest; set a smaller value to bound the peak memory of the
-        kernel's per-pair block sums for very large batches.
-    :raises ValueError: If ``batch_size`` is not ``None`` or a positive integer.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
+    :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
+        integer.
 
     Example:
 
@@ -103,12 +106,8 @@ class PSNR(SimilarityMetric):
     array([[inf]])
     """
 
-    def __init__(self, batch_size: int | None = None) -> None:
-        if batch_size is not None and batch_size < 1:
-            raise ValueError(
-                f"batch_size must be a positive integer, got {batch_size}."
-            )
-        self._batch_size = batch_size
+    def __init__(self, batch_size: int = 16) -> None:
+        super().__init__(batch_size=batch_size)
 
     def similarity_score(
         self,
@@ -135,17 +134,17 @@ class PSNR(SimilarityMetric):
             converted into the canonical ``[0, 255]`` range.
         :return: An ``(N, M)`` matrix of PSNR values in decibels. Identical
             pairs yield ``inf``.
-        :raises ValueError: If a compared pair of images differs in shape.
+        :raises ValueError: If a batch is empty or a compared pair of images
+            differs in shape.
         """
         batch1 = _stack_images(image1, dims, value_range)
         batch2 = _stack_images(image2, dims, value_range)
         scores: Float64NumpyArray = np.empty(
             (len(batch1), len(batch2)), dtype=np.float64
         )
-        if scores.size == 0:
-            return scores
-        step1 = self._batch_size or len(batch1)
-        step2 = self._batch_size or len(batch2)
+        whole_input = self._batch_size == -1
+        step1 = len(batch1) if whole_input else self._batch_size
+        step2 = len(batch2) if whole_input else self._batch_size
         for start1 in range(0, len(batch1), step1):
             chunk1 = batch1[start1 : start1 + step1]
             for start2 in range(0, len(batch2), step2):
@@ -156,4 +155,4 @@ class PSNR(SimilarityMetric):
         return scores
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(batch_size={self._batch_size!r})"
+        return f"{self.__class__.__name__}(batch_size={self.batch_size})"

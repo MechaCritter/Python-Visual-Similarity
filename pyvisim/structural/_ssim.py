@@ -74,8 +74,8 @@ class SSIM(DenseMetricBase):
     :param sigma: Standard deviation of the Gaussian window (default 1.5).
     :param k1: Luminance stabilization constant (default 0.01).
     :param k2: Contrast stabilization constant (default 0.03).
-    :param batch_size: Maximum number of image pairs scored per vectorized
-        chunk; ``-1`` (default) scores the whole input as one batch.
+    :param batch_size: Maximum number of image pairs processed in a single
+        batch. Set to ``-1`` to process all images as a single batch.
     :param num_workers: Number of threads to use for the computation. If
         ``None``, use the default ``PYVISIM_NUM_THREADS`` instead (can be
         overridden by setting ``os.environ["PYVISIM_NUM_THREADS"]``).
@@ -88,7 +88,7 @@ class SSIM(DenseMetricBase):
         sigma: float = 1.5,
         k1: float = 0.01,
         k2: float = 0.03,
-        batch_size: int = 2,
+        batch_size: int = 16,
         num_workers: int | None = None,
     ):
         super().__init__(batch_size=batch_size)

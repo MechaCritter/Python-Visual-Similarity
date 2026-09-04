@@ -4,11 +4,12 @@ import numpy as np
 
 from .._base_classes import FeatureExtractorBase
 from ..typing import (
+    Float32NumpyArray,
     Float64NumpyArray,
     FloatNumpyArray,
     ImageInput,
+    IntNumpyArray,
 )
-from ..utils.image_utils import iter_images
 from ._base_embedder import ClusteringBasedEmbedder
 from ._clustering import PCA, ClusteringModelBase, DiagCovarGaussianMixture
 
@@ -43,6 +44,8 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
                                         than the PCA model's output size, the PCA model will be reset to None.
+    :param batch_size: Maximum number of images processed in a single batch.
+        Set to ``-1`` to process all images as a single batch.
 
     .. rubric:: References
 
@@ -63,6 +66,8 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         flatten: bool = True,
         similarity_func: str = "cosine",
         raise_error_when_pca_incompatible: bool = False,
+        *,
+        batch_size: int = 16,
     ):
         if gmm_params and "n_components" in gmm_params:
             raise ValueError(
@@ -82,6 +87,7 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
             flatten=flatten,
             pca=pca,
             raise_error_when_pca_incompatible=raise_error_when_pca_incompatible,
+            batch_size=batch_size,
         )
 
     @property
@@ -102,61 +108,112 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float64NumpyArray:
-        all_embeddings = []
-        for image in iter_images(images, dims=dims, value_range=value_range):
-            descriptors: FloatNumpyArray = self.feature_extractor(image)
-            if self.pca:
-                descriptors = self.pca.transform(descriptors.astype(np.float32))
-            num_descriptors = len(descriptors)
-
-            mixture_weights = self.clustering_model.weights
-            means = self.clustering_model.means
-            covariances = self.clustering_model.covariances
-
-            posterior_probabilities = self.clustering_model.predict_proba(descriptors)
-
-            # Statistics necessary to compute GMM gradients wrt its parameters
-            pp_sum = posterior_probabilities.mean(axis=0, keepdims=True).T
-            pp_x = posterior_probabilities.T.dot(descriptors) / num_descriptors
-            pp_x_2 = (
-                posterior_probabilities.T.dot(np.power(descriptors, 2))
-                / num_descriptors
+        all_embeddings = [
+            self._encode_batch(descriptors, counts)
+            for descriptors, counts in self._iter_descriptor_batches(
+                images, dims=dims, value_range=value_range
             )
-
-            # Compute GMM gradients wrt its parameters
-            d_pi = pp_sum.squeeze() - mixture_weights
-
-            d_mu = pp_x - pp_sum * means
-
-            d_sigma_t1 = pp_sum * np.power(means, 2)
-            d_sigma_t2 = pp_sum * covariances
-            d_sigma_t3 = 2 * pp_x * means
-            d_sigma = -pp_x_2 - d_sigma_t1 + d_sigma_t2 + d_sigma_t3
-
-            # Apply analytical diagonal normalization
-            sqrt_mixture_weights = np.sqrt(mixture_weights)
-            d_pi /= sqrt_mixture_weights
-            d_mu /= sqrt_mixture_weights[:, np.newaxis] * np.sqrt(covariances)
-            d_sigma /= np.sqrt(2) * sqrt_mixture_weights[:, np.newaxis] * covariances
-
-            # Concatenate GMM gradients to form Fisher vector representation
-            descriptor_vector = np.hstack((d_pi, d_mu.ravel(), d_sigma.ravel()))
-            descriptor_vector = descriptor_vector.reshape(1, -1)
-
-            # Power normalization and L2 normalization
-            descriptor_vector = np.sign(descriptor_vector) * np.power(
-                np.abs(descriptor_vector), self.power_norm_weight
-            )
-            norm = (
-                np.linalg.norm(
-                    descriptor_vector, axis=1, ord=self.norm_order, keepdims=True
-                )
-                + self.epsilon
-            )
-            descriptor_vector = descriptor_vector / norm
-
-            if self.flatten:
-                descriptor_vector = descriptor_vector.flatten()
-            all_embeddings.append(descriptor_vector)
-
+        ]
         return np.vstack(all_embeddings)
+
+    def _sufficient_statistics(
+        self, descriptors: FloatNumpyArray, counts: IntNumpyArray
+    ) -> tuple[Float64NumpyArray, Float64NumpyArray, Float64NumpyArray]:
+        """
+        Computes the mixture statistics the Fisher gradients are built from.
+
+        The posterior probabilities of every descriptor in the batch come out
+        of a single :meth:`predict_proba` call. Only the two weighted sums are
+        taken one image at a time, since the images contribute different
+        numbers of descriptors; each is a matrix product over all descriptors
+        of that image.
+
+        :param descriptors: The ``(N, D)`` descriptors of the batch, stacked in
+            image order.
+        :param counts: How many of the ``N`` rows belong to each image.
+        :return: The per-image ``(B, k, 1)`` mean posterior and the two
+            ``(B, k, D)`` posterior-weighted means of the descriptors and of
+            their squares.
+        """
+        posterior_probabilities = self.clustering_model.predict_proba(descriptors)
+        splits = np.cumsum(counts[:-1])
+        statistics = [
+            (
+                probabilities.sum(axis=0),
+                probabilities.T @ features,
+                probabilities.T @ np.power(features, 2),
+            )
+            for probabilities, features in zip(
+                np.split(posterior_probabilities, splits),
+                np.split(descriptors, splits),
+                strict=True,
+            )
+        ]
+        per_image_counts = counts[:, np.newaxis, np.newaxis]
+        pp_sum = np.stack([statistic[0] for statistic in statistics])[..., np.newaxis]
+        return (
+            pp_sum / per_image_counts,
+            np.stack([statistic[1] for statistic in statistics]) / per_image_counts,
+            np.stack([statistic[2] for statistic in statistics]) / per_image_counts,
+        )
+
+    def _encode_batch(
+        self, descriptors: Float32NumpyArray, counts: IntNumpyArray
+    ) -> Float64NumpyArray:
+        """
+        Encodes the stacked descriptors of one image batch into Fisher vectors.
+
+        The gradients with respect to the mixture weights, means and
+        covariances, the power normalization and the L2 normalization all run
+        over the whole batch at once, on the statistics
+        :meth:`_sufficient_statistics` collects.
+
+        :param descriptors: The ``(N, D)`` descriptors of the batch, stacked in
+            image order.
+        :param counts: How many of the ``N`` rows belong to each image.
+        :return: The ``(B, 2 * k * D + k)`` Fisher vectors of the batch.
+        """
+        descriptors = self._project(descriptors)
+        mixture_weights = self.clustering_model.weights
+        means = self.clustering_model.means
+        covariances = self.clustering_model.covariances
+
+        pp_sum, pp_x, pp_x_2 = self._sufficient_statistics(descriptors, counts)
+
+        # Compute GMM gradients wrt its parameters
+        d_pi = pp_sum.squeeze(axis=-1) - mixture_weights
+
+        d_mu = pp_x - pp_sum * means
+
+        d_sigma_t1 = pp_sum * np.power(means, 2)
+        d_sigma_t2 = pp_sum * covariances
+        d_sigma_t3 = 2 * pp_x * means
+        d_sigma = -pp_x_2 - d_sigma_t1 + d_sigma_t2 + d_sigma_t3
+
+        # Apply analytical diagonal normalization
+        sqrt_mixture_weights = np.sqrt(mixture_weights)
+        d_pi /= sqrt_mixture_weights
+        d_mu /= sqrt_mixture_weights[:, np.newaxis] * np.sqrt(covariances)
+        d_sigma /= np.sqrt(2) * sqrt_mixture_weights[:, np.newaxis] * covariances
+
+        # Concatenate GMM gradients to form Fisher vector representation
+        n_images = len(counts)
+        descriptor_vectors = np.hstack(
+            (
+                d_pi,
+                d_mu.reshape(n_images, -1),
+                d_sigma.reshape(n_images, -1),
+            )
+        )
+
+        # Power normalization and L2 normalization
+        descriptor_vectors = np.sign(descriptor_vectors) * np.power(
+            np.abs(descriptor_vectors), self.power_norm_weight
+        )
+        norms = (
+            np.linalg.norm(
+                descriptor_vectors, axis=1, ord=self.norm_order, keepdims=True
+            )
+            + self.epsilon
+        )
+        return cast(Float64NumpyArray, descriptor_vectors / norms)

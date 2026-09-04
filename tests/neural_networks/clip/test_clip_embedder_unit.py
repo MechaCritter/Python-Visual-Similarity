@@ -11,6 +11,9 @@ slow suite.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -20,6 +23,8 @@ from pyvisim.neural_networks.clip import clip_embedder as clip_embedder_module
 from ._tiny_clip import CONFIG as _CONFIG
 from ._tiny_clip import TAG as _TAG
 from ._tiny_clip import VARIANT as _VARIANT
+
+BATCH_SIZES = [2, 3, 4, 6, 16]
 
 
 def _random_image(seed: int = 0) -> np.ndarray:
@@ -149,3 +154,104 @@ def test_repr_names_class_variant_and_pretrained_tag(
     assert "ClipEmbedder(" in text
     assert f"variant={_VARIANT}" in text
     assert f"pretrained={_TAG}" in text
+
+
+# §5 batching
+
+
+@pytest.fixture
+def sample_images() -> list[np.ndarray]:
+    """Four distinct images, enough for every batch size to split them.
+
+    :return: Four ``(48, 64, 3)`` ``uint8`` arrays.
+    """
+    return [_random_image(seed) for seed in range(4)]
+
+
+@pytest.mark.parametrize("batch_size", BATCH_SIZES)
+def test_batch_size_does_not_change_the_embeddings(
+    embedder: ClipEmbedder, sample_images: list[np.ndarray], batch_size: int
+) -> None:
+    """Batching only regroups the forward passes: the rows stay in place."""
+    embedder.set_batch_size(1)
+    one_by_one = embedder.embed(sample_images)
+    scores = embedder.similarity_score(sample_images[:2], sample_images[2:])
+    embedder.set_batch_size(batch_size)
+    np.testing.assert_allclose(
+        embedder.embed(sample_images), one_by_one, rtol=1e-6, atol=1e-6
+    )
+    np.testing.assert_allclose(
+        embedder.similarity_score(sample_images[:2], sample_images[2:]),
+        scores,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+
+
+def test_the_whole_input_as_one_batch_does_not_change_the_embeddings(
+    embedder: ClipEmbedder, sample_images: list[np.ndarray]
+) -> None:
+    """``-1`` embeds the input in one pass, for the same rows as ``1`` does."""
+    embedder.set_batch_size(1)
+    one_by_one = embedder.embed(sample_images)
+    scores = embedder.similarity_score(sample_images[:2], sample_images[2:])
+    embedder.set_batch_size(-1)
+    np.testing.assert_allclose(
+        embedder.embed(sample_images), one_by_one, rtol=1e-6, atol=1e-6
+    )
+    np.testing.assert_allclose(
+        embedder.similarity_score(sample_images[:2], sample_images[2:]),
+        scores,
+        rtol=1e-6,
+        atol=1e-6,
+    )
+
+
+def test_embedding_image_by_image_matches_the_whole_input(
+    embedder: ClipEmbedder, sample_images: list[np.ndarray]
+) -> None:
+    """One call per image stacks into what one call over the input returns."""
+    embedder.set_batch_size(1)
+    one_at_a_time = np.vstack([embedder.embed([image]) for image in sample_images])
+    np.testing.assert_allclose(
+        embedder.embed(sample_images), one_at_a_time, rtol=1e-6, atol=1e-6
+    )
+
+
+@pytest.mark.parametrize(("n_images", "batch_size"), [(5, 2), (3, 4)])
+def test_the_last_batch_holds_the_remaining_images(
+    embedder: ClipEmbedder,
+    monkeypatch: pytest.MonkeyPatch,
+    n_images: int,
+    batch_size: int,
+) -> None:
+    """The last batch holds ``N % batch_size`` images, however small ``N`` is."""
+    batch_lengths: list[int] = []
+    iter_batches = clip_embedder_module.iter_image_batches
+
+    def record(images: object, size: int, **kwargs: object) -> Iterator[list[object]]:
+        for batch in iter_batches(images, size, **kwargs):  # type: ignore[arg-type]
+            batch_lengths.append(len(batch))
+            yield batch
+
+    monkeypatch.setattr(clip_embedder_module, "iter_image_batches", record)
+    embedder.set_batch_size(batch_size)
+    embedder.embed([_random_image(seed) for seed in range(n_images)])
+    assert batch_lengths[-1] == n_images % batch_size
+    assert sum(batch_lengths) == n_images
+
+
+def test_embedding_matrix_shape_for_a_single_image(
+    embedder: ClipEmbedder, sample_images: list[np.ndarray]
+) -> None:
+    """A single image keeps its own row of the embedding matrix."""
+    assert embedder.embed(sample_images[:1]).shape == (1, _CONFIG.embed_dim)
+
+
+def test_batch_size_survives_a_checkpoint_round_trip(
+    tiny_variant: str, tmp_path: Path
+) -> None:
+    """A saved embedder comes back with the batch size it was saved with."""
+    embedder = ClipEmbedder(tiny_variant, _TAG, device="cpu", batch_size=3)
+    path = embedder.save_to_disk(tmp_path / "clip")
+    assert ClipEmbedder.load_from_disk(path).batch_size == 3
