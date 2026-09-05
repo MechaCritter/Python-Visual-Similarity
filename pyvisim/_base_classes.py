@@ -2,12 +2,12 @@ import abc
 import logging
 import pathlib
 from collections.abc import Sequence
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar
 
 import numpy as np
 
 from ._utils import get_similarity_func
-from .serialization import load_embedder_state, save_embedder_state
+from .serialization import EMBEDDER_METADATA_KEY, SerializerMixin
 from .typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -18,8 +18,6 @@ from .typing import (
 
 #: Suffix of the files written by :meth:`SerializableImageEmbedder.save_to_disk`.
 EMBEDDER_FILE_SUFFIX = ".embedder"
-
-_EmbedderT = TypeVar("_EmbedderT", bound="SerializableImageEmbedder")
 
 
 class SimilarityMetric(abc.ABC):
@@ -303,15 +301,17 @@ class ImageEmbedderBase(SimilarityMetric):
         )
 
 
-class SerializableImageEmbedder(ImageEmbedderBase):
+class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     """
     Base for embedders that persist to a ``.embedder`` file.
 
-    Adds the serialization contract on top of :class:`ImageEmbedderBase`:
-    subclasses describe themselves as a JSON-safe state via :meth:`to_dict` /
-    :meth:`from_dict`, and this class turns that state into a file and back.
-    Both the classic embedders and the neural ones use this path, so a
-    ``.embedder`` file is always a
+    Adds the serialization contract of
+    :class:`~pyvisim.serialization.SerializerMixin` on top of
+    :class:`ImageEmbedderBase`: subclasses describe themselves as a JSON-safe
+    state via :meth:`~pyvisim.serialization.SerializerMixin.to_dict` /
+    :meth:`~pyvisim.serialization.SerializerMixin.from_dict`, and the mixin
+    turns that state into a file and back. Both the classic embedders and the
+    neural ones use this path, so a ``.embedder`` file is always a
     `safetensors <https://github.com/huggingface/safetensors>`_ file.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
@@ -319,6 +319,10 @@ class SerializableImageEmbedder(ImageEmbedderBase):
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
     """
+
+    _FILE_SUFFIX: ClassVar[str] = EMBEDDER_FILE_SUFFIX
+    _METADATA_KEY: ClassVar[str] = EMBEDDER_METADATA_KEY
+    _CLASS_KEY: ClassVar[str] = "embedder_class"
 
     #: Keys a serialised state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
@@ -337,96 +341,19 @@ class SerializableImageEmbedder(ImageEmbedderBase):
         """
         self.set_batch_size(state["batch_size"])
 
-    @abc.abstractmethod
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialises this embedder into a JSON-safe state dictionary.
-
-        Every concrete embedder must define how it serialises itself. The
-        returned mapping has to contain at least the keys listed in
-        :attr:`_STATE_KEYS`. Arrays may be embedded as ``__ndarray__`` nodes;
-        the serialization layer stores them as binary tensors.
-
-        :return: A JSON-safe embedder description suitable for :meth:`from_dict`.
-        """
-        raise NotImplementedError
-
     @classmethod
-    @abc.abstractmethod
-    def from_dict(
-        cls: type[_EmbedderT], state: dict[str, Any], **kwargs: Any
-    ) -> _EmbedderT:
+    def _read_state(cls, path: pathlib.Path) -> dict[str, Any]:
         """
-        Rebuilds an embedder from a state dictionary (see :meth:`to_dict` to see
-        the expected format).
-
-        :param state: A JSON-safe embedder description.
-        :param kwargs: Objects the state cannot describe, forwarded by
-            :meth:`load_from_disk`. Subclasses that accept none raises
-            an error if ``kwargs`` is not empty.
-        :return: A ready-to-use embedder instance.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    def _reject_unsupported_kwargs(cls, kwargs: dict[str, Any]) -> None:
-        """
-        Raises a :class:`TypeError` if ``kwargs`` is not empty.
-
-        :param kwargs: The forwarded keyword arguments.
-        :raises TypeError: If ``kwargs`` is not empty.
-        """
-        if kwargs:
-            names = ", ".join(repr(name) for name in sorted(kwargs))
-            raise TypeError(
-                f"{cls.__name__} does not take the deserialization argument(s) {names}."
-            )
-
-    def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
-        """
-        Saves the serialised state of this embedder to a ``.embedder`` file.
-
-        :param path: Target file path. The ``.embedder`` suffix is appended if missing.
-        :return: The path of the written file.
-        :raises NotFittedError: If the embedder is not ready to be serialised
-            (see :meth:`to_dict`).
-        """
-        path = pathlib.Path(path)
-        if path.suffix != EMBEDDER_FILE_SUFFIX:
-            path = path.with_name(path.name + EMBEDDER_FILE_SUFFIX)
-        save_embedder_state(self.to_dict(), path)
-        return path
-
-    @classmethod
-    def load_from_disk(
-        cls: type[_EmbedderT],
-        path: str | pathlib.Path,
-        **kwargs: Any,
-    ) -> _EmbedderT:
-        """
-        Loads an embedder previously saved with :meth:`save_to_disk`.
-
-        Not every part of an embedder survives serialization: an arbitrary
-        callable such as a torchvision transform has no portable description,
-        so it is left out of the file. Pass such an object back here as a
-        keyword argument.
+        Reads the embedder state a ``.embedder`` file holds.
 
         :param path: Path to the ``.embedder`` file.
-        :param kwargs: Objects the file cannot hold, forwarded to
-            :meth:`from_dict`.
-        :return: A ready-to-use embedder instance.
-        :raises ValueError: If the file is not a valid ``.embedder`` file or
-            was saved by a different embedder class.
-        :raises TypeError: If the embedder does not take one of ``kwargs``.
+        :return: The reconstructed embedder state, with arrays restored.
+        :raises FileNotFoundError: If ``path`` does not exist.
+        :raises ValueError: If the file is not a valid ``.embedder`` file.
         """
-        state = load_embedder_state(pathlib.Path(path))
-        if not cls._STATE_KEYS.issubset(state):
-            raise ValueError(f"File {path} is not a valid .embedder file.")
-        # TODO: in the future, verify the file's format version against the
-        # class-specific compatibility table before reconstructing.
-        if state["embedder_class"] != cls.__name__:
+        try:
+            return super()._read_state(path)
+        except ValueError as error:
             raise ValueError(
-                f"File {path} was saved by {state['embedder_class']}. "
-                f"Load it with {state['embedder_class']}.load_from_disk instead."
-            )
-        return cls.from_dict(state, **kwargs)
+                f"File {path} is not a valid {EMBEDDER_FILE_SUFFIX} file."
+            ) from error
