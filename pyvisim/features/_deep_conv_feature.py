@@ -4,8 +4,6 @@ import warnings
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
-import numpy as np
-
 from .._base_classes import FeatureExtractorBase
 from .._config import setup_logging
 from ..lazy_import import OptionalImport
@@ -108,8 +106,7 @@ def _build_torchvision_model(arch: str, *, pretrained: bool) -> torch.nn.Module:
 class DeepConvFeature(FeatureExtractorBase):
     """
     Extracts convolutional feature maps from a chosen conv layer of a torchvision model.
-    It flattens the feature maps into feature descriptors. Optionally appends
-    normalized (x, y) coordinates to each spatial location.
+    It flattens the feature maps into feature descriptors.
 
     The concepts here were inspired by by the work on `VLAD-DCNN` features for face verification, as
     presented in [1], where VLAD embeddings were computed from deep convolutional features and input into
@@ -127,7 +124,6 @@ class DeepConvFeature(FeatureExtractorBase):
     :param target_submodule: Optional submodule name to hook into. If None, the whole model is used.
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`
                        to see the ordering or use -1 for the last conv layer.
-    :param spatial_embedding: If True, appends (x/W, y/H) to each descriptor.
     :param device: 'cpu' or 'cuda'. Where to run the model. Defaults to
                    ``None``, which auto-selects 'cuda' when available, else 'cpu'.
     :param transform: Optional torchvision.transforms.Compose. Default includes `to_tensor`, `resize(224, 224)`,
@@ -151,7 +147,6 @@ class DeepConvFeature(FeatureExtractorBase):
         backbone: str | torch.nn.Module | None = None,
         target_submodule: str | None = None,
         layer_index: int = -1,
-        spatial_embedding: bool = True,
         device: str | None = None,
         transform: transforms.Compose = None,
         **kwargs: Any,
@@ -167,7 +162,6 @@ class DeepConvFeature(FeatureExtractorBase):
         self._model: torch.nn.Module
         self._target_submodule = target_submodule
         self.layer_index = layer_index
-        self.spatial_embedding = spatial_embedding
         self.device = _resolve_device(device)
         self.transform = transform
         if self.transform is None:
@@ -201,11 +195,7 @@ class DeepConvFeature(FeatureExtractorBase):
                 f"Model {type(self.model).__name__} has only {len(self._conv_layers)} convolutional layers {info}"
                 f". Got layer_index={self.layer_index}."
             ) from e
-        self._output_dim = (
-            self.selected_layer_module.out_channels + 2
-            if self.spatial_embedding
-            else self.selected_layer_module.out_channels
-        )
+        self._output_dim = self.selected_layer_module.out_channels
         self._register_hook()
 
     @staticmethod
@@ -267,7 +257,6 @@ class DeepConvFeature(FeatureExtractorBase):
             "default_model": self._is_default_model,
             "target_submodule": self._target_submodule,
             "layer_index": self.layer_index,
-            "spatial_embedding": self.spatial_embedding,
             "device": self.device,
         }
         if not self._is_default_model:
@@ -303,7 +292,6 @@ class DeepConvFeature(FeatureExtractorBase):
             backbone=model,
             target_submodule=config.get("target_submodule"),
             layer_index=config["layer_index"],
-            spatial_embedding=config["spatial_embedding"],
             device=device,
         )
 
@@ -391,29 +379,14 @@ class DeepConvFeature(FeatureExtractorBase):
         """
         Flattens hooked feature maps into one descriptor per spatial location.
 
-        The normalized ``(x / Wf, y / Hf)`` coordinates are laid out once and
-        shared by the whole batch, since every feature map of a batch has the
-        same spatial size.
-
         :param feature_maps: The ``(B, C, Hf, Wf)`` maps captured by the hook.
-        :return: A ``(B, Hf * Wf, D)`` array, with ``D`` the channel count plus
-            two when spatial coordinates are appended.
+        :return: A ``(B, Hf * Wf, D)`` array, with ``D`` the channel count.
         """
-        n_images, channels, height, width = feature_maps.shape
+        n_images, channels = feature_maps.shape[:2]
         descriptors: Float32NumpyArray = feature_maps.reshape(
             n_images, channels, -1
         ).transpose(0, 2, 1)
-        if not self.spatial_embedding:
-            return descriptors
-        rows, columns = np.meshgrid(
-            np.arange(height, dtype=np.float32) / height,
-            np.arange(width, dtype=np.float32) / width,
-            indexing="ij",
-        )
-        coords = np.stack((columns.ravel(), rows.ravel()), axis=1)
-        return np.concatenate(
-            [descriptors, np.broadcast_to(coords, (n_images, *coords.shape))], axis=2
-        )
+        return descriptors
 
     @_check_output_shape
     def __call__(
@@ -443,7 +416,7 @@ class DeepConvFeature(FeatureExtractorBase):
             layout). See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in.
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
-                 D = number_of_channels (+ 2 if spatial coords are appended).
+                 D = number_of_channels.
         """
         image = _to_single_image(image, dims=dims, value_range=value_range)
         input_tensor = self.transform(image).unsqueeze(0)
@@ -495,7 +468,7 @@ class DeepConvFeature(FeatureExtractorBase):
     def __repr__(self) -> str:
         return (
             f"DeepConvFeature(backbone={type(self.model).__name__}, layer_index={self.layer_index}, "
-            f"spatial_embedding={self.spatial_embedding}, device={self.device}, "
+            f"device={self.device}, "
             f"transform={self.transform}, selected_layer_name={self.selected_layer_name}, "
             f"selected_layer_module={self.selected_layer_module}, output_dim={self.output_dim})"
         )
