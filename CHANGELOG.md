@@ -102,6 +102,11 @@ image_store = InMemoryImageEmbeddingStore(
 - ⚠️ The batch size is a required key of the `.embedder` format, so a file
   written by an earlier release cannot be loaded by this one.
 
+### Removed
+- ⚠️ `pyvisim.serialization.save_embedder_state` and `load_embedder_state`.
+  They only called `save_state`/`load_state` with the embedder metadata key,
+  which is now exported as `EMBEDDER_METADATA_KEY`.
+
 ## [0.9.2] - 2026-08-26
 
 ### Added
