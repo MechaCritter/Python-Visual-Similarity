@@ -1,6 +1,4 @@
-"""
-Structural type describing the embedder interface used across pyvisim.
-"""
+"""Structural type describing the embedder interface used across pyvisim."""
 
 from typing import Protocol, runtime_checkable
 
@@ -9,13 +7,16 @@ from .numeric import FloatNumpyArray, ImageInput
 
 @runtime_checkable
 class Embedder(Protocol):
-    """
-    Protocol for objects that embed images into fixed-size vectors.
+    """Protocol for objects that embed images into fixed-size vectors."""
 
-    An embedder turns one or more images into a batch of numeric feature
-    vectors. Only :meth:`embed` is required; this keeps the protocol decoupled
-    from any specific implementation.
-    """
+    @property
+    def batch_size(self) -> int:
+        """
+        Maximum number of images the embedder processes in a single batch.
+
+        ``-1`` means the whole input is processed as one batch.
+        """
+        ...
 
     def embed(
         self,

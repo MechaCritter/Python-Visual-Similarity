@@ -4,10 +4,14 @@ In-memory image embedding storage that uses a search index to accelerate retriev
 
 from __future__ import annotations
 
+import functools
+import itertools
 import os
 import pathlib
 import warnings
-from collections.abc import Iterable
+from collections import deque
+from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, NamedTuple
 
 import numpy as np
@@ -26,6 +30,7 @@ from ..typing import (
     ImageInput,
     IntNumpyArray,
     SearchIndex,
+    UInt8NumpyArray,
 )
 from ._index import BruteForceIndex, ExternalSearchIndex, HnswIndex, Space
 
@@ -44,6 +49,11 @@ _STORE_FILE_SUFFIX = ".safetensors"
 #: carries a rebuilt index instead of being forwarded to the embedder.
 _SEARCH_INDEX_KWARG = "search_index"
 
+#: Threads decoding image files while the embedder works on the previous batch.
+_DEFAULT_NUM_WORKERS = 4
+#: Batches the decoding threads may run ahead of the embedder.
+_DEFAULT_NUM_PREFETCH_BATCHES = 4
+
 
 class Candidate(NamedTuple):
     """A single retrieval result.
@@ -61,21 +71,21 @@ class InMemoryImageEmbeddingStore:
     """
     Embed a gallery of images and index their embeddings for fast retrieval.
 
-    Each image path is read and embedded with ``embedder``; the resulting
-    vectors are handed to the index selected by ``search_index``, which owns
-    them from then on. The store keeps no second copy, so
-    :attr:`embeddings` reads them back out of the index.
-
     A store built on an :class:`~pyvisim.image_store.ExternalSearchIndex`
     embeds nothing: that index already holds its gallery, so ``image_paths``
     only names its rows and must be exactly as long as the index is.
 
     .. important::
 
-        Upon constructing the store, all images are embedded immediately and the
-        index is built. If ``hnsw`` is used, the memory consumption is higher
-        than when only using ``brute-force``, since the ``hnsw`` index builds an
-        additional graph structure based on the embeddings.
+        - Upon constructing the store, all images are embedded immediately and the
+          index is built. If ``hnsw`` is used, the memory consumption is higher
+          than when only using ``brute-force``, since the ``hnsw`` index builds an
+          additional graph structure based on the embeddings.
+        - The store does not hold the original embeddings. When reading them back
+          using :attr:`embeddings`, the index reads them back out from the index. For
+          **FAISS**-based indexes, the returned embeddings may not be exactly the same
+          as the original embeddings due to compression or quantization, and for some
+          indexes, reconstruction is impossible.
 
     :param image_paths: Iterable of image file paths to embed. Duplicates are
         dropped, keeping the first occurrence.
@@ -113,8 +123,16 @@ class InMemoryImageEmbeddingStore:
         :ref:`Index parameters <store-index-parameters>`.
     :param skip_errors: If ``True``, images that cannot be read or embedded are
         skipped with a warning instead of aborting.
-    :raises ValueError: If ``search_index`` is unknown, no image could be
-        embedded, or an external index does not hold one vector per path.
+    :param num_workers: Threads reading the gallery image files while the
+        embedder works on the previous batch. ``1`` reads them on the calling
+        thread. Ignored by an external index, which embeds nothing.
+    :param num_prefetch_batches: Batches of images the reading threads may run
+        ahead of the embedder. Higher values hide slower file reads at the cost
+        of holding more decoded images in memory. Ignored by an external index,
+        which embeds nothing.
+    :raises ValueError: If ``search_index`` is unknown, ``num_workers`` or
+        ``num_prefetch_batches`` is not positive, no image could be embedded, or
+        an external index does not hold one vector per path.
     :raises TypeError: If any provided path is not a string.
 
     .. _store-index-parameters:
@@ -209,7 +227,17 @@ class InMemoryImageEmbeddingStore:
         space: Space = "cosine",
         index_params: dict[str, Any] | None = None,
         skip_errors: bool = False,
+        num_workers: int = _DEFAULT_NUM_WORKERS,
+        num_prefetch_batches: int = _DEFAULT_NUM_PREFETCH_BATCHES,
     ) -> None:
+        if not isinstance(num_workers, int) or num_workers < 1:
+            raise ValueError(
+                f"'num_workers' must be a positive integer, got {num_workers!r}."
+            )
+        if not isinstance(num_prefetch_batches, int) or num_prefetch_batches < 1:
+            raise ValueError(
+                f"'num_prefetch_batches' must be a positive integer, got {num_prefetch_batches!r}."
+            )
         _validate_search_index(search_index)
 
         self._embedder = embedder
@@ -222,7 +250,9 @@ class InMemoryImageEmbeddingStore:
             self._index_name = search_index.name
             return
 
-        paths, embeddings = _embed_image_paths(image_paths, embedder, skip_errors)
+        paths, embeddings = _embed_image_paths(
+            image_paths, embedder, skip_errors, num_workers, num_prefetch_batches
+        )
         self._paths = paths
         self._index_name = _HNSW if search_index == _HNSW else _BRUTE_FORCE
         # Only the index retains the gallery vectors; the local ``embeddings``
@@ -535,7 +565,7 @@ def _restored_external_index(
     search_index: Any,
     saved_name: str,
 ) -> ExternalSearchIndex | None:
-    """Validate the index handed to :meth:`load_from_disk` against thggfsssssfffssssddddddgrsh gn"""
+    """Validate the index handed to :meth:`load_from_disk` against the saved one."""
     if search_index is None:
         if _is_external(saved_name):
             warnings.warn(
@@ -604,9 +634,17 @@ def _embed_image_paths(
     image_paths: Iterable[str],
     embedder: Embedder,
     skip_errors: bool,
+    num_workers: int = _DEFAULT_NUM_WORKERS,
+    num_prefetch_batches: int = _DEFAULT_NUM_PREFETCH_BATCHES,
 ) -> tuple[list[str], Float32NumpyArray]:
     """
     Embed every image path into a stacked embedding matrix.
+
+    The images are decoded and handed to the embedder one batch at a time, so
+    each batch costs a single :meth:`~pyvisim.typing.Embedder.embed` call and
+    only one batch of decoded images is held in memory at once. Decoding runs
+    on ``num_workers`` threads that read ahead of the embedder, which hides the
+    file reads behind the embedder's own work.
 
     Duplicate paths are dropped (keeping the first occurrence) and their type is
     validated up front.
@@ -615,24 +653,35 @@ def _embed_image_paths(
     :param embedder: Embedder turning each image into a feature vector.
     :param skip_errors: If ``True``, unreadable images are skipped with a
         warning instead of raising.
+    :param num_workers: Threads decoding image files. ``1`` decodes on the
+        calling thread.
+    :param num_prefetch_batches: Batches of images the decoding threads may read
+        ahead of the embedder.
     :return: A ``(paths, embeddings)`` pair with one embedding row per path.
     :raises TypeError: If any provided path is not a string.
     :raises ValueError: If no image could be embedded.
     """
-    # TODO: take batch size attr from the embedder & embed in batches instead of one by one
-    # (if hasattr(embedder, "batch_size"): batch_size = embedder.batch_size)
-    paths: list[str] = []
-    vectors: list[Float32NumpyArray] = []
+    all_paths = _validated_paths(image_paths)
+    batch_size = embedder.batch_size
+
+    if batch_size == -1:
+        batch_size = max(len(all_paths), 1)
+
     failures: list[str] = []
-    for path in _validated_paths(image_paths):
-        try:
-            vectors.append(_embed_single_path(path, embedder))
-        except (FileNotFoundError, ValueError, OSError):
-            if not skip_errors:
-                raise
-            failures.append(path)
-            continue
-        paths.append(path)
+    images = _decoded_images(
+        all_paths,
+        num_workers,
+        batch_size * num_prefetch_batches,
+        skip_errors,
+        failures,
+    )
+
+    paths: list[str] = []
+    blocks: list[Float32NumpyArray] = []
+    while batch := list(itertools.islice(images, batch_size)):
+        batch_paths, batch_blocks = _embed_batch(batch, embedder, skip_errors, failures)
+        paths.extend(batch_paths)
+        blocks.extend(batch_blocks)
 
     if failures:
         warnings.warn(
@@ -643,17 +692,167 @@ def _embed_image_paths(
     if not paths:
         raise ValueError("No images could be embedded; the store would be empty.")
 
-    embeddings = np.ascontiguousarray(np.stack(vectors).astype(np.float32))
-    return paths, embeddings
+    return paths, np.ascontiguousarray(np.vstack(blocks).astype(np.float32))
 
 
-def _embed_single_path(path: str, embedder: Embedder) -> Float32NumpyArray:
-    """Open one image and return its flattened embedding."""
+def _embed_batch(
+    batch: list[tuple[str, UInt8NumpyArray]],
+    embedder: Embedder,
+    skip_errors: bool,
+    failures: list[str],
+) -> tuple[list[str], list[Float32NumpyArray]]:
+    """
+    Embed one batch of decoded images in a single call.
+
+    A batch the embedder rejects is retried one image at a time, so a single
+    unembeddable image costs only itself rather than the whole batch.
+
+    :param batch: The ``(path, image)`` pairs making up the batch.
+    :param embedder: Embedder turning the images into feature vectors.
+    :param skip_errors: If ``True``, images the embedder rejects are recorded
+        in ``failures`` instead of raising.
+    :param failures: Collects the paths that could not be embedded.
+    :return: The embedded paths and their embedding blocks.
+    :raises ValueError: If the embedder rejects an image, or does not return one
+        row per image, and ``skip_errors`` is off.
+    """
+    paths = [path for path, _ in batch]
+    images = [image for _, image in batch]
+    try:
+        return paths, [_embed_images(images, embedder)]
+    except (ValueError, OSError):
+        if not skip_errors:
+            raise
+    return _embed_one_by_one(batch, embedder, failures)
+
+
+def _embed_one_by_one(
+    batch: list[tuple[str, UInt8NumpyArray]],
+    embedder: Embedder,
+    failures: list[str],
+) -> tuple[list[str], list[Float32NumpyArray]]:
+    """
+    Embed a rejected batch image by image to isolate the ones at fault.
+
+    :param batch: The ``(path, image)`` pairs making up the batch.
+    :param embedder: Embedder turning the images into feature vectors.
+    :param failures: Collects the paths that could not be embedded.
+    :return: The embedded paths and their embedding blocks.
+    """
+    paths: list[str] = []
+    blocks: list[Float32NumpyArray] = []
+    for path, image in batch:
+        try:
+            blocks.append(_embed_images([image], embedder))
+        except (ValueError, OSError):
+            failures.append(path)
+            continue
+        paths.append(path)
+    return paths, blocks
+
+
+def _embed_images(
+    images: list[UInt8NumpyArray],
+    embedder: Embedder,
+) -> Float32NumpyArray:
+    """
+    Embed a list of decoded images into one embedding block.
+
+    :param images: Canonical RGB images to embed.
+    :param embedder: Embedder turning the images into feature vectors.
+    :return: A ``(len(images), dim)`` block of embeddings.
+    :raises ValueError: If the embedder does not return one row per image.
+    """
+    embeddings = np.asarray(embedder.embed(images), dtype=np.float32)
+    if embeddings.ndim == 1:
+        embeddings = embeddings.reshape(1, -1)
+    if embeddings.shape[0] != len(images):
+        raise ValueError(
+            f"The embedder returned {embeddings.shape[0]} embeddings for "
+            f"{len(images)} image(s); it must return exactly one per image."
+        )
+    return embeddings
+
+
+def _decoded_images(
+    paths: list[str],
+    num_workers: int,
+    prefetch: int,
+    skip_errors: bool,
+    failures: list[str],
+) -> Iterator[tuple[str, UInt8NumpyArray]]:
+    """
+    Yield the decoded gallery images paired with their path, in input order.
+
+    :param paths: Gallery image paths to decode.
+    :param num_workers: Threads decoding image files.
+    :param prefetch: Images the decoding threads may read ahead.
+    :param skip_errors: If ``True``, unreadable images are recorded in
+        ``failures`` instead of raising.
+    :param failures: Collects the paths that could not be read.
+    :return: An iterator over ``(path, image)`` pairs.
+    :raises FileNotFoundError: If an image is missing and ``skip_errors`` is off.
+    :raises ValueError: If an image cannot be decoded and ``skip_errors`` is off.
+    """
+    for path, decode in _decode_stream(paths, num_workers, prefetch):
+        try:
+            image = decode()
+        except (FileNotFoundError, ValueError, OSError):
+            if not skip_errors:
+                raise
+            failures.append(path)
+            continue
+        yield path, image
+
+
+def _decode_stream(
+    paths: list[str],
+    num_workers: int,
+    prefetch: int,
+) -> Iterator[tuple[str, Callable[[], UInt8NumpyArray]]]:
+    """Yield each path with a callable returning its decoded image.
+
+    Deferring the decode to a callable lets a threaded and an unthreaded
+    producer share one error-handling site in :func:`_decoded_images`.
+
+    The threads stop at the decoded image and the callable copies it into an
+    array on the consuming thread. The decoder itself releases the GIL and so
+    runs in parallel, while the copy holds it for its whole duration: leaving
+    the copy in the threads would serialise the decodes behind it."""
+    if num_workers == 1:
+        for path in paths:
+            yield path, functools.partial(_decode_image_array, path)
+        return
+
+    remaining = iter(paths)
+    with ThreadPoolExecutor(max_workers=num_workers) as pool:
+        pending = deque(
+            (path, pool.submit(_decode_image, path))
+            for path in itertools.islice(remaining, max(prefetch, num_workers))
+        )
+        while pending:
+            path, decoded = pending.popleft()
+            for next_path in itertools.islice(remaining, 1):
+                pending.append((next_path, pool.submit(_decode_image, next_path)))
+            yield path, functools.partial(_awaited_array, decoded.result)
+
+
+def _decode_image(path: str) -> Image.Image:
+    """Read one image file into a decoded RGB image."""
     try:
         with Image.open(path) as image:
-            rgb_image = np.asarray(image.convert("RGB"))
+            return image.convert("RGB")
     except FileNotFoundError:
         raise  # already clear and specific; let it propagate
     except (UnidentifiedImageError, OSError) as exc:
         raise ValueError(f"Could not read image {path!r}: {exc}") from exc
-    return np.asarray(embedder.embed(rgb_image), dtype=np.float32).flatten()
+
+
+def _decode_image_array(path: str) -> UInt8NumpyArray:
+    """Read one image file into a canonical RGB array."""
+    return np.asarray(_decode_image(path))
+
+
+def _awaited_array(decoded: Callable[[], Image.Image]) -> UInt8NumpyArray:
+    """Wait for a threaded decode and copy its image into a canonical RGB array."""
+    return np.asarray(decoded())

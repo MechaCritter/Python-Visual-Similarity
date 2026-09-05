@@ -1,13 +1,4 @@
-"""
-Structural type describing the embedding-store interface used by retrieval.
-
-This module defines :class:`EmbeddingStore`, a :class:`typing.Protocol` capturing
-the surface that retrieval and evaluation rely on: the gallery embeddings and
-their paths, the embedder that produced them, and an accelerated
-nearest-neighbour search. :class:`pyvisim.image_store.InMemoryImageEmbeddingStore`
-satisfies it structurally, so the evaluation helpers stay decoupled from the
-concrete store implementation.
-"""
+"""Structural type describing the embedding-store interface used by retrieval."""
 
 from typing import Protocol, runtime_checkable
 
