@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import abc
+import os
 import pathlib
 from typing import Any, ClassVar, TypeVar
 
@@ -82,10 +83,14 @@ class SerializerMixin(abc.ABC):
         Saves the serialised state of this object to a file.
 
         :param path: Target file path. The suffix of the file kind is appended
-            if missing.
+            if missing. Overwritten if it exists.
         :return: The path of the written file.
+        :raises OSError: If the destination directory does not exist.
         """
-        return self._write_state(self.to_dict(), self._resolve_save_path(path))
+        # The destination is resolved first so that an unwritable one is
+        # reported before the state is serialised.
+        target = self._resolve_save_path(path)
+        return self._write_state(self.to_dict(), target)
 
     @classmethod
     def load_from_disk(
@@ -105,6 +110,7 @@ class SerializerMixin(abc.ABC):
         :param kwargs: Objects the file cannot hold, forwarded to
             :meth:`from_dict`.
         :return: A ready-to-use instance.
+        :raises FileNotFoundError: If ``path`` does not exist.
         :raises ValueError: If the file is not a valid file of this kind or
             was saved by a different class.
         :raises TypeError: If the class does not take one of ``kwargs``.
@@ -117,14 +123,22 @@ class SerializerMixin(abc.ABC):
     @classmethod
     def _resolve_save_path(cls, path: str | pathlib.Path) -> pathlib.Path:
         """
-        Appends :attr:`_FILE_SUFFIX` to a save path that does not carry it.
+        Turns a target path into the one :meth:`save_to_disk` writes to.
+
+        :attr:`_FILE_SUFFIX` is appended to a path that does not carry it, and
+        a destination this library cannot write to is rejected here rather than
+        by the safetensors writer.
 
         :param path: Target file path as given by the caller.
         :return: The path :meth:`save_to_disk` writes to.
+        :raises OSError: If the destination directory does not exist.
         """
         path = pathlib.Path(path)
         if path.suffix != cls._FILE_SUFFIX:
             path = path.with_name(path.name + cls._FILE_SUFFIX)
+        parent = os.path.dirname(os.path.abspath(path))
+        if not os.path.isdir(parent):
+            raise OSError(f"Destination directory does not exist: {parent!r}.")
         return path
 
     def _write_state(self, state: dict[str, Any], path: pathlib.Path) -> pathlib.Path:
@@ -145,8 +159,11 @@ class SerializerMixin(abc.ABC):
 
         :param path: Path to the file to read.
         :return: The state, with arrays restored to ``numpy.ndarray``.
+        :raises FileNotFoundError: If ``path`` does not exist.
         :raises ValueError: If the file cannot be read as a file of this kind.
         """
+        if not path.exists():
+            raise FileNotFoundError(f"No such {cls._FILE_SUFFIX} file: {str(path)!r}.")
         return load_state(path, cls._METADATA_KEY)
 
     @classmethod

@@ -4,7 +4,6 @@ In-memory image embedding storage that uses a search index to accelerate retriev
 
 from __future__ import annotations
 
-import os
 import pathlib
 import warnings
 from collections.abc import Iterable
@@ -17,7 +16,6 @@ from ..serialization import (
     SerializerMixin,
     embedder_from_dict,
     embedder_to_dict,
-    load_state,
 )
 from ..typing import (
     Embedder,
@@ -203,6 +201,19 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     _FILE_SUFFIX: ClassVar[str] = _STORE_FILE_SUFFIX
     _METADATA_KEY: ClassVar[str] = _STORE_METADATA_KEY
     _CLASS_KEY: ClassVar[str] = "store_class"
+
+    #: Keys a serialised state must contain to be a valid store file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "store_class",
+            "index_name",
+            "space",
+            "index_params",
+            "paths",
+            "embeddings",
+            "embedder",
+        }
+    )
 
     def __init__(
         self,
@@ -497,44 +508,12 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :raises ValueError: If ``vectors`` does not hold one row per path.
         """
         path = self._resolve_save_path(path)
-        parent = os.path.dirname(os.path.abspath(path))
-        if not os.path.isdir(parent):
-            raise OSError(f"Destination directory does not exist: {parent!r}.")
-
         embeddings = (
             self.embeddings
             if vectors is None
             else _validated_vectors(vectors, len(self._paths))
         )
         return self._write_state(self._state(embeddings), path)
-
-    @classmethod
-    def _read_state(cls, path: pathlib.Path) -> dict[str, Any]:
-        """
-        Reads the store state a ``.safetensors`` file holds.
-
-        :param path: Path to the file to read.
-        :return: The reconstructed store state, with arrays restored.
-        :raises FileNotFoundError: If ``path`` does not exist.
-        :raises ValueError: If the file was not written by pyvisim.
-        """
-        if not path.exists():
-            raise FileNotFoundError(f"No such store file: {str(path)!r}.")
-        return load_state(path, cls._METADATA_KEY)
-
-    @classmethod
-    def _validate_state(cls, state: dict[str, Any], path: pathlib.Path) -> None:
-        """
-        Rejects a state that was not written by this class.
-
-        :param state: The state read from ``path``.
-        :param path: Path the state was read from, named in the error message.
-        :raises ValueError: If the file was not written by this class.
-        """
-        if state.get(cls._CLASS_KEY) != cls.__name__:
-            raise ValueError(
-                f"File {str(path)!r} was not written by {cls.__name__}.save_to_disk."
-            )
 
 
 def _validate_search_index(search_index: str | ExternalSearchIndex | None) -> None:

@@ -25,6 +25,9 @@
   embedders at a time. Each embedder still applies its own batch size within.
 
 ### Changed
+- Every `save_to_disk` rejects a destination whose directory does not exist
+  with an `OSError`, and every `load_from_disk` reports a missing file as a
+  `FileNotFoundError`. The embedders reported both as a safetensors error.
 - ⚠️ `SSIM` and `MSSSIM` score 16 image pairs per batch instead of two, and
   the neural embedders now embed 16 images per forward pass instead of the
   whole input at once. Pass `batch_size=-1` for the previous behaviour.

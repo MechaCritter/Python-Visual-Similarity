@@ -7,11 +7,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ._utils import get_similarity_func
-from .serialization import (
-    EMBEDDER_METADATA_KEY,
-    SerializerMixin,
-    load_embedder_state,
-)
+from .serialization import EMBEDDER_METADATA_KEY, SerializerMixin
 from .typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -352,6 +348,12 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
 
         :param path: Path to the ``.embedder`` file.
         :return: The reconstructed embedder state, with arrays restored.
+        :raises FileNotFoundError: If ``path`` does not exist.
         :raises ValueError: If the file is not a valid ``.embedder`` file.
         """
-        return load_embedder_state(path)
+        try:
+            return super()._read_state(path)
+        except ValueError as error:
+            raise ValueError(
+                f"File {path} is not a valid {EMBEDDER_FILE_SUFFIX} file."
+            ) from error
