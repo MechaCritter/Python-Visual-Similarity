@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import time
+
 import numpy as np
 import pytest
 from PIL import Image
@@ -14,7 +17,22 @@ from pyvisim.image_store import (
     HnswIndex,
     InMemoryImageEmbeddingStore,
 )
+
+# The reading stage is internal to the store, which exposes no way to run it
+# without embedding. Driving it directly is what keeps the embedder out of the
+# measurement.
+from pyvisim.image_store.image_store import _decoded_images
 from pyvisim.neural_networks import ContrastiveSiameseNetwork
+
+#: Images the reading measurement decodes.
+_TIMED_GALLERY_SIZE = 24
+#: Side length of those images, sized so that decoding one costs far more than
+#: the thread hand-off around it.
+_TIMED_IMAGE_SIDE = 1024
+#: Times each worker count is measured.
+_TIMING_ROUNDS = 3
+#: Speed-up two reading threads must reach over a single one.
+_MIN_SPEED_UP = 1.5
 
 
 @pytest.fixture(scope="module")
@@ -66,6 +84,51 @@ def hnsw_store(
     return InMemoryImageEmbeddingStore(
         gallery_paths, learned_vlad_embedder, "hnsw", index_params={"graph_degree": 8}
     )
+
+
+@pytest.fixture(scope="module")
+def timed_gallery_paths(tmp_path_factory: pytest.TempPathFactory) -> list[str]:
+    """Write a gallery whose images are slow enough to decode to be timed.
+
+    The images of the other fixtures decode in microseconds, which is drowned
+    out by the cost of handing them between threads. These are large and noisy,
+    so the decoding is what a measurement over them observes.
+
+    :param tmp_path_factory: pytest's session temp-directory factory.
+    :returns: one ``.jpg`` path per image.
+    """
+    directory = tmp_path_factory.mktemp("store_timing_gallery")
+    rng = np.random.default_rng(0)
+    paths: list[str] = []
+    for index in range(_TIMED_GALLERY_SIZE):
+        noise = rng.integers(
+            0, 256, size=(_TIMED_IMAGE_SIDE, _TIMED_IMAGE_SIDE, 3), dtype=np.uint8
+        )
+        path = directory / f"img_{index}.jpg"
+        Image.fromarray(noise).save(path, quality=95)
+        paths.append(str(path))
+    return paths
+
+
+def _warm_page_cache(paths: list[str]) -> None:
+    """Read every file once, so that no measurement pays for the first disk read."""
+    for path in paths:
+        with open(path, "rb") as handle:
+            handle.read()
+
+
+def _read_seconds(paths: list[str], num_workers: int) -> float:
+    """Read and decode the whole gallery once, and return how long it took.
+
+    :param paths: gallery image paths to read.
+    :param num_workers: threads decoding the image files.
+    :returns: the wall-clock duration of the read, in seconds.
+    """
+    failures: list[str] = []
+    start = time.perf_counter()
+    for _ in _decoded_images(paths, num_workers, len(paths), False, failures):
+        pass
+    return time.perf_counter() - start
 
 
 # Construction and exposed state
@@ -209,6 +272,80 @@ def test_unknown_search_index_raises(
     """An unknown search_index is rejected before any image is embedded."""
     with pytest.raises(ValueError, match="Unknown search_index"):
         InMemoryImageEmbeddingStore(gallery_paths, learned_vlad_embedder, "bogus")
+
+
+@pytest.mark.parametrize("name", ["num_workers", "num_prefetch_batches"])
+@pytest.mark.parametrize("value", [0, -1, 2.5])
+def test_non_positive_thread_settings_raise(
+    gallery_paths: list[str],
+    learned_vlad_embedder: VLADEmbedder,
+    name: str,
+    value: object,
+) -> None:
+    """The reading knobs are rejected before any image is embedded."""
+    with pytest.raises(ValueError, match=f"'{name}' must be a positive integer"):
+        InMemoryImageEmbeddingStore(
+            gallery_paths,
+            learned_vlad_embedder,
+            **{name: value},  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize("num_prefetch_batches", [1, 2, 4])
+def test_prefetch_batches_do_not_change_the_gallery(
+    gallery_paths: list[str],
+    learned_vlad_embedder: VLADEmbedder,
+    store: InMemoryImageEmbeddingStore,
+    num_prefetch_batches: int,
+) -> None:
+    """Reading further ahead is a performance knob, not a result change."""
+    prefetching = InMemoryImageEmbeddingStore(
+        gallery_paths, learned_vlad_embedder, num_prefetch_batches=num_prefetch_batches
+    )
+    assert prefetching.paths == store.paths
+    np.testing.assert_allclose(prefetching.embeddings, store.embeddings)
+
+
+@pytest.mark.parametrize("num_workers", [1, 2, 4])
+def test_num_workers_no_not_change_gallery(
+    gallery_paths: list[str],
+    learned_vlad_embedder: VLADEmbedder,
+    store: InMemoryImageEmbeddingStore,
+    num_workers: int,
+) -> None:
+    """Reading on more threads is a performance knob, not a result change."""
+    threaded = InMemoryImageEmbeddingStore(
+        gallery_paths, learned_vlad_embedder, num_workers=num_workers
+    )
+    assert threaded.paths == store.paths
+    np.testing.assert_allclose(threaded.embeddings, store.embeddings)
+
+
+@pytest.mark.skipif(
+    (os.cpu_count() or 1) < 2,
+    reason="Decoding on two threads cannot outrun one on a single core.",
+)
+def test_two_workers_load_faster_than_one(timed_gallery_paths: list[str]) -> None:
+    """Two reading threads decode the gallery at least 50% faster than one.
+
+    Only the reading stage is timed: no embedder runs, so the measurement
+    covers the stage ``num_workers`` actually controls. The files are read once
+    up front, which leaves them in the page cache of the operating system and
+    compares how well the decoding parallelises rather than how fast the disk
+    is.
+    """
+    _warm_page_cache(timed_gallery_paths)
+    timings: dict[int, list[float]] = {1: [], 2: []}
+    for _ in range(_TIMING_ROUNDS):
+        for num_workers in timings:
+            timings[num_workers].append(_read_seconds(timed_gallery_paths, num_workers))
+
+    single, paired = min(timings[1]), min(timings[2])
+    speed_up = single / paired
+    assert speed_up >= _MIN_SPEED_UP, (
+        f"Reading {len(timed_gallery_paths)} images took {single:.3f}s on one "
+        f"thread and {paired:.3f}s on two, a speed-up of only {speed_up:.2f}x."
+    )
 
 
 def test_non_string_path_raises(learned_vlad_embedder: VLADEmbedder) -> None:
