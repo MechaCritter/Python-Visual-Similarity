@@ -23,6 +23,65 @@
   bounds the activation memory of each.
 - `Pipeline` takes a `batch_size` bounding how many images it hands its
   embedders at a time. Each embedder still applies its own batch size within.
+- `InMemoryImageEmbeddingStore` embeds its gallery one batch at a time, sized by
+  the `batch_size` of the embedder it is given, instead of one image per call.
+- `InMemoryImageEmbeddingStore` takes a `num_workers` (default `4`) reading and
+  decoding the gallery files on worker threads while the embedder works on the
+  previous batch.
+- `InMemoryImageEmbeddingStore` takes a `num_prefetch_batches` (default `4`)
+  controlling how many batches of images the reading threads may run ahead of
+  the embedder.
+
+### Performance
+Building a store over all 6149 train images of the Oxford Flower dataset, before
+and after the batched gallery build, measured with
+[`a benchmark script`](changelog_files/benchmark_store_batching.py) on
+the CPU with `PYVISIM_NUM_THREADS=4`. Only the store constructor is timed.
+
+```python
+from pyvisim.datasets import OxfordFlowerDataset
+from pyvisim.image_store import InMemoryImageEmbeddingStore
+from pyvisim.neural_networks import ClipEmbedder
+
+train_dataset = OxfordFlowerDataset()
+train_image_paths = train_dataset.image_paths
+
+embedder = ClipEmbedder()
+
+image_store = InMemoryImageEmbeddingStore(
+    image_paths=train_image_paths,
+    embedder=embedder,
+    search_index="hnsw",
+    index_params={"m": 16, "ef_construction": 200},
+)
+```
+
+| Before | After |
+|---|---|
+| 338 s | 249 s |
+
+```python
+from pyvisim.classic import FisherVectorEmbedder
+from pyvisim.datasets import OxfordFlowerDataset
+from pyvisim.image_store import InMemoryImageEmbeddingStore
+
+train_dataset = OxfordFlowerDataset()
+train_image_paths = train_dataset.image_paths
+
+# Fitted beforehand with learn(images, dim_reduction_factor=2)
+embedder = FisherVectorEmbedder(n_components=32)
+
+image_store = InMemoryImageEmbeddingStore(
+    image_paths=train_image_paths,
+    embedder=embedder,
+    search_index="hnsw",
+    index_params={"m": 16, "ef_construction": 200},
+)
+```
+
+| Before | After |
+|---|---|
+| 2936 s | 2706 s |
 
 ### Changed
 - ⚠️ `SSIM` and `MSSSIM` score 16 image pairs per batch instead of two, and
