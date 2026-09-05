@@ -27,7 +27,7 @@ from safetensors.numpy import save_file
 from ..typing import Embedder, NumpyArray
 
 #: Metadata key under which the embedder JSON skeleton is stored.
-_METADATA_KEY = "pyvisim_embedder"
+EMBEDDER_METADATA_KEY = "pyvisim_embedder"
 
 
 def decode_array_node(value: Any) -> NumpyArray:
@@ -154,7 +154,7 @@ def save_embedder_state(state: dict[str, Any], path: pathlib.Path) -> None:
         nodes produced by the clustering models' ``to_dict``).
     :param path: Destination file path.
     """
-    save_state(state, path, _METADATA_KEY)
+    save_state(state, path, EMBEDDER_METADATA_KEY)
 
 
 def load_embedder_state(path: pathlib.Path) -> dict[str, Any]:
@@ -166,7 +166,7 @@ def load_embedder_state(path: pathlib.Path) -> dict[str, Any]:
     :raises ValueError: If the file is not a valid ``.embedder`` file.
     """
     try:
-        return load_state(path, _METADATA_KEY)
+        return load_state(path, EMBEDDER_METADATA_KEY)
     except ValueError as error:
         raise ValueError(f"File {path} is not a valid .embedder file.") from error
 
