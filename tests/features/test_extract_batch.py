@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pytest
 import torch.nn as nn
 from torchvision import transforms
 
@@ -87,13 +86,11 @@ def test_extract_batch_of_nothing_is_empty() -> None:
 # DeepConvFeature, which pushes the whole batch through the model at once
 
 
-@pytest.mark.parametrize("spatial_embedding", [True, False])
-def test_deepconv_batch_matches_one_call_per_image(spatial_embedding: bool) -> None:
+def test_deepconv_batch_matches_one_call_per_image() -> None:
     """One forward pass over the batch yields exactly the per-image descriptors."""
     extractor = DeepConvFeature(
         _tiny_conv_model(),
         layer_index=-1,
-        spatial_embedding=spatial_embedding,
         device="cpu",
     )
     images = _rgb_images((64, 64), (96, 80), (64, 64))

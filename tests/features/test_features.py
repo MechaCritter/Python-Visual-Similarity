@@ -160,41 +160,19 @@ def test_lambda_accepts_tensor() -> None:
 # DeepConvFeature
 
 
-def test_deepconv_output_dim_with_spatial() -> None:
-    """With spatial embedding, ``output_dim`` is channels + 2."""
-    extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_embedding=True, device="cpu"
-    )
-    assert extractor.output_dim == 12
-
-
-def test_deepconv_output_dim_no_spatial() -> None:
-    """Without spatial embedding, ``output_dim`` is the channel count."""
-    extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_embedding=False, device="cpu"
-    )
+def test_deepconv_output_dim() -> None:
+    """``output_dim`` is the channel count of the selected layer."""
+    extractor = DeepConvFeature(_tiny_conv_model(), layer_index=-1, device="cpu")
     assert extractor.output_dim == 10
 
 
-def test_deepconv_call_shape_with_spatial(rgb_image: ImageObj) -> None:
+def test_deepconv_call_shape(rgb_image: ImageObj) -> None:
     """The call flattens the feature map to ``(Hf*Wf, output_dim)`` float32."""
-    extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_embedding=True, device="cpu"
-    )
+    extractor = DeepConvFeature(_tiny_conv_model(), layer_index=-1, device="cpu")
     out = extractor(rgb_image.array)
     assert out.ndim == 2
-    assert out.shape[1] == 12
-    assert out.shape[0] == 224 * 224
-    assert out.dtype == np.float32
-
-
-def test_deepconv_call_shape_no_spatial(rgb_image: ImageObj) -> None:
-    """Without spatial embedding the flattened map has ``output_dim`` columns."""
-    extractor = DeepConvFeature(
-        _tiny_conv_model(), layer_index=-1, spatial_embedding=False, device="cpu"
-    )
-    out = extractor(rgb_image.array)
     assert out.shape == (224 * 224, 10)
+    assert out.dtype == np.float32
 
 
 def test_deepconv_list_conv_layers() -> None:
@@ -244,7 +222,7 @@ def test_deepconv_deprecated_model_kwarg_warns() -> None:
     """The deprecated ``model`` keyword still works but emits a ``FutureWarning``."""
     with pytest.warns(FutureWarning, match="'model' argument"):
         extractor = DeepConvFeature(model=_tiny_conv_model(), device="cpu")
-    assert extractor.output_dim == 12
+    assert extractor.output_dim == 10
 
 
 def test_deepconv_explicit_backbone_wins_over_deprecated_model() -> None:
@@ -272,9 +250,9 @@ def test_deepconv_accepts_tensor() -> None:
 
 @pytest.mark.slow
 def test_deepconv_default_vgg16() -> None:
-    """The default VGG16 last conv layer gives ``output_dim == 514`` (512 + 2)."""
+    """The default VGG16 last conv layer gives ``output_dim == 512``."""
     extractor = DeepConvFeature(device="cpu")
-    assert extractor.output_dim == 514
+    assert extractor.output_dim == 512
 
 
 @pytest.mark.slow
@@ -282,4 +260,4 @@ def test_deepconv_string_backbone_vgg16() -> None:
     """The ``"vgg16"`` string backbone builds the same VGG16 extractor."""
     extractor = DeepConvFeature(backbone="vgg16", device="cpu")
     assert type(extractor.model).__name__ == "VGG"
-    assert extractor.output_dim == 514
+    assert extractor.output_dim == 512

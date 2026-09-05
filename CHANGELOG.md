@@ -24,6 +24,11 @@
 - `Pipeline` takes a `batch_size` bounding how many images it hands its
   embedders at a time. Each embedder still applies its own batch size within.
 
+### Removed
+- ⚠️ `DeepConvFeature` no longer appends normalized `(x, y)` coordinates to its
+  descriptors: the `spatial_embedding` argument is gone and `output_dim` is now
+  the channel count of the selected conv layer.
+
 ### Changed
 - ⚠️ `SSIM` and `MSSSIM` score 16 image pairs per batch instead of two, and
   the neural embedders now embed 16 images per forward pass instead of the
