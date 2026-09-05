@@ -89,6 +89,9 @@ image_store = InMemoryImageEmbeddingStore(
   the channel count of the selected conv layer.
 
 ### Changed
+- Every `save_to_disk` rejects a destination whose directory does not exist
+  with an `OSError`, and every `load_from_disk` reports a missing file as a
+  `FileNotFoundError`. The embedders reported both as a safetensors error.
 - ⚠️ `SSIM` and `MSSSIM` score 16 image pairs per batch instead of two, and
   the neural embedders now embed 16 images per forward pass instead of the
   whole input at once. Pass `batch_size=-1` for the previous behaviour.
@@ -98,6 +101,11 @@ image_store = InMemoryImageEmbeddingStore(
   score matrix, which is what every other metric already did.
 - ⚠️ The batch size is a required key of the `.embedder` format, so a file
   written by an earlier release cannot be loaded by this one.
+
+### Removed
+- ⚠️ `pyvisim.serialization.save_embedder_state` and `load_embedder_state`.
+  They only called `save_state`/`load_state` with the embedder metadata key,
+  which is now exported as `EMBEDDER_METADATA_KEY`.
 
 ## [0.9.2] - 2026-08-26
 
