@@ -6,22 +6,20 @@ from __future__ import annotations
 
 import functools
 import itertools
-import os
 import pathlib
 import warnings
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, NamedTuple
+from typing import Any, ClassVar, NamedTuple
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
 from ..serialization import (
+    SerializerMixin,
     embedder_from_dict,
     embedder_to_dict,
-    load_state,
-    save_state,
 )
 from ..typing import (
     Embedder,
@@ -82,7 +80,7 @@ class Candidate(NamedTuple):
     score: float
 
 
-class InMemoryImageEmbeddingStore:
+class InMemoryImageEmbeddingStore(SerializerMixin):
     """
     Embed a gallery of images and index their embeddings for fast retrieval.
 
@@ -233,6 +231,23 @@ class InMemoryImageEmbeddingStore:
     >>> for candidate in results:
     ...     print(candidate.path, candidate.score)
     """
+
+    _FILE_SUFFIX: ClassVar[str] = _STORE_FILE_SUFFIX
+    _METADATA_KEY: ClassVar[str] = _STORE_METADATA_KEY
+    _CLASS_KEY: ClassVar[str] = "store_class"
+
+    #: Keys a serialised state must contain to be a valid store file.
+    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "store_class",
+            "index_name",
+            "space",
+            "index_params",
+            "paths",
+            "embeddings",
+            "embedder",
+        }
+    )
 
     def __init__(
         self,
@@ -432,6 +447,90 @@ class InMemoryImageEmbeddingStore:
             for row_scores, row_ids in zip(scores, ids, strict=True)
         ]
 
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialise the store into a JSON-safe state dictionary.
+
+        The image paths, index configuration and the fully serialised embedder
+        are described alongside the embeddings the index holds, so the store
+        can later be rebuilt without access to the original images.
+
+        :return: A JSON-safe store description suitable for :meth:`from_dict`.
+        :raises TypeError: If the embedder is not serialisable.
+        """
+        return self._state(self.embeddings)
+
+    def _state(self, embeddings: Float32NumpyArray) -> dict[str, Any]:
+        """
+        Describe this store around a given gallery matrix.
+
+        :param embeddings: Embeddings to write, shape ``(N, D)``, in the order
+            of :attr:`paths`.
+        :return: A JSON-safe store description suitable for :meth:`from_dict`.
+        :raises TypeError: If the embedder is not serialisable.
+        """
+        return {
+            "format_version": _STORE_FORMAT_VERSION,
+            "store_class": type(self).__name__,
+            "index_name": self._index_name,
+            "space": self._space,
+            "index_params": self._index_params,
+            "paths": list(self._paths),
+            "embeddings": {
+                "__ndarray__": True,
+                "data": embeddings,
+                "dtype": str(embeddings.dtype),
+                "shape": list(embeddings.shape),
+                "order": "C",
+            },
+            "embedder": embedder_to_dict(self._embedder),
+        }
+
+    @classmethod
+    def from_dict(
+        cls, state: dict[str, Any], **kwargs: Any
+    ) -> InMemoryImageEmbeddingStore:
+        """
+        Rebuild a store from a dictionary produced by :meth:`to_dict`.
+
+        The embedder is reconstructed and the index is rebuilt from the saved
+        embeddings using the saved parameters.
+
+        Not everything a store is made of survives serialization. An
+        :class:`~pyvisim.image_store.ExternalSearchIndex` wraps an object this
+        library cannot write to disk, so pass a rebuilt one back as the
+        ``search_index`` keyword argument; a name differing from the saved one
+        is reported with a warning. Without it the store falls back to an exact
+        :class:`~pyvisim.image_store.BruteForceIndex` over the saved
+        embeddings. Any other keyword argument is
+        forwarded to the embedder, the way an embedder's own
+        :meth:`~pyvisim.serialization.SerializerMixin.load_from_disk`
+        forwards it.
+
+        :param state: A JSON-safe store description.
+        :param kwargs: ``search_index`` for a rebuilt external index, plus the
+            objects the embedder's file cannot hold.
+        :return: A populated :class:`InMemoryImageEmbeddingStore`.
+        :raises TypeError: If ``search_index`` is not an
+            :class:`~pyvisim.image_store.ExternalSearchIndex`, or the embedder
+            does not take one of ``kwargs``.
+        """
+        search_index = kwargs.pop(_SEARCH_INDEX_KWARG, None)
+        index_name = str(state["index_name"])
+        search_index = _restored_external_index(search_index, index_name)
+        embedder = embedder_from_dict(state["embedder"], **kwargs)
+        return cls._from_components(
+            paths=list(state["paths"]),
+            embeddings=np.asarray(state["embeddings"], dtype=np.float32),
+            embedder=embedder,
+            index_name=_BRUTE_FORCE
+            if search_index is None and _is_external(index_name)
+            else index_name,
+            space=state["space"],
+            index_params=state["index_params"],
+            search_index=search_index,
+        )
+
     def save_to_disk(
         self,
         path: str | pathlib.Path,
@@ -459,96 +558,13 @@ class InMemoryImageEmbeddingStore:
         :raises TypeError: If the embedder is not serialisable.
         :raises ValueError: If ``vectors`` does not hold one row per path.
         """
-        path = pathlib.Path(path)
-        if path.suffix != _STORE_FILE_SUFFIX:
-            path = path.with_name(path.name + _STORE_FILE_SUFFIX)
-        parent = os.path.dirname(os.path.abspath(path))
-        if not os.path.isdir(parent):
-            raise OSError(f"Destination directory does not exist: {parent!r}.")
-
+        path = self._resolve_save_path(path)
         embeddings = (
             self.embeddings
             if vectors is None
             else _validated_vectors(vectors, len(self._paths))
         )
-        state: dict[str, Any] = {
-            "format_version": _STORE_FORMAT_VERSION,
-            "store_class": type(self).__name__,
-            "index_name": self._index_name,
-            "space": self._space,
-            "index_params": self._index_params,
-            "paths": list(self._paths),
-            "embeddings": {
-                "__ndarray__": True,
-                "data": embeddings,
-                "dtype": str(embeddings.dtype),
-                "shape": list(embeddings.shape),
-                "order": "C",
-            },
-            "embedder": embedder_to_dict(self._embedder),
-        }
-        save_state(state, path, _STORE_METADATA_KEY)
-        return path
-
-    @classmethod
-    def load_from_disk(
-        cls,
-        path: str | pathlib.Path,
-        **kwargs: Any,
-    ) -> InMemoryImageEmbeddingStore:
-        """
-        Rebuild a store from a :meth:`save_to_disk` file.
-
-        The embedder is reconstructed and the index is rebuilt from the saved
-        embeddings using the saved parameters.
-
-        Not everything a store is made of survives serialization. An
-        :class:`~pyvisim.image_store.ExternalSearchIndex` wraps an object this
-        library cannot write to disk, so pass a rebuilt one back as the
-        ``search_index`` keyword argument; a name differing from the saved one
-        is reported with a warning. Without it the store falls back to an exact
-        :class:`~pyvisim.image_store.BruteForceIndex` over the saved
-        embeddings, also with a warning. Any other keyword argument is
-        forwarded to the embedder, the way an embedder's own
-        :meth:`~pyvisim._base_classes.SerializableImageEmbedder.load_from_disk`
-        forwards it.
-
-        :param path: Path to a ``.safetensors`` file written by
-            :meth:`save_to_disk`.
-        :param kwargs: ``search_index`` for a rebuilt external index, plus the
-            objects the embedder's file cannot hold.
-        :return: A populated :class:`InMemoryImageEmbeddingStore`.
-        :raises FileNotFoundError: If ``path`` does not exist.
-        :raises TypeError: If ``search_index`` is not an
-            :class:`~pyvisim.image_store.ExternalSearchIndex`, or the embedder
-            does not take one of ``kwargs``.
-        :raises ValueError: If the file was not written by this class.
-        """
-        path = pathlib.Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"No such store file: {str(path)!r}.")
-
-        state = load_state(path, _STORE_METADATA_KEY)
-        if state.get("store_class") != cls.__name__:
-            raise ValueError(
-                f"File {str(path)!r} was not written by {cls.__name__}.save_to_disk."
-            )
-
-        search_index = kwargs.pop(_SEARCH_INDEX_KWARG, None)
-        index_name = str(state["index_name"])
-        search_index = _restored_external_index(search_index, index_name)
-        embedder = embedder_from_dict(state["embedder"], **kwargs)
-        return cls._from_components(
-            paths=list(state["paths"]),
-            embeddings=np.asarray(state["embeddings"], dtype=np.float32),
-            embedder=embedder,
-            index_name=_BRUTE_FORCE
-            if search_index is None and _is_external(index_name)
-            else index_name,
-            space=state["space"],
-            index_params=state["index_params"],
-            search_index=search_index,
-        )
+        return self._write_state(self._state(embeddings), path)
 
 
 def _validate_search_index(search_index: str | ExternalSearchIndex | None) -> None:
@@ -601,6 +617,9 @@ def _restored_external_index(
     saved_name: str,
 ) -> ExternalSearchIndex | None:
     """Validate the index handed to :meth:`load_from_disk` against the saved one."""
+    # The warnings are reported at 'stacklevel=4' so that they point at the
+    # caller of 'load_from_disk', three frames up: this function, 'from_dict'
+    # and 'load_from_disk' itself.
     if search_index is None:
         if _is_external(saved_name):
             warnings.warn(
@@ -609,7 +628,7 @@ def _restored_external_index(
                 f"'{_SEARCH_INDEX_KWARG}=...' to search through it again; falling "
                 f"back to an exact brute-force scan of the saved embeddings.",
                 FutureWarning,
-                stacklevel=3,
+                stacklevel=4,
             )
         return None
     if not isinstance(search_index, ExternalSearchIndex):
@@ -623,7 +642,7 @@ def _restored_external_index(
             f"as '{_SEARCH_INDEX_KWARG}' is named {search_index.name!r}. Its "
             f"results may not match the ones the saved store returned.",
             FutureWarning,
-            stacklevel=3,
+            stacklevel=4,
         )
     return search_index
 
