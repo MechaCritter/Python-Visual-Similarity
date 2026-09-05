@@ -12,7 +12,7 @@ import torch
 from pyvisim._errors import NotFittedError
 from pyvisim.classic import VLADEmbedder, _base_embedder
 from pyvisim.classic._clustering import DiagCovarGaussianMixture, KMeans
-from pyvisim.serialization import save_embedder_state
+from pyvisim.serialization import EMBEDDER_METADATA_KEY, save_state
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -352,6 +352,6 @@ def test_a_state_without_a_batch_size_is_not_a_valid_file(
     """The batch size is a required key, so a file predating it is rejected."""
     state = vlad_no_pca.to_dict()
     del state["batch_size"]
-    save_embedder_state(state, path := tmp_path / "vlad.embedder")
+    save_state(state, path := tmp_path / "vlad.embedder", EMBEDDER_METADATA_KEY)
     with pytest.raises(ValueError, match="not a valid .embedder file"):
         VLADEmbedder.load_from_disk(path)

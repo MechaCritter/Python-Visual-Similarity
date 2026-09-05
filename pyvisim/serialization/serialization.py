@@ -5,10 +5,12 @@ An embedder is described by a nested, JSON-safe state dictionary: for the
 classic embedders that is the clustering model, optional PCA, normalization
 hyperparameters, similarity-metric name and feature-extractor configuration;
 for the neural ones it is the architecture description plus the model's
-``state_dict``. This module stores that description as a ``.embedder`` file in
-the `safetensors <https://github.com/huggingface/safetensors>`_ format: every
+``state_dict``. This module stores such a description in the
+`safetensors <https://github.com/huggingface/safetensors>`_ format: every
 NumPy array is written as a binary tensor, while the surrounding structure and
-scalar values are stored as a single JSON blob in the file's metadata.
+scalar values are stored as a single JSON blob in the file's metadata. The
+objects writing their own ``.embedder`` and ``.safetensors`` files on top of it
+are the ones inheriting :class:`~pyvisim.serialization.SerializerMixin`.
 
 The module also holds the class-name dispatch that turns an embedder into such
 a state dictionary and back.
@@ -27,7 +29,7 @@ from safetensors.numpy import save_file
 from ..typing import Embedder, NumpyArray
 
 #: Metadata key under which the embedder JSON skeleton is stored.
-_METADATA_KEY = "pyvisim_embedder"
+EMBEDDER_METADATA_KEY = "pyvisim_embedder"
 
 
 def decode_array_node(value: Any) -> NumpyArray:
@@ -144,31 +146,6 @@ def load_state(path: str | pathlib.Path, metadata_key: str) -> dict[str, Any]:
     if not isinstance(state, dict):
         raise ValueError(f"File {path} does not hold a state dictionary.")
     return state
-
-
-def save_embedder_state(state: dict[str, Any], path: pathlib.Path) -> None:
-    """
-    Write an embedder state dictionary to a ``.embedder`` safetensors file.
-
-    :param state: JSON-safe embedder description (may contain ``__ndarray__``
-        nodes produced by the clustering models' ``to_dict``).
-    :param path: Destination file path.
-    """
-    save_state(state, path, _METADATA_KEY)
-
-
-def load_embedder_state(path: pathlib.Path) -> dict[str, Any]:
-    """
-    Read an embedder state dictionary from a ``.embedder`` safetensors file.
-
-    :param path: Path to the ``.embedder`` file.
-    :return: The reconstructed embedder state, with arrays restored.
-    :raises ValueError: If the file is not a valid ``.embedder`` file.
-    """
-    try:
-        return load_state(path, _METADATA_KEY)
-    except ValueError as error:
-        raise ValueError(f"File {path} is not a valid .embedder file.") from error
 
 
 def embedder_to_dict(embedder: Embedder) -> dict[str, Any]:
