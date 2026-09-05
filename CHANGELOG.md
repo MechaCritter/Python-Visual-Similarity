@@ -25,6 +25,10 @@
   embedders at a time. Each embedder still applies its own batch size within.
 
 ### Changed
+- ⚠️ `HnswIndex` takes `graph_degree`, `build_candidates` and
+  `search_candidates` instead of `m`, `ef_construction` and `ef_search`, and
+  exposes them under those names. The old names are gone, in `index_params`
+  too, so a store saved by an earlier release cannot be loaded by this one.
 - ⚠️ `SSIM` and `MSSSIM` score 16 image pairs per batch instead of two, and
   the neural embedders now embed 16 images per forward pass instead of the
   whole input at once. Pass `batch_size=-1` for the previous behaviour.
