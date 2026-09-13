@@ -41,9 +41,6 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 
 _torch_import.check()
 
-#: On-disk format version of the serialised CLIP embedder state.
-_CLIP_EMBEDDER_FORMAT_VERSION = 3
-
 
 def _build_preprocess(
     config: VisionConfig, spec: CheckpointSpec
@@ -129,8 +126,8 @@ class ClipEmbedder(SerializableImageEmbedder):
         Proc. ICML, PMLR 139, pp. 8748-8763, 2021.
     """
 
-    #: Keys a serialised state must contain to be a valid embedder file.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+    __format_version__: ClassVar[int] = 3
+    __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
             "embedder_class",
             "similarity_func",
@@ -217,7 +214,7 @@ class ClipEmbedder(SerializableImageEmbedder):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "format_version": _CLIP_EMBEDDER_FORMAT_VERSION,
+            "format_version": self.__format_version__,
             "embedder_class": type(self).__name__,
             "similarity_func": self._similarity_func_name,
             "normalize": self.normalize,

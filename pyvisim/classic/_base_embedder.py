@@ -1,6 +1,6 @@
 import abc
 import warnings
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from typing import Any, ClassVar, TypeVar
 
 import numpy as np
@@ -22,21 +22,6 @@ from ._clustering import PCA, ClusteringModelBase
 
 setup_logging()
 
-_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION = 3
-_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION_COMPATIBILITY: dict[tuple[int, int], bool] = {
-    # Version 2 adds the "batch_size" key, which version 1 ignores but version 2
-    # requires, so the compatibility only holds in one direction.
-    (1, 2): True,
-    (2, 1): False,
-    # Version 3 adds the "normalize" key the same way.
-    (1, 3): True,
-    (2, 3): True,
-    (3, 1): False,
-    (3, 2): False,
-    #
-    # TODO: when the next _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION comes, check if
-    # it's forward / backward compatible, then add entries like the ones above.
-}
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
 
 
@@ -129,9 +114,25 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     """
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
+    __format_version__: ClassVar[int] = 3
 
-    #: Keys that a serialised state must contain to be a valid embedder file.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+    #: Whether a state written under one format version can be read under
+    #: another, keyed by ``(written version, reading version)``.
+    __compatibility_mapping__: ClassVar[Mapping[tuple[int, int], bool]] = {
+        # Version 2 adds the "batch_size" key, which version 1 ignores but version 2
+        # requires, so the compatibility only holds in one direction.
+        (1, 2): True,
+        (2, 1): False,
+        # Version 3 adds the "normalize" key the same way.
+        (1, 3): True,
+        (2, 3): True,
+        (3, 1): False,
+        (3, 2): False,
+        #
+        # TODO: when the next __format_version__ comes, check if it's forward /
+        # backward compatible, then add entries like the ones above.
+    }
+    __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
             "embedder_class",
             "clustering_model",
@@ -484,7 +485,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
                 "fitted. Call 'learn' first."
             )
         return {
-            "format_version": _CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION,
+            "format_version": self.__format_version__,
             "embedder_class": type(self).__name__,
             "clustering_model": self._clustering_model.to_dict(),
             "pca": self._pca.to_dict() if self._pca is not None else None,

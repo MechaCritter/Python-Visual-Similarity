@@ -2,7 +2,6 @@
 
 from .mixin import SerializerMixin
 from .serialization import (
-    EMBEDDER_METADATA_KEY,
     decode_array_node,
     embedder_from_dict,
     embedder_to_dict,
@@ -11,7 +10,6 @@ from .serialization import (
 )
 
 __all__ = [
-    "EMBEDDER_METADATA_KEY",
     "SerializerMixin",
     "decode_array_node",
     "embedder_from_dict",

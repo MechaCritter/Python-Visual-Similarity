@@ -7,7 +7,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ._utils import get_similarity_func
-from .serialization import EMBEDDER_METADATA_KEY, SerializerMixin
+from .serialization import SerializerMixin
 from .typing import (
     Float32NumpyArray,
     FloatNumpyArray,
@@ -17,9 +17,6 @@ from .typing import (
     UInt8NumpyArray,
 )
 from .utils.image_utils import iter_image_batches
-
-#: Suffix of the files written by :meth:`SerializableImageEmbedder.save_to_disk`.
-EMBEDDER_FILE_SUFFIX = ".embedder"
 
 
 def _l2_normalize(vectors: FloatNumpyArray) -> FloatNumpyArray:
@@ -392,13 +389,15 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         Set to ``-1`` to process all images as a single batch.
     """
 
-    _FILE_SUFFIX: ClassVar[str] = EMBEDDER_FILE_SUFFIX
-    _METADATA_KEY: ClassVar[str] = EMBEDDER_METADATA_KEY
-    _CLASS_KEY: ClassVar[str] = "embedder_class"
+    #: Suffix of the files written by :meth:`save_to_disk`.
+    __file_format__: ClassVar[str] = ".embedder"
+    #: Metadata key under which the embedder JSON skeleton is stored.
+    __metadata_key__: ClassVar[str] = "pyvisim_embedder"
+    __class_key__: ClassVar[str] = "embedder_class"
 
     #: Keys a serialised state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+    __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {"embedder_class", "similarity_func", "normalize", "batch_size"}
     )
 
@@ -437,5 +436,5 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
             return super()._read_state(path)
         except ValueError as error:
             raise ValueError(
-                f"File {path} is not a valid {EMBEDDER_FILE_SUFFIX} file."
+                f"File {path} is not a valid {cls.__file_format__} file."
             ) from error

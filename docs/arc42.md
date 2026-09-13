@@ -39,6 +39,21 @@ registry dispatching a file back onto the class that wrote it.
 `torch.save` and `torch.load` still work on the neural networks, as
 conventionally used in PyTorch.
 
+### A serialisable class owns its file format under dunder names
+
+Class attributes `__file_format__`, `__metadata_key__`, `__class_key__`,
+`__format_version__`, `__state_keys__` and `__compatibility_mapping__`.
+`SerializerMixin` serves class serialization and deserialization.
+With this,  **Inheritance carries the contract.** A subclass overrides only what differs
+and inherits the rest, so a new serializable class declares a version and its
+state keys instead of repeating the file suffix, the metadata key and the
+class key.
+
+The names carry leading *and* trailing double underscores. Two leading
+underscores alone would trigger Python's private-name mangling inside every
+class body that reads them, and the trailing pair marks these as a contract
+the framework reads rather than an attribute a user sets.
+
 ### Heavyweight dependencies are optional and imported lazily
 
 `pyvisim` advertises heavyweight extras without forcing every user to install

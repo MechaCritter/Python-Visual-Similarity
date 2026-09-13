@@ -1,0 +1,22 @@
+---
+upgrade:
+  - |
+    The file format of a serialisable class is now declared on the class itself
+    under one set of names, and the module-level constants that held it are
+    gone. ``_FILE_SUFFIX`` became ``__file_format__``, ``_METADATA_KEY`` became
+    ``__metadata_key__``, ``_CLASS_KEY`` became ``__class_key__``,
+    ``_STATE_KEYS`` became ``__state_keys__``, and every per-module format
+    version (``_CLUSTERING_EMBEDDER_FILE_FORMAT_VERSION``,
+    ``_NEURAL_EMBEDDER_FORMAT_VERSION``, ``_PIPELINE_FORMAT_VERSION``,
+    ``_CLIP_EMBEDDER_FORMAT_VERSION``, ``_STORE_FORMAT_VERSION``) became
+    ``__format_version__`` on the class that writes it. Their compatibility
+    table is ``__compatibility_mapping__``. Subclasses outside the library that
+    set any of the old names have to rename them: the old names are no longer
+    read, and ``SerializerMixin`` now raises a ``TypeError`` at class-definition
+    time when a class that implements ``to_dict`` and ``from_dict`` leaves one
+    of the required attributes undeclared.
+  - |
+    ``pyvisim.serialization.EMBEDDER_METADATA_KEY`` and
+    ``pyvisim._base_classes.EMBEDDER_FILE_SUFFIX`` were removed. Read them from
+    the embedder class instead, for example
+    ``VLADEmbedder.__metadata_key__`` and ``VLADEmbedder.__file_format__``.
