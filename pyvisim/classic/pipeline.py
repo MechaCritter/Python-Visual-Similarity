@@ -9,9 +9,6 @@ from ..typing import (
     UInt8NumpyArray,
 )
 
-#: On-disk format version of the serialised pipeline state.
-_PIPELINE_FORMAT_VERSION = 3
-
 
 class Pipeline(SerializableImageEmbedder):
     """
@@ -33,8 +30,8 @@ class Pipeline(SerializableImageEmbedder):
 
     _logger = logging.getLogger("Pipeline")
 
-    #: Keys a serialised state must contain to be a valid pipeline file.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+    __format_version__: ClassVar[int] = 3
+    __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {"embedder_class", "classic", "similarity_func", "normalize", "batch_size"}
     )
 
@@ -69,7 +66,7 @@ class Pipeline(SerializableImageEmbedder):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "format_version": _PIPELINE_FORMAT_VERSION,
+            "format_version": self.__format_version__,
             "embedder_class": type(self).__name__,
             "classic": [embedder.to_dict() for embedder in self.embedders],
             "similarity_func": self._similarity_func_name,

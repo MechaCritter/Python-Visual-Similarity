@@ -57,12 +57,6 @@ _INDEX_PARAM_TABLES: dict[str, dict[str, str]] = {
     _BRUTE_FORCE: BRUTE_FORCE_TO_HNSWLIB,
 }
 
-#: On-disk format version, bumped if the safetensors layout ever changes.
-_STORE_FORMAT_VERSION = 2
-#: Metadata key under which the store's JSON skeleton is stored on disk.
-_STORE_METADATA_KEY = "pyvisim_store"
-#: File suffix appended to a save path when it is missing.
-_STORE_FILE_SUFFIX = ".safetensors"
 #: Keyword argument of :meth:`InMemoryImageEmbeddingStore.load_from_disk` that
 #: carries a rebuilt index instead of being forwarded to the embedder.
 _SEARCH_INDEX_KWARG = "search_index"
@@ -224,12 +218,12 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     ... )[0]
     """
 
-    _FILE_SUFFIX: ClassVar[str] = _STORE_FILE_SUFFIX
-    _METADATA_KEY: ClassVar[str] = _STORE_METADATA_KEY
-    _CLASS_KEY: ClassVar[str] = "store_class"
+    __file_format__: ClassVar[str] = ".safetensors"
+    __metadata_key__: ClassVar[str] = "pyvisim_store"
+    __class_key__: ClassVar[str] = "store_class"
 
-    #: Keys a serialised state must contain to be a valid store file.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+    __format_version__: ClassVar[int] = 2
+    __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
             "store_class",
             "index_name",
@@ -593,7 +587,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :raises TypeError: If the embedder is not serialisable.
         """
         return {
-            "format_version": _STORE_FORMAT_VERSION,
+            "format_version": self.__format_version__,
             "store_class": type(self).__name__,
             "index_name": self._index_name,
             "space": self._space,
