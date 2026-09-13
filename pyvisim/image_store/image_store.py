@@ -225,7 +225,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     __format_version__: ClassVar[int] = 2
     __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
-            "store_class",
             "index_name",
             "space",
             "index_params",
@@ -564,31 +563,22 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             for row_scores, row_ids in zip(scores, ids, strict=True)
         ]
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self, embeddings: Float32NumpyArray | None = None) -> dict[str, Any]:
         """
-        Serialise the store into a JSON-safe state dictionary.
+        Describe the store around a gallery matrix.
 
         The image paths, index configuration and the fully serialised embedder
-        are described alongside the embeddings the index holds, so the store
-        can later be rebuilt without access to the original images.
+        are described alongside the embeddings, so the store can later be
+        rebuilt without access to the original images.
 
-        :return: A JSON-safe store description suitable for :meth:`from_dict`.
+        :param embeddings: Embeddings to write instead of the ones the index
+            holds, shape ``(N, D)``, in the order of :attr:`paths`.
+        :return: A JSON-safe store description.
         :raises TypeError: If the embedder is not serialisable.
         """
-        return self._state(self.embeddings)
-
-    def _state(self, embeddings: Float32NumpyArray) -> dict[str, Any]:
-        """
-        Describe this store around a given gallery matrix.
-
-        :param embeddings: Embeddings to write, shape ``(N, D)``, in the order
-            of :attr:`paths`.
-        :return: A JSON-safe store description suitable for :meth:`from_dict`.
-        :raises TypeError: If the embedder is not serialisable.
-        """
+        if embeddings is None:
+            embeddings = self.embeddings
         return {
-            "format_version": self.__format_version__,
-            "store_class": type(self).__name__,
             "index_name": self._index_name,
             "space": self._space,
             "index_params": self._index_params,
@@ -681,7 +671,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             if vectors is None
             else _validated_vectors(vectors, len(self._paths))
         )
-        return self._write_state(self._state(embeddings), path)
+        return self._write_state(self._stamp(self._state(embeddings)), path)
 
 
 def _validate_expansion_params(alpha: float, num_neighbours: int) -> None:

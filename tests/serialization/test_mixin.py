@@ -1,12 +1,30 @@
 """Tests for the file contract ``SerializerMixin`` declares and enforces."""
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from pyvisim.classic import FisherVectorEmbedder, Pipeline, VLADEmbedder
 from pyvisim.image_store import InMemoryImageEmbeddingStore
-from pyvisim.serialization import SerializerMixin
+from pyvisim.serialization import SerializerMixin, save_state
+
+
+class _Demo(SerializerMixin):
+    """Smallest class carrying the full file contract."""
+
+    __file_format__ = ".demo"
+    __metadata_key__ = "demo"
+    __class_key__ = "demo_class"
+    __format_version__ = 1
+    __state_keys__ = frozenset({"value"})
+
+    def _state(self) -> dict[str, Any]:
+        return {"value": 1}
+
+    @classmethod
+    def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "_Demo":
+        return cls()
 
 
 def test_a_class_that_writes_files_must_declare_the_contract() -> None:
@@ -14,7 +32,7 @@ def test_a_class_that_writes_files_must_declare_the_contract() -> None:
     with pytest.raises(TypeError, match="does not declare"):
 
         class Incomplete(SerializerMixin):
-            def to_dict(self) -> dict[str, Any]:
+            def _state(self) -> dict[str, Any]:
                 return {}
 
             @classmethod
@@ -34,25 +52,23 @@ def test_a_class_that_writes_no_file_yet_declares_nothing() -> None:
 def test_a_declared_contract_reaches_the_subclasses() -> None:
     """A subclass overrides what differs and inherits the rest."""
 
-    class Parent(SerializerMixin):
-        __file_format__ = ".demo"
-        __metadata_key__ = "demo"
-        __class_key__ = "demo_class"
-        __format_version__ = 1
-        __state_keys__ = frozenset({"demo_class"})
-
-        def to_dict(self) -> dict[str, Any]:
-            return {"demo_class": type(self).__name__}
-
-        @classmethod
-        def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "Parent":
-            return cls()
-
-    class Child(Parent):
+    class Child(_Demo):
         __format_version__ = 2
 
     assert Child.__file_format__ == ".demo"
     assert Child.__format_version__ == 2
+
+
+@pytest.mark.parametrize("stamped_key", ["format_version", "demo_class"])
+def test_a_file_without_a_stamped_key_is_not_valid(
+    stamped_key: str, tmp_path: Path
+) -> None:
+    """The keys the mixin writes are required on load, without being listed."""
+    state = _Demo().to_dict()
+    del state[stamped_key]
+    save_state(state, path := tmp_path / "file.demo", _Demo.__metadata_key__)
+    with pytest.raises(ValueError, match="not a valid .demo file"):
+        _Demo.load_from_disk(path)
 
 
 @pytest.mark.parametrize(
@@ -71,14 +87,3 @@ def test_every_shipped_class_declares_its_own_file_format(
         "__state_keys__",
     )
     assert all(getattr(serialisable, name, None) is not None for name in contract)
-
-
-@pytest.mark.parametrize(
-    "serialisable",
-    [VLADEmbedder, FisherVectorEmbedder, Pipeline, InMemoryImageEmbeddingStore],
-)
-def test_the_class_key_is_part_of_the_required_state_keys(
-    serialisable: type[SerializerMixin],
-) -> None:
-    """Validation rejects a foreign file, so the key naming its writer is required."""
-    assert serialisable.__class_key__ in serialisable.__state_keys__

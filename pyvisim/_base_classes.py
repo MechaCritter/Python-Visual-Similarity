@@ -375,7 +375,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     Adds the serialization contract of
     :class:`~pyvisim.serialization.SerializerMixin` on top of
     :class:`ImageEmbedderBase`: subclasses describe themselves as a JSON-safe
-    state via :meth:`~pyvisim.serialization.SerializerMixin.to_dict` /
+    state via :meth:`~pyvisim.serialization.SerializerMixin._state` /
     :meth:`~pyvisim.serialization.SerializerMixin.from_dict`, and the mixin
     turns that state into a file and back. Both the classic embedders and the
     neural ones use this path, so a ``.embedder`` file is always a
@@ -398,7 +398,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     #: Keys a serialised state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
     __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func", "normalize", "batch_size"}
+        {"similarity_func", "normalize", "batch_size"}
     )
 
     def _restore_batch_size(self, state: dict[str, Any]) -> None:

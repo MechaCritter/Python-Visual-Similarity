@@ -134,7 +134,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     }
     __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
-            "embedder_class",
             "clustering_model",
             "pca",
             "power_norm_weight",
@@ -465,18 +464,17 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             )
         self._set_clustering_model(from_sklearn(model))
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         """
-        Serialises the learned embedder into a JSON-safe state dictionary.
+        Describes the learned embedder as a JSON-safe mapping.
 
-        The returned mapping describes the embedder class, its clustering model,
-        optional PCA, normalization hyperparameters, similarity metric and
-        feature extractor. Arrays are kept as ``__ndarray__`` nodes so the
-        whole dictionary can be embedded inside a larger state (e.g. an
+        The mapping describes its clustering model, optional PCA,
+        normalization hyperparameters, similarity metric and feature
+        extractor. Arrays are kept as ``__ndarray__`` nodes so the whole
+        dictionary can be embedded inside a larger state (e.g. an
         :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`).
 
-        :return: A JSON-safe embedder description suitable for
-            :meth:`from_dict`.
+        :return: A JSON-safe embedder description.
         :raises NotFittedError: If the clustering model is missing or not fitted.
         """
         if self._clustering_model is None or not self._clustering_model.is_fitted:
@@ -485,8 +483,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
                 "fitted. Call 'learn' first."
             )
         return {
-            "format_version": self.__format_version__,
-            "embedder_class": type(self).__name__,
             "clustering_model": self._clustering_model.to_dict(),
             "pca": self._pca.to_dict() if self._pca is not None else None,
             "power_norm_weight": self.power_norm_weight,
