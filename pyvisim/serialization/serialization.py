@@ -12,9 +12,6 @@ from safetensors.numpy import save_file
 
 from ..typing import Embedder, NumpyArray
 
-#: Metadata key under which the embedder JSON skeleton is stored.
-EMBEDDER_METADATA_KEY = "pyvisim_embedder"
-
 
 def decode_array_node(value: Any) -> NumpyArray:
     """
