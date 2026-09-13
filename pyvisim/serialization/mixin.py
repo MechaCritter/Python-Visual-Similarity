@@ -5,6 +5,7 @@ from __future__ import annotations
 import abc
 import os
 import pathlib
+from collections.abc import Mapping
 from typing import Any, ClassVar, TypeVar
 
 from .serialization import load_state, save_state
@@ -17,9 +18,10 @@ class SerializerMixin(abc.ABC):
     Mixin giving a self-describing object a safetensors file format.
 
     A subclass declares the kind of file it reads and writes through
-    :attr:`_FILE_SUFFIX`, :attr:`_METADATA_KEY` and :attr:`_CLASS_KEY`, and
-    describes itself through :meth:`to_dict` / :meth:`from_dict`. In exchange
-    it gets :meth:`save_to_disk` and :meth:`load_from_disk`, which are always
+    :attr:`__file_format__`, :attr:`__metadata_key__`, :attr:`__class_key__`,
+    :attr:`__format_version__` and :attr:`__state_keys__`, and describes itself
+    through :meth:`to_dict` / :meth:`from_dict`. In exchange it gets
+    :meth:`save_to_disk` and :meth:`load_from_disk`, which are always
     `safetensors <https://github.com/huggingface/safetensors>`_ files: every
     NumPy array of the state is written as a binary tensor, the rest as a
     single JSON blob in the file's metadata.
@@ -30,13 +32,43 @@ class SerializerMixin(abc.ABC):
     """
 
     #: Suffix of the files this class writes, appended to a save path when missing.
-    _FILE_SUFFIX: ClassVar[str]
+    __file_format__: ClassVar[str]
     #: Metadata key under which the state's JSON skeleton is stored in the file.
-    _METADATA_KEY: ClassVar[str]
+    __metadata_key__: ClassVar[str]
     #: State key naming the class that wrote the file.
-    _CLASS_KEY: ClassVar[str]
+    __class_key__: ClassVar[str]
+    #: On-disk format version, written into every state this class serialises.
+    __format_version__: ClassVar[int]
     #: Keys a serialised state must contain to be a valid file of this kind.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset()
+    __state_keys__: ClassVar[frozenset[str]]
+    #: Whether a file written under one format version can be read under
+    #: another, keyed by ``(written version, reading version)``.
+    __compatibility_mapping__: ClassVar[Mapping[tuple[int, int], bool]] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Rejects a subclass that leaves a required class attribute undeclared."""
+        super().__init_subclass__(**kwargs)
+        if any(
+            getattr(method, "__isabstractmethod__", False)
+            for method in (cls.to_dict, cls.from_dict)
+        ):
+            return
+        missing = sorted(
+            name
+            for name in (
+                "__file_format__",
+                "__metadata_key__",
+                "__class_key__",
+                "__format_version__",
+                "__state_keys__",
+            )
+            if not hasattr(cls, name)
+        )
+        if missing:
+            raise TypeError(
+                f"{cls.__name__} serialises itself to a file but does not "
+                f"declare {', '.join(missing)}."
+            )
 
     @abc.abstractmethod
     def to_dict(self) -> dict[str, Any]:
@@ -44,7 +76,7 @@ class SerializerMixin(abc.ABC):
         Serialises this object into a JSON-safe state dictionary.
 
         The returned mapping has to contain at least the keys listed in
-        :attr:`_STATE_KEYS`, :attr:`_CLASS_KEY` among them. Arrays may be
+        :attr:`__state_keys__`, :attr:`__class_key__` among them. Arrays may be
         embedded as ``__ndarray__`` nodes; the serialization layer stores them
         as binary tensors.
 
@@ -125,7 +157,7 @@ class SerializerMixin(abc.ABC):
         """
         Turns a target path into the one :meth:`save_to_disk` writes to.
 
-        :attr:`_FILE_SUFFIX` is appended to a path that does not carry it, and
+        :attr:`__file_format__` is appended to a path that does not carry it, and
         a destination this library cannot write to is rejected here rather than
         by the safetensors writer.
 
@@ -134,8 +166,8 @@ class SerializerMixin(abc.ABC):
         :raises OSError: If the destination directory does not exist.
         """
         path = pathlib.Path(path)
-        if path.suffix != cls._FILE_SUFFIX:
-            path = path.with_name(path.name + cls._FILE_SUFFIX)
+        if path.suffix != cls.__file_format__:
+            path = path.with_name(path.name + cls.__file_format__)
         parent = os.path.dirname(os.path.abspath(path))
         if not os.path.isdir(parent):
             raise OSError(f"Destination directory does not exist: {parent!r}.")
@@ -149,7 +181,7 @@ class SerializerMixin(abc.ABC):
         :param path: Destination path, as returned by :meth:`_resolve_save_path`.
         :return: The path of the written file.
         """
-        save_state(state, path, self._METADATA_KEY)
+        save_state(state, path, self.__metadata_key__)
         return path
 
     @classmethod
@@ -163,8 +195,10 @@ class SerializerMixin(abc.ABC):
         :raises ValueError: If the file cannot be read as a file of this kind.
         """
         if not path.exists():
-            raise FileNotFoundError(f"No such {cls._FILE_SUFFIX} file: {str(path)!r}.")
-        return load_state(path, cls._METADATA_KEY)
+            raise FileNotFoundError(
+                f"No such {cls.__file_format__} file: {str(path)!r}."
+            )
+        return load_state(path, cls.__metadata_key__)
 
     @classmethod
     def _validate_state(cls, state: dict[str, Any], path: pathlib.Path) -> None:
@@ -173,15 +207,15 @@ class SerializerMixin(abc.ABC):
 
         :param state: The state read from ``path``.
         :param path: Path the state was read from, named in the error messages.
-        :raises ValueError: If the state lacks one of :attr:`_STATE_KEYS`, or
+        :raises ValueError: If the state lacks one of :attr:`__state_keys__`, or
             was written by another class.
         """
-        if not cls._STATE_KEYS.issubset(state):
-            raise ValueError(f"File {path} is not a valid {cls._FILE_SUFFIX} file.")
-        # TODO: in the future, verify the file's format version against the
-        # class-specific compatibility table before reconstructing.
-        if state[cls._CLASS_KEY] != cls.__name__:
+        if not cls.__state_keys__.issubset(state):
+            raise ValueError(f"File {path} is not a valid {cls.__file_format__} file.")
+        # TODO: in the future, verify the file's format version against
+        # :attr:`__compatibility_mapping__` before reconstructing.
+        if state[cls.__class_key__] != cls.__name__:
             raise ValueError(
-                f"File {path} was saved by {state[cls._CLASS_KEY]}. "
-                f"Load it with {state[cls._CLASS_KEY]}.load_from_disk instead."
+                f"File {path} was saved by {state[cls.__class_key__]}. "
+                f"Load it with {state[cls.__class_key__]}.load_from_disk instead."
             )

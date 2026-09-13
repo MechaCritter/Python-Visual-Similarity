@@ -15,9 +15,6 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 
 _torch_import.check()
 
-#: On-disk format version of the serialised neural embedder state.
-_NEURAL_EMBEDDER_FORMAT_VERSION = 3
-
 _NeuralEmbedderT = TypeVar("_NeuralEmbedderT", bound="NeuralImageEmbedder")
 
 
@@ -43,8 +40,8 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
         Set to ``-1`` to process all images as a single batch.
     """
 
-    #: Keys a serialised state must contain to be a valid embedder file.
-    _STATE_KEYS: ClassVar[frozenset[str]] = frozenset(
+    __format_version__: ClassVar[int] = 3
+    __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
             "embedder_class",
             "similarity_func",
@@ -130,7 +127,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "format_version": _NEURAL_EMBEDDER_FORMAT_VERSION,
+            "format_version": self.__format_version__,
             "embedder_class": type(self).__name__,
             "similarity_func": self._similarity_func_name,
             "normalize": self.normalize,
