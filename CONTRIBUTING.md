@@ -9,7 +9,7 @@ To understand how the library is structured as well the technical details before
 
 Use this checklist to stay on track for your first code PR:
 
-- **Clone this repository**: see [Set up developer environment](#set-up-developer-environment) section.
+- **Fork and clone this repository**: see [Set up developer environment](#set-up-developer-environment) section.
 - **Check out the coding style**: see [Code style](#code-style) section.
 - **Run tests**: run `make test-types` and `make fmt` before you make a PR.
 - **Add a release note**: run `make release-note NAME=my-change` and fill in the generated file, see [Release notes](#release-notes).
@@ -115,9 +115,10 @@ This project uses [uv](https://github.com/astral-sh/uv) instead of `pip` for man
 ### Steps
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/MechaCritter/Python-Visual-Similarity.git
+# 1. Fork the repository on GitHub, then clone your fork
+git clone https://github.com/<your-username>/Python-Visual-Similarity.git
 cd Python-Visual-Similarity
+git remote add upstream https://github.com/MechaCritter/Python-Visual-Similarity.git
 
 # 2. Create a virtual environment and install all dependencies
 uv venv .venv
@@ -169,28 +170,41 @@ absolute `https://raw.githubusercontent.com/.../assets/...` URLs. This prevents 
 To add new binary files, place them under `docs/<topic>/` on that branch (e.g. `docs/architecture/`).
 
 > [!WARNING]
-> **Do not** add any file under `benchmarks/` as this
+> **Do not** add any file under `benchmark/` as this
 folder is wiped and regenerated on every benchmark run.
 
-In short, you can run the following commands:
+> [!IMPORTANT]
+> 1. Changes to `assets` go through a pull request via your fork, just like the `main` branch.
+> 
+> 2. Start your branch from the `assets` branch of this repository, not from `main`.
+>
+> 3. When you open the pull request, select `assets` as the base branch, since GitHub suggests `main` by default.
+
+A list of sample commands to add a new image to the this repository:
 
 ```bash
-cd "$(mktemp -d)"
-git clone -q --depth 1 --branch assets https://github.com/MechaCritter/Python-Visual-Similarity.git .
-
-# add/replace whatever images you want here
-mkdir -p docs/<topic> && cp ~/path/to/my-image.png docs/<topic>/
-
-git checkout -q --orphan squashed
-git add <file1> <file2>
-git commit -q -m "Publish assets"
-git push -f origin squashed:assets
+git fetch upstream assets
+git switch -c docs/<topic>-assets FETCH_HEAD
+git add <files>
+# Prevents pre-commit hook from blocking commit
+PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit -m "Add <topic> images"
+git push origin docs/<topic>-assets
 ```
 
 Then link the image from the docs or the `README.md`:
 
 ```markdown
 ![My image](https://raw.githubusercontent.com/MechaCritter/Python-Visual-Similarity/assets/docs/<topic>/my-image.png)
+```
+
+The link only resolves once your `assets` pull request is merged, so merge it before the pull request that links the image.
+
+After a merge, the `Squash assets` workflow collapses `assets` back into a single commit. This rewrites the branch, so every other open pull request against it has to be rebased before it can be merged. To move your branch onto the new `assets`, replace `<n>` with the number of commits on your branch (check with `git log --oneline`):
+
+```bash
+git fetch upstream assets
+git rebase --onto FETCH_HEAD HEAD~<n>
+git push -f origin docs/<topic>-assets
 ```
 
 > [!IMPORTANT]
