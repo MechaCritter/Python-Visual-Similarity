@@ -182,7 +182,7 @@ git clone -q --depth 1 --branch assets https://github.com/MechaCritter/Python-Vi
 mkdir -p docs/<topic> && cp ~/path/to/my-image.png docs/<topic>/
 
 git checkout -q --orphan squashed
-git add -A
+git add <file1> <file2>
 git commit -q -m "Publish assets"
 git push -f origin squashed:assets
 ```
