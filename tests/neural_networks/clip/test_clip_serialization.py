@@ -18,7 +18,6 @@ from pyvisim._base_classes import SerializableImageEmbedder
 from pyvisim.neural_networks import ClipEmbedder
 from pyvisim.neural_networks.clip import clip_embedder as clip_embedder_module
 from pyvisim.neural_networks.clip._model import build_vision_model
-from pyvisim.serialization import embedder_from_dict, embedder_to_dict
 
 from ._tiny_clip import CONFIG, TAG
 
@@ -110,7 +109,7 @@ def test_registry_round_trip_restores_the_embeddings(embedder: ClipEmbedder) -> 
     images = [_random_image(2)]
     expected = embedder.embed(images)
 
-    reloaded = embedder_from_dict(embedder_to_dict(embedder))
+    reloaded = SerializableImageEmbedder.from_dict(embedder.to_dict())
 
     assert isinstance(reloaded, ClipEmbedder)
     assert np.array_equal(reloaded.embed(images), expected)

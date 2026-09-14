@@ -8,7 +8,7 @@ import numpy as np
 from scipy.cluster.vq import kmeans, vq
 
 from ...typing import FloatNumpyArray, IntNumpyArray
-from ._base_clustering import ClusteringModelBase, _decode, _embed
+from ._base_clustering import ClusteringModelBase
 
 _KMeansT = TypeVar("_KMeansT", bound="KMeans")
 
@@ -241,9 +241,9 @@ class KMeans(ClusteringModelBase):
         labels, _ = vq(data / scale, centers / scale, check_finite=self._check_finite)
         return np.asarray(labels)
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         """
-        Serialises the fitted model into a JSON-safe dictionary.
+        Describes the fitted model as a JSON-safe mapping.
 
         The state layout keeps the ``cluster_centers_`` / ``n_features_in_``
         key names used by older releases, so the ``.embedder`` files they
@@ -253,28 +253,26 @@ class KMeans(ClusteringModelBase):
         **NOTE**: ``rng`` is stored only when it is an integer seed; a
         :class:`numpy.random.Generator` is stateful and not JSON-safe.
 
-        :return: A dictionary describing the model class and its fitted state.
+        :return: A mapping holding the fitted state under ``"state"``.
         :raises NotFittedError: If the model is not fitted.
         """
-        state = {
-            "cluster_centers_": self.cluster_centers,
-            "scale_": self._fitted_scale,
-            "n_clusters": self._n_clusters,
-            "n_features_in_": self.n_features_in,
-            "n_init": self._n_init,
-            "thresh": self._thresh,
-            "check_finite": self._check_finite,
-            "rng": self._rng if isinstance(self._rng, int) else None,
-        }
-        return {
-            "__class__": type(self).__name__,
-            "__module__": type(self).__module__,
-            "format_version": self.__format_version__,
-            "state": _embed(state),
-        }
+        return self._wrap_state(
+            {
+                "cluster_centers_": self.cluster_centers,
+                "scale_": self._fitted_scale,
+                "n_clusters": self._n_clusters,
+                "n_features_in_": self.n_features_in,
+                "n_init": self._n_init,
+                "thresh": self._thresh,
+                "check_finite": self._check_finite,
+                "rng": self._rng if isinstance(self._rng, int) else None,
+            }
+        )
 
     @classmethod
-    def from_dict(cls: type[_KMeansT], data: dict[str, Any]) -> _KMeansT:
+    def from_dict(
+        cls: type[_KMeansT], state: dict[str, Any], **kwargs: Any
+    ) -> _KMeansT:
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
@@ -283,27 +281,16 @@ class KMeans(ClusteringModelBase):
         models were trained without whitening) and the remaining parameters
         keep their defaults.
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str,
-            "format_version": int, "state": dict}. ``format_version`` is absent
-            from dictionaries written before the models carried a version.
+        :param state: A mapping produced by :meth:`to_dict`.
+        :param kwargs: Not accepted, an error is raised if any is given.
         :return: A fitted model.
-        :raises TypeError: If ``data`` is not a dictionary.
-        :raises ValueError: If ``data`` is malformed or describes a different
+        :raises TypeError: If ``state`` is not a dictionary or ``kwargs`` is
+            not empty.
+        :raises ValueError: If ``state`` is malformed or describes a different
             model type than this class expects.
         """
-        if not isinstance(data, dict):
-            raise TypeError(
-                f"Expected a dict from to_dict(), got {type(data).__name__}."
-            )
-        for key in ("__class__", "state"):
-            if key not in data:
-                raise ValueError(f"Malformed model dict; missing key {key!r}.")
-        if data["__class__"] != cls.__name__:
-            raise ValueError(
-                f"{cls.__name__} expects a serialised {cls.__name__!r}, "
-                f"got {data['__class__']!r}."
-            )
-        state = _decode(data["state"])
+        cls._reject_unsupported_kwargs(kwargs)
+        state = cls._unwrap_state(state)
         if "cluster_centers_" not in state:
             raise ValueError("Malformed KMeans state; missing 'cluster_centers_'.")
         centers = np.asarray(state["cluster_centers_"])
@@ -312,7 +299,9 @@ class KMeans(ClusteringModelBase):
             # Legacy scikit-learn states share the "n_init" key but may hold
             # the sentinel "auto" instead of an integer.
             params["n_init"] = _n_init_from_sklearn(params["n_init"])
-        model = cls(n_clusters=int(state.get("n_clusters", centers.shape[0])), **params)
+        model = cls(
+            n_clusters=int(state.get("n_clusters", int(centers.shape[0]))), **params
+        )
         model._cluster_centers = centers
         model._scale = np.asarray(
             state.get("scale_", np.ones(centers.shape[1], dtype=centers.dtype))

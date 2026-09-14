@@ -7,9 +7,8 @@ import numpy as np
 from scipy.linalg import eigh, svd
 from scipy.sparse.linalg import svds
 
-from ..._errors import NotFittedError
 from ...typing import Float64NumpyArray, FloatNumpyArray
-from ._base_clustering import _decode, _embed
+from ._base_clustering import FittedModelBase
 from .kmeans import _rng_from_sklearn
 
 _PCAT = TypeVar("_PCAT", bound="PCA")
@@ -79,7 +78,7 @@ def _flip_signs(components: Float64NumpyArray) -> Float64NumpyArray:
     return components
 
 
-class PCA:
+class PCA(FittedModelBase):
     """
     Principal Component Analysis model, used by the image embedders to
     reduce the dimensionality of local features.
@@ -129,8 +128,6 @@ class PCA:
         negative, or ``svd_solver`` is not one of the supported names.
     """
 
-    #: Format version of the dictionary :meth:`to_dict` returns. A dictionary
-    #: without one was written before the model carried a version.
     __format_version__: ClassVar[int] = 1
 
     def __init__(
@@ -166,20 +163,7 @@ class PCA:
 
     @property
     def is_fitted(self) -> bool:
-        """Whether the model has been fitted (components are stored)."""
         return self._components is not None
-
-    def _check_is_fitted(self) -> None:
-        """
-        Ensures the model is fitted before accessing fitted-only attributes.
-
-        :raises NotFittedError: If the model is not fitted.
-        """
-        if not self.is_fitted:
-            raise NotFittedError(
-                f"This {type(self).__name__} instance is not fitted yet. "
-                "Call 'fit' with appropriate data before using this attribute."
-            )
 
     @property
     def n_components(self) -> int:
@@ -189,7 +173,6 @@ class PCA:
 
     @property
     def n_features_in(self) -> int:
-        """Number of features the fitted model expects as input."""
         return int(self.components.shape[1])
 
     @property
@@ -459,66 +442,51 @@ class PCA:
             transformed /= scale
         return np.asarray(transformed)
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         """
-        Serialises the fitted model into a JSON-safe dictionary.
+        Describes the fitted model as a JSON-safe mapping.
 
         **NOTE**: ``rng`` is stored only when it is an integer seed; a
         :class:`numpy.random.Generator` is stateful and not JSON-safe.
 
-        :return: A dictionary describing the model class and its fitted state.
+        :return: A mapping holding the fitted state under ``"state"``.
         :raises NotFittedError: If the model is not fitted.
         """
-        state = {
-            "components_": self.components,
-            "mean_": self.mean,
-            "explained_variance_": self.explained_variance,
-            "explained_variance_ratio_": self.explained_variance_ratio,
-            "singular_values_": self.singular_values,
-            "noise_variance_": self._noise_variance,
-            "n_samples_": self._n_samples,
-            "n_components": self._n_components,
-            "n_components_": self._n_components,
-            "n_features_in_": self.n_features_in,
-            "whiten": self._whiten,
-            "svd_solver": self._svd_solver,
-            "_fit_svd_solver": self._fit_svd_solver,
-            "tol": self._tol,
-            "rng": self._rng if isinstance(self._rng, int) else None,
-        }
-        return {
-            "__class__": type(self).__name__,
-            "__module__": type(self).__module__,
-            "format_version": self.__format_version__,
-            "state": _embed(state),
-        }
+        return self._wrap_state(
+            {
+                "components_": self.components,
+                "mean_": self.mean,
+                "explained_variance_": self.explained_variance,
+                "explained_variance_ratio_": self.explained_variance_ratio,
+                "singular_values_": self.singular_values,
+                "noise_variance_": self._noise_variance,
+                "n_samples_": self._n_samples,
+                "n_components": self._n_components,
+                "n_components_": self._n_components,
+                "n_features_in_": self.n_features_in,
+                "whiten": self._whiten,
+                "svd_solver": self._svd_solver,
+                "_fit_svd_solver": self._fit_svd_solver,
+                "tol": self._tol,
+                "rng": self._rng if isinstance(self._rng, int) else None,
+            }
+        )
 
     @classmethod
-    def from_dict(cls: type[_PCAT], data: dict[str, Any]) -> _PCAT:
+    def from_dict(cls: type[_PCAT], state: dict[str, Any], **kwargs: Any) -> _PCAT:
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str,
-            "format_version": int, "state": dict}. ``format_version`` is absent
-            from dictionaries written before the model carried a version.
+        :param state: A mapping produced by :meth:`to_dict`.
+        :param kwargs: Not accepted, an error is raised if any is given.
         :return: A fitted model.
-        :raises TypeError: If ``data`` is not a dictionary.
-        :raises ValueError: If ``data`` is malformed or describes a different
+        :raises TypeError: If ``state`` is not a dictionary or ``kwargs`` is
+            not empty.
+        :raises ValueError: If ``state`` is malformed or describes a different
             model type than this class expects.
         """
-        if not isinstance(data, dict):
-            raise TypeError(
-                f"Expected a dict from to_dict(), got {type(data).__name__}."
-            )
-        for key in ("__class__", "state"):
-            if key not in data:
-                raise ValueError(f"Malformed model dict; missing key {key!r}.")
-        if data["__class__"] != cls.__name__:
-            raise ValueError(
-                f"{cls.__name__} expects a serialised {cls.__name__!r}, "
-                f"got {data['__class__']!r}."
-            )
-        state = _decode(data["state"])
+        cls._reject_unsupported_kwargs(kwargs)
+        state = cls._unwrap_state(state)
         for key in ("components_", "mean_", "explained_variance_"):
             if key not in state:
                 raise ValueError(f"Malformed {cls.__name__} state; missing {key!r}.")
@@ -533,7 +501,7 @@ class PCA:
             # Legacy scikit-learn states store the seed under "random_state".
             params["rng"] = state["random_state"]
         model = cls(
-            int(state.get("n_components_", components.shape[0])),
+            int(state.get("n_components_", int(components.shape[0]))),
             **params,
         )
         model._components = components
