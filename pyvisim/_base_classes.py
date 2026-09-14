@@ -1,6 +1,5 @@
 import abc
 import logging
-import pathlib
 from collections.abc import Sequence
 from typing import Any, ClassVar, cast
 
@@ -421,20 +420,3 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         :raises ValueError: If the stored setting is not a boolean.
         """
         self.normalize = state["normalize"]
-
-    @classmethod
-    def _read_state(cls, path: pathlib.Path) -> dict[str, Any]:
-        """
-        Reads the embedder state a ``.embedder`` file holds.
-
-        :param path: Path to the ``.embedder`` file.
-        :return: The reconstructed embedder state, with arrays restored.
-        :raises FileNotFoundError: If ``path`` does not exist.
-        :raises ValueError: If the file is not a valid ``.embedder`` file.
-        """
-        try:
-            return super()._read_state(path)
-        except ValueError as error:
-            raise ValueError(
-                f"File {path} is not a valid {cls.__file_format__} file."
-            ) from error

@@ -71,6 +71,13 @@ def test_a_file_without_a_stamped_key_is_not_valid(
         _Demo.load_from_disk(path)
 
 
+def test_an_unreadable_file_names_its_kind_and_the_reason(tmp_path: Path) -> None:
+    """A file stored under another metadata key is rejected with the cause kept."""
+    save_state(_Demo().to_dict(), path := tmp_path / "file.demo", "other")
+    with pytest.raises(ValueError, match=r"not a valid \.demo file: .*'demo'"):
+        _Demo.load_from_disk(path)
+
+
 @pytest.mark.parametrize(
     "serialisable",
     [VLADEmbedder, FisherVectorEmbedder, Pipeline, InMemoryImageEmbeddingStore],

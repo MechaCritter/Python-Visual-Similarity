@@ -221,7 +221,12 @@ class SerializerMixin(abc.ABC):
             raise FileNotFoundError(
                 f"No such {cls.__file_format__} file: {str(path)!r}."
             )
-        return load_state(path, cls.__metadata_key__)
+        try:
+            return load_state(path, cls.__metadata_key__)
+        except ValueError as error:
+            raise ValueError(
+                f"File {path} is not a valid {cls.__file_format__} file: {error}"
+            ) from error
 
     @classmethod
     def _validate_state(cls, state: dict[str, Any], path: pathlib.Path) -> None:
