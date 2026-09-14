@@ -1,7 +1,7 @@
 """Principal Component Analysis model used by the image embedders."""
 
 from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 import numpy as np
 from scipy.linalg import eigh, svd
@@ -128,6 +128,10 @@ class PCA:
     :raises ValueError: If ``n_components`` is not positive, ``tol`` is
         negative, or ``svd_solver`` is not one of the supported names.
     """
+
+    #: Format version of the dictionary :meth:`to_dict` returns. A dictionary
+    #: without one was written before the model carried a version.
+    __format_version__: ClassVar[int] = 1
 
     def __init__(
         self,
@@ -485,6 +489,7 @@ class PCA:
         return {
             "__class__": type(self).__name__,
             "__module__": type(self).__module__,
+            "format_version": self.__format_version__,
             "state": _embed(state),
         }
 
@@ -493,7 +498,9 @@ class PCA:
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
+        :param data: A mapping with the form: {"__class__": str, "__module__": str,
+            "format_version": int, "state": dict}. ``format_version`` is absent
+            from dictionaries written before the model carried a version.
         :return: A fitted model.
         :raises TypeError: If ``data`` is not a dictionary.
         :raises ValueError: If ``data`` is malformed or describes a different

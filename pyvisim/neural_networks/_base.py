@@ -41,12 +41,9 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     """
 
     __format_version__: ClassVar[int] = 3
-    __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {
-            "embedder_class",
-            "similarity_func",
-            "normalize",
-            "batch_size",
+    __state_keys__: ClassVar[frozenset[str]] = (
+        SerializableImageEmbedder.__state_keys__
+        | {
             "config",
             "state_dict",
         }
@@ -125,10 +122,8 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
         """
         raise NotImplementedError
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         return {
-            "format_version": self.__format_version__,
-            "embedder_class": type(self).__name__,
             "similarity_func": self._similarity_func_name,
             "normalize": self.normalize,
             "batch_size": self.batch_size,
