@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    The ``KMeans``, ``DiagCovarGaussianMixture`` and ``PCA`` models of the
+    classic embedders can be saved on their own with ``save_to_disk`` and
+    loaded back with ``load_from_disk``, as ``.safetensors`` files.
