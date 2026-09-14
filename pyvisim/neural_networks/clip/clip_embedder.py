@@ -127,11 +127,9 @@ class ClipEmbedder(SerializableImageEmbedder):
     """
 
     __format_version__: ClassVar[int] = 3
-    __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {
-            "similarity_func",
-            "normalize",
-            "batch_size",
+    __state_keys__: ClassVar[frozenset[str]] = (
+        SerializableImageEmbedder.__state_keys__
+        | {
             "config",
             "state_dict",
         }

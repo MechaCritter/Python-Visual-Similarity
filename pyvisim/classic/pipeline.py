@@ -31,8 +31,8 @@ class Pipeline(SerializableImageEmbedder):
     _logger = logging.getLogger("Pipeline")
 
     __format_version__: ClassVar[int] = 3
-    __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {"classic", "similarity_func", "normalize", "batch_size"}
+    __state_keys__: ClassVar[frozenset[str]] = (
+        SerializableImageEmbedder.__state_keys__ | {"classic"}
     )
 
     def __init__(

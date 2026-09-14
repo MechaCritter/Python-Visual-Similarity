@@ -132,21 +132,16 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         # TODO: when the next __format_version__ comes, check if it's forward /
         # backward compatible, then add entries like the ones above.
     }
-    __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {
-            "clustering_model",
-            "pca",
-            "power_norm_weight",
-            "norm_order",
-            "epsilon",
-            "flatten",
-            "raise_error_when_pca_incompatible",
-            "similarity_func",
-            "normalize",
-            "batch_size",
-            "feature_extractor",
-        }
-    )
+    __state_keys__: ClassVar[frozenset[str]] = FeatureBasedEmbedder.__state_keys__ | {
+        "clustering_model",
+        "pca",
+        "power_norm_weight",
+        "norm_order",
+        "epsilon",
+        "flatten",
+        "raise_error_when_pca_incompatible",
+        "feature_extractor",
+    }
 
     def __init__(
         self,
