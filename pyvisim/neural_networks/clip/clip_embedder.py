@@ -227,8 +227,8 @@ class ClipEmbedder(SerializableImageEmbedder):
         cls._reject_unsupported_kwargs(kwargs)
         embedder = cls._from_config(state["config"])
         embedder.similarity_func = state["similarity_func"]
-        embedder._restore_normalize(state)
-        embedder._restore_batch_size(state)
+        embedder.normalize = state["normalize"]
+        embedder.batch_size = state["batch_size"]
         embedder._model.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder
 

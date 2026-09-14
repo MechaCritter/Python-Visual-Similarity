@@ -465,24 +465,3 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
                 f"Known classes are: {known}."
             )
         return embedder_cls
-
-    def _restore_batch_size(self, state: dict[str, Any]) -> None:
-        """
-        Adopts the batch size recorded in a serialised state.
-
-        :param state: A JSON-safe embedder description.
-        :raises KeyError: If the state carries no batch size.
-        :raises ValueError: If the stored batch size is neither ``-1`` nor a
-            positive integer.
-        """
-        self.set_batch_size(state["batch_size"])
-
-    def _restore_normalize(self, state: dict[str, Any]) -> None:
-        """
-        Adopts the normalization setting recorded in a serialised state.
-
-        :param state: A JSON-safe embedder description.
-        :raises KeyError: If the state carries no normalization setting.
-        :raises ValueError: If the stored setting is not a boolean.
-        """
-        self.normalize = state["normalize"]

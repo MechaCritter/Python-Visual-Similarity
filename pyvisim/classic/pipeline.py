@@ -79,10 +79,12 @@ class Pipeline(SerializableImageEmbedder):
             SerializableImageEmbedder.from_dict(embedder_state)
             for embedder_state in state["classic"]
         ]
-        pipeline = cls(embedders, similarity_func=state["similarity_func"])
-        pipeline._restore_normalize(state)
-        pipeline._restore_batch_size(state)
-        return pipeline
+        return cls(
+            embedders,
+            similarity_func=state["similarity_func"],
+            normalize=state["normalize"],
+            batch_size=state["batch_size"],
+        )
 
     def _embed(self, images: list[UInt8NumpyArray]) -> FloatNumpyArray:
         all_embeddings = []
