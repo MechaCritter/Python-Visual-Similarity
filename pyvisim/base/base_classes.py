@@ -469,13 +469,12 @@ def _stack_image_batch(
     images: ImageInput,
     dims: str,
     value_range: tuple[float, float],
-) -> Float64NumpyArray:
+) -> UInt8NumpyArray:
     """
-    Normalize ``images`` and stack them into one ``(N, H, W, C)`` float batch.
+    Normalize ``images`` and stack them into one ``(N, H, W, C)`` ``uint8`` batch.
 
-    Every image is first converted to the canonical ``uint8`` ``(H, W[, C])``
-    layout in ``[0, 255]`` (see :mod:`pyvisim.typing`), then the batch is
-    stacked and cast to ``float64`` for numerically stable arithmetic.
+    Every image is converted to the canonical ``uint8`` ``(H, W[, C])`` layout
+    in ``[0, 255]`` (see :mod:`pyvisim.typing`) before the batch is stacked.
     Grayscale images receive a singleton channel axis.
 
     :param images: A single ``MatLike`` image, a batched array, or an iterable
@@ -483,7 +482,7 @@ def _stack_image_batch(
     :param dims: Axis-label string describing the input axes (see
         :mod:`pyvisim.typing`).
     :param value_range: The ``(low, high)`` range the input values live in.
-    :return: A ``(N, H, W, C)`` ``float64`` array with values in ``[0, 255]``.
+    :return: A ``(N, H, W, C)`` ``uint8`` array.
     :raises InvalidImageError: If an input cannot be converted to a numeric
         array.
     :raises ValueError: If no image is given or the images differ in shape.
@@ -501,7 +500,7 @@ def _stack_image_batch(
             "All images in a batch must have the same shape to be compared "
             f"pixel-wise, got shapes {sorted(shapes)}."
         )
-    batch = np.stack(canonical).astype(np.float64)
+    batch = np.stack(canonical)
     if batch.ndim == 3:
         batch = batch[..., np.newaxis]
     return batch
@@ -535,6 +534,8 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
 
     Concrete subclasses implement ``_score_pairs``, which receives two stacked
     ``float64`` batches of identical shape and returns one score per pair.
+    Subclasses that score whole blocks of images at once override
+    ``_score_batches`` instead.
 
     :param batch_size: Maximum number of image pairs processed in a single
         batch. Set to ``-1`` to process all images as a single batch.
@@ -554,8 +555,7 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
 
         Every image is normalized to the canonical ``uint8`` ``(H, W[, C])``
         layout in ``[0, 255]`` first, so the metric always operates on the
-        same value scale regardless of the input dtype or range. The pairs are
-        scored in chunks of at most :attr:`batch_size` pairs.
+        same value scale regardless of the input dtype or range.
 
         :param image1: First (batch of) image(s) as ``MatLike`` (NumPy array,
             torch tensor or array-like).
@@ -584,12 +584,7 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
                 f"got {batch1.shape[1:]} vs {batch2.shape[1:]}."
             )
         self._validate_image_shape(batch1.shape[1], batch1.shape[2])
-        scores = np.empty((batch1.shape[0], batch2.shape[0]), dtype=np.float64)
-        for rows, cols in _iter_pair_chunks(
-            batch1.shape[0], batch2.shape[0], self._batch_size
-        ):
-            scores[rows, cols] = self._score_pairs(batch1[rows], batch2[cols])
-        return scores
+        return self._score_batches(batch1, batch2)
 
     def _validate_image_shape(self, height: int, width: int) -> None:
         """
@@ -602,18 +597,43 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
         :raises ValueError: If the images cannot be scored by this metric.
         """
 
-    @abc.abstractmethod
+    def _score_batches(
+        self, batch1: UInt8NumpyArray, batch2: UInt8NumpyArray
+    ) -> Float64NumpyArray:
+        """
+        Score every image of ``batch1`` against every image of ``batch2``.
+
+        The pairs are handed to :meth:`_score_pairs` in chunks of at most
+        :attr:`batch_size` pairs.
+
+        :param batch1: ``(N, H, W, C)`` ``uint8`` batch.
+        :param batch2: ``(M, H, W, C)`` ``uint8`` batch of the same image shape.
+        :return: An ``(N, M)`` score matrix.
+        """
+        scores = np.empty((batch1.shape[0], batch2.shape[0]), dtype=np.float64)
+        for rows, cols in _iter_pair_chunks(
+            batch1.shape[0], batch2.shape[0], self._batch_size
+        ):
+            scores[rows, cols] = self._score_pairs(
+                batch1[rows].astype(np.float64), batch2[cols].astype(np.float64)
+            )
+        return scores
+
     def _score_pairs(
         self, images1: Float64NumpyArray, images2: Float64NumpyArray
     ) -> Float64NumpyArray:
         """
         Score aligned image pairs.
 
+        Every subclass that keeps :meth:`_score_batches` has to implement this
+        method.
+
         :param images1: ``(B, H, W, C)`` ``float64`` batch, one image per pair.
         :param images2: ``(B, H, W, C)`` ``float64`` batch, aligned with
             ``images1``.
         :return: A ``(B,)`` array holding one score per pair.
         """
+        raise NotImplementedError
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(batch_size={self.batch_size})"
