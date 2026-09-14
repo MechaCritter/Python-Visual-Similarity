@@ -41,8 +41,8 @@ class VLADEmbedder(ClusteringBasedEmbedder):
     """
     This class embeds images into VLAD descriptor vectors
     using a chosen feature extractor and a K-Means clustering model,
-    then compares two VLAD descriptor vectors with a user-specified
-    or default (cosine) similarity function.
+    then compares two VLAD descriptor vectors with the configured
+    similarity function.
 
     The K-Means model is configured from the parameters passed to this
     constructor (``n_clusters`` plus the optional ``kmeans_params``
@@ -57,7 +57,7 @@ class VLADEmbedder(ClusteringBasedEmbedder):
     The embedding can be used for indexing, retrieval, clustering or classification tasks.
 
     :param feature_extractor: Feature extractor instance (should implement __call__).
-        Defaults to RootSIFT.
+        If ``None``, RootSIFT is used.
     :param n_clusters: Number of K-Means clusters (visual words) to use.
     :param kmeans_params: Arguments for K-Means during vocabulary learning. See
         ``https://mechacritter.github.io/Python-Visual-Similarity/classic/vlad/vlad.html#k-means-parameters-kmeans-params``.
@@ -65,11 +65,11 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         ``https://mechacritter.github.io/Python-Visual-Similarity/classic/vlad/vlad.html#pca-parameters-pca-params``.
     :param power_norm_weight: Exponent for power normalization
     :param power_norm_weight: Exponent for power normalization
-    :param norm_order: Norm order for normalization (default: 2).
+    :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed descriptor vector (default: True).
+    :param flatten: Whether to flatten the computed descriptor vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param raise_error_when_pca_incompatible: Whether a fitted clustering model
         whose input size differs from the PCA output size raises a
         ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a

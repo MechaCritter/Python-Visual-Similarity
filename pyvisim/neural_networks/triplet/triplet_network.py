@@ -60,8 +60,8 @@ class TripletNeuralNetwork(BackboneWithHead):
         two embeddings. One of ``"cosine"``, ``"euclidean"``, ``"l1"``
         or ``"manhattan"``.
     :param transform: processing transform applied to every input image. If
-        ``None``, the default ImageNet preprocessing is used depending
-        on the backbone.
+        ``None``, the ImageNet preprocessing matching the backbone is
+        used.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``TripletNeuralNetwork`` from a

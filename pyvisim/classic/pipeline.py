@@ -20,7 +20,7 @@ class Pipeline(SerializableImageEmbedder):
 
     :param embedders: A list of SerializableImageEmbedder instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether :meth:`embed` L2-normalizes the joined embeddings
         it returns.
     :param batch_size: Maximum number of images processed in a single batch.

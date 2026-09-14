@@ -114,7 +114,7 @@ class SimilarityMetric(abc.ABC):
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
+            width × channels (NumPy/OpenCV single-image layout);
             ``"CHW"`` is channels × height × width (PyTorch single-image layout);
             ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
             See :mod:`pyvisim.typing`.
@@ -151,7 +151,7 @@ class FeatureExtractorBase(abc.ABC):
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels.
             For example, ``"HWC"`` is height × width × channels (NumPy/OpenCV
-            layout, **default**); ``"CHW"`` is channels × height × width (PyTorch
+            layout); ``"CHW"`` is channels × height × width (PyTorch
             layout). See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in;
             converted into the canonical ``[0, 255]`` range.
@@ -232,7 +232,7 @@ class ImageEmbedderBase(SimilarityMetric):
     used for indexing, retrieval, clustering or classification.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether :meth:`embed` L2-normalizes the embeddings it
         returns, so that they can be compared directly with a dot product.
     :param batch_size: Maximum number of images processed in a single batch.
@@ -314,7 +314,7 @@ class ImageEmbedderBase(SimilarityMetric):
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
+            width × channels (NumPy/OpenCV single-image layout);
             ``"CHW"`` is channels × height × width (PyTorch single-image layout);
             ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
             See :mod:`pyvisim.typing`.
@@ -381,7 +381,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     `safetensors <https://github.com/huggingface/safetensors>`_ file.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether :meth:`embed` L2-normalizes the embeddings it
         returns.
     :param batch_size: Maximum number of images processed in a single batch.
@@ -563,7 +563,7 @@ class DenseMetricBase(SimilarityMetric, abc.ABC):
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
+            width × channels (NumPy/OpenCV single-image layout);
             ``"CHW"`` is channels × height × width (PyTorch single-image layout);
             ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
             See :mod:`pyvisim.typing`.

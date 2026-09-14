@@ -28,13 +28,12 @@ def _to_single_image(
     :param dims: Axis-label string, one character per array axis in order:
         ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
         (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-        width × channels (NumPy/OpenCV single-image layout, **default**);
+        width × channels (NumPy/OpenCV single-image layout);
         ``"CHW"`` is channels × height × width (PyTorch single-image layout);
         ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-        A single-channel (grayscale) image may be passed as a 2-D array with the
-        default ``"HWC"``; the channel label is dropped automatically.
-    :param value_range: The ``(low, high)`` range the input values live in
-        (default ``(0.0, 255.0)``).
+        A single-channel (grayscale) image may be passed as a 2-D array with
+        ``dims="HWC"``, and the channel label is dropped automatically.
+    :param value_range: The ``(low, high)`` range the input values live in.
     :return: A ``uint8`` image of shape ``(H, W[, C])`` in ``[0, 255]``.
     :raises ValueError: If the input expands to anything other than one image.
     """

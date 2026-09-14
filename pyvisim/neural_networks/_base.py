@@ -34,7 +34,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     submodule, so that ``torch.nn.Module`` is initialized first.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
