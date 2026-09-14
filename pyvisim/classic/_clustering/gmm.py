@@ -11,7 +11,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 from ...typing import Float64NumpyArray, FloatNumpyArray, IntNumpyArray
-from ._base_clustering import ClusteringModelBase, _decode, _embed
+from ._base_clustering import ClusteringModelBase
 from .kmeans import _kmeans_plusplus, _rng_from_sklearn
 
 _GaussianMixtureT = TypeVar("_GaussianMixtureT", bound="DiagCovarGaussianMixture")
@@ -372,65 +372,52 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         weighted_log_prob = self._fitted_weighted_log_prob(features)
         return float(np.mean(logsumexp(weighted_log_prob, axis=1)))
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         """
-        Serialises the fitted model into a JSON-safe dictionary.
+        Describes the fitted model as a JSON-safe mapping.
 
         **NOTE**: ``rng`` is stored only when it is an integer seed; a
         :class:`numpy.random.Generator` is stateful and not JSON-safe.
 
-        :return: A dictionary describing the model class and its fitted state.
+        :return: A mapping holding the fitted state under ``"state"``.
         :raises NotFittedError: If the model is not fitted.
         """
-        state = {
-            "weights_": self.weights,
-            "means_": self.means,
-            "covariances_": self.covariances,
-            "n_components": self._n_components,
-            "n_features_in_": self.n_features_in,
-            "n_init": self._n_init,
-            "max_iter": self._max_iter,
-            "tol": self._tol,
-            "reg_covar": self._reg_covar,
-            "rng": self._rng if isinstance(self._rng, int) else None,
-        }
-        return {
-            "__class__": type(self).__name__,
-            "__module__": type(self).__module__,
-            "format_version": self.__format_version__,
-            "state": _embed(state),
-        }
+        return self._wrap_state(
+            {
+                "weights_": self.weights,
+                "means_": self.means,
+                "covariances_": self.covariances,
+                "n_components": self._n_components,
+                "n_features_in_": self.n_features_in,
+                "n_init": self._n_init,
+                "max_iter": self._max_iter,
+                "tol": self._tol,
+                "reg_covar": self._reg_covar,
+                "rng": self._rng if isinstance(self._rng, int) else None,
+            }
+        )
 
     @classmethod
     def from_dict(
-        cls: type[_GaussianMixtureT], data: dict[str, Any]
+        cls: type[_GaussianMixtureT], state: dict[str, Any], **kwargs: Any
     ) -> _GaussianMixtureT:
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
+        Dictionaries written by older releases under the class name
+        ``"GaussianMixture"`` are also accepted.
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str,
-            "format_version": int, "state": dict}. ``format_version`` is absent
-            from dictionaries written before the models carried a version.
+        :param state: A mapping produced by :meth:`to_dict`.
+        :param kwargs: Not accepted, an error is raised if any is given.
         :return: A fitted model.
-        :raises TypeError: If ``data`` is not a dictionary.
-        :raises ValueError: If ``data`` is malformed, describes a different
+        :raises TypeError: If ``state`` is not a dictionary or ``kwargs`` is
+            not empty.
+        :raises ValueError: If ``state`` is malformed, describes a different
             model type than this class expects, or holds a non-diagonal
             covariance type.
         """
-        if not isinstance(data, dict):
-            raise TypeError(
-                f"Expected a dict from to_dict(), got {type(data).__name__}."
-            )
-        for key in ("__class__", "state"):
-            if key not in data:
-                raise ValueError(f"Malformed model dict; missing key {key!r}.")
-        if data["__class__"] not in (cls.__name__, "GaussianMixture"):
-            raise ValueError(
-                f"{cls.__name__} expects a serialised {cls.__name__!r} (or a "
-                f"legacy 'GaussianMixture'), got {data['__class__']!r}."
-            )
-        state = _decode(data["state"])
+        cls._reject_unsupported_kwargs(kwargs)
+        state = cls._unwrap_state(state, "GaussianMixture")
         if state.get("covariance_type", "diag") != "diag":
             raise ValueError(
                 f"{cls.__name__} only supports covariance_type='diag', "
@@ -445,7 +432,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
             # Legacy scikit-learn states store the seed under "random_state".
             params["rng"] = state["random_state"]
         model = cls(
-            n_components=int(state.get("n_components", means.shape[0])), **params
+            n_components=int(state.get("n_components", int(means.shape[0]))), **params
         )
         model._weights = np.asarray(state["weights_"], dtype=np.float64)
         model._means = means
