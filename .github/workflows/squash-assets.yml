@@ -1,0 +1,54 @@
+name: Squash assets
+
+# Collapses the orphan 'assets' branch back into a single commit after a pull
+# request is merged into it, so rewriting binaries never grows its history.
+# 'pull_request_target' reads this file from the default branch. A 'push'
+# trigger would look for it on 'assets', which carries no workflows.
+on:
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - assets
+  workflow_dispatch:
+
+# Only 'contents: write' is needed, to force-push the assets branch.
+permissions:
+  contents: write
+
+# Serialize rewrites so two merges cannot race on the assets branch.
+concurrency:
+  group: assets
+  cancel-in-progress: false
+
+jobs:
+  squash:
+    name: Squash the assets branch
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      # The pull request's code is never checked out. The job only re-commits
+      # the tree that the merge produced, without a parent.
+      - name: Replace the branch with a single orphan commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git init -q
+          git fetch -q --depth=1 "$remote" assets
+          tip="$(git rev-parse FETCH_HEAD)"
+
+          # 'git log' hides the parents of a shallow commit, the raw object does not.
+          if ! git cat-file -p "$tip" | grep -q '^parent '; then
+            echo "::notice::The assets branch is already a single commit."
+            exit 0
+          fi
+
+          root="$(git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit-tree "${tip}^{tree}" -m "Publish assets${PR_NUMBER:+ (#${PR_NUMBER})}")"
+          # The lease rejects the push if 'assets' moved after the fetch, so
+          # nothing that landed in between is overwritten.
+          git push --force-with-lease="assets:${tip}" "$remote" "${root}:refs/heads/assets"

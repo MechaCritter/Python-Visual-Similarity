@@ -1,28 +1,33 @@
 name: Benchmarks
 
-# Regenerates the docs benchmark barplots and publishes them under 'benchmark/'
+# Regenerates the docs benchmark barplots and proposes them under 'benchmark/'
 # on the orphan 'assets' branch, which holds every binary the repository serves
-# but does not track on 'main'. The 'Docs' workflow overlays that folder onto
-# the GitHub Pages site. Trigger it from the Actions
-# tab (or run it locally with `act`) whenever the benchmark numbers change.
+# but does not track on 'main'. The barplots go to a review branch instead of
+# 'assets' itself, and the run summary links the pull request that publishes
+# them. The 'Docs' workflow overlays that folder onto the GitHub Pages site.
+# Trigger it from the Actions tab (or run it locally with `act`) whenever the
+# benchmark numbers change.
 on:
   workflow_dispatch:
 
-# Only 'contents: write' is needed, to force-push the assets branch.
+# Only 'contents: write' is needed, to push the review branch. Without
+# 'pull-requests: write' the workflow can neither open nor approve the pull
+# request, so the barplots are only published after a maintainer's review.
 permissions:
   contents: write
 
-# Serialize publishes so concurrent runs cannot race on the assets branch.
+# Serialize runs so they cannot race on the review branch.
 concurrency:
-  group: assets
+  group: benchmark-barplots
   cancel-in-progress: false
 
 env:
   PYTHON_VERSION: "3.10"
+  REVIEW_BRANCH: docs/benchmark-barplots
 
 jobs:
   publish:
-    name: Generate and publish benchmark barplots
+    name: Generate benchmark barplots for review
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -39,7 +44,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
-      # 'nn' pulls in torch (the MS-SSIM baseline); 'bench' pulls in
+      # 'nn' pulls in torch (the MS-SSIM baseline). 'bench' pulls in
       # scikit-image, torchmetrics and matplotlib. The Cython kernels are
       # compiled from setup.py while the editable pyvisim package is built.
       - name: Install dependencies
@@ -60,10 +65,11 @@ jobs:
             echo "::endgroup::"
           done
 
-      # The branch is republished as a single orphan commit so that rewriting
-      # binaries never grows its history. Whatever the branch already carries is
-      # fetched first, so assets other than 'benchmark/' survive the push.
-      - name: Publish barplots to the assets branch
+      # The review branch is rebuilt on top of the current 'assets' on every
+      # run, so its pull request always compares the latest barplots with what
+      # is published and never goes stale. After the merge, the 'Squash assets'
+      # workflow collapses 'assets' back into a single commit.
+      - name: Push barplots to the review branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -71,29 +77,41 @@ jobs:
           barplots="$(mktemp -d)"
           find docs -path '*/benchmarks/*_runtime_barplot.png' -exec cp -v {} "$barplots/" \;
           if [ -z "$(ls -A "$barplots")" ]; then
-            echo "No barplots were produced; nothing to publish." >&2
+            echo "No barplots were produced, nothing to publish." >&2
             exit 1
           fi
 
           remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git ls-remote --exit-code --heads "$remote" assets >/dev/null 2>&1; then
+            echo "::error::The assets branch does not exist, so there is no base for the pull request."
+            exit 1
+          fi
+
           staging="$(mktemp -d)"
           cd "$staging"
-          if git ls-remote --exit-code --heads "$remote" assets >/dev/null 2>&1; then
-            git init -q
-            git fetch -q --depth=1 "$remote" assets
-            git reset -q --hard FETCH_HEAD
-            # Drop the fetched history: the shallow parent cannot be pushed, and
-            # the branch is meant to keep only its latest state anyway.
-            rm -rf .git
-          fi
+          git init -q
+          git fetch -q --depth=1 "$remote" assets
+          git checkout -q -b "$REVIEW_BRANCH" FETCH_HEAD
 
           rm -rf benchmark
           mkdir -p benchmark
           cp "$barplots"/*.png benchmark/
-
-          git init -q -b assets
           git add -A
+          if git diff --cached --quiet; then
+            echo "::notice::The barplots match the published ones. Nothing to review."
+            exit 0
+          fi
+
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -q -m "Publish benchmark barplots (${GITHUB_SHA})"
-          git push -f "$remote" HEAD:assets
+          # Only this workflow writes the review branch, so replacing it is safe.
+          git push -f "$remote" "HEAD:refs/heads/${REVIEW_BRANCH}"
+
+          compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/assets...${REVIEW_BRANCH}?expand=1"
+          {
+            echo "### Benchmark barplots are ready for review"
+            echo
+            echo "[Open a pull request against \`assets\`](${compare_url})."
+            echo "If one is already open for \`${REVIEW_BRANCH}\`, it now shows these barplots."
+          } >> "$GITHUB_STEP_SUMMARY"
