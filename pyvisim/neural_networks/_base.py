@@ -137,8 +137,8 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     ) -> _NeuralEmbedderT:
         embedder = cast(_NeuralEmbedderT, cls._from_config(state["config"], **kwargs))
         embedder.similarity_func = state["similarity_func"]
-        embedder._restore_normalize(state)
-        embedder._restore_batch_size(state)
+        embedder.normalize = state["normalize"]
+        embedder.batch_size = state["batch_size"]
         embedder.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder.eval()
 

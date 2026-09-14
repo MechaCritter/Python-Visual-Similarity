@@ -26,7 +26,6 @@ from pyvisim.neural_networks import (
 )
 from pyvisim.neural_networks import backbones as backbones_module
 from pyvisim.neural_networks.backbones import BackboneWithHead
-from pyvisim.serialization import embedder_from_dict, embedder_to_dict
 
 from ._stubs import make_random_rgb_image
 
@@ -234,7 +233,7 @@ def _network_with_custom_transform() -> ContrastiveSiameseNetwork:
 def test_serialised_state_describes_the_transform() -> None:
     """The state carries the ``repr`` of the transform used for preprocessing."""
     network = _network_with_custom_transform()
-    config = embedder_to_dict(network)["config"]
+    config = network.to_dict()["config"]
     assert config["transform"] == repr(_custom_transform())
 
 
@@ -282,11 +281,11 @@ def test_a_different_transform_on_load_warns(tmp_path: Path) -> None:
 
 def test_a_state_without_a_transform_loads_silently() -> None:
     """A file written before the transform was described still loads."""
-    state = embedder_to_dict(_contrastive_network())
+    state = _contrastive_network().to_dict()
     del state["config"]["transform"]
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        embedder_from_dict(state)
+        SerializableImageEmbedder.from_dict(state)
 
 
 def test_load_from_disk_rejects_an_unsupported_keyword(tmp_path: Path) -> None:
@@ -319,7 +318,7 @@ def test_registry_round_trip_restores_the_embeddings() -> None:
     images = [make_random_rgb_image(seed=4)]
     expected = network.embed(images)
 
-    reloaded = embedder_from_dict(embedder_to_dict(network))
+    reloaded = SerializableImageEmbedder.from_dict(network.to_dict())
 
     assert isinstance(reloaded, ContrastiveSiameseNetwork)
     assert np.array_equal(reloaded.embed(images), expected)
@@ -331,7 +330,7 @@ def test_registry_round_trip_restores_a_triplet_network() -> None:
     images = [make_random_rgb_image(seed=4)]
     expected = network.embed(images)
 
-    reloaded = embedder_from_dict(embedder_to_dict(network))
+    reloaded = SerializableImageEmbedder.from_dict(network.to_dict())
 
     assert isinstance(reloaded, TripletNeuralNetwork)
     assert np.array_equal(reloaded.embed(images), expected)

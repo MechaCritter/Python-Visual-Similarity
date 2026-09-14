@@ -18,11 +18,8 @@ from typing import Any, ClassVar
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from ..serialization import (
-    SerializerMixin,
-    embedder_from_dict,
-    embedder_to_dict,
-)
+from .._base_classes import SerializableImageEmbedder
+from ..serialization import SerializerMixin
 from ..typing import (
     BoolNumpyArray,
     Embedder,
@@ -576,6 +573,11 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :return: A JSON-safe store description.
         :raises TypeError: If the embedder is not serialisable.
         """
+        if not isinstance(self._embedder, SerializableImageEmbedder):
+            raise TypeError(
+                f"Embedder of type {type(self._embedder).__name__!r} is not "
+                "serialisable, it must be a SerializableImageEmbedder."
+            )
         if embeddings is None:
             embeddings = self.embeddings
         return {
@@ -590,7 +592,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
                 "shape": list(embeddings.shape),
                 "order": "C",
             },
-            "embedder": embedder_to_dict(self._embedder),
+            "embedder": self._embedder.to_dict(),
         }
 
     @classmethod
@@ -625,7 +627,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         search_index = kwargs.pop(_SEARCH_INDEX_KWARG, None)
         index_name = str(state["index_name"])
         search_index = _restored_external_index(search_index, index_name)
-        embedder = embedder_from_dict(state["embedder"], **kwargs)
+        embedder = SerializableImageEmbedder.from_dict(state["embedder"], **kwargs)
         return cls._from_components(
             paths=list(state["paths"]),
             embeddings=np.asarray(state["embeddings"], dtype=np.float32),

@@ -10,7 +10,7 @@ import numpy as np
 from safetensors import SafetensorError, safe_open
 from safetensors.numpy import save_file
 
-from ..typing import Embedder, NumpyArray
+from ..typing import NumpyArray
 
 
 def decode_array_node(value: Any) -> NumpyArray:
@@ -127,96 +127,3 @@ def load_state(path: str | pathlib.Path, metadata_key: str) -> dict[str, Any]:
     if not isinstance(state, dict):
         raise ValueError(f"File {path} does not hold a state dictionary.")
     return state
-
-
-def embedder_to_dict(embedder: Embedder) -> dict[str, Any]:
-    """
-    Serialise an embedder into a JSON-safe state dictionary.
-
-    :param embedder: A :class:`~pyvisim._base_classes.ImageEmbedderBase`
-        subclass instance or a :class:`~pyvisim.classic.Pipeline`.
-    :return: The embedder's ``to_dict`` output.
-    :raises TypeError: If ``embedder`` does not expose a ``to_dict`` method.
-    """
-    to_dict = getattr(embedder, "to_dict", None)
-    if not callable(to_dict):
-        raise TypeError(
-            f"Embedder of type {type(embedder).__name__!r} is not serialisable; "
-            "it must implement a 'to_dict' method."
-        )
-    return dict(to_dict())
-
-
-def _classic_embedder_classes() -> dict[str, Any]:
-    """
-    Return the classic embedder classes that can be reconstructed.
-
-    :return: A mapping of class name to embedder class.
-    """
-    # Imported lazily so this leaf module never feeds back into the embedder
-    # package's import graph at module-load time.
-    from ..classic.fisher_vector import FisherVectorEmbedder
-    from ..classic.pipeline import Pipeline
-    from ..classic.vlad import VLADEmbedder
-
-    return {
-        "VLADEmbedder": VLADEmbedder,
-        "FisherVectorEmbedder": FisherVectorEmbedder,
-        "Pipeline": Pipeline,
-    }
-
-
-def _neural_embedder_classes() -> dict[str, Any]:
-    """
-    Return the neural embedder classes that can be reconstructed.
-
-    The neural embedders need the optional ``nn`` extra; when it is not
-    installed they are simply not registered, so the classic embedders stay
-    loadable on a torch-free installation.
-
-    :return: A mapping of class name to embedder class, empty if torch is
-        not installed.
-    """
-    try:
-        from ..neural_networks import (
-            BCESiameseNetwork,
-            ClipEmbedder,
-            ContrastiveSiameseNetwork,
-            TripletNeuralNetwork,
-        )
-    except ImportError:
-        return {}
-
-    return {
-        "BCESiameseNetwork": BCESiameseNetwork,
-        "ClipEmbedder": ClipEmbedder,
-        "ContrastiveSiameseNetwork": ContrastiveSiameseNetwork,
-        "TripletNeuralNetwork": TripletNeuralNetwork,
-    }
-
-
-def embedder_from_dict(state: dict[str, Any], **kwargs: Any) -> Embedder:
-    """
-    Rebuild an embedder from a dictionary produced by :func:`embedder_to_dict`.
-
-    :param state: A serialised embedder description with an ``embedder_class`` key.
-    :param kwargs: Objects the description cannot hold, such as a torchvision
-        transform, forwarded to the embedder's ``from_dict``.
-    :return: The reconstructed embedder instance.
-    :raises ValueError: If ``state`` lacks a known ``embedder_class``.
-    :raises TypeError: If the embedder does not take one of ``kwargs``.
-    """
-    # ``Any`` because the registered classes share a ``from_dict`` classmethod
-    # that the structural ``Embedder`` protocol does not declare.
-    registry: dict[str, Any] = {
-        **_classic_embedder_classes(),
-        **_neural_embedder_classes(),
-    }
-    embedder_class = state.get("embedder_class")
-    if embedder_class not in registry:
-        raise ValueError(
-            f"Cannot reconstruct embedder of class {embedder_class!r}. "
-            f"Known classes are: {sorted(registry)}."
-        )
-    embedder: Embedder = registry[embedder_class].from_dict(state, **kwargs)
-    return embedder

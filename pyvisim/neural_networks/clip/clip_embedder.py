@@ -156,31 +156,6 @@ class ClipEmbedder(SerializableImageEmbedder):
             self._model, fetch_checkpoint(variant, pretrained, cache_dir=cache_dir)
         )
 
-    @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> "ClipEmbedder":
-        """
-        Build an embedder skeleton from a serialised configuration.
-
-        The pretrained checkpoint is deliberately *not* downloaded: the caller
-        restores the weights right after from the serialised ``state_dict``,
-        which makes the download both wasteful and a needless network
-        dependency. The instance is therefore created without running
-        :meth:`__init__`, whose contract is to return a ready-to-use embedder
-        with the pretrained weights loaded.
-
-        :param config: The ``"config"`` mapping produced by :meth:`to_dict`.
-        :return: A randomly initialized embedder matching ``config``.
-        :raises ValueError: If ``variant`` or ``pretrained`` is not supported.
-        """
-        embedder = cls.__new__(cls)
-        SerializableImageEmbedder.__init__(embedder)
-        embedder._build(
-            config["variant"],
-            config["pretrained"],
-            device=config["device"],
-        )
-        return embedder
-
     def _build(
         self,
         variant: str,
@@ -225,10 +200,19 @@ class ClipEmbedder(SerializableImageEmbedder):
     @classmethod
     def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "ClipEmbedder":
         cls._reject_unsupported_kwargs(kwargs)
-        embedder = cls._from_config(state["config"])
-        embedder.similarity_func = state["similarity_func"]
-        embedder._restore_normalize(state)
-        embedder._restore_batch_size(state)
+        # __init__ downloads the pretrained checkpoint, which the saved
+        # state_dict overwrites right after, so the instance is built without it.
+        embedder = cls.__new__(cls)
+        SerializableImageEmbedder.__init__(
+            embedder,
+            similarity_func=state["similarity_func"],
+            normalize=state["normalize"],
+            batch_size=state["batch_size"],
+        )
+        config = state["config"]
+        embedder._build(
+            config["variant"], config["pretrained"], device=config["device"]
+        )
         embedder._model.load_state_dict(decode_state_dict(state["state_dict"]))
         return embedder
 
