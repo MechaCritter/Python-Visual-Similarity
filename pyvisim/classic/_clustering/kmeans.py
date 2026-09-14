@@ -2,7 +2,7 @@
 
 import warnings
 from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 import numpy as np
 from scipy.cluster.vq import kmeans, vq
@@ -112,6 +112,8 @@ class KMeans(ClusteringModelBase):
         reproducible fitting.
     :raises ValueError: If ``n_clusters`` or ``n_init`` is not positive.
     """
+
+    __format_version__: ClassVar[int] = 1
 
     def __init__(
         self,
@@ -267,6 +269,7 @@ class KMeans(ClusteringModelBase):
         return {
             "__class__": type(self).__name__,
             "__module__": type(self).__module__,
+            "format_version": self.__format_version__,
             "state": _embed(state),
         }
 
@@ -280,7 +283,9 @@ class KMeans(ClusteringModelBase):
         models were trained without whitening) and the remaining parameters
         keep their defaults.
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
+        :param data: A mapping with the form: {"__class__": str, "__module__": str,
+            "format_version": int, "state": dict}. ``format_version`` is absent
+            from dictionaries written before the models carried a version.
         :return: A fitted model.
         :raises TypeError: If ``data`` is not a dictionary.
         :raises ValueError: If ``data`` is malformed or describes a different

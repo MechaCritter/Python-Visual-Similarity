@@ -1,0 +1,19 @@
+---
+upgrade:
+  - |
+    ``SerializerMixin.to_dict`` is no longer abstract. It adds the format
+    version and the class name to the mapping returned by the new abstract
+    ``_state`` method. Subclasses outside the library rename their ``to_dict``
+    to ``_state`` and drop the ``format_version`` and class-name entries from
+    it, and ``__state_keys__`` no longer lists the class key. Loading a file
+    whose state lacks the format version or the class name raises a
+    ``ValueError``.
+enhancements:
+  - |
+    Every ``load_from_disk`` reports an unreadable file the same way, as
+    "File ... is not a valid <suffix> file" followed by the reason. The image
+    store used to raise the bare reason, while the embedders dropped it.
+  - |
+    The clustering models of ``VLADEmbedder`` and ``FisherVectorEmbedder``
+    record a ``format_version`` in their part of the ``.embedder`` file.
+    Files written before still load.

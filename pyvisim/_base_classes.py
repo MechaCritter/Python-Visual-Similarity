@@ -1,6 +1,5 @@
 import abc
 import logging
-import pathlib
 from collections.abc import Sequence
 from typing import Any, ClassVar, cast
 
@@ -375,7 +374,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     Adds the serialization contract of
     :class:`~pyvisim.serialization.SerializerMixin` on top of
     :class:`ImageEmbedderBase`: subclasses describe themselves as a JSON-safe
-    state via :meth:`~pyvisim.serialization.SerializerMixin.to_dict` /
+    state via :meth:`~pyvisim.serialization.SerializerMixin._state` /
     :meth:`~pyvisim.serialization.SerializerMixin.from_dict`, and the mixin
     turns that state into a file and back. Both the classic embedders and the
     neural ones use this path, so a ``.embedder`` file is always a
@@ -398,7 +397,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     #: Keys a serialised state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
     __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "similarity_func", "normalize", "batch_size"}
+        {"similarity_func", "normalize", "batch_size"}
     )
 
     def _restore_batch_size(self, state: dict[str, Any]) -> None:
@@ -421,20 +420,3 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         :raises ValueError: If the stored setting is not a boolean.
         """
         self.normalize = state["normalize"]
-
-    @classmethod
-    def _read_state(cls, path: pathlib.Path) -> dict[str, Any]:
-        """
-        Reads the embedder state a ``.embedder`` file holds.
-
-        :param path: Path to the ``.embedder`` file.
-        :return: The reconstructed embedder state, with arrays restored.
-        :raises FileNotFoundError: If ``path`` does not exist.
-        :raises ValueError: If the file is not a valid ``.embedder`` file.
-        """
-        try:
-            return super()._read_state(path)
-        except ValueError as error:
-            raise ValueError(
-                f"File {path} is not a valid {cls.__file_format__} file."
-            ) from error

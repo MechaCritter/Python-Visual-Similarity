@@ -31,8 +31,8 @@ class Pipeline(SerializableImageEmbedder):
     _logger = logging.getLogger("Pipeline")
 
     __format_version__: ClassVar[int] = 3
-    __state_keys__: ClassVar[frozenset[str]] = frozenset(
-        {"embedder_class", "classic", "similarity_func", "normalize", "batch_size"}
+    __state_keys__: ClassVar[frozenset[str]] = (
+        SerializableImageEmbedder.__state_keys__ | {"classic"}
     )
 
     def __init__(
@@ -64,10 +64,8 @@ class Pipeline(SerializableImageEmbedder):
                     f"Pipeline only accepts instances of SerializableImageEmbedder, not {type(embedder)}"
                 )
 
-    def to_dict(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         return {
-            "format_version": self.__format_version__,
-            "embedder_class": type(self).__name__,
             "classic": [embedder.to_dict() for embedder in self.embedders],
             "similarity_func": self._similarity_func_name,
             "normalize": self.normalize,
