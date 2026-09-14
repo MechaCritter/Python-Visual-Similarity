@@ -14,3 +14,7 @@ enhancements:
   - |
     The documentation renders every tutorial notebook as a page with its
     executed outputs.
+  - |
+    The ``Docs`` workflow also builds pull requests, executes the tutorial
+    notebooks they change and uploads the rendered HTML as the ``docs-html``
+    artifact.

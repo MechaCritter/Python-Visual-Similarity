@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+  # Pull requests build the documentation without deploying it. The notebooks
+  # they change are executed, and the HTML is uploaded for review.
+  pull_request:
+    branches:
+      - main
   # A version tag moves its release notes from "Unreleased" under that version.
   # Only main may deploy to the 'github-pages' environment, so instead of
   # running on the tag, the site is rebuilt from main once the release
@@ -19,20 +24,23 @@ env:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Allow only one concurrent deployment, but let in-progress production
-# deployments finish.
+# deployments finish. A new push to a pull request cancels the build of its
+# previous push instead.
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('docs-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
     # 1. Build the Sphinx HTML documentation
     name: "Build documentation"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # 'actions/configure-pages' reads the Pages settings of the repository.
+      pages: read
     env:
       # The same fixed path as in the CI workflow, so its weight cache applies.
       TORCH_HOME: ${{ github.workspace }}/.cache/torch
@@ -81,6 +89,18 @@ jobs:
           git archive FETCH_HEAD docs/logo | tar -x --strip-components=2 -C "$dest"
           echo "Copied $(find "$dest" -name '*.png' | wc -l) logo file(s)."
 
+      # jupyter-cache keys every executed notebook on its code cells, so the
+      # newest cache is safe to restore and only changed notebooks run again.
+      # It does not track tutorial_utils.py, so a change there starts from an
+      # empty cache. Bump '-v1' to discard every cached execution.
+      - name: Restore the executed notebooks
+        id: notebook-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: docs/_build/.jupyter_cache
+          key: pyvisim-notebooks-v1-${{ hashFiles('docs/tutorials/notebooks/tutorial_utils.py') }}
+          restore-keys: pyvisim-notebooks-v1-${{ hashFiles('docs/tutorials/notebooks/tutorial_utils.py') }}-
+
       - name: Resolve the dataset cache directory
         id: dataset-cache
         run: |
@@ -106,6 +126,22 @@ jobs:
       - name: Build HTML documentation
         run: uv run --group docs --group tutorials sphinx-build -W -b html docs docs/_build/html
 
+      # Also after a failed build, so that the next run only executes the
+      # notebooks that did not finish. A changed notebook leaves its previous
+      # execution behind, which is removed so that the cache does not grow.
+      - name: Prune stale notebook executions
+        if: ${{ !cancelled() && hashFiles('docs/_build/.jupyter_cache/executed/**') != '' }}
+        run: uv run --no-sync python .github/scripts/prune_notebook_cache.py docs/_build/.jupyter_cache docs/tutorials/notebooks
+
+      # The key hashes the cached executions, so a build that neither executed
+      # nor pruned a notebook does not save the same cache again.
+      - name: Save the executed notebooks
+        if: ${{ !cancelled() && hashFiles('docs/_build/.jupyter_cache/executed/**') != '' && steps.notebook-cache.outputs.cache-matched-key != format('pyvisim-notebooks-v1-{0}-{1}', hashFiles('docs/tutorials/notebooks/tutorial_utils.py'), hashFiles('docs/_build/.jupyter_cache/executed/**')) }}
+        uses: actions/cache/save@v6
+        with:
+          path: docs/_build/.jupyter_cache
+          key: pyvisim-notebooks-v1-${{ hashFiles('docs/tutorials/notebooks/tutorial_utils.py') }}-${{ hashFiles('docs/_build/.jupyter_cache/executed/**') }}
+
       # The pull request opened from the 'Benchmarks' workflow publishes them
       # under 'benchmark/' on the orphan 'assets' branch, and they are overlaid
       # here so the absolute '_IMAGE_BASE_URL' links in the docs resolve.
@@ -129,10 +165,21 @@ jobs:
             echo "::notice::No assets branch yet, so no benchmark barplots are overlaid."
           fi
 
+      # The committed notebooks carry no outputs, so a reviewer only sees what
+      # they produce in the rendered HTML.
+      - name: Upload the HTML for review
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-html
+          path: docs/_build/html
+
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v6
 
       - name: Upload documentation artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs/_build/html
@@ -140,8 +187,13 @@ jobs:
   deploy:
     # 2. Deploy the built HTML to GitHub Pages
     name: "Deploy to GitHub Pages"
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
