@@ -5,7 +5,7 @@ from typing import Any, ClassVar
 import numpy as np
 import pytest
 
-from pyvisim._base_classes import SerializableImageEmbedder
+from pyvisim.base import SerializableImageEmbedder
 from pyvisim.classic import VLADEmbedder
 from pyvisim.typing import FloatNumpyArray, UInt8NumpyArray
 

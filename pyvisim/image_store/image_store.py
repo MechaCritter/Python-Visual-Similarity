@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from .._base_classes import SerializableImageEmbedder
+from ..base import SerializableImageEmbedder
 from ..serialization import SerializerMixin
 from ..typing import (
     BoolNumpyArray,

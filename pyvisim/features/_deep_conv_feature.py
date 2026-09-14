@@ -5,7 +5,7 @@ import warnings
 from collections.abc import Sequence
 from typing import Any, cast
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ..lazy_import import OptionalImport
 from ..typing import Float32NumpyArray, MatLike
 from ._utils import _check_output_shape, _to_single_image

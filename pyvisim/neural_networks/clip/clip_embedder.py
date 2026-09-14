@@ -14,7 +14,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from PIL import Image
 
-from ..._base_classes import SerializableImageEmbedder
+from ...base import SerializableImageEmbedder
 from ...lazy_import import OptionalImport
 from ...typing import (
     Float32NumpyArray,

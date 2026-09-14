@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ..typing import (
     Float32NumpyArray,
     IntNumpyArray,

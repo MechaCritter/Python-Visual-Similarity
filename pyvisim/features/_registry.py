@@ -1,6 +1,6 @@
 from typing import Any
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ._deep_conv_feature import DeepConvFeature
 from ._root_sift import RootSIFT
 from ._sift import SIFT

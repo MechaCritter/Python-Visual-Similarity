@@ -2,7 +2,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from .._base_classes import SerializableImageEmbedder
+from ..base import SerializableImageEmbedder
 from ..typing import (
     FloatNumpyArray,
     UInt8NumpyArray,

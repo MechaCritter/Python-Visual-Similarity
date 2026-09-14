@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ..typing import Float32NumpyArray, MatLike, UInt8NumpyArray
 from ._utils import _check_output_shape, _to_single_image
 from ._vendored.sift.sift import SIFT as _SIFT

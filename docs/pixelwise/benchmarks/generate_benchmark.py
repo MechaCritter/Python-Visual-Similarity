@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio
 
-from pyvisim._base_classes import SimilarityMetric
+from pyvisim.base import SimilarityMetric
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.pixelwise import PSNR
 from pyvisim.typing import UInt8NumpyArray

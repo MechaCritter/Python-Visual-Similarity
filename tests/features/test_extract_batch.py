@@ -1,4 +1,4 @@
-"""Tests for :meth:`pyvisim._base_classes.FeatureExtractorBase.extract_batch`."""
+"""Tests for :meth:`pyvisim.base.FeatureExtractorBase.extract_batch`."""
 
 from __future__ import annotations
 

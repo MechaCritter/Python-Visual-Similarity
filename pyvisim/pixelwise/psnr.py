@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .._base_classes import SimilarityMetric
+from ..base import SimilarityMetric
 from ..lazy_import import is_tensor
 from ..typing import Float64NumpyArray, ImageInput, UInt8NumpyArray
 from ..utils.cython_utils import get_kernel_threads

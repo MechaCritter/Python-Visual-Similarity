@@ -14,6 +14,10 @@ upgrade:
     ``raise_error_when_pca_incompatible=True``, so a clustering model the
     fitted PCA cannot feed raises a ``RuntimeError`` instead of silently
     dropping the PCA. Pass ``False`` to keep the old behavior.
+  - |
+    ``pyvisim._base_classes`` is removed. Import ``SimilarityMetric``,
+    ``FeatureExtractorBase``, ``ImageEmbedderBase`` and
+    ``SerializableImageEmbedder`` from ``pyvisim.base`` instead.
 fixes:
   - |
     Importing ``pyvisim`` no longer creates a ``res/logs`` folder next to the

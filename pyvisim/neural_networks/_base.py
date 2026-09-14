@@ -5,7 +5,7 @@ Shared base for the neural image embedders.
 import abc
 from typing import Any, ClassVar, TypeVar, cast
 
-from .._base_classes import SerializableImageEmbedder
+from ..base import SerializableImageEmbedder
 from ..lazy_import import OptionalImport
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
@@ -23,7 +23,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     Abstract base for image embedders backed by a torch module.
 
     It combines the two halves every neural embedder in pyvisim needs:
-    :class:`~pyvisim._base_classes.SerializableImageEmbedder` contributes the
+    :class:`~pyvisim.base.SerializableImageEmbedder` contributes the
     ``similarity_func`` handling, the :meth:`similarity_score` built on top of
     :meth:`embed` and the ``.embedder`` file format, while
     :class:`torch.nn.Module` contributes the parameter, device and
@@ -117,7 +117,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
 
         :param config: Mapping produced by :meth:`_serialization_config`.
         :param kwargs: Parameters the configuration alone cannot describe, forwarded
-            from :meth:`~pyvisim._base_classes.SerializableImageEmbedder.load_from_disk`.
+            from :meth:`~pyvisim.base.SerializableImageEmbedder.load_from_disk`.
         :return: An embedder whose architecture matches ``config``.
         """
         raise NotImplementedError

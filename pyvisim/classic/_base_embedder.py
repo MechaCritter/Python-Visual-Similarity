@@ -5,8 +5,8 @@ from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
-from .._base_classes import FeatureExtractorBase, SerializableImageEmbedder
 from .._errors import NotFittedError
+from ..base import FeatureExtractorBase, SerializableImageEmbedder
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
 from ..typing import (
@@ -318,7 +318,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         Extracts the local descriptors of one image batch and stacks them.
 
         Every image of the batch reaches the feature extractor in a single
-        :meth:`~pyvisim._base_classes.FeatureExtractorBase.extract_batch` call,
+        :meth:`~pyvisim.base.FeatureExtractorBase.extract_batch` call,
         and the descriptors it returns are concatenated into one ``(N, D)``
         array. Whatever runs next (the PCA, the clustering model) therefore
         sees the batch as one matrix instead of one image at a time. The
