@@ -1,4 +1,6 @@
 import abc
+import contextlib
+import inspect
 import logging
 from collections.abc import Sequence
 from typing import Any, ClassVar, cast
@@ -400,23 +402,66 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         {"similarity_func", "normalize", "batch_size"}
     )
 
-    def _restore_batch_size(self, state: dict[str, Any]) -> None:
+    #: Every subclass defined so far, keyed by class name.
+    _subclasses_by_name: ClassVar[dict[str, type["SerializableImageEmbedder"]]] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Registers a subclass under its name for :meth:`from_dict`."""
+        super().__init_subclass__(**kwargs)
+        SerializableImageEmbedder._subclasses_by_name[cls.__name__] = cls
+
+    @classmethod
+    def from_dict(
+        cls, state: dict[str, Any], **kwargs: Any
+    ) -> "SerializableImageEmbedder":
         """
-        Adopts the batch size recorded in a serialised state.
+        Rebuilds the embedder a state dictionary describes.
+
+        Called on :class:`SerializableImageEmbedder` itself, it hands the state
+        to the ``from_dict`` of the class named under :attr:`__class_key__`, so
+        a state can be rebuilt without knowing which embedder wrote it.
 
         :param state: A JSON-safe embedder description.
-        :raises KeyError: If the state carries no batch size.
-        :raises ValueError: If the stored batch size is neither ``-1`` nor a
-            positive integer.
+        :param kwargs: Objects the state cannot describe, forwarded to the
+            embedder's own ``from_dict``.
+        :return: The reconstructed embedder.
+        :raises ValueError: If ``state`` names no concrete embedder class.
+        :raises NotImplementedError: If called on a subclass that does not
+            implement its own ``from_dict``.
         """
-        self.set_batch_size(state["batch_size"])
+        if cls is not SerializableImageEmbedder:
+            raise NotImplementedError(f"{cls.__name__} does not implement from_dict.")
+        embedder_cls = cls._subclass_named(state.get(cls.__class_key__))
+        return embedder_cls.from_dict(state, **kwargs)
 
-    def _restore_normalize(self, state: dict[str, Any]) -> None:
+    @classmethod
+    def _subclass_named(cls, name: Any) -> type["SerializableImageEmbedder"]:
         """
-        Adopts the normalization setting recorded in a serialised state.
+        Looks up a concrete embedder class by name.
 
-        :param state: A JSON-safe embedder description.
-        :raises KeyError: If the state carries no normalization setting.
-        :raises ValueError: If the stored setting is not a boolean.
+        The shipped embedders register themselves when their package is
+        imported, so both packages are imported before a name is reported as
+        unknown. The neural embedders need the ``nn`` extra and are skipped
+        without it.
+
+        :param name: The class name recorded in a state.
+        :return: The embedder class of that name.
+        :raises ValueError: If no concrete embedder class has that name.
         """
-        self.normalize = state["normalize"]
+        if name not in cls._subclasses_by_name:
+            from . import classic  # noqa: F401
+
+            with contextlib.suppress(ImportError):
+                from . import neural_networks  # noqa: F401
+        embedder_cls = cls._subclasses_by_name.get(name)
+        if embedder_cls is None or inspect.isabstract(embedder_cls):
+            known = sorted(
+                known_name
+                for known_name, known_cls in cls._subclasses_by_name.items()
+                if not inspect.isabstract(known_cls)
+            )
+            raise ValueError(
+                f"Cannot reconstruct embedder of class {name!r}. "
+                f"Known classes are: {known}."
+            )
+        return embedder_cls
