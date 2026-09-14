@@ -1,4 +1,4 @@
-.PHONY: test-types test-unit test-slow build-ext fmt strip-notebooks check-notebooks docs release-note release-notes
+.PHONY: test-types test-unit test-slow test-notebooks build-ext fmt strip-notebooks check-notebooks docs release-note release-notes
 
 # Regenerate the checked-in Cython C sources and rebuild the editable install.
 # --inexact keeps ad-hoc packages in the venv from being pruned.
@@ -19,6 +19,13 @@ test-unit:
 # Test slow tests
 test-slow:
 	uv run --group test --extra nn pytest -m slow
+
+# Execute every tutorial notebook from scratch and in parallel, like the scheduled
+# Tutorials workflow. NOTEBOOK_WORKERS limits how many notebooks run at once.
+NOTEBOOK_WORKERS = auto
+test-notebooks:
+	uv run --group tutorials --extra nn pytest -o addopts="" --nbmake --nbmake-timeout=-1 -n $(NOTEBOOK_WORKERS) docs/tutorials/notebooks
+
 # Formatting with ruff
 fmt:
 	uv run --group fmt ruff check --fix .

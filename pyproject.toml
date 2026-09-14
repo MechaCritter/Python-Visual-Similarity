@@ -140,6 +140,10 @@ tutorials = [
     "scikit-learn",
     "faiss-cpu",
     "tensorboard",
+    # Run the notebooks as tests (make test-notebooks and the Tutorials workflow).
+    "pytest",
+    "nbmake",
+    "pytest-xdist",
 ]
 # Release note management (reno). dulwich is reno's git backend.
 release = [
