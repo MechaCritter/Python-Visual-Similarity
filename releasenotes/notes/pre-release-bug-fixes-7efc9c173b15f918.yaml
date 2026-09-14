@@ -16,3 +16,7 @@ fixes:
   - |
     ``from pyvisim import *`` works without the ``nn`` extra, and submodules
     such as ``pyvisim.classic`` are reachable after a plain ``import pyvisim``.
+  - |
+    The warning emitted when a clustering model resets an incompatible PCA is
+    a ``FutureWarning`` and names ``raise_error_when_pca_incompatible=True``
+    as the way to raise instead.

@@ -233,16 +233,17 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
                 if self.raise_error_when_pca_incompatible:
                     raise RuntimeError(
                         f"PCA is incompatible with the new clustering model. "
-                        f"PCA input size: {self._pca.n_components}, "
+                        f"PCA output size: {self._pca.n_components}, "
                         f"New clustering model input size: {clustering_model.n_features_in}. "
                         f"If you want the PCA to be reset to None instead, set raise_error_when_pca_incompatible=False."
                     )
                 warnings.warn(
                     f"PCA is incompatible with the new clustering model. "
-                    f"PCA input size: {self._pca.n_components}, "
+                    f"PCA output size: {self._pca.n_components}, "
                     f"New clustering model input size: {clustering_model.n_features_in}. "
-                    "PCA will be reset to None to avoid errors."
-                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=False.",
+                    "PCA will be reset to None to avoid errors. "
+                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=True.",
+                    FutureWarning,
                     stacklevel=2,
                 )
                 self._pca = None
