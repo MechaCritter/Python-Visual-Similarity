@@ -6,7 +6,13 @@ upgrade:
     ``Data_Set``, ``Feature_Extractor``, ``Pipeline`` and
     ``Similarity_Metrics``. Configure the ``pyvisim`` logger to see the
     library's messages.
+  - |
+    ``from pyvisim import *`` no longer imports ``datasets``, which needs the
+    ``nn`` extra. Access it as ``pyvisim.datasets`` or import it explicitly.
 fixes:
   - |
     Importing ``pyvisim`` no longer creates a ``res/logs`` folder next to the
     installed package, which failed on read-only installs.
+  - |
+    ``from pyvisim import *`` works without the ``nn`` extra, and submodules
+    such as ``pyvisim.classic`` are reachable after a plain ``import pyvisim``.
