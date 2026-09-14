@@ -343,7 +343,13 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         return descriptors
 
     def _embed(self, images: list[UInt8NumpyArray]) -> FloatNumpyArray:
-        return self._encode_batch(*self._extract_descriptors(images))
+        descriptors, counts = self._extract_descriptors(images)
+        if not counts.all():
+            raise ValueError(
+                "No descriptors found in the image. "
+                f"Cannot compute {type(self).__name__} embedding."
+            )
+        return self._encode_batch(descriptors, counts)
 
     @abc.abstractmethod
     def _encode_batch(

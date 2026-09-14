@@ -150,12 +150,7 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         :param counts: How many of the ``N`` rows belong to each image.
         :return: The ``(B, k * D)`` embeddings of the batch, or ``(B * k, D)``
             when ``flatten`` is off.
-        :raises ValueError: If an image of the batch yields no descriptor.
         """
-        if not counts.all():
-            raise ValueError(
-                "No descriptors found in the image. Cannot compute VLAD embedding."
-            )
         descriptors = self._project(descriptors).astype(np.float32)
         centroids = self.clustering_model.cluster_centers
         n_images, k, dim = len(counts), len(centroids), descriptors.shape[1]

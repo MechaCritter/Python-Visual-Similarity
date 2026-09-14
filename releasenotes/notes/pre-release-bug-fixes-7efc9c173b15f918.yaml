@@ -32,3 +32,7 @@ fixes:
   - |
     ``Pipeline([])`` raises a ``ValueError`` when it is built, instead of
     failing later inside ``embed`` with a NumPy error.
+  - |
+    ``FisherVectorEmbedder`` raises a ``ValueError`` for an image that yields
+    no descriptor, like ``VLADEmbedder`` does, instead of returning a row of
+    NaNs when that image shares a batch.
