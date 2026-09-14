@@ -29,3 +29,6 @@ fixes:
     ``SIFT`` and ``RootSIFT`` keep their constructor arguments when an
     embedder using them is saved and loaded, instead of coming back with the
     default arguments.
+  - |
+    ``Pipeline([])`` raises a ``ValueError`` when it is built, instead of
+    failing later inside ``embed`` with a NumPy error.

@@ -25,6 +25,8 @@ class Pipeline(SerializableImageEmbedder):
         it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
+    :raises ValueError: If ``embedders`` is empty or holds anything but a
+        SerializableImageEmbedder.
     """
 
     __format_version__: ClassVar[int] = 3
@@ -52,9 +54,15 @@ class Pipeline(SerializableImageEmbedder):
         self, embedders: list[SerializableImageEmbedder]
     ) -> None:
         """
-        Checks if all embedders in the pipeline are instances of SerializableImageEmbedder.
+        Checks that the pipeline holds at least one embedder and only
+        instances of SerializableImageEmbedder.
+
         :param embedders: list of embedders to check.
+        :raises ValueError: If ``embedders`` is empty or holds anything but a
+            SerializableImageEmbedder.
         """
+        if not embedders:
+            raise ValueError("Pipeline needs at least one embedder, got none.")
         for embedder in embedders:
             if not isinstance(embedder, SerializableImageEmbedder):
                 raise ValueError(
@@ -101,21 +109,6 @@ class Pipeline(SerializableImageEmbedder):
                     metric.flatten = original_flatten  # type: ignore[attr-defined]
         # The embedders' vectors sit side by side, in the pipeline's order.
         return np.hstack(all_embeddings)
-
-    # def fit(self, images: Iterable[np.ndarray], reduce_dimension: bool = False, reduce_factor: int=2) -> None:
-    #     """
-    #     Trains any clustering model_files used by the embedders in this pipeline, if they have a fit method.
-    #
-    #     :param images: Iterable of images (NumPy arrays) used for fitting the pipeline's embedders.
-    #     :param reduce_dimension: Whether to apply dimension reduction (e.g., PCA) if supported.
-    #     :param reduce_factor: Factor to reduce the dimension by.
-    #     """
-    #     for metric in self.embedder:
-    #         if hasattr(metric, 'fit') and callable(metric.fit):
-    #             self._logger.info(f"Fitting {metric.__class__.__name__} with reduce_dimension={reduce_dimension}...")
-    #             metric.fit(images, reduce_dimension=reduce_dimension, reduce_factor=reduce_factor)
-    #         else:
-    #             self._logger.warning(f"{metric.__class__.__name__} has no 'fit' method. Skipping...")
 
     def __repr__(self) -> str:
         """
