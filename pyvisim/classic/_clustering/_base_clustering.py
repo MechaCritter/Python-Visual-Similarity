@@ -4,7 +4,7 @@ image embedders.
 """
 
 import abc
-from typing import Any, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
@@ -72,6 +72,21 @@ def _decode(value: Any) -> Any:
 class ClusteringModelBase(abc.ABC):
     """Base class for clustering models."""
 
+    #: Format version of the dictionary :meth:`to_dict` returns. A dictionary
+    #: without one was written before the models carried a version.
+    __format_version__: ClassVar[int]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Rejects a model that serialises itself without a format version."""
+        super().__init_subclass__(**kwargs)
+        if getattr(cls.to_dict, "__isabstractmethod__", False):
+            return
+        if not hasattr(cls, "__format_version__"):
+            raise TypeError(
+                f"{cls.__name__} serialises itself but does not declare "
+                "__format_version__."
+            )
+
     @property
     @abc.abstractmethod
     def is_fitted(self) -> bool:
@@ -118,7 +133,9 @@ class ClusteringModelBase(abc.ABC):
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
+        :param data: A mapping with the form: {"__class__": str, "__module__": str,
+            "format_version": int, "state": dict}. ``format_version`` is absent
+            from dictionaries written before the models carried a version.
         :return: A fitted model.
         """
         raise NotImplementedError
