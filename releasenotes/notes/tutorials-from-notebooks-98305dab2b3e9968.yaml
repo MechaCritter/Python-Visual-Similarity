@@ -11,3 +11,6 @@ enhancements:
   - |
     The Siamese, Triplet and VLAD/Fisher Vector tutorials train on a subset of
     Oxford Flowers, so that they also finish on a CPU.
+  - |
+    The documentation renders every tutorial notebook as a page with its
+    executed outputs.

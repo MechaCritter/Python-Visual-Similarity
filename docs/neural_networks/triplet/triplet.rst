@@ -9,7 +9,7 @@ come out L2-normalized, so cosine similarity is a plain dot product.
 Training with online mining
 ---------------------------
 
-See `this notebook <https://github.com/MechaCritter/Python-Visual-Similarity-Examples/blob/master/notebooks/triplet_network.ipynb>`_.
+See :doc:`this tutorial </tutorials/notebooks/triplet_network>`.
 
 Mining strategies
 -----------------

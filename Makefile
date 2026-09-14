@@ -38,10 +38,12 @@ strip-notebooks:
 check-notebooks:
 	uv run --group fmt nbstripout --verify $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
 
-# Build the Sphinx HTML documentation for local review (same flags as CI);
-# open docs/_build/html/index.html afterwards
+# Build the Sphinx HTML documentation for local review with the same flags as
+# CI, then open docs/_build/html/index.html. The tutorial notebooks are executed
+# and their outputs cached. NB_EXECUTION_MODE=off renders them without running.
+NB_EXECUTION_MODE = cache
 docs:
-	uv run --group docs --extra nn sphinx-build -W -b html docs docs/_build/html
+	uv run --group docs --group tutorials --extra nn sphinx-build -W -D nb_execution_mode=$(NB_EXECUTION_MODE) -b html docs docs/_build/html
 
 # Create a release note under releasenotes/notes/ for the current change.
 # Usage: make release-note NAME=my-change

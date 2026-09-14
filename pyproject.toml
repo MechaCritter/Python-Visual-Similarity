@@ -107,6 +107,8 @@ test = [
 docs = [
     "sphinx",
     "myst-parser",
+    # Renders the tutorial notebooks under docs/tutorials/notebooks/.
+    "myst-nb",
     "furo",
     # The release notes pages are generated with reno (docs/_ext/reno_pages.py).
     {include-group = "release"},
