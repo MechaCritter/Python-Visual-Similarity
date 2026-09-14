@@ -36,3 +36,8 @@ fixes:
     ``FisherVectorEmbedder`` raises a ``ValueError`` for an image that yields
     no descriptor, like ``VLADEmbedder`` does, instead of returning a row of
     NaNs when that image shares a batch.
+  - |
+    ``top_k_map`` divides each average precision by ``min(R, k)``, with ``R``
+    the gallery images sharing the query label, instead of by the relevant
+    images found in the top ``k``. mAP@k values were inflated before and
+    come out lower now.
