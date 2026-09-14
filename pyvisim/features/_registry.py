@@ -5,7 +5,8 @@ from ._deep_conv_feature import DeepConvFeature
 from ._root_sift import RootSIFT
 from ._sift import SIFT
 
-_STATELESS_FEATURE_EXTRACTORS: dict[str, type[FeatureExtractorBase]] = {
+#: Extractors rebuilt by passing their serialised configuration to the constructor.
+_SIFT_EXTRACTORS: dict[str, type[SIFT]] = {
     "SIFT": SIFT,
     "RootSIFT": RootSIFT,
 }
@@ -26,8 +27,8 @@ def feature_extractor_from_dict(data: dict[str, Any]) -> FeatureExtractorBase:
         raise TypeError("Expected a feature-extractor dict from to_dict().")
     name = data["__class__"]
     config = data.get("config", {})
-    if name in _STATELESS_FEATURE_EXTRACTORS:
-        return _STATELESS_FEATURE_EXTRACTORS[name]()
+    if name in _SIFT_EXTRACTORS:
+        return _SIFT_EXTRACTORS[name](**config)
     if name == "DeepConvFeature":
         return DeepConvFeature._from_config(config)
     raise ValueError(

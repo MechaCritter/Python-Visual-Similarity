@@ -25,3 +25,7 @@ fixes:
     The warning emitted when a clustering model resets an incompatible PCA is
     a ``FutureWarning`` and names ``raise_error_when_pca_incompatible=True``
     as the way to raise instead.
+  - |
+    ``SIFT`` and ``RootSIFT`` keep their constructor arguments when an
+    embedder using them is saved and loaded, instead of coming back with the
+    default arguments.

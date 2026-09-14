@@ -52,11 +52,15 @@ class SIFT(FeatureExtractorBase, _SIFT):
             "n_ori": n_ori,
         }
         _SIFT.__init__(self, **params)  # type: ignore[no-untyped-call]
+        self._params = params
         self._output_dim = n_hist**2 * n_ori
 
     @property
     def output_dim(self) -> int:
         return self._output_dim
+
+    def _serialization_config(self) -> dict[str, Any]:
+        return dict(self._params)
 
     @staticmethod
     def _to_grayscale(image: UInt8NumpyArray) -> UInt8NumpyArray:

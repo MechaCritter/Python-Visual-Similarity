@@ -212,9 +212,9 @@ class FeatureExtractorBase(abc.ABC):
         """
         Return the JSON-safe constructor arguments needed to rebuild this extractor.
 
-        Stateless extractors (e.g. SIFT, RootSIFT) need no configuration and
-        return an empty mapping. Subclasses override this hook when they carry
-        reconstructable parameters.
+        Extractors without constructor arguments return an empty mapping.
+        Subclasses override this hook when they carry reconstructable
+        parameters.
 
         :return: A JSON-safe mapping of constructor arguments.
         """
