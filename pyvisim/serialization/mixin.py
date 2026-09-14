@@ -20,7 +20,7 @@ class SerializerMixin(abc.ABC):
     A subclass declares the kind of file it reads and writes through
     :attr:`__file_format__`, :attr:`__metadata_key__`, :attr:`__class_key__`,
     :attr:`__format_version__` and :attr:`__state_keys__`, and describes itself
-    through :meth:`to_dict` / :meth:`from_dict`. In exchange it gets
+    through :meth:`_state` / :meth:`from_dict`. In exchange it gets
     :meth:`save_to_disk` and :meth:`load_from_disk`, which are always
     `safetensors <https://github.com/huggingface/safetensors>`_ files: every
     NumPy array of the state is written as a binary tensor, the rest as a
@@ -39,7 +39,8 @@ class SerializerMixin(abc.ABC):
     __class_key__: ClassVar[str]
     #: On-disk format version, written into every state this class serialises.
     __format_version__: ClassVar[int]
-    #: Keys a serialised state must contain to be a valid file of this kind.
+    #: Keys a serialised state must contain to be a valid file of this kind,
+    #: besides the format version and the class name :meth:`to_dict` adds.
     __state_keys__: ClassVar[frozenset[str]]
     #: Whether a file written under one format version can be read under
     #: another, keyed by ``(written version, reading version)``.
@@ -50,7 +51,7 @@ class SerializerMixin(abc.ABC):
         super().__init_subclass__(**kwargs)
         if any(
             getattr(method, "__isabstractmethod__", False)
-            for method in (cls.to_dict, cls.from_dict)
+            for method in (cls._state, cls.from_dict)
         ):
             return
         missing = sorted(
@@ -70,19 +71,41 @@ class SerializerMixin(abc.ABC):
                 f"declare {', '.join(missing)}."
             )
 
-    @abc.abstractmethod
     def to_dict(self) -> dict[str, Any]:
         """
         Serialises this object into a JSON-safe state dictionary.
 
-        The returned mapping has to contain at least the keys listed in
-        :attr:`__state_keys__`, :attr:`__class_key__` among them. Arrays may be
-        embedded as ``__ndarray__`` nodes; the serialization layer stores them
-        as binary tensors.
+        The mapping holds the output of :meth:`_state` plus the format version
+        under ``"format_version"`` and the class name under
+        :attr:`__class_key__`. Arrays may be embedded as ``__ndarray__`` nodes,
+        which the serialization layer stores as binary tensors.
 
         :return: A JSON-safe description suitable for :meth:`from_dict`.
         """
+        return self._stamp(self._state())
+
+    @abc.abstractmethod
+    def _state(self) -> dict[str, Any]:
+        """
+        Describes this object as a JSON-safe mapping.
+
+        :return: A JSON-safe mapping holding at least :attr:`__state_keys__`.
+        """
         raise NotImplementedError
+
+    def _stamp(self, state: dict[str, Any]) -> dict[str, Any]:
+        """
+        Adds the format version and the class name to a state.
+
+        :param state: A mapping produced by :meth:`_state`.
+        :return: The state, headed by ``"format_version"`` and
+            :attr:`__class_key__`.
+        """
+        return {
+            "format_version": self.__format_version__,
+            self.__class_key__: type(self).__name__,
+            **state,
+        }
 
     @classmethod
     @abc.abstractmethod
@@ -198,7 +221,12 @@ class SerializerMixin(abc.ABC):
             raise FileNotFoundError(
                 f"No such {cls.__file_format__} file: {str(path)!r}."
             )
-        return load_state(path, cls.__metadata_key__)
+        try:
+            return load_state(path, cls.__metadata_key__)
+        except ValueError as error:
+            raise ValueError(
+                f"File {path} is not a valid {cls.__file_format__} file: {error}"
+            ) from error
 
     @classmethod
     def _validate_state(cls, state: dict[str, Any], path: pathlib.Path) -> None:
@@ -207,10 +235,12 @@ class SerializerMixin(abc.ABC):
 
         :param state: The state read from ``path``.
         :param path: Path the state was read from, named in the error messages.
-        :raises ValueError: If the state lacks one of :attr:`__state_keys__`, or
-            was written by another class.
+        :raises ValueError: If the state lacks the format version, the class
+            name or one of :attr:`__state_keys__`, or was written by another
+            class.
         """
-        if not cls.__state_keys__.issubset(state):
+        required = cls.__state_keys__ | {"format_version", cls.__class_key__}
+        if not required.issubset(state):
             raise ValueError(f"File {path} is not a valid {cls.__file_format__} file.")
         # TODO: in the future, verify the file's format version against
         # :attr:`__compatibility_mapping__` before reconstructing.
