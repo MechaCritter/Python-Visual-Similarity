@@ -193,6 +193,9 @@ Then link the image from the docs or the `README.md`:
 ![My image](https://raw.githubusercontent.com/MechaCritter/Python-Visual-Similarity/assets/docs/<topic>/my-image.png)
 ```
 
+> [!IMPORTANT]
+> Sometimes, GitHub caches old images, so your image might not be visible directly after pushing to `assets`. In this case, a new run of the `docs.yml` workflow is necessary.
+
 ## Documentation
 
 Module documentation lives under `docs/<module>/` and is written in
