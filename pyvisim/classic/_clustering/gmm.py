@@ -5,7 +5,7 @@ embedder.
 
 import warnings
 from collections.abc import Callable
-from typing import Any, NamedTuple, TypeVar, cast
+from typing import Any, ClassVar, NamedTuple, TypeVar, cast
 
 import numpy as np
 from scipy.special import logsumexp
@@ -71,6 +71,8 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         is not positive, ``tol`` or ``reg_covar`` is negative, or a
         ``covariance_type`` other than ``"diag"`` is requested.
     """
+
+    __format_version__: ClassVar[int] = 1
 
     def __init__(
         self,
@@ -395,6 +397,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         return {
             "__class__": type(self).__name__,
             "__module__": type(self).__module__,
+            "format_version": self.__format_version__,
             "state": _embed(state),
         }
 
@@ -406,7 +409,9 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
 
-        :param data: A mapping with the form: {"__class__": str, "__module__": str, "state": dict}.
+        :param data: A mapping with the form: {"__class__": str, "__module__": str,
+            "format_version": int, "state": dict}. ``format_version`` is absent
+            from dictionaries written before the models carried a version.
         :return: A fitted model.
         :raises TypeError: If ``data`` is not a dictionary.
         :raises ValueError: If ``data`` is malformed, describes a different

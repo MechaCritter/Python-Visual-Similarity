@@ -13,3 +13,7 @@ enhancements:
     Every ``load_from_disk`` reports an unreadable file the same way, as
     "File ... is not a valid <suffix> file" followed by the reason. The image
     store used to raise the bare reason, while the embedders dropped it.
+  - |
+    The clustering models of ``VLADEmbedder`` and ``FisherVectorEmbedder``
+    record a ``format_version`` in their part of the ``.embedder`` file.
+    Files written before still load.
