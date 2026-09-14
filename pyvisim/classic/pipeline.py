@@ -1,4 +1,3 @@
-import logging
 from typing import Any, ClassVar
 
 import numpy as np
@@ -27,8 +26,6 @@ class Pipeline(SerializableImageEmbedder):
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
     """
-
-    _logger = logging.getLogger("Pipeline")
 
     __format_version__: ClassVar[int] = 3
     __state_keys__: ClassVar[frozenset[str]] = (

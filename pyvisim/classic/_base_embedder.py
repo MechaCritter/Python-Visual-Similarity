@@ -6,7 +6,6 @@ from typing import Any, ClassVar, TypeVar
 import numpy as np
 
 from .._base_classes import FeatureExtractorBase, SerializableImageEmbedder
-from .._config import setup_logging
 from .._errors import NotFittedError
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
@@ -19,8 +18,6 @@ from ..typing import (
 )
 from ..utils.image_utils import iter_image_batches
 from ._clustering import PCA, ClusteringModelBase
-
-setup_logging()
 
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
 

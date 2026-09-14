@@ -1,7 +1,6 @@
 import abc
 import contextlib
 import inspect
-import logging
 from collections.abc import Sequence
 from typing import Any, ClassVar, cast
 
@@ -53,8 +52,6 @@ class SimilarityMetric(abc.ABC):
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive
         integer.
     """
-
-    _logger = logging.getLogger("Similarity_Metrics")
 
     def __init__(self, batch_size: int = 16) -> None:
         self._batch_size: int
@@ -132,8 +129,6 @@ class FeatureExtractorBase(abc.ABC):
     A feature extractor transforms an image (NumPy array) into a
     set of feature vectors (NumPy array).
     """
-
-    _logger = logging.getLogger("Feature_Extractor")
 
     @abc.abstractmethod
     def __call__(

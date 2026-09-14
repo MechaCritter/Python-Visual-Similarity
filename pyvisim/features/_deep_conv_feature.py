@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import logging
 import warnings
 from collections.abc import Sequence
 from typing import Any, cast
 
 from .._base_classes import FeatureExtractorBase
-from .._config import setup_logging
 from ..lazy_import import OptionalImport
 from ..typing import Float32NumpyArray, MatLike
 from ._utils import _check_output_shape, _to_single_image
@@ -17,7 +17,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
     from ..neural_networks.backbones import build_backbone
     from ..utils.torch_utils import resolve_device
 
-setup_logging()
+_LOGGER = logging.getLogger(__name__)
 
 #: Backbone built when none is given.
 _DEFAULT_BACKBONE = "vgg16"
@@ -135,7 +135,7 @@ class DeepConvFeature(FeatureExtractorBase):
             _, self.selected_layer_name, self.selected_layer_module = self._conv_layers[
                 self.layer_index
             ]
-            self._logger.info(
+            _LOGGER.info(
                 f"Selected layer: {self.selected_layer_name}, {self.selected_layer_module}"
             )
         except IndexError as e:
@@ -399,7 +399,7 @@ class DeepConvFeature(FeatureExtractorBase):
             return []
 
         if len(tensor_shapes) > 1:
-            self._logger.warning(
+            _LOGGER.warning(
                 "Images have different shapes after transform, which prevents "
                 "batch processing. Falling back to single-image extraction."
             )

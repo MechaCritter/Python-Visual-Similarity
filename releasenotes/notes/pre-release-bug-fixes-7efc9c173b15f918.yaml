@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    Importing ``pyvisim`` no longer configures logging, and its loggers are
+    named after their modules (e.g. ``pyvisim.datasets.datasets``) instead of
+    ``Data_Set``, ``Feature_Extractor``, ``Pipeline`` and
+    ``Similarity_Metrics``. Configure the ``pyvisim`` logger to see the
+    library's messages.
+fixes:
+  - |
+    Importing ``pyvisim`` no longer creates a ``res/logs`` folder next to the
+    installed package, which failed on read-only installs.
