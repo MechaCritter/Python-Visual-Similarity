@@ -1,0 +1,13 @@
+---
+upgrade:
+  - |
+    Binary files for the docs are now added through a pull request against the
+    ``assets`` branch instead of a force-push. Contributors who used the old
+    recipe follow the updated "Adding binary files to the docs" section of
+    ``CONTRIBUTING.md``.
+enhancements:
+  - |
+    The ``Benchmarks`` workflow pushes its barplots to
+    ``docs/benchmark-barplots`` for review instead of publishing them directly.
+    The new ``Squash assets`` workflow keeps ``assets`` at a single commit
+    after each merge.
