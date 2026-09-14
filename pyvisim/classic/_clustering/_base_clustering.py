@@ -114,6 +114,31 @@ class FittedModelBase(SerializerMixin):
                 "Call 'fit' with appropriate data before using this attribute."
             )
 
+    @staticmethod
+    def _validate_features(
+        features: FloatNumpyArray, *, n_features: int | None = None
+    ) -> FloatNumpyArray:
+        """
+        Checks that the given features form a non-empty 2-D feature matrix.
+
+        :param features: Feature matrix of shape (n_samples, n_features).
+        :param n_features: Number of features every sample must have, or
+            ``None`` to accept any.
+        :return: The features as a NumPy array, in their own dtype.
+        :raises ValueError: If the matrix is not 2-D, holds no sample, or its
+            feature count differs from ``n_features``.
+        """
+        data = np.asarray(features)
+        if data.ndim != 2:
+            raise ValueError(f"Expected a 2D feature matrix, got a {data.ndim}D array.")
+        if data.shape[0] == 0:
+            raise ValueError("Expected a non-empty feature matrix, got 0 samples.")
+        if n_features is not None and data.shape[1] != n_features:
+            raise ValueError(
+                f"Expected {n_features} features per sample, got {data.shape[1]}."
+            )
+        return data
+
     def _wrap_state(self, state: dict[str, Any]) -> dict[str, Any]:
         """
         Puts the fitted attributes of this model under the ``"state"`` key.

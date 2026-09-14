@@ -41,3 +41,7 @@ fixes:
     the gallery images sharing the query label, instead of by the relevant
     images found in the top ``k``. mAP@k values were inflated before and
     come out lower now.
+  - |
+    ``KMeans.fit`` rejects a feature matrix that is not 2-D or holds no
+    sample, and a refit asks for the configured number of clusters again
+    after SciPy dropped empty clusters on an earlier fit.

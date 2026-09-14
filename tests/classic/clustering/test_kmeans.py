@@ -50,6 +50,32 @@ def test_kmeans_fewer_samples_than_clusters_raises() -> None:
         KMeans(8, rng=0).fit(rng.random((5, 3)))
 
 
+@pytest.mark.parametrize(
+    ("features", "message"),
+    [
+        (np.ones(10), "Expected a 2D feature matrix"),
+        (np.ones((0, 3)), "Expected a non-empty feature matrix"),
+    ],
+)
+def test_kmeans_fit_rejects_a_malformed_feature_matrix(
+    features: np.ndarray, message: str
+) -> None:
+    """``fit`` rejects anything but a non-empty 2-D feature matrix."""
+    with pytest.raises(ValueError, match=message):
+        KMeans(2, rng=0).fit(features)
+
+
+def test_kmeans_refit_asks_for_the_requested_clusters_again() -> None:
+    """Clusters dropped by one fit are not missing from the next fit."""
+    model = KMeans(4, rng=0)
+    with pytest.warns(FutureWarning, match="dropped 3 empty cluster"):
+        model.fit(np.ones((20, 3)))
+    assert model.n_clusters == 1
+    model.fit(np.random.default_rng(0).random((200, 3)))
+    assert model.n_clusters == 4
+    assert model.cluster_centers.shape == (4, 3)
+
+
 def test_kmeans_cluster_centers_before_fit_raises() -> None:
     """Accessing ``cluster_centers`` before fitting raises ``NotFittedError``."""
     with pytest.raises(NotFittedError):

@@ -142,7 +142,10 @@ class KMeans(ClusteringModelBase):
 
     @property
     def n_clusters(self) -> int:
-        return self._n_clusters
+        """Number of clusters, which a fit lowers when SciPy drops empty ones."""
+        if self._cluster_centers is None:
+            return self._n_clusters
+        return int(self._cluster_centers.shape[0])
 
     @property
     def n_features_in(self) -> int:
@@ -183,9 +186,10 @@ class KMeans(ClusteringModelBase):
         whitening scale used at prediction time.
 
         :param features: Feature matrix of shape (n_samples, n_features).
-        :raises ValueError: If there are fewer samples than clusters.
+        :raises ValueError: If the matrix is not 2-D, holds no sample, or has
+            fewer samples than clusters.
         """
-        data = np.asarray(features)
+        data = self._validate_features(features)
         if not np.issubdtype(data.dtype, np.floating):
             data = data.astype(np.float64)
         if data.shape[0] < self._n_clusters:
@@ -219,7 +223,6 @@ class KMeans(ClusteringModelBase):
                 FutureWarning,
                 stacklevel=2,
             )
-            self._n_clusters = int(best_codebook.shape[0])
         self._cluster_centers = best_codebook * scale
         self._scale = scale
 
@@ -362,6 +365,6 @@ class KMeans(ClusteringModelBase):
 
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}(n_clusters={self._n_clusters}, "
+            f"{type(self).__name__}(n_clusters={self.n_clusters}, "
             f"n_init={self._n_init}, fitted={self.is_fitted})"
         )

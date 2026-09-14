@@ -144,21 +144,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         self._check_is_fitted()
         return cast(Float64NumpyArray, self._covariances)
 
-    def _validate_features(
-        self, features: FloatNumpyArray, *, n_features: int | None = None
-    ) -> Float64NumpyArray:
-        """Coerces a feature matrix to ``float64`` and validates its shape."""
-        data = np.asarray(features, dtype=np.float64)
-        if data.ndim != 2:
-            raise ValueError(f"Expected a 2D feature matrix, got a {data.ndim}D array.")
-        if data.shape[0] == 0:
-            raise ValueError("Expected a non-empty feature matrix, got 0 samples.")
-        if n_features is not None and data.shape[1] != n_features:
-            raise ValueError(
-                f"Expected {n_features} features per sample, got {data.shape[1]}."
-            )
-        return data
-
     @staticmethod
     def _weighted_log_prob(
         data: Float64NumpyArray,
@@ -291,7 +276,7 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         :raises ValueError: If there are fewer samples than components or
             the matrix is not 2-dimensional.
         """
-        data = self._validate_features(features)
+        data = self._validate_features(features).astype(np.float64, copy=False)
         if data.shape[0] < self._n_components:
             raise ValueError(
                 f"Cannot fit {self._n_components} mixture components on "
@@ -328,7 +313,9 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
         :raises ValueError: If the feature count does not match the
             fitted model.
         """
-        data = self._validate_features(features, n_features=self.n_features_in)
+        data = self._validate_features(features, n_features=self.n_features_in).astype(
+            np.float64, copy=False
+        )
         return self._weighted_log_prob(
             data, np.square(data), self.weights, self.means, self.covariances
         )
