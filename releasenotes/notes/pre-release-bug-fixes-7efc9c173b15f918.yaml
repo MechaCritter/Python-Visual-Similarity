@@ -9,6 +9,11 @@ upgrade:
   - |
     ``from pyvisim import *`` no longer imports ``datasets``, which needs the
     ``nn`` extra. Access it as ``pyvisim.datasets`` or import it explicitly.
+  - |
+    ``VLADEmbedder`` and ``FisherVectorEmbedder`` default to
+    ``raise_error_when_pca_incompatible=True``, so a clustering model the
+    fitted PCA cannot feed raises a ``RuntimeError`` instead of silently
+    dropping the PCA. Pass ``False`` to keep the old behavior.
 fixes:
   - |
     Importing ``pyvisim`` no longer creates a ``res/logs`` folder next to the

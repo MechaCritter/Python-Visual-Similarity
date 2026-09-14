@@ -103,8 +103,10 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param pca: PCA model for dimensionality reduction (optional). Subclasses build
     it from the ``pca_params`` dictionary passed to their constructors.
-    :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
-                                        than the PCA model's output size, an Error will be raised
+    :param raise_error_when_pca_incompatible: Whether a fitted clustering model
+        whose input size differs from the PCA output size raises a
+        ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a
+        ``FutureWarning`` instead.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.

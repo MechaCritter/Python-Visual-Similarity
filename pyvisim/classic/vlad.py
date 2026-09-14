@@ -70,8 +70,10 @@ class VLADEmbedder(ClusteringBasedEmbedder):
     :param flatten: Whether to flatten the computed descriptor vector (default: True).
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
-                                        than the PCA model's output size, the PCA model will be reset to None.
+    :param raise_error_when_pca_incompatible: Whether a fitted clustering model
+        whose input size differs from the PCA output size raises a
+        ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a
+        ``FutureWarning`` instead.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
@@ -96,7 +98,7 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         epsilon: float = 1e-9,
         flatten: bool = True,
         similarity_func: str = "cosine",
-        raise_error_when_pca_incompatible: bool = False,
+        raise_error_when_pca_incompatible: bool = True,
         *,
         normalize: bool = True,
         batch_size: int = 16,
