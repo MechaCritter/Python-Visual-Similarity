@@ -4,15 +4,13 @@ image embedders.
 """
 
 import abc
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar
 
 import numpy as np
 
 from ..._errors import NotFittedError
-from ...serialization import decode_array_node
+from ...serialization import SerializerMixin, decode_array_node
 from ...typing import FloatNumpyArray
-
-_ClusteringModelT = TypeVar("_ClusteringModelT", bound="ClusteringModelBase")
 
 
 def _embed(value: Any) -> Any:
@@ -69,34 +67,24 @@ def _decode(value: Any) -> Any:
     return value
 
 
-class ClusteringModelBase(abc.ABC):
-    """Base class for clustering models."""
+class FittedModelBase(SerializerMixin):
+    """
+    Base class for the models the image embedders fit on local features.
 
-    #: Format version of the dictionary :meth:`to_dict` returns. A dictionary
-    #: without one was written before the models carried a version.
-    __format_version__: ClassVar[int]
+    A model serialises into ``{"format_version": int, "__class__": str,
+    "__module__": str, "state": dict}``. ``format_version`` is absent from
+    dictionaries written before the models carried a version.
+    """
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Rejects a model that serialises itself without a format version."""
-        super().__init_subclass__(**kwargs)
-        if getattr(cls.to_dict, "__isabstractmethod__", False):
-            return
-        if not hasattr(cls, "__format_version__"):
-            raise TypeError(
-                f"{cls.__name__} serialises itself but does not declare "
-                "__format_version__."
-            )
+    __file_format__: ClassVar[str] = ".safetensors"
+    __metadata_key__: ClassVar[str] = "pyvisim_model"
+    __class_key__: ClassVar[str] = "__class__"
+    __state_keys__: ClassVar[frozenset[str]] = frozenset({"state"})
 
     @property
     @abc.abstractmethod
     def is_fitted(self) -> bool:
         """Whether the model has been fitted."""
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def n_clusters(self) -> int:
-        """Number of clusters (or mixture components) of the model."""
         raise NotImplementedError
 
     @property
@@ -114,32 +102,6 @@ class ClusteringModelBase(abc.ABC):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialises the fitted model into a JSON-safe dictionary.
-
-        :return: A dictionary describing the model class and its fitted
-            state required for inference.
-        :raises NotFittedError: If the model is not fitted.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abc.abstractmethod
-    def from_dict(
-        cls: type[_ClusteringModelT], data: dict[str, Any]
-    ) -> _ClusteringModelT:
-        """
-        Rebuilds a model from a dictionary produced by :meth:`to_dict`.
-
-        :param data: A mapping with the form: {"__class__": str, "__module__": str,
-            "format_version": int, "state": dict}. ``format_version`` is absent
-            from dictionaries written before the models carried a version.
-        :return: A fitted model.
-        """
-        raise NotImplementedError
-
     def _check_is_fitted(self) -> None:
         """
         Ensures the model is fitted before accessing fitted-only attributes.
@@ -151,3 +113,50 @@ class ClusteringModelBase(abc.ABC):
                 f"This {type(self).__name__} instance is not fitted yet. "
                 "Call 'fit' with appropriate data before using this attribute."
             )
+
+    def _wrap_state(self, state: dict[str, Any]) -> dict[str, Any]:
+        """
+        Puts the fitted attributes of this model under the ``"state"`` key.
+
+        :param state: The fitted attributes, arrays included.
+        :return: A JSON-safe mapping holding the module name and ``state``.
+        """
+        return {"__module__": type(self).__module__, "state": _embed(state)}
+
+    @classmethod
+    def _unwrap_state(cls, data: dict[str, Any], *legacy_names: str) -> dict[str, Any]:
+        """
+        Validates a serialised model and decodes its fitted attributes.
+
+        :param data: A mapping produced by :meth:`to_dict`.
+        :param legacy_names: Class names older releases wrote for this model.
+        :return: The fitted attributes, with arrays restored to
+            ``numpy.ndarray``.
+        :raises TypeError: If ``data`` is not a dictionary.
+        :raises ValueError: If ``data`` is malformed or describes a different
+            model type than this class expects.
+        """
+        if not isinstance(data, dict):
+            raise TypeError(
+                f"Expected a dict from to_dict(), got {type(data).__name__}."
+            )
+        for key in (cls.__class_key__, "state"):
+            if key not in data:
+                raise ValueError(f"Malformed model dict; missing key {key!r}.")
+        if data[cls.__class_key__] not in (cls.__name__, *legacy_names):
+            raise ValueError(
+                f"{cls.__name__} expects a serialised {cls.__name__!r}, "
+                f"got {data[cls.__class_key__]!r}."
+            )
+        state: dict[str, Any] = _decode(data["state"])
+        return state
+
+
+class ClusteringModelBase(FittedModelBase):
+    """Base class for clustering models."""
+
+    @property
+    @abc.abstractmethod
+    def n_clusters(self) -> int:
+        """Number of clusters (or mixture components) of the model."""
+        raise NotImplementedError

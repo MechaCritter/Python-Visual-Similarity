@@ -506,9 +506,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             raise_error_when_pca_incompatible=state[
                 "raise_error_when_pca_incompatible"
             ],
+            normalize=state["normalize"],
+            batch_size=state["batch_size"],
         )
-        embedder._restore_normalize(state)
-        embedder._restore_batch_size(state)
         if state["pca"] is not None:
             embedder._set_pca(PCA.from_dict(state["pca"]))
         embedder._set_clustering_model(

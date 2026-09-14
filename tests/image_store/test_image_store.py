@@ -874,6 +874,32 @@ def test_load_forwards_kwargs_to_the_embedder(
         InMemoryImageEmbeddingStore.load_from_disk(written, transform=object())
 
 
+class _UnserialisableEmbedder:
+    """An embedder that satisfies the ``Embedder`` protocol only."""
+
+    batch_size = 16
+
+    def embed(self, images: object, **kwargs: object) -> np.ndarray:
+        return np.ones((1, 4), dtype=np.float32)
+
+
+def test_save_with_an_unserialisable_embedder_raises(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """A store can only be saved with an embedder it can rebuild on load."""
+    store = InMemoryImageEmbeddingStore._from_components(
+        paths=["image.jpg"],
+        embeddings=np.ones((1, 4), dtype=np.float32),
+        embedder=_UnserialisableEmbedder(),
+        index_name="brute-force",
+        space="cosine",
+        index_params={},
+    )
+    target = tmp_path_factory.mktemp("rt_unserialisable") / "store.safetensors"
+    with pytest.raises(TypeError, match="SerializableImageEmbedder"):
+        store.save_to_disk(target)
+
+
 def test_load_missing_file_raises(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:

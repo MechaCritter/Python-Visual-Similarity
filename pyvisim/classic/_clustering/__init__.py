@@ -1,13 +1,14 @@
 import warnings
 from typing import Any
 
-from ._base_clustering import ClusteringModelBase
+from ._base_clustering import ClusteringModelBase, FittedModelBase
 from .gmm import DiagCovarGaussianMixture
 from .kmeans import KMeans
 from .pca import PCA
 
 __all__ = [
     "ClusteringModelBase",
+    "FittedModelBase",
     "KMeans",
     "DiagCovarGaussianMixture",
     "PCA",
