@@ -207,6 +207,9 @@ git rebase --onto FETCH_HEAD HEAD~<n>
 git push -f origin docs/<topic>-assets
 ```
 
+> [!IMPORTANT]
+> Sometimes, GitHub caches old images, so your image might not be visible directly after pushing to `assets`. In this case, a new run of the `docs.yml` workflow is necessary.
+
 ## Documentation
 
 Module documentation lives under `docs/<module>/` and is written in
