@@ -1,4 +1,11 @@
 ---
+upgrade:
+  - |
+    ``pyvisim.serialization.embedder_to_dict`` and
+    ``pyvisim.serialization.embedder_from_dict`` are removed. Code importing
+    them calls ``embedder.to_dict()`` instead, and
+    ``SerializableImageEmbedder.from_dict(state)`` to rebuild an embedder of
+    any class from its state.
 features:
   - |
     The ``KMeans``, ``DiagCovarGaussianMixture`` and ``PCA`` models of the

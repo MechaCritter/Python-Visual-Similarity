@@ -1,5 +1,5 @@
 import logging
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -75,11 +75,8 @@ class Pipeline(SerializableImageEmbedder):
     @classmethod
     def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "Pipeline":
         cls._reject_unsupported_kwargs(kwargs)
-        # Imported lazily to avoid an import cycle with the embedder registry.
-        from ..serialization import embedder_from_dict
-
         embedders = [
-            cast(SerializableImageEmbedder, embedder_from_dict(embedder_state))
+            SerializableImageEmbedder.from_dict(embedder_state)
             for embedder_state in state["classic"]
         ]
         pipeline = cls(embedders, similarity_func=state["similarity_func"])
