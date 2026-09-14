@@ -8,3 +8,6 @@ enhancements:
   - |
     The tutorial notebooks moved from the separate examples repository into
     ``docs/tutorials/notebooks/``, together with their plotting helpers.
+  - |
+    The Siamese, Triplet and VLAD/Fisher Vector tutorials train on a subset of
+    Oxford Flowers, so that they also finish on a CPU.
