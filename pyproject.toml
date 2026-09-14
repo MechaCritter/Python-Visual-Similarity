@@ -127,6 +127,16 @@ bench = [
     "ipykernel",
     "psutil",
 ]
+# Libraries imported by the tutorial notebooks under docs/tutorials/notebooks/
+# and their helper module, plus the kernel that executes the notebooks.
+tutorials = [
+    "ipykernel",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "faiss-cpu",
+    "tensorboard",
+]
 # Release note management (reno). dulwich is reno's git backend.
 release = [
     "reno",
@@ -212,7 +222,7 @@ indent-style = "space"
 
 [tool.codespell]
 ignore-words-list = "Commun"
-skip = "./examples,./notebooks,*/_vendored/*"  # jupyter notebooks; vendored third-party code
+skip = "./docs/tutorials/notebooks,*/_vendored/*"  # jupyter notebooks and vendored third-party code
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

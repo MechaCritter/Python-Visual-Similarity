@@ -1,0 +1,5 @@
+---
+enhancements:
+  - |
+    The tutorial notebooks moved from the separate examples repository into
+    ``docs/tutorials/notebooks/``, together with their plotting helpers.
