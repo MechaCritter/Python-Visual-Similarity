@@ -1,4 +1,9 @@
 ---
+upgrade:
+  - |
+    Notebooks are committed without outputs. Run ``make strip-notebooks``
+    before committing one, since the CI rejects notebooks that still carry
+    outputs or execution metadata.
 enhancements:
   - |
     The tutorial notebooks moved from the separate examples repository into

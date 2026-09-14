@@ -1,4 +1,4 @@
-.PHONY: test-types test-unit test-slow build-ext fmt docs release-note release-notes
+.PHONY: test-types test-unit test-slow build-ext fmt strip-notebooks check-notebooks docs release-note release-notes
 
 # Regenerate the checked-in Cython C sources and rebuild the editable install.
 # --inexact keeps ad-hoc packages in the venv from being pruned.
@@ -23,6 +23,20 @@ test-slow:
 fmt:
 	uv run --group fmt ruff check --fix .
 	uv run --group fmt ruff format .
+
+# Notebooks are committed without outputs and execution metadata. Their kernel
+# metadata goes as well, since the documentation build hashes it to decide
+# whether a notebook has to run again.
+NOTEBOOKS = $(shell git ls-files --cached --others --exclude-standard '*.ipynb')
+NBSTRIPOUT_FLAGS = --keep-id --drop-empty-cells --extra-keys "metadata.kernelspec metadata.language_info"
+
+# Strip every notebook in place before committing it
+strip-notebooks:
+	uv run --group fmt nbstripout $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
+
+# Fail if a notebook still carries outputs or metadata (the CI check)
+check-notebooks:
+	uv run --group fmt nbstripout --verify $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
 
 # Build the Sphinx HTML documentation for local review (same flags as CI);
 # open docs/_build/html/index.html afterwards

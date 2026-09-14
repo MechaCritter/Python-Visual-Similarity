@@ -86,6 +86,8 @@ dead-code = [
 ]
 fmt = [
   "ruff",
+  # Strips notebook outputs (make strip-notebooks) and checks for them in CI.
+  "nbstripout",
 ]
 test = [
     "pytest",
