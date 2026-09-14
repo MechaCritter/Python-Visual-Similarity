@@ -249,6 +249,59 @@ It runs Sphinx with `-W`, so a dangling reference, an orphan document or a
 broken directive fails the build the same way it fails the CI. Open
 `docs/_build/html/index.html` to review the result.
 
+### Tutorial notebooks
+
+The tutorials are Jupyter notebooks under `docs/tutorials/notebooks/`, and
+Sphinx renders every notebook as a page of its own. Their helper functions live
+in `docs/tutorials/notebooks/tutorial_utils.py`. The libraries they import are
+in the `tutorials` dependency group:
+
+```bash
+uv sync --group tutorials --extra nn
+```
+
+To add a tutorial, place the notebook in that folder and list it in the table
+and the `toctree` of `docs/tutorials/tutorial.rst`. GitHub's runners have no
+GPU, so keep the workload small enough to finish on a CPU, as the training
+notebooks do with their epoch and subset settings.
+
+Notebooks are committed **without outputs**, so that their images never bloat
+the history. Nothing strips them for you on commit, and the CI fails if a
+notebook still carries outputs. Run this before you commit a notebook:
+
+```bash
+make strip-notebooks
+```
+
+It also removes the kernel metadata, which your editor writes back as soon as
+you run a cell.
+
+`make docs` executes the notebooks and caches their outputs in
+`docs/_build/.jupyter_cache`. A notebook only runs again once its code cells
+change, so the first build takes long and the following ones are fast. To
+review changes to the `.rst` pages without executing anything, run:
+
+```bash
+make docs NB_EXECUTION_MODE=off
+```
+
+On a pull request, the `Docs` workflow executes the notebooks you added or
+changed, or all of them if you changed `tutorial_utils.py`, and uploads the
+rendered HTML as the `docs-html` artifact of the run. Download it to review the
+executed notebooks, since the committed ones carry no outputs.
+
+A notebook can also break without being changed, when the library changes
+underneath it. The `Tutorials` workflow therefore runs every notebook from
+scratch every three days, and you can start it by hand from the Actions tab.
+To run all notebooks locally in parallel:
+
+```bash
+make test-notebooks
+```
+
+Notebooks that share one GPU can run out of memory. Limit the parallel runs
+with `NOTEBOOK_WORKERS`, e.g. `make test-notebooks NOTEBOOK_WORKERS=2`.
+
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.
