@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from safetensors import safe_open
 
-from pyvisim._base_classes import SerializableImageEmbedder
+from pyvisim.base import SerializableImageEmbedder
 from pyvisim.neural_networks import ClipEmbedder
 from pyvisim.neural_networks.clip import clip_embedder as clip_embedder_module
 from pyvisim.neural_networks.clip._model import build_vision_model

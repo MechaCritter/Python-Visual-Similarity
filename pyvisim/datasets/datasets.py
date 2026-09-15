@@ -7,7 +7,6 @@ import requests
 from platformdirs import user_cache_dir
 from tqdm import tqdm
 
-from pyvisim._config import setup_logging
 from pyvisim._utils import read_image_rgb
 from pyvisim.datasets._matloader import load_mat
 from pyvisim.lazy_import import OptionalImport
@@ -19,11 +18,9 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
 
 _torch_import.check()
 
-setup_logging()
-
 __all__ = ["OxfordFlowerDataset"]
 
-logger = logging.getLogger("Data_Set")
+logger = logging.getLogger(__name__)
 
 # Specific to the Oxford Flowers dataset
 _DATASET_ROOT = os.path.join(user_cache_dir("pyvisim"), "oxford_flower_dataset")

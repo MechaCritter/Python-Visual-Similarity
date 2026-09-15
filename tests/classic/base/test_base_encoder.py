@@ -133,6 +133,52 @@ def test_load_clustering_model_from_sklearn_fisher() -> None:
     assert np.array_equal(embedder.clustering_model.means, sklearn_model.means_)
 
 
+def test_incompatible_pca_is_dropped_with_a_future_warning(
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """With the flag off, a clustering model the PCA cannot feed drops the PCA."""
+    from sklearn.cluster import KMeans as SklearnKMeans
+
+    embedder = VLADEmbedder(
+        n_clusters=8,
+        kmeans_params={"rng": 0},
+        raise_error_when_pca_incompatible=False,
+    )
+    embedder.learn(category_train_images_flat, dim_reduction_factor=4)  # PCA out=32
+    rng = np.random.default_rng(0)
+    sklearn_model = SklearnKMeans(n_clusters=8, random_state=0).fit(
+        rng.random((300, 128))
+    )
+    with pytest.warns(FutureWarning, match="raise_error_when_pca_incompatible=True"):
+        embedder.load_clustering_model_from_sklearn(sklearn_model)
+    assert embedder.pca is None
+
+
+@pytest.mark.parametrize("embedder_cls", [VLADEmbedder, FisherVectorEmbedder])
+def test_raise_error_when_pca_incompatible_is_on_by_default(
+    embedder_cls: type[ClusteringBasedEmbedder],
+) -> None:
+    """Every clustering embedder rejects an incompatible PCA unless told not to."""
+    assert embedder_cls().raise_error_when_pca_incompatible is True
+
+
+def test_incompatible_pca_raises_by_default(
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """By default, a clustering model the PCA cannot feed is rejected."""
+    from sklearn.cluster import KMeans as SklearnKMeans
+
+    embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
+    embedder.learn(category_train_images_flat, dim_reduction_factor=4)  # PCA out=32
+    rng = np.random.default_rng(0)
+    sklearn_model = SklearnKMeans(n_clusters=8, random_state=0).fit(
+        rng.random((300, 128))
+    )
+    with pytest.raises(RuntimeError, match="PCA is incompatible"):
+        embedder.load_clustering_model_from_sklearn(sklearn_model)
+    assert embedder.pca is not None
+
+
 # §3.2 ImageEmbedderBase shared behaviour (exercised via VLADEmbedder)
 
 

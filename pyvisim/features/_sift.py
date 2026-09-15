@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ..typing import Float32NumpyArray, MatLike, UInt8NumpyArray
 from ._utils import _check_output_shape, _to_single_image
 from ._vendored.sift.sift import SIFT as _SIFT
@@ -52,11 +52,15 @@ class SIFT(FeatureExtractorBase, _SIFT):
             "n_ori": n_ori,
         }
         _SIFT.__init__(self, **params)  # type: ignore[no-untyped-call]
+        self._params = params
         self._output_dim = n_hist**2 * n_ori
 
     @property
     def output_dim(self) -> int:
         return self._output_dim
+
+    def _serialization_config(self) -> dict[str, Any]:
+        return dict(self._params)
 
     @staticmethod
     def _to_grayscale(image: UInt8NumpyArray) -> UInt8NumpyArray:
