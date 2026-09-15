@@ -10,7 +10,7 @@ import pytest
 from pyvisim.classic import VLADEmbedder
 
 if TYPE_CHECKING:
-    from pyvisim._base_classes import SimilarityMetric
+    from pyvisim.base import SimilarityMetric
     from tests.conftest import ImageObj
 
 #: A small margin so ordering assertions are not decided by floating-point noise.

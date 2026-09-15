@@ -1,7 +1,7 @@
 """Serialization tests for the neural image embedders.
 
 Every neural embedder is a
-:class:`~pyvisim._base_classes.SerializableImageEmbedder`, so it round-trips
+:class:`~pyvisim.base.SerializableImageEmbedder`, so it round-trips
 through a ``.embedder`` safetensors file. The central promise checked here is
 exactness: a reloaded embedder must produce bit-identical embeddings (and
 scores) without downloading any pretrained weights.
@@ -18,7 +18,7 @@ import pytest
 import torch
 from torchvision import transforms
 
-from pyvisim._base_classes import SerializableImageEmbedder
+from pyvisim.base import SerializableImageEmbedder
 from pyvisim.neural_networks import (
     BCESiameseNetwork,
     ContrastiveSiameseNetwork,

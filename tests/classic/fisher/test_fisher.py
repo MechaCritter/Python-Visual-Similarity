@@ -257,6 +257,25 @@ def test_embedding_nothing_raises(fisher_no_pca: FisherVectorEmbedder) -> None:
         fisher_no_pca.embed([])
 
 
+def test_a_featureless_image_is_reported_inside_a_batch(
+    batched_fisher: FisherVectorEmbedder,
+    sample_images: list[np.ndarray],
+    solid_image: ImageObj,
+) -> None:
+    """An image yielding no descriptor is caught instead of becoming NaNs."""
+    batched_fisher.set_batch_size(-1)
+    with pytest.raises(ValueError, match="No descriptors found in the image"):
+        batched_fisher.embed([*sample_images, solid_image.array])
+
+
+def test_a_featureless_image_is_reported_before_the_pca(
+    fisher_pca: FisherVectorEmbedder, solid_image: ImageObj
+) -> None:
+    """The missing descriptors are reported instead of the PCA's generic error."""
+    with pytest.raises(ValueError, match="No descriptors found in the image"):
+        fisher_pca.embed([solid_image.array])
+
+
 def test_batch_size_survives_a_file_round_trip(
     batched_fisher: FisherVectorEmbedder, tmp_path: Path
 ) -> None:

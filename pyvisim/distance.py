@@ -19,7 +19,7 @@ from .typing import Float64NumpyArray, FloatNumpyArray
 
 __all__ = ["cosine_similarity", "euclidean_distances", "manhattan_distances"]
 
-#: Default upper bound on the size of the broadcast temporary used by
+#: Upper bound on the size of the broadcast temporary used by
 #: :func:`manhattan_distances`, mirroring scikit-learn's chunked
 #: working-memory strategy for pairwise distances. Manhattan is the only
 #: metric that materializes an ``(N, M, D)`` intermediate; cosine and
@@ -153,8 +153,7 @@ def manhattan_distances(
     :param x: First matrix of shape ``(N, D)``.
     :param y: Second matrix of shape ``(M, D)``.
     :param working_memory_bytes: Cap on the size of the broadcast temporary.
-        Defaults to 256 MiB. The chunking only changes memory usage, never
-        the result.
+        The chunking only changes memory usage, never the result.
     :return: Manhattan distance matrix of shape ``(N, M)``.
     :raises ValueError: If either input is not 2-D, the feature dimensions
         do not match, or ``working_memory_bytes`` is not positive.

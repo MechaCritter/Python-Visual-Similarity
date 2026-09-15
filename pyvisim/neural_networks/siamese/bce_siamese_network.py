@@ -57,14 +57,14 @@ class BCESiameseNetwork(BackboneWithHead):
     for One-shot Image Recognition. ICML Deep Learning Workshop.
     https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf
 
-    :param backbone: name of feature-extraction network. Default: ``"resnet18"``.
+    :param backbone: name of feature-extraction network.
         See
         ``https://mechacritter.github.io/Python-Visual-Similarity/neural_networks/backbones/backbones.html``.
     :param embedding_dim: Dimensionality of the twin feature vectors that the
         scoring layer compares.
     :param transform: processing transform applied to every input image. If
-        ``None``, the default ImageNet preprocessing is used depending
-        on the backbone.
+        ``None``, the ImageNet preprocessing matching the backbone is
+        used.
     :param device: Device on which the model is placed.
     :param pretrained_backbone: Whether to use a backbone pretrained on
         ImageNet. If you are loading the ``BCESiameseNetwork`` from a

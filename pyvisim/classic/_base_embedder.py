@@ -5,9 +5,8 @@ from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 
-from .._base_classes import FeatureExtractorBase, SerializableImageEmbedder
-from .._config import setup_logging
 from .._errors import NotFittedError
+from ..base import FeatureExtractorBase, SerializableImageEmbedder
 from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
 from ..typing import (
@@ -20,8 +19,6 @@ from ..typing import (
 from ..utils.image_utils import iter_image_batches
 from ._clustering import PCA, ClusteringModelBase
 
-setup_logging()
-
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
 
 
@@ -32,9 +29,10 @@ class FeatureBasedEmbedder(SerializableImageEmbedder):
     (e.g. SIFT, SURF or deep features).
 
     :param feature_extractor: Feature extractor instance (should implement
-        ``__call__``). Defaults to :class:`~pyvisim.features.RootSIFT`.
+        ``__call__``). If ``None``, :class:`~pyvisim.features.RootSIFT` is
+        used.
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
@@ -96,18 +94,20 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
 
     The embedding can be used for indexing, retrieval, clustering or classification tasks.
     :param feature_extractor: Feature extractor instance (should implement __call__).
-        Defaults to RootSIFT.
+        If ``None``, RootSIFT is used.
     :param clustering_model: Clustering model used for generating descriptors.
     :param power_norm_weight: Exponent for power normalization
-    :param norm_order: Norm order for normalization (default: 2).
+    :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed descriptor vector (default: True).
+    :param flatten: Whether to flatten the computed descriptor vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
-    ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param pca: PCA model for dimensionality reduction (optional). Subclasses build
     it from the ``pca_params`` dictionary passed to their constructors.
-    :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
-                                        than the PCA model's output size, an Error will be raised
+    :param raise_error_when_pca_incompatible: Whether a fitted clustering model
+        whose input size differs from the PCA output size raises a
+        ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a
+        ``FutureWarning`` instead.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
@@ -236,16 +236,17 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
                 if self.raise_error_when_pca_incompatible:
                     raise RuntimeError(
                         f"PCA is incompatible with the new clustering model. "
-                        f"PCA input size: {self._pca.n_components}, "
+                        f"PCA output size: {self._pca.n_components}, "
                         f"New clustering model input size: {clustering_model.n_features_in}. "
                         f"If you want the PCA to be reset to None instead, set raise_error_when_pca_incompatible=False."
                     )
                 warnings.warn(
                     f"PCA is incompatible with the new clustering model. "
-                    f"PCA input size: {self._pca.n_components}, "
+                    f"PCA output size: {self._pca.n_components}, "
                     f"New clustering model input size: {clustering_model.n_features_in}. "
-                    "PCA will be reset to None to avoid errors."
-                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=False.",
+                    "PCA will be reset to None to avoid errors. "
+                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=True.",
+                    FutureWarning,
                     stacklevel=2,
                 )
                 self._pca = None
@@ -318,7 +319,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         Extracts the local descriptors of one image batch and stacks them.
 
         Every image of the batch reaches the feature extractor in a single
-        :meth:`~pyvisim._base_classes.FeatureExtractorBase.extract_batch` call,
+        :meth:`~pyvisim.base.FeatureExtractorBase.extract_batch` call,
         and the descriptors it returns are concatenated into one ``(N, D)``
         array. Whatever runs next (the PCA, the clustering model) therefore
         sees the batch as one matrix instead of one image at a time. The
@@ -343,7 +344,13 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         return descriptors
 
     def _embed(self, images: list[UInt8NumpyArray]) -> FloatNumpyArray:
-        return self._encode_batch(*self._extract_descriptors(images))
+        descriptors, counts = self._extract_descriptors(images)
+        if not counts.all():
+            raise ValueError(
+                "No descriptors found in the image. "
+                f"Cannot compute {type(self).__name__} embedding."
+            )
+        return self._encode_batch(descriptors, counts)
 
     @abc.abstractmethod
     def _encode_batch(
@@ -384,7 +391,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-            width × channels (NumPy/OpenCV single-image layout, **default**);
+            width × channels (NumPy/OpenCV single-image layout);
             ``"CHW"`` is channels × height × width (PyTorch single-image layout);
             ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
             See :mod:`pyvisim.typing`.

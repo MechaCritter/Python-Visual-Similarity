@@ -68,15 +68,15 @@ class SSIM(DenseMetricBase):
     unrelated images score near 0 and inverted structures can go negative.
 
     :param window_size: Side length of the Gaussian window, an odd integer
-        >= 3 (default 11).
-    :param sigma: Standard deviation of the Gaussian window (default 1.5).
-    :param k1: Luminance stabilization constant (default 0.01).
-    :param k2: Contrast stabilization constant (default 0.03).
+        >= 3.
+    :param sigma: Standard deviation of the Gaussian window.
+    :param k1: Luminance stabilization constant.
+    :param k2: Contrast stabilization constant.
     :param batch_size: Maximum number of image pairs processed in a single
         batch. Set to ``-1`` to process all images as a single batch.
     :param num_workers: Number of threads to use for the computation. If
-        ``None``, use the default ``PYVISIM_NUM_THREADS`` instead (can be
-        overridden by setting ``os.environ["PYVISIM_NUM_THREADS"]``).
+        ``None``, the ``PYVISIM_NUM_THREADS`` environment variable decides, which
+        can also be changed through ``os.environ["PYVISIM_NUM_THREADS"]``.
     :raises ValueError: If any parameter is outside its valid range.
     """
 

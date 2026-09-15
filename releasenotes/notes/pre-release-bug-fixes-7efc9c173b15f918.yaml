@@ -1,0 +1,51 @@
+---
+upgrade:
+  - |
+    Importing ``pyvisim`` no longer configures logging, and its loggers are
+    named after their modules (e.g. ``pyvisim.datasets.datasets``) instead of
+    ``Data_Set``, ``Feature_Extractor``, ``Pipeline`` and
+    ``Similarity_Metrics``. Configure the ``pyvisim`` logger to see the
+    library's messages.
+  - |
+    ``from pyvisim import *`` no longer imports ``datasets``, which needs the
+    ``nn`` extra. Access it as ``pyvisim.datasets`` or import it explicitly.
+  - |
+    ``VLADEmbedder`` and ``FisherVectorEmbedder`` default to
+    ``raise_error_when_pca_incompatible=True``, so a clustering model the
+    fitted PCA cannot feed raises a ``RuntimeError`` instead of silently
+    dropping the PCA. Pass ``False`` to keep the old behavior.
+  - |
+    ``pyvisim._base_classes`` is removed. Import ``SimilarityMetric``,
+    ``FeatureExtractorBase``, ``ImageEmbedderBase`` and
+    ``SerializableImageEmbedder`` from ``pyvisim.base`` instead.
+fixes:
+  - |
+    Importing ``pyvisim`` no longer creates a ``res/logs`` folder next to the
+    installed package, which failed on read-only installs.
+  - |
+    ``from pyvisim import *`` works without the ``nn`` extra, and submodules
+    such as ``pyvisim.classic`` are reachable after a plain ``import pyvisim``.
+  - |
+    The warning emitted when a clustering model resets an incompatible PCA is
+    a ``FutureWarning`` and names ``raise_error_when_pca_incompatible=True``
+    as the way to raise instead.
+  - |
+    ``SIFT`` and ``RootSIFT`` keep their constructor arguments when an
+    embedder using them is saved and loaded, instead of coming back with the
+    default arguments.
+  - |
+    ``Pipeline([])`` raises a ``ValueError`` when it is built, instead of
+    failing later inside ``embed`` with a NumPy error.
+  - |
+    ``FisherVectorEmbedder`` raises a ``ValueError`` for an image that yields
+    no descriptor, like ``VLADEmbedder`` does, instead of returning a row of
+    NaNs when that image shares a batch.
+  - |
+    ``top_k_map`` divides each average precision by ``min(R, k)``, with ``R``
+    the gallery images sharing the query label, instead of by the relevant
+    images found in the top ``k``. mAP@k values were inflated before and
+    come out lower now.
+  - |
+    ``KMeans.fit`` rejects a feature matrix that is not 2-D or holds no
+    sample, and a refit asks for the configured number of clusters again
+    after SciPy dropped empty clusters on an earlier fit.

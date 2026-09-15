@@ -219,7 +219,7 @@ def test_mismatched_shapes_between_batches_raise(
     checkerboard_image: ImageObj, small_image: ImageObj
 ) -> None:
     """Comparing images of different shapes raises ``ValueError``."""
-    with pytest.raises(ValueError, match="identical shape"):
+    with pytest.raises(ValueError, match="same shape"):
         PSNR().similarity_score(checkerboard_image.array, small_image.array)
 
 
@@ -228,14 +228,14 @@ def test_mixed_shapes_within_batch_raise(
 ) -> None:
     """A batch of differently shaped images raises ``ValueError``."""
     batch = [checkerboard_image.array, small_image.array]
-    with pytest.raises(ValueError, match="identical shape"):
+    with pytest.raises(ValueError, match="same shape"):
         PSNR().similarity_score(batch, checkerboard_image.array)
 
 
 def test_grayscale_against_rgb_raises(checkerboard_image: ImageObj) -> None:
     """A grayscale image has no counterpart in an RGB one."""
     rgb = np.stack([checkerboard_image.array] * 3, axis=-1)
-    with pytest.raises(ValueError, match="identical shape"):
+    with pytest.raises(ValueError, match="same shape"):
         PSNR().similarity_score(checkerboard_image.array, rgb)
 
 
