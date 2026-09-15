@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from pyvisim._base_classes import SimilarityMetric
+from pyvisim.base import SimilarityMetric
 from pyvisim.typing import FloatNumpyArray, ImageInput
 
 #: Every value the shared validator has to reject.

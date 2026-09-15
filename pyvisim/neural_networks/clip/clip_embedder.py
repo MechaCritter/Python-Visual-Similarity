@@ -14,7 +14,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from PIL import Image
 
-from ..._base_classes import SerializableImageEmbedder
+from ...base import SerializableImageEmbedder
 from ...lazy_import import OptionalImport
 from ...typing import (
     Float32NumpyArray,
@@ -83,8 +83,8 @@ class ClipEmbedder(SerializableImageEmbedder):
     ``pretrained`` tag is downloaded from the Hugging Face Hub on first use
     and cached (see :func:`pyvisim.neural_networks.clip.fetch_checkpoint`);
     only the image tower is loaded, and it always runs in ``float32``.
-    :meth:`embed` returns one embedding per image; embeddings are
-    L2-normalized by default so they can be compared directly with a dot
+    :meth:`embed` returns one embedding per image, L2-normalized when
+    ``normalize`` is on, so they can be compared directly with a dot
     product or the cosine similarity metric.
 
     Variant names and pretrained tags follow open_clip, e.g.
@@ -94,19 +94,19 @@ class ClipEmbedder(SerializableImageEmbedder):
     :func:`pyvisim.neural_networks.clip.available_pretrained` for the
     supported combinations.
 
-    :param variant: CLIP variant name (default ``"ViT-B-32"``).
-    :param pretrained: Pretrained tag naming the weights (default
-        ``"openai"``, the original OpenAI checkpoint of the variant).
+    :param variant: CLIP variant name.
+    :param pretrained: Pretrained tag naming the weights, e.g. ``"openai"``
+        for the original OpenAI checkpoint of the variant.
     :param device: Device to run the model on (``"cpu"`` or ``"cuda"``).
-        Defaults to ``"cuda"`` when a CUDA device is available, else
-        ``"cpu"``. The model runs in ``float32`` on either device.
+        If ``None``, ``"cuda"`` is used when a CUDA device is available,
+        else ``"cpu"``. The model runs in ``float32`` on either device.
     :param normalize: Whether to L2-normalize the returned embeddings.
     :param similarity_func: Name of the built-in similarity metric used to
-        score two embeddings. One of ``"cosine"`` (default), ``"euclidean"``,
+        score two embeddings. One of ``"cosine"``, ``"euclidean"``,
         ``"l1"`` or ``"manhattan"``.
     :param cache_dir: Directory of the Hugging Face Hub cache the checkpoint
-        is stored in. Defaults to the standard Hub cache
-        (``~/.cache/huggingface/hub``), so weights already downloaded via
+        is stored in. If ``None``, the standard Hub cache
+        (``~/.cache/huggingface/hub``) is used, so weights already downloaded via
         open_clip's Hub downloads are reused.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.

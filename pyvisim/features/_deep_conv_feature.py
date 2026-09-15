@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import logging
 import warnings
 from collections.abc import Sequence
 from typing import Any, cast
 
-from .._base_classes import FeatureExtractorBase
-from .._config import setup_logging
+from ..base import FeatureExtractorBase
 from ..lazy_import import OptionalImport
 from ..typing import Float32NumpyArray, MatLike
 from ._utils import _check_output_shape, _to_single_image
@@ -17,7 +17,7 @@ with OptionalImport(package="torch", extra="nn") as _torch_import:
     from ..neural_networks.backbones import build_backbone
     from ..utils.torch_utils import resolve_device
 
-setup_logging()
+_LOGGER = logging.getLogger(__name__)
 
 #: Backbone built when none is given.
 _DEFAULT_BACKBONE = "vgg16"
@@ -53,7 +53,7 @@ class DeepConvFeature(FeatureExtractorBase):
 
     :param backbone: The convolutional backbone to extract features from. It may be:
 
-        * ``None`` (default): builds a torchvision VGG16 with ImageNet weights.
+        * ``None``: builds a torchvision VGG16 with ImageNet weights.
         * A string naming a built-in backbone, e.g. ``"vgg16"``, which builds
           the torchvision model with its ImageNet weights. Every supported
           backbone is documented in
@@ -73,10 +73,10 @@ class DeepConvFeature(FeatureExtractorBase):
     :param target_submodule: Optional submodule name to hook into. If None, the whole model is used.
     :param layer_index: Which conv layer to hook (int). Use `list_conv_layers(...)`
                        to see the ordering or use -1 for the last conv layer.
-    :param device: 'cpu' or 'cuda'. Where to run the model. Defaults to
-                   ``None``, which auto-selects 'cuda' when available, else 'cpu'.
-    :param transform: Optional torchvision.transforms.Compose. Default includes `to_tensor`, `resize(224, 224)`,
-                        and normalization with ImageNet stats.
+    :param device: 'cpu' or 'cuda'. Where to run the model. ``None``
+                   auto-selects 'cuda' when available, else 'cpu'.
+    :param transform: Optional torchvision.transforms.Compose. If ``None``,
+                        images are converted to tensors and resized to 224x224.
 
     .. deprecated:: 0.4.1
         The ``model`` keyword argument is deprecated; pass the model through
@@ -135,7 +135,7 @@ class DeepConvFeature(FeatureExtractorBase):
             _, self.selected_layer_name, self.selected_layer_module = self._conv_layers[
                 self.layer_index
             ]
-            self._logger.info(
+            _LOGGER.info(
                 f"Selected layer: {self.selected_layer_name}, {self.selected_layer_module}"
             )
         except IndexError as e:
@@ -196,8 +196,8 @@ class DeepConvFeature(FeatureExtractorBase):
         Only the name of the built-in backbone is stored, and the model is
         rebuilt from torchvision's default weights on load. A user-supplied
         model has no such name, and is stored as ``None``. The custom
-        ``transform`` is not serialised; the default transform is used when
-        reconstructing.
+        ``transform`` is not serialised, so the reconstructed extractor uses
+        the transform built for ``transform=None``.
 
         :return: A mapping of constructor arguments.
         """
@@ -354,7 +354,7 @@ class DeepConvFeature(FeatureExtractorBase):
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels.
             For example, ``"HWC"`` is height × width × channels (NumPy/OpenCV
-            layout, **default**); ``"CHW"`` is channels × height × width (PyTorch
+            layout); ``"CHW"`` is channels × height × width (PyTorch
             layout). See :mod:`pyvisim.typing`.
         :param value_range: The ``(low, high)`` range the input values live in.
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
@@ -377,9 +377,10 @@ class DeepConvFeature(FeatureExtractorBase):
         """
         Extracts the descriptors of a whole batch in a single forward pass.
 
-        The default ``transform`` resizes every image to a fixed size, so the
-        batch stacks into one tensor. A custom ``transform`` that preserves the
-        input size does not, and the images are then extracted one at a time.
+        The transform built for ``transform=None`` resizes every image to a
+        fixed size, so the batch stacks into one tensor. A custom ``transform``
+        that preserves the input size does not, and the images are then
+        extracted one at a time.
 
         :param images: Batch of images, each a ``MatLike`` (NumPy array, torch
             tensor or array-like).
@@ -399,7 +400,7 @@ class DeepConvFeature(FeatureExtractorBase):
             return []
 
         if len(tensor_shapes) > 1:
-            self._logger.warning(
+            _LOGGER.warning(
                 "Images have different shapes after transform, which prevents "
                 "batch processing. Falling back to single-image extraction."
             )

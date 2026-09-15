@@ -2,6 +2,7 @@
 This module contains functions to evaluate the performance of a retrieval system.
 """
 
+from collections import Counter
 from collections.abc import Iterable
 
 import numpy as np
@@ -28,13 +29,17 @@ def top_k_map(
     :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
         (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
         embeddings and the embedder.
-    :param path_labels_dict: dict {img_path: label}
-    :param k: Number of top results to consider.
+    :param path_labels_dict: dict {img_path: label}, covering every path of
+        the store.
+    :param k: Number of top results to consider. Each average precision is
+        divided by the number of gallery images sharing the query label,
+        capped at ``k``.
     :return: mAP
     """
     all_vectors = np.asarray(store.embeddings)
     all_paths = store.paths
     embedder = store.embedder
+    gallery_label_counts = Counter(path_labels_dict[path] for path in all_paths)
 
     APs = []
     for query_img, true_label in zip(images, image_labels, strict=True):
@@ -50,7 +55,6 @@ def top_k_map(
             sorted_idx = sorted_idx[:k]
 
         sorted_paths = [all_paths[i] for i in sorted_idx]
-        sorted_labels = [path_labels_dict[path] for path in sorted_paths]
 
         # compute average precision by counting relevant images at each rank
         relevant_count = 0
@@ -60,10 +64,12 @@ def top_k_map(
                 relevant_count += 1
                 precision_sum += relevant_count / rank
 
-        # If there are R relevant images in the entire dataset
-        # average precision = sum(precision_at_i for each relevant i) / R
-        R = sum(lbl == true_label for lbl in sorted_labels)
-        AP = precision_sum / R if R > 0 else 0.0
+        # With R relevant images in the gallery, the ranking can hold at most
+        # min(R, k) of them, so that is what the precision sum is divided by.
+        n_relevant = gallery_label_counts[true_label]
+        if k is not None:
+            n_relevant = min(n_relevant, k)
+        AP = precision_sum / n_relevant if n_relevant > 0 else 0.0
 
         APs.append(AP)
 

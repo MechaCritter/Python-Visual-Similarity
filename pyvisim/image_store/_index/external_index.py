@@ -35,8 +35,8 @@ class ExternalSearchIndex:
     :param vectors: The gallery vectors the index was built over, shape
         ``(N, D)``, in the order its ids refer to.
     :param name: Name identifying the index, kept across a save/load round trip
-        so a store can be rebuilt on a matching one. Defaults to
-        :data:`DEFAULT_EXTERNAL_NAME`.
+        so a store can be rebuilt on a matching one. If ``None``,
+        :data:`DEFAULT_EXTERNAL_NAME` is used.
     :raises AttributeError: If ``index`` has no ``search`` method.
     :raises ValueError: If ``vectors`` is not a non-empty 2-D matrix, or the
         index reports a size that does not match it.
@@ -89,8 +89,8 @@ class ExternalSearchIndex:
         :param index: The FAISS index to search through.
         :param vectors: The gallery vectors the index was built over, shape
             ``(N, D)``. Reconstructed from the index when omitted.
-        :param name: Name identifying the index, defaults to
-            :data:`DEFAULT_EXTERNAL_NAME`.
+        :param name: Name identifying the index. If ``None``,
+            :data:`DEFAULT_EXTERNAL_NAME` is used.
         :return: An :class:`ExternalSearchIndex` around ``index``.
         :raises ValueError: If ``vectors`` is omitted and the index cannot
             reconstruct them, or the index reports a different size.

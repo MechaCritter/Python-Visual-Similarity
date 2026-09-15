@@ -89,7 +89,7 @@ class TripletLoss(torch.nn.Module):
 
     Supported mining strategies:
 
-    - ``"semi_hard"`` (**default**, FaceNet): for every positive pair
+    - ``"semi_hard"`` (FaceNet): for every positive pair
       ``(a, p)``, pick the closest negative that is still farther than the
       positive (``d(a, p) < d(a, n)``). If no such negative exists in the
       batch, fall back to the farthest negative of the anchor. The loss is
@@ -125,10 +125,10 @@ class TripletLoss(torch.nn.Module):
     Loss for Person Re-Identification. https://arxiv.org/abs/1703.07737
 
     :param margin: Margin enforced between positive and negative distances.
-        The default ``0.2`` is FaceNet's setting for squared distances.
-    :param mining: Online mining strategy, one of ``"semi_hard"`` (default),
+        FaceNet uses ``0.2`` for squared distances.
+    :param mining: Online mining strategy, one of ``"semi_hard"``,
         ``"batch_hard"`` or ``"batch_all"``.
-    :param squared: If ``True`` (default), use squared Euclidean distances as
+    :param squared: If ``True``, use squared Euclidean distances as
         in FaceNet. Hermans et al. report better convergence with plain
         distances (``False``), typically combined with ``"batch_hard"``.
     :raises ValueError: If ``margin`` is not strictly positive or ``mining``

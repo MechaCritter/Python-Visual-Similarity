@@ -47,13 +47,13 @@ class KReciprocalReranker:
 
     :param store: The store the candidates were retrieved from.
     :param k1: Size of the neighbourhoods the k-reciprocal sets are built
-        from. Defaults to ``20`` as in [1].
+        from. [1] uses ``20``.
     :param k2: Size of the neighbourhood the local query expansion averages
-        the k-reciprocal features over. ``1`` turns the expansion off. Defaults
-        to ``6`` as in [1].
+        the k-reciprocal features over. ``1`` turns the expansion off. [1]
+        uses ``6``.
     :param lambda_value: Weight of the original distance in the final
         distance, from ``0`` (Jaccard distance only) to ``1`` (original ranking
-        kept). Defaults to ``0.3`` as in [1].
+        kept). [1] uses ``0.3``.
     :raises TypeError: If ``store`` is not an
         :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`.
     :raises ValueError: If the store searches through an external index,
