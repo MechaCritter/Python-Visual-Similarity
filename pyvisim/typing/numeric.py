@@ -26,7 +26,7 @@ Each character names one axis, in the exact order the axes appear:
 Common examples:
 
 - ``"HWC"``: a single image laid out height x width x channels
-  (the classic NumPy/OpenCV layout). This is the default.
+  (the classic NumPy/OpenCV layout).
 - ``"CHW"``: a single image laid out channels x height x width
   (the classic PyTorch layout).
 - ``"BHWC"``: a batch of images, batch x height x width x channels.
@@ -40,10 +40,10 @@ images it contains.
 
 Value range (``value_range``)
 =============================
-``value_range`` is the ``(low, high)`` range the *input* values live in. It
-defaults to ``(0.0, 255.0)`` (standard 8-bit images). If a different range is
-provided, e.g. ``(0.0, 1.0)`` for normalized float tensors, the values are
-rescaled into the canonical ``[0, 255]`` range.
+``value_range`` is the ``(low, high)`` range the *input* values live in,
+such as ``(0.0, 255.0)`` for standard 8-bit images or ``(0.0, 1.0)`` for
+normalized float tensors. The values are rescaled into the canonical
+``[0, 255]`` range.
 """
 
 from collections.abc import Callable, Iterable
@@ -129,7 +129,7 @@ def _validate_dims(dims: str, ndim: int) -> str:
 
     :param dims: Axis-label string, one character per axis (case-insensitive).
         ``"H"`` = height, ``"W"`` = width, ``"C"`` = channels, ``"B"`` = batch.
-        For example, ``"HWC"`` is height × width × channels (the default).
+        For example, ``"HWC"`` is height × width × channels.
     :param ndim: Number of dimensions of the array the labels describe.
     :return: The normalized (upper-cased) ``dims`` string.
     :raises ValueError: If the string is malformed or inconsistent with ``ndim``.
@@ -209,11 +209,10 @@ def _to_image_list(
     :param dims: Axis-label string, one character per array axis in order:
         ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
         (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-        width × channels (NumPy/OpenCV single-image layout, **default**);
+        width × channels (NumPy/OpenCV single-image layout);
         ``"CHW"`` is channels × height × width (PyTorch single-image layout);
         ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-    :param value_range: The ``(low, high)`` range the input values live in
-        (default ``(0.0, 255.0)``).
+    :param value_range: The ``(low, high)`` range the input values live in.
     :return: A list of ``uint8`` images of shape ``(H, W[, C])`` in ``[0, 255]``.
     :raises InvalidImageError: If the input cannot be converted to a numeric array.
     :raises ValueError: If ``dims`` or ``value_range`` are invalid.

@@ -13,10 +13,10 @@ def grayscale_dims(image: MatLike, dims: str) -> str:
     Drop the channel label from ``dims`` for a single-channel (grayscale) image.
 
     A grayscale image carries no channel axis, so an array with exactly one
-    fewer dimension than a channel-bearing ``dims`` (e.g. a 2-D array with the
-    default ``"HWC"``) is treated as single-channel and the ``"C"`` label is
+    fewer dimension than a channel-bearing ``dims`` (e.g. a 2-D array with
+    ``"HWC"``) is treated as single-channel and the ``"C"`` label is
     removed. This keeps the canonical ``(H, W)`` grayscale layout working with
-    the channel-bearing default, matching the NumPy-only behaviour the library
+    a channel-bearing ``dims``, matching the NumPy-only behaviour the library
     accepted before ``dims`` were introduced.
 
     :param image: The image whose axis count is inspected.
@@ -50,11 +50,10 @@ def iter_images(
     :param dims: Axis-label string, one character per array axis in order:
         ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
         (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-        width × channels (NumPy/OpenCV single-image layout, **default**);
+        width × channels (NumPy/OpenCV single-image layout);
         ``"CHW"`` is channels × height × width (PyTorch single-image layout);
         ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-    :param value_range: The ``(low, high)`` range the input values live in
-        (default ``(0.0, 255.0)``).
+    :param value_range: The ``(low, high)`` range the input values live in.
     :return: An iterator over ``uint8`` images of shape ``(H, W[, C])``.
     :raises InvalidImageError: If a string/bytes object is passed as an image.
     """
@@ -94,8 +93,7 @@ def iter_image_batches(
     :param dims: Axis-label string, one character per array axis in order:
         ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
         (e.g. RGB), ``"B"`` = batch size. See :mod:`pyvisim.typing`.
-    :param value_range: The ``(low, high)`` range the input values live in
-        (default ``(0.0, 255.0)``).
+    :param value_range: The ``(low, high)`` range the input values live in.
     :return: An iterator over lists of at most ``batch_size`` ``uint8`` images
         of shape ``(H, W[, C])``.
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive integer.

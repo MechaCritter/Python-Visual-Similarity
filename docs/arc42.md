@@ -21,10 +21,9 @@ own `arc42.md` next to its pages, and this one carries what spans them.
 - [Dataset](dataset/arc42.md): `torch` datasets.
 - [Eval](eval/arc42.md): retrieval scoring functions.
 
-The abstract bases every public class derives from live in two places:
-`pyvisim/_base_classes.py` (`SimilarityMetric`, `FeatureExtractorBase`,
-`ImageEmbedderBase`, `SerializableImageEmbedder`) and `pyvisim/base/`
-(`DenseMetricBase`, shared by the dense metrics).
+The abstract bases every public class derives from live in `pyvisim/base/`:
+`SimilarityMetric`, `FeatureExtractorBase`, `ImageEmbedderBase`,
+`SerializableImageEmbedder` and `DenseMetricBase`, shared by the dense metrics.
 
 ## Architecture decisions
 
@@ -78,8 +77,6 @@ overriding method in a separate file.
 
 ## Risks and technical debt
 
-- `pyvisim/_base_classes.py` should move into `pyvisim/base/`, so that all
-  abstract bases live in one module.
 - Add **tensor sketch approximation** and **mutual information** analysis for
   Fisher Vector, according to the paper by Weixia Zhang, Jia Yan, Wenxuan Shi,
   Tianpeng Feng, and Dexiang Deng.

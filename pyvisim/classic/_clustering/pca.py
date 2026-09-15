@@ -234,24 +234,6 @@ class PCA(FittedModelBase):
         self._check_is_fitted()
         return cast(str, self._fit_svd_solver)
 
-    @staticmethod
-    def _validate_features(
-        features: FloatNumpyArray, *, n_features: int | None = None
-    ) -> Float64NumpyArray:
-        """
-        Coerces a feature matrix to ``float64`` and validates its shape.
-        """
-        data = np.asarray(features, dtype=np.float64)
-        if data.ndim != 2:
-            raise ValueError(f"Expected a 2D feature matrix, got a {data.ndim}D array.")
-        if data.shape[0] == 0:
-            raise ValueError("Expected a non-empty feature matrix, got 0 samples.")
-        if n_features is not None and data.shape[1] != n_features:
-            raise ValueError(
-                f"Expected {n_features} features per sample, got {data.shape[1]}."
-            )
-        return data
-
     def _resolve_solver(self, n_samples: int, n_features: int) -> str:
         """
         Resolves ``svd_solver="auto"`` for the given training shape.
@@ -362,7 +344,7 @@ class PCA(FittedModelBase):
             than 2 samples (the sample variance is undefined), or
             ``n_components`` exceeds what its shape and the solver allow.
         """
-        data = self._validate_features(features)
+        data = self._validate_features(features).astype(np.float64, copy=False)
         n_samples, n_features = data.shape
         if n_samples < 2:
             raise ValueError(
@@ -432,7 +414,9 @@ class PCA(FittedModelBase):
             fitted model.
         """
         components = self.components
-        data = self._validate_features(features, n_features=components.shape[1])
+        data = self._validate_features(features, n_features=components.shape[1]).astype(
+            np.float64, copy=False
+        )
         transformed = data @ components.T
         transformed -= self.mean @ components.T
         if self._whiten:

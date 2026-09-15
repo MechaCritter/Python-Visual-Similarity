@@ -29,7 +29,7 @@ import psutil
 import torch
 from PIL import Image
 
-from pyvisim._base_classes import ImageEmbedderBase, SimilarityMetric
+from pyvisim.base import ImageEmbedderBase, SimilarityMetric
 from pyvisim.classic import FisherVectorEmbedder, Pipeline, VLADEmbedder
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.features import DeepConvFeature, RootSIFT

@@ -60,6 +60,12 @@ def test_rejects_non_embedder() -> None:
         Pipeline(["not an embedder"])  # type: ignore[list-item]
 
 
+def test_rejects_an_empty_embedder_list() -> None:
+    """A pipeline without embedders is rejected when it is built."""
+    with pytest.raises(ValueError, match="at least one embedder"):
+        Pipeline([])
+
+
 def test_embed_concatenates(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
     """The pipeline concatenates each embedder's output along the feature axis."""
     out = pipeline.embed([checkerboard_image.array])
