@@ -460,9 +460,9 @@ def fetch_checkpoint(
 
     :param variant: Variant name, e.g. ``"ViT-B-32"`` (or ``"ViT-B/32"``).
     :param pretrained: Pretrained tag, e.g. ``"openai"``.
-    :param cache_dir: Directory of the Hub cache. Defaults to the standard
+    :param cache_dir: Directory of the Hub cache. If ``None``, the standard
         Hugging Face cache (``~/.cache/huggingface/hub``, honoring
-        ``HF_HOME`` and ``HF_HUB_CACHE``).
+        ``HF_HOME`` and ``HF_HUB_CACHE``) is used.
     :return: Path to the local safetensors file.
     :raises ValueError: If ``variant`` or ``pretrained`` is not supported.
     :raises ImportError: If ``huggingface_hub`` is not installed (it ships

@@ -11,8 +11,8 @@ def get_kernel_threads() -> int:
 
     The value is read from the ``PYVISIM_NUM_THREADS`` environment variable on
     every kernel call, so it can also be changed at runtime through
-    ``os.environ``. When the variable is unset, a fixed default of
-    :data:`_DEFAULT_KERNEL_THREADS` threads is used.
+    ``os.environ``. When the variable is unset,
+    :data:`_DEFAULT_KERNEL_THREADS` threads are used.
 
     :return: The number of OpenMP threads (at least 1).
     :raises ValueError: If the environment variable is set to anything other
