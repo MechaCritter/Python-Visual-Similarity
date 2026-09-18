@@ -12,7 +12,8 @@ import torch
 from numpy.testing import assert_almost_equal, assert_equal
 from PIL import Image
 
-from pyvisim.features import SIFT, RootSIFT, feature_extractor_from_dict
+from pyvisim.base import FeatureExtractorBase
+from pyvisim.features import SIFT, RootSIFT
 from pyvisim.features._vendored.sift.dtype import _convert
 
 if TYPE_CHECKING:
@@ -272,7 +273,7 @@ def test_round_trip_keeps_the_constructor_arguments(
 ) -> None:
     """An extractor rebuilt from its dict extracts what the original extracts."""
     extractor = extractor_cls(n_scales=4, c_edge=5.0, n_hist=2, n_ori=4)
-    reloaded = feature_extractor_from_dict(extractor.to_dict())
+    reloaded = FeatureExtractorBase.from_dict(extractor.to_dict())
     assert type(reloaded) is extractor_cls
     assert reloaded.to_dict() == extractor.to_dict()
     np.testing.assert_array_equal(
@@ -282,5 +283,5 @@ def test_round_trip_keeps_the_constructor_arguments(
 
 def test_an_empty_legacy_config_rebuilds_the_default_arguments() -> None:
     """Files written before SIFT stored its arguments still load."""
-    reloaded = feature_extractor_from_dict({"__class__": "SIFT", "config": {}})
+    reloaded = FeatureExtractorBase.from_dict({"__class__": "SIFT", "config": {}})
     assert reloaded.to_dict() == SIFT().to_dict()
