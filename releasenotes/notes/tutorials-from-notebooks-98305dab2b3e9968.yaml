@@ -21,3 +21,6 @@ enhancements:
   - |
     The new ``Tutorials`` workflow executes every tutorial notebook from
     scratch every three days and on demand.
+  - |
+    The clustering helper of the tutorials reports normalized mutual
+    information under nmi instead of adjusted mutual information.

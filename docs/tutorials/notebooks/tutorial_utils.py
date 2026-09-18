@@ -10,8 +10,8 @@ import torch
 from PIL import Image
 from sklearn.cluster import DBSCAN, KMeans, SpectralClustering
 from sklearn.metrics import (
-    adjusted_mutual_info_score,
     adjusted_rand_score,
+    normalized_mutual_info_score,
     rand_score,
 )
 
@@ -152,7 +152,7 @@ def cluster_images_and_generate_statistics(
     return {
         "ri": rand_score(true_labels, cluster_labels),
         "ari": adjusted_rand_score(true_labels, cluster_labels),
-        "nmi": adjusted_mutual_info_score(true_labels, cluster_labels),
+        "nmi": normalized_mutual_info_score(true_labels, cluster_labels),
     }
 
 
