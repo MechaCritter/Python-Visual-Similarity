@@ -1,0 +1,16 @@
+---
+enhancements:
+  - |
+    Simplified the ``[dependency-groups]`` in ``pyproject.toml``:
+
+    - Merged the ``release`` group into ``docs``, since ``reno`` and
+      ``dulwich`` are only used to build the release notes pages of the
+      documentation.
+    - Merged ``types``, ``dead-code`` and ``fmt`` into a single ``lint``
+      group, since ``mypy``, ``vulture`` and ``ruff`` are all static
+      analysis tools.
+
+    Contributors running ``make`` targets are unaffected. Anyone invoking
+    ``uv run``/``uv sync`` with ``--group release``, ``--group types``,
+    ``--group dead-code`` or ``--group fmt`` directly should use
+    ``--group docs`` or ``--group lint`` instead.
