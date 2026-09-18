@@ -133,6 +133,17 @@ class FeatureExtractorBase(abc.ABC):
     set of feature vectors (NumPy array).
     """
 
+    #: State key naming the extractor class a serialised description belongs to.
+    __class_key__: ClassVar[str] = "__class__"
+
+    #: Every subclass defined so far, keyed by class name.
+    _subclasses_by_name: ClassVar[dict[str, type["FeatureExtractorBase"]]] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Registers a subclass under its name for :meth:`from_dict`."""
+        super().__init_subclass__(**kwargs)
+        FeatureExtractorBase._subclasses_by_name[cls.__name__] = cls
+
     @abc.abstractmethod
     def __call__(
         self,
@@ -201,13 +212,12 @@ class FeatureExtractorBase(abc.ABC):
         Serialise this feature extractor into a JSON-safe configuration dict.
 
         The dict captures the extractor's class name and the keyword arguments
-        needed to rebuild an equivalent instance (see
-        :func:`pyvisim.features.feature_extractor_from_dict`).
+        needed to rebuild an equivalent instance (see :meth:`from_dict`).
 
         :return: A mapping ``{"__class__": str, "config": dict}``.
         """
         return {
-            "__class__": type(self).__name__,
+            self.__class_key__: type(self).__name__,
             "config": self._serialization_config(),
         }
 
@@ -222,6 +232,81 @@ class FeatureExtractorBase(abc.ABC):
         :return: A JSON-safe mapping of constructor arguments.
         """
         return {}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "FeatureExtractorBase":
+        """
+        Rebuilds the feature extractor from a dict produced by :meth:`to_dict`.
+
+        :param data: A mapping ``{"__class__": str, "config": dict}``.
+        :return: The reconstructed feature extractor.
+        :raises TypeError: If ``data`` is not a mapping produced by
+            :meth:`to_dict`.
+        :raises ValueError: If ``data`` names no known extractor class, or names
+            one that cannot be rebuilt automatically (e.g. a Lambda extractor).
+        """
+        config = cls._validated_config(data)
+        extractor_cls = cls._subclass_named(data[cls.__class_key__])
+        return extractor_cls._from_config(config)
+
+    @classmethod
+    def _validated_config(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extracts the constructor arguments a serialised description carries.
+
+        A description written before an extractor stored its arguments carries
+        none, and the defaults of the constructor are used instead.
+
+        :param data: A mapping produced by :meth:`to_dict`.
+        :return: The configuration the description holds.
+        :raises TypeError: If ``data`` is not a mapping produced by
+            :meth:`to_dict`.
+        """
+        if not isinstance(data, dict) or cls.__class_key__ not in data:
+            raise TypeError("Expected a feature-extractor dict from to_dict().")
+        return cast(dict[str, Any], data.get("config", {}))
+
+    @classmethod
+    def _subclass_named(cls, name: Any) -> type["FeatureExtractorBase"]:
+        """
+        Looks up a concrete extractor class by name.
+
+        The shipped extractors register themselves when their package is
+        imported, so that package is imported before a name is reported as
+        unknown.
+
+        :param name: The class name recorded in a serialised description.
+        :return: The extractor class of that name.
+        :raises ValueError: If no concrete extractor class has that name.
+        """
+        if name not in cls._subclasses_by_name:
+            from .. import features  # noqa: F401
+        extractor_cls = cls._subclasses_by_name.get(name)
+        if extractor_cls is None or inspect.isabstract(extractor_cls):
+            known = sorted(
+                known_name
+                for known_name, known_cls in cls._subclasses_by_name.items()
+                if not inspect.isabstract(known_cls)
+            )
+            raise ValueError(
+                f"Cannot reconstruct feature extractor of class {name!r}. "
+                f"Known classes are: {known}."
+            )
+        return extractor_cls
+
+    @classmethod
+    def _from_config(cls, config: dict[str, Any]) -> "FeatureExtractorBase":
+        """
+        Rebuilds an extractor from the arguments :meth:`_serialization_config` produced.
+
+        The default hands them straight to the constructor. Subclasses that
+        need more than that, or that cannot be rebuilt at all, override this
+        hook.
+
+        :param config: A mapping produced by :meth:`_serialization_config`.
+        :return: A reconstructed feature extractor.
+        """
+        return cls(**config)
 
 
 class ImageEmbedderBase(SimilarityMetric):
