@@ -27,3 +27,6 @@ enhancements:
   - |
     The image search tutorial builds its FAISS index from the embeddings of
     the store instead of embedding the gallery a second time.
+  - |
+    The pipeline tutorial trains on every twelfth training image, which covers
+    all 102 classes instead of the three the first 500 images belong to.
