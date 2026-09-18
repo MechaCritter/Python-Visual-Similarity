@@ -5,7 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from pyvisim.features import DeepConvFeature, feature_extractor_from_dict
+from pyvisim.base import FeatureExtractorBase
+from pyvisim.features import DeepConvFeature
 from pyvisim.neural_networks.backbones import build_backbone, list_backbones
 from pyvisim.typing import UInt8NumpyArray
 
@@ -72,7 +73,7 @@ def test_a_user_supplied_model_cannot_be_rebuilt() -> None:
     state = extractor.to_dict()
     assert state["config"]["backbone"] is None
     with pytest.raises(ValueError, match="user-supplied model"):
-        feature_extractor_from_dict(state)
+        FeatureExtractorBase.from_dict(state)
 
 
 @pytest.mark.parametrize("backbone", list_backbones())
@@ -85,7 +86,7 @@ def test_built_in_backbone_builds_from_its_name(backbone: str) -> None:
 def test_a_backbone_built_by_name_round_trips() -> None:
     """A serialised extractor rebuilds its backbone by name, and can be saved again."""
     extractor = DeepConvFeature(backbone="resnet18", layer_index=-2, device="cpu")
-    reloaded = feature_extractor_from_dict(extractor.to_dict())
+    reloaded = FeatureExtractorBase.from_dict(extractor.to_dict())
     assert isinstance(reloaded, DeepConvFeature)
     assert reloaded.output_dim == extractor.output_dim
     assert reloaded.selected_layer_name == extractor.selected_layer_name

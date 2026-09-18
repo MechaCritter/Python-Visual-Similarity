@@ -46,4 +46,23 @@ Table of Contents
 Reconstructing feature extractors
 ---------------------------------
 
-.. autofunction:: pyvisim.features.feature_extractor_from_dict
+Every extractor describes itself as a JSON-safe configuration, and
+:meth:`~pyvisim.base.FeatureExtractorBase.from_dict` rebuilds the extractor a
+description names.
+
+.. code-block:: python
+
+   from pyvisim.base import FeatureExtractorBase
+   from pyvisim.features import RootSIFT
+
+   extractor = RootSIFT(n_hist=2, n_ori=4)
+
+   # Serialize extractor
+   serialized = extractor.to_dict()
+
+   # Reload extractor
+   reloaded = FeatureExtractorBase.from_dict(serialized)
+
+.. automethod:: pyvisim.base.FeatureExtractorBase.to_dict
+
+.. automethod:: pyvisim.base.FeatureExtractorBase.from_dict

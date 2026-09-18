@@ -7,7 +7,6 @@ import numpy as np
 
 from .._errors import NotFittedError
 from ..base import FeatureExtractorBase, SerializableImageEmbedder
-from ..features._registry import feature_extractor_from_dict
 from ..features._root_sift import RootSIFT
 from ..typing import (
     Float32NumpyArray,
@@ -504,7 +503,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     ) -> _ClusteringEmbedderT:
         cls._reject_unsupported_kwargs(kwargs)
         embedder = cls(
-            feature_extractor=feature_extractor_from_dict(state["feature_extractor"]),
+            feature_extractor=FeatureExtractorBase.from_dict(
+                state["feature_extractor"]
+            ),
             similarity_func=state["similarity_func"],
             power_norm_weight=state["power_norm_weight"],
             norm_order=state["norm_order"],
