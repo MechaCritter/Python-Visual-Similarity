@@ -10,7 +10,7 @@ build-ext:
 
 # Strict mypy type-checking
 test-types:
-	uv run --group types --extra nn mypy pyvisim/
+	uv run --group lint --extra nn mypy pyvisim/
 
 # Unit tests with a terminal coverage report (skips slow, weight-downloading tests)
 test-unit:
@@ -21,8 +21,8 @@ test-slow:
 	uv run --group test --extra nn pytest -m slow
 # Formatting with ruff
 fmt:
-	uv run --group fmt ruff check --fix .
-	uv run --group fmt ruff format .
+	uv run --group lint ruff check --fix .
+	uv run --group lint ruff format .
 
 # Build the Sphinx HTML documentation for local review (same flags as CI);
 # open docs/_build/html/index.html afterwards
@@ -34,8 +34,8 @@ docs:
 release-note:
 	@test -n "$(NAME)" || echo "Usage: make release-note NAME=my-change" >&2
 	@test -n "$(NAME)"
-	uv run --group release reno new $(NAME)
+	uv run --group docs reno new $(NAME)
 
 # Render the accumulated release notes for local review
 release-notes:
-	uv run --group release reno report --no-show-source --ignore-cache
+	uv run --group docs reno report --no-show-source --ignore-cache
