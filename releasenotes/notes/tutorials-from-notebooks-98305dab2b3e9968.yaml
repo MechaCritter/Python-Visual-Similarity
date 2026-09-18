@@ -24,3 +24,6 @@ enhancements:
   - |
     The clustering helper of the tutorials reports normalized mutual
     information under nmi instead of adjusted mutual information.
+  - |
+    The image search tutorial builds its FAISS index from the embeddings of
+    the store instead of embedding the gallery a second time.
