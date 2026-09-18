@@ -1,0 +1,32 @@
+---
+upgrade:
+  - |
+    ``pyvisim.features.feature_extractor_from_dict`` was removed. Feature
+    extractors are now rebuilt through
+    :meth:`pyvisim.base.FeatureExtractorBase.from_dict`, which takes the same
+    mapping and returns the same extractor. You are affected if you import the
+    function by name:
+
+    .. code:: python
+
+        # Before
+        from pyvisim.features import feature_extractor_from_dict
+
+        extractor = feature_extractor_from_dict(data)
+
+        # After
+        from pyvisim.base import FeatureExtractorBase
+
+        extractor = FeatureExtractorBase.from_dict(data)
+
+    Saved ``.embedder`` files are unaffected, since the serialised format did
+    not change.
+enhancements:
+  - |
+    ``FeatureExtractorBase`` now owns both halves of its serialization
+    contract: ``to_dict`` and the new ``from_dict``. Subclasses register
+    themselves as they are defined, so a new feature extractor is rebuilt from
+    a serialised description without being added to a hand-maintained table.
+    Extractors that need more than their stored constructor arguments override
+    the ``_from_config`` hook, as ``DeepConvFeature`` does to rebuild its
+    backbone by name.
