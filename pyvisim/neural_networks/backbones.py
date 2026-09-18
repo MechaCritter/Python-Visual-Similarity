@@ -87,7 +87,7 @@ class ResNetBackbone(nn.Module):
     ResNet-34, 2048 for the deeper variants).
 
     :param pretrained: Whether to load the default ImageNet-pretrained weights.
-    :param variant: Name of the ResNet to build, e.g. ``"resnet18"`` (default)
+    :param variant: Name of the ResNet to build, e.g. ``"resnet18"``
         or ``"resnet50"``.
     :raises ValueError: If ``variant`` does not name a supported ResNet.
     """
@@ -174,7 +174,7 @@ class BackboneWithHead(NeuralImageEmbedder):
     not match the one the network was built with, a warning is issued.
 
     :param backbone: Name of the feature-extraction network, one of the
-        ResNets :class:`ResNetBackbone` supports, e.g. ``"resnet18"`` (default)
+        ResNets :class:`ResNetBackbone` supports, e.g. ``"resnet18"``
         or ``"resnet50"``. See
         ``https://mechacritter.github.io/Python-Visual-Similarity/neural_networks/backbones/backbones.html``.
     :param embedding_dim: Dimensionality of the projected embedding space.
@@ -185,7 +185,7 @@ class BackboneWithHead(NeuralImageEmbedder):
         ImageNet. If you are loading the network from a checkpoint, set this
         to ``False`` to avoid downloading the weights again.
     :param similarity_func: Name of the built-in similarity metric used to score
-        two embeddings. One of ``"cosine"`` (default), ``"euclidean"``, ``"l1"``
+        two embeddings. One of ``"cosine"``, ``"euclidean"``, ``"l1"``
         or ``"manhattan"``.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.

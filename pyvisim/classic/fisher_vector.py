@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ..typing import (
     Float32NumpyArray,
     Float64NumpyArray,
@@ -29,20 +29,23 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
 
     The output when calling `embed` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
-    :param feature_extractor: Feature extractor instance. Default is RootSIFT
+    :param feature_extractor: Feature extractor instance. If ``None``, RootSIFT
+        is used.
     :param n_components: Number of Gaussian mixture components (visual words) to use.
     :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary learning. See
         ``https://mechacritter.github.io/Python-Visual-Similarity/classic/fisher_vector/fisher_vector.html#gmm-parameters-gmm-params``.
     :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
         ``https://mechacritter.github.io/Python-Visual-Similarity/classic/fisher_vector/fisher_vector.html#pca-parameters-pca-params``.
     :param power_norm_weight: Exponent for power normalization
-    :param norm_order: Norm order for normalization (default: 2).
+    :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed embedding vector (default: True).
+    :param flatten: Whether to flatten the computed embedding vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
-        ``"cosine"`` (default), ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param raise_error_when_pca_incompatible: When set to True, if the new clustering model has a different input size
-                                        than the PCA model's output size, the PCA model will be reset to None.
+        ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
+    :param raise_error_when_pca_incompatible: Whether a fitted clustering model
+        whose input size differs from the PCA output size raises a
+        ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a
+        ``FutureWarning`` instead.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
@@ -65,7 +68,7 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         epsilon: float = 1e-9,
         flatten: bool = True,
         similarity_func: str = "cosine",
-        raise_error_when_pca_incompatible: bool = False,
+        raise_error_when_pca_incompatible: bool = True,
         *,
         normalize: bool = True,
         batch_size: int = 16,

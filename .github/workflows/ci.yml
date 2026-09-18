@@ -25,16 +25,16 @@ jobs:
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group types --extra nn
+        run: uv sync --group lint --extra nn
 
       - name: Run mypy
-        run: uv run --group types mypy pyvisim/
+        run: uv run --group lint mypy pyvisim/
 
   # 2: ruff lint + format check
   fmt-check:
@@ -50,19 +50,19 @@ jobs:
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group fmt
+        run: uv sync --group lint
 
       - name: Check lint
-        run: uv run --group fmt ruff check .
+        run: uv run --group lint ruff check .
 
       - name: Check format
-        run: uv run --group fmt ruff format --check .
+        run: uv run --group lint ruff format --check .
 
       # Notebooks are committed without outputs, so that no image ever enters the
       # history. Nothing strips them on commit, the author runs the make target.
@@ -96,7 +96,7 @@ jobs:
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
@@ -164,7 +164,7 @@ jobs:
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
