@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from .._base_classes import SerializableImageEmbedder
+from ..base import SerializableImageEmbedder
 from ..serialization import SerializerMixin
 from ..typing import (
     BoolNumpyArray,
@@ -90,8 +90,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         ``VLAD``/``Fisher Vector`` embedders.
     :param search_index: The index to search the gallery through. Pass
         ``"hnsw"`` for the HNSW graph algorithm, ``None`` for brute-force
-    :param space: Metric space the index is built for, ``"cosine"`` (the
-        default), ``"l2"`` or ``"ip"``. Ignored by an external index, which
+    :param space: Metric space the index is built for, ``"cosine"``,
+        ``"l2"`` or ``"ip"``. Ignored by an external index, which
         brings its own metric. An overview below:
 
         .. list-table::
@@ -103,7 +103,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
              - Notes
            * - ``"cosine"``
              - ``1 - cosine_similarity``
-             - The default. The vectors are stored L2-normalised, so their
+             - The vectors are stored L2-normalised, so their
                magnitudes are lost.
            * - ``"ip"``
              - ``1 - inner_product``
@@ -146,7 +146,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - Default
+         - If omitted
          - Meaning
        * - ``graph_degree``
          - ``16``
@@ -178,7 +178,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - Default
+         - If omitted
          - Meaning
        * - ``num_threads``
          - ``-1``
@@ -453,8 +453,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         that was embedded. ``expansion_alpha=0`` weights every match that
         resembles the query alike, which is the classic average query expansion
         (AQE). The expansion costs one extra index search per query plus the
-        decoding of ``expansion_neighbours`` gallery vectors, which is why it
-        is off by default.
+        decoding of ``expansion_neighbours`` gallery vectors, which is why
+        ``query_expansion`` is off unless set.
 
         The expansion is defined on L2-normalised embeddings ranked by cosine
         similarity. The weights are computed on L2-normalised copies of the
@@ -471,10 +471,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             query expansion before the final search.
         :param expansion_alpha: Exponent applied to the cosine similarity of
             each match to weight it in the expanded query. ``0`` weights every
-            match with a positive similarity alike. Defaults to ``3`` as in
-            [1].
+            match with a positive similarity alike. [1] uses ``3``.
         :param expansion_neighbours: Number of top-ranked gallery images
-            averaged into the expanded query. Defaults to ``50`` as in [1].
+            averaged into the expanded query. [1] uses ``50``.
         :return: One ranked list of :class:`Candidate` matches per query image,
             in the same order as ``query_images``.
         :raises ValueError: If ``expansion_alpha`` is not a finite non-negative

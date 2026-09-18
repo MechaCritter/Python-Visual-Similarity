@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from .._base_classes import FeatureExtractorBase
+from ..base import FeatureExtractorBase
 from ..typing import Float32NumpyArray, MatLike, UInt8NumpyArray
 from ._utils import _check_output_shape, _to_single_image
 
@@ -46,6 +46,15 @@ class Lambda(FeatureExtractorBase):
         raise TypeError(
             "Lambda feature extractors wrap a user-defined function and cannot "
             "be serialised. Provide 'feature_extractor' explicitly when loading."
+        )
+
+    @classmethod
+    def _from_config(cls, config: dict[str, Any]) -> "Lambda":
+        """Lambda extractors wrap an arbitrary user function and cannot be rebuilt."""
+        raise ValueError(
+            "Cannot rebuild a Lambda feature extractor, since it wraps a "
+            "user-defined function. Provide 'feature_extractor' explicitly "
+            "when loading."
         )
 
     @_check_output_shape

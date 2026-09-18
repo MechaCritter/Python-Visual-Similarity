@@ -10,7 +10,7 @@ build-ext:
 
 # Strict mypy type-checking
 test-types:
-	uv run --group types --extra nn mypy pyvisim/
+	uv run --group lint --extra nn mypy pyvisim/
 
 # Unit tests with a terminal coverage report (skips slow, weight-downloading tests)
 test-unit:
@@ -28,8 +28,8 @@ test-notebooks:
 
 # Formatting with ruff
 fmt:
-	uv run --group fmt ruff check --fix .
-	uv run --group fmt ruff format .
+	uv run --group lint ruff check --fix .
+	uv run --group lint ruff format .
 
 # Notebooks are committed without outputs and execution metadata. Their kernel
 # metadata goes as well, since the documentation build hashes it to decide
@@ -57,8 +57,8 @@ docs:
 release-note:
 	@test -n "$(NAME)" || echo "Usage: make release-note NAME=my-change" >&2
 	@test -n "$(NAME)"
-	uv run --group release reno new $(NAME)
+	uv run --group docs reno new $(NAME)
 
 # Render the accumulated release notes for local review
 release-notes:
-	uv run --group release reno report --no-show-source --ignore-cache
+	uv run --group docs reno report --no-show-source --ignore-cache

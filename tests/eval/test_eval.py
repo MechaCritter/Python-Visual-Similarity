@@ -97,3 +97,44 @@ def test_top_k_accuracy_perfect_for_gallery_queries(
     images = [_to_rgb(next(iter(category_train_images.values()))[0])]
     score = top_k_accuracy(images, [0], store, path_labels, k=1)
     assert score == 1.0
+
+
+class _FixedQueryEmbedder:
+    """Embeds every query to the same vector along the first axis."""
+
+    def embed(self, images: object) -> np.ndarray:
+        """Return the fixed query embedding.
+
+        :param images: the query images, ignored.
+        :returns: a ``(1, 2)`` embedding.
+        """
+        return np.array([[1.0, 0.0]])
+
+
+class _RankedStore:
+    """A gallery the fixed query ranks as ``a, b, c, d, e``."""
+
+    paths = ["a", "b", "c", "d", "e"]
+    embeddings = np.array([[1.0, 0.0], [1.0, 0.1], [1.0, 0.2], [1.0, 0.3], [1.0, 0.4]])
+    embedder = _FixedQueryEmbedder()
+
+
+#: Labels of the ranked gallery: label 0 sits at ranks 2, 4 and 5.
+RANKED_LABELS = {"a": 1, "b": 0, "c": 1, "d": 0, "e": 0}
+
+
+@pytest.mark.parametrize(
+    ("k", "expected"),
+    [
+        (None, (1 / 2 + 2 / 4 + 3 / 5) / 3),
+        (2, (1 / 2) / 2),
+        (5, (1 / 2 + 2 / 4 + 3 / 5) / 3),
+    ],
+)
+def test_top_k_map_divides_by_the_relevant_gallery_images(
+    k: int | None, expected: float
+) -> None:
+    """AP@k divides by ``min(R, k)``, with ``R`` counted over the whole gallery."""
+    query = [np.zeros((4, 4), dtype=np.uint8)]
+    score = top_k_map(query, [0], _RankedStore(), RANKED_LABELS, k=k)  # type: ignore[arg-type]
+    assert score == pytest.approx(expected)
