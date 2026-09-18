@@ -48,6 +48,15 @@ class Lambda(FeatureExtractorBase):
             "be serialised. Provide 'feature_extractor' explicitly when loading."
         )
 
+    @classmethod
+    def _from_config(cls, config: dict[str, Any]) -> "Lambda":
+        """Lambda extractors wrap an arbitrary user function and cannot be rebuilt."""
+        raise ValueError(
+            "Cannot rebuild a Lambda feature extractor, since it wraps a "
+            "user-defined function. Provide 'feature_extractor' explicitly "
+            "when loading."
+        )
+
     @_check_output_shape
     def __call__(
         self,

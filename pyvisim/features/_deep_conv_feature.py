@@ -213,8 +213,8 @@ class DeepConvFeature(FeatureExtractorBase):
         """
         Rebuild a :class:`DeepConvFeature` from a serialised configuration.
 
-        The backbone is rebuilt by name, so the reconstructed extractor can be
-        serialised again in turn.
+        The backbone is rebuilt by name and the device is resolved again, so
+        the reconstructed extractor can be serialised again in turn.
 
         :param config: Mapping produced by :meth:`_serialization_config`.
         :return: A reconstructed deep feature extractor.
