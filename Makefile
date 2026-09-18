@@ -39,11 +39,11 @@ NBSTRIPOUT_FLAGS = --keep-id --drop-empty-cells --extra-keys "metadata.kernelspe
 
 # Strip every notebook in place before committing it
 strip-notebooks:
-	uv run --group fmt nbstripout $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
+	uv run --group lint nbstripout $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
 
 # Fail if a notebook still carries outputs or metadata (the CI check)
 check-notebooks:
-	uv run --group fmt nbstripout --verify $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
+	uv run --group lint nbstripout --verify $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
 
 # Build the Sphinx HTML documentation for local review with the same flags as
 # CI, then open docs/_build/html/index.html. The tutorial notebooks are executed
