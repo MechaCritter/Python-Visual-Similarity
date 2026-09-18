@@ -2,10 +2,9 @@
 upgrade:
   - |
     ``pyvisim.features.feature_extractor_from_dict`` was removed. Feature
-    extractors are now rebuilt through
-    :meth:`pyvisim.base.FeatureExtractorBase.from_dict`, which takes the same
-    mapping and returns the same extractor. You are affected if you import the
-    function by name:
+    extractors are now rebuilt through ``FeatureExtractorBase.from_dict``,
+    which takes the same mapping and returns the same extractor. You are
+    affected if you import the function by name:
 
     .. code:: python
 
