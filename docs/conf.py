@@ -31,6 +31,9 @@ extensions = [
     # Renders the tutorial notebooks. It sets up myst_parser itself, which parses
     # the Markdown pulled in via '.. include::'.
     "myst_nb",
+    # Turns the alert blocks that GitHub renders in the notebooks into the
+    # matching admonitions.
+    "github_alerts",
     # Generates one page per release from releasenotes/notes/. reno reads the
     # notes of each version from the git history and its tags, so the
     # documentation has to be built from a git checkout.

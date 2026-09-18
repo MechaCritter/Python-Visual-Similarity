@@ -30,3 +30,6 @@ enhancements:
   - |
     The pipeline tutorial trains on every twelfth training image, which covers
     all 102 classes instead of the three the first 500 images belong to.
+  - |
+    GitHub alert blocks such as > [!NOTE] in the tutorial notebooks render
+    as admonitions in the documentation.
