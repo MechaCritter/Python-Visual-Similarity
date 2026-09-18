@@ -31,10 +31,10 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group types --extra nn
+        run: uv sync --group lint --extra nn
 
       - name: Run mypy
-        run: uv run --group types mypy pyvisim/
+        run: uv run --group lint mypy pyvisim/
 
   # 2: ruff lint + format check
   fmt-check:
@@ -56,13 +56,13 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --group fmt
+        run: uv sync --group lint
 
       - name: Check lint
-        run: uv run --group fmt ruff check .
+        run: uv run --group lint ruff check .
 
       - name: Check format
-        run: uv run --group fmt ruff format --check .
+        run: uv run --group lint ruff format --check .
 
   # 3: pytest unit tests with coverage
   tests:
