@@ -53,11 +53,6 @@ larger pool. Keep this in mind if you compare results against papers that use
 the original split. For more technical information, visit
 https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/dataset/arc42.md.
 
-TODO
-----
-
-- Implement ``transform`` method
-
 API reference
 -------------
 
