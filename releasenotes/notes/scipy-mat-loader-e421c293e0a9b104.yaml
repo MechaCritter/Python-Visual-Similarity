@@ -1,0 +1,6 @@
+---
+enhancements:
+  - |
+    ``OxfordFlowerDataset`` reads its ``.mat`` files with ``scipy.io.loadmat``
+    again. The internal MAT-file reader ``pyvisim.datasets._matloader`` was
+    removed since SciPy is a runtime dependency.
