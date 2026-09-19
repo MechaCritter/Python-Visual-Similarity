@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    ``OxfordFlowerDataset`` no longer accepts a ``transform`` argument. Passing
+    one raised ``NotImplementedError`` before, so only calls that spelled out
+    ``transform=None`` or passed ``purpose`` positionally are affected: drop
+    the argument and pass ``purpose`` by keyword. Every item stays the raw RGB
+    ``uint8`` array that the embedders and metrics accept, and any
+    preprocessing belongs to a wrapping ``Dataset``.
