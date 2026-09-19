@@ -74,7 +74,7 @@ To save the store to disk:
 Example walkthrough
 -------------------
 
-See `this notebook <https://github.com/MechaCritter/Python-Visual-Similarity-Examples/tree/master/pyvisim_examples/image_search.ipynb>`_.
+See :doc:`this tutorial </tutorials/notebooks/image_search>`.
 
 References
 ----------

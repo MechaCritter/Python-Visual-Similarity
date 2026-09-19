@@ -109,8 +109,8 @@ pool = image_store.retrieve_top_k_similar(image, k=100, query_expansion=True)[0]
 best = KReciprocalReranker(image_store).rerank(pool, top_k=5)
 ```
 
-For more examples, please refer to the [`pyvisim` Examples
-Repository](https://github.com/MechaCritter/Python-Visual-Similarity-Examples).
+For more examples, please refer to the
+[tutorials](https://mechacritter.github.io/Python-Visual-Similarity/tutorials/1_introduction.html).
 
 ## Installation
 

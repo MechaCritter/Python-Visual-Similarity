@@ -193,3 +193,9 @@ docs/_static/*.png
 
 # Release notes pages generated from releasenotes/notes/ at documentation build time
 docs/release_notes/versions/
+
+# Files the tutorial notebooks write next to themselves when they run
+docs/tutorials/notebooks/*.safetensors
+docs/tutorials/notebooks/*.embedder
+docs/tutorials/notebooks/checkpoints/
+docs/tutorials/notebooks/runs/
