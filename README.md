@@ -51,14 +51,14 @@ attempts to close this gap by implementing as many metrics as possible using onl
 ### Accelerated Computation
 
 **Cython** kernels and **C++ libraries** are used for some metrics to accelerate computation significantly compared
-to all reference libraries on the CPU. See, for example, [benchmark results of the `SSIM` implementation](docs/structural/ssim/benchmark.md).
+to all reference libraries on the CPU. See, for example, [benchmark results of the `SSIM` implementation](docs/dense/structural/ssim/benchmark.md).
 
 ### Examples
 
-#### `Structural Similarity` (see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/structural/ssim/ssim.html)):
+#### `Structural Similarity` (see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ssim/ssim.html)):
 
 ```python
-from pyvisim.structural import SSIM
+from pyvisim.dense.structural import SSIM
 
 ssim = SSIM()
 similarity_score = ssim.similarity_score(image1, image2)
