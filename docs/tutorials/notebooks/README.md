@@ -5,8 +5,7 @@ notebook as a page of the documentation, grouped into numbered chapters.
 
 ## Setup
 
-1. Install the dependencies with `uv sync --group tutorials --extra nn`.
-2. Put (and reuse any) shared helper functions in `tutorial_utils.py`, when applicable.
+Install the dependencies with `uv sync --group tutorials --extra nn`.
 
 ## Writing a notebook
 
@@ -34,10 +33,10 @@ notebook as a page of the documentation, grouped into numbered chapters.
 
 > [!IMPORTANT]
 >
-> Run the command `make strip-notebooks` before you commit the notebooks to 
+> Run the command `make strip-notebooks` before you commit the notebooks to
 strip all the outputs and kernel metadata to prevent notebooks from bloating the git history. You can download the rendered HTML to review the created docs. Follow these steps:
-> - As the workflow `Docs / Build documentation` finishes, on the GitHub page of your PR, click on it, then go to `Summary` at the top left. 
-> - Under `Artifacts`, click on `docs-html` to download the generated final documentation. 
+> - As the workflow `Docs / Build documentation` finishes, on the GitHub page of your PR, click on it, then go to `Summary` at the top left.
+> - Under `Artifacts`, click on `docs-html` to download the generated final documentation.
 > - Unzip it and open `index.html` to review the documentation.
 
 In order that the CI does not run too slow for every single PR, notebooks are
@@ -46,4 +45,3 @@ of course has the weakness that a notebook can break if the library changes
 underneath it. Hence, the `Tutorials` workflow runs every notebook from
 scratch every three days, since a notebook can also break when the library
 changes underneath it.
-
