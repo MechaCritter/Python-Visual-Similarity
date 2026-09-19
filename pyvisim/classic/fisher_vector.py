@@ -39,13 +39,8 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed embedding vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
-    :param raise_error_when_pca_incompatible: Whether a fitted clustering model
-        whose input size differs from the PCA output size raises a
-        ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a
-        ``FutureWarning`` instead.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
@@ -66,9 +61,7 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         power_norm_weight: float = 0.5,
         norm_order: int = 2,
         epsilon: float = 1e-9,
-        flatten: bool = True,
         similarity_func: str = "cosine",
-        raise_error_when_pca_incompatible: bool = True,
         *,
         normalize: bool = True,
         batch_size: int = 16,
@@ -88,9 +81,7 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
             power_norm_weight=power_norm_weight,
             norm_order=norm_order,
             epsilon=epsilon,
-            flatten=flatten,
             pca=pca,
-            raise_error_when_pca_incompatible=raise_error_when_pca_incompatible,
             normalize=normalize,
             batch_size=batch_size,
         )
