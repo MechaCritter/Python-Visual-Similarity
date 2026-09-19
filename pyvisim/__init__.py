@@ -10,6 +10,7 @@ from types import ModuleType
 __all__ = [
     "base",
     "classic",
+    "dense",
     "distance",
     "eval",
     "features",
