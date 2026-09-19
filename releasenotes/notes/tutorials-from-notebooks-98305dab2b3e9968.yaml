@@ -31,6 +31,10 @@ enhancements:
     The pipeline tutorial trains on every twelfth training image, which covers
     all 102 classes instead of the three the first 500 images belong to.
   - |
+    The Image Search and Retrieval Evaluation tutorials embed every fourth
+    training image, and the evaluation queries every fourth validation and
+    test image, so that they also finish on a CPU.
+  - |
     GitHub alert blocks such as > [!NOTE] in the tutorial notebooks render
     as admonitions in the documentation.
   - |
