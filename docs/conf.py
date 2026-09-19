@@ -94,9 +94,10 @@ myst_heading_anchors = 3
 
 # -- MyST-NB (notebooks) -------------------------------------------------------
 
-# The tutorial notebooks are committed without outputs. The build executes them
-# and caches their outputs in '_build/.jupyter_cache', keyed on the code cells,
-# so a notebook only runs again once its code changes.
+# The tutorial notebooks are committed without outputs. The CI build executes
+# them and caches their outputs in '_build/.jupyter_cache', keyed on the code
+# cells, so a notebook only runs again once its code changes. 'make docs'
+# overrides this with 'off' and renders the notebooks as they are on disk.
 nb_execution_mode = "cache"
 # A notebook that raises fails the build instead of rendering the traceback.
 nb_execution_raise_on_error = True

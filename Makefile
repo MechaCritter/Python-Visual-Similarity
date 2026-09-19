@@ -21,10 +21,12 @@ test-slow:
 	uv run --group test --extra nn pytest -m slow
 
 # Execute every tutorial notebook from scratch and in parallel, like the scheduled
-# Tutorials workflow. NOTEBOOK_WORKERS limits how many notebooks run at once.
+# Tutorials workflow. The executed notebooks are written back in place, so that
+# 'make docs' renders their outputs. Strip them again before committing.
+# NOTEBOOK_WORKERS limits how many notebooks run at once.
 NOTEBOOK_WORKERS = auto
 test-notebooks:
-	uv run --group tutorials --extra nn pytest -o addopts="" --nbmake --nbmake-timeout=-1 -n $(NOTEBOOK_WORKERS) docs/tutorials/notebooks
+	uv run --group tutorials --extra nn pytest -o addopts="" --nbmake --nbmake-timeout=-1 --overwrite -n $(NOTEBOOK_WORKERS) docs/tutorials/notebooks
 
 # Formatting with ruff
 fmt:
@@ -45,10 +47,11 @@ strip-notebooks:
 check-notebooks:
 	uv run --group lint nbstripout --verify $(NBSTRIPOUT_FLAGS) $(NOTEBOOKS)
 
-# Build the Sphinx HTML documentation for local review with the same flags as
-# CI, then open docs/_build/html/index.html. The tutorial notebooks are executed
-# and their outputs cached. NB_EXECUTION_MODE=off renders them without running.
-NB_EXECUTION_MODE = cache
+# Build the Sphinx HTML documentation for local review, then open
+# docs/_build/html/index.html. The tutorial notebooks are not executed but
+# rendered as they are on disk, so run 'make test-notebooks' first to see their
+# outputs. NB_EXECUTION_MODE=cache executes and caches them like the CI does.
+NB_EXECUTION_MODE = off
 docs:
 	uv run --group docs --group tutorials --extra nn sphinx-build -W -D nb_execution_mode=$(NB_EXECUTION_MODE) -b html docs docs/_build/html
 

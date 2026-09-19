@@ -38,3 +38,7 @@ enhancements:
     Classical methods, Metric learning methods and Image similarity search.
     Every notebook carries a single top-level heading, which the sidebar lists
     as ``1.1 <heading>`` under its chapter.
+  - |
+    ``make docs`` renders the tutorial notebooks as they are on disk instead of
+    executing them. ``make test-notebooks`` writes the executed notebooks back
+    in place, so that a following ``make docs`` shows their outputs.

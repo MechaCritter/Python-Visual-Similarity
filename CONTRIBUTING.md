@@ -279,14 +279,19 @@ make strip-notebooks
 It also removes the kernel metadata, which your editor writes back as soon as
 you run a cell.
 
-`make docs` executes the notebooks and caches their outputs in
-`docs/_build/.jupyter_cache`. A notebook only runs again once its code cells
-change, so the first build takes long and the following ones are fast. To
-review changes to the `.rst` pages without executing anything, run:
+`make docs` does not execute the notebooks. It renders them as they are on
+disk, so a freshly checked out notebook shows up without outputs. To review the
+outputs, run the notebooks first. This writes the executed notebooks back in
+place, so strip them again before you commit:
 
 ```bash
-make docs NB_EXECUTION_MODE=off
+make test-notebooks
+make docs
 ```
+
+`make docs NB_EXECUTION_MODE=cache` executes the notebooks the way the CI does
+and caches their outputs in `docs/_build/.jupyter_cache`, so that a notebook
+only runs again once its code cells change.
 
 On a pull request, the `Docs` workflow executes the notebooks you added or
 changed, or all of them if you changed `tutorial_utils.py`, and uploads the
@@ -296,11 +301,7 @@ executed notebooks, since the committed ones carry no outputs.
 A notebook can also break without being changed, when the library changes
 underneath it. The `Tutorials` workflow therefore runs every notebook from
 scratch every three days, and you can start it by hand from the Actions tab.
-To run all notebooks locally in parallel:
-
-```bash
-make test-notebooks
-```
+`make test-notebooks` runs them all locally in parallel.
 
 Notebooks that share one GPU can run out of memory. Limit the parallel runs
 with `NOTEBOOK_WORKERS`, e.g. `make test-notebooks NOTEBOOK_WORKERS=2`.

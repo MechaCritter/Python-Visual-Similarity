@@ -18,3 +18,6 @@ Rules for working with the notebooks in this folder:
   ignored by git and must stay out of the history.
 - Install what the notebooks import with `uv sync --group tutorials --extra nn`,
   and run them all with `make test-notebooks`.
+- `make docs` renders the notebooks as they are on disk and does not execute
+  them. To see their outputs, run `make test-notebooks` first, which writes the
+  executed notebooks back in place.
