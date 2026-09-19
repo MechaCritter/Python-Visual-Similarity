@@ -1,0 +1,10 @@
+---
+enhancements:
+  - |
+    The new tutorial ``Custom Feature Extractor with ORB`` under the classical
+    methods shows how to write a feature extractor by inheriting from
+    ``FeatureExtractorBase``, train a ``VLADEmbedder`` with it and compare two
+    images.
+  - |
+    The ``tutorials`` dependency group installs ``opencv-python-headless``,
+    which the custom feature extractor tutorial uses for ``ORB``.

@@ -139,6 +139,7 @@ tutorials = [
     "scikit-learn",
     "faiss-cpu",
     "tensorboard",
+    "opencv-python-headless",
     # Run the notebooks as tests (make test-notebooks and the Tutorials workflow).
     "pytest",
     "nbmake",
