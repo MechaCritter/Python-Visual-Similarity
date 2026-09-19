@@ -1,0 +1,95 @@
+name: Tutorials
+
+# Executes every tutorial notebook from scratch. The documentation build only
+# re-executes a notebook once its code cells change and reuses the cached
+# outputs otherwise, so a change inside pyvisim that breaks an unchanged
+# notebook would go unnoticed there. GitHub's cron cannot express "every three
+# days": '*/3' counts days of the month, so the interval restarts on the 1st.
+on:
+  schedule:
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  discover:
+    name: "List the notebooks"
+    runs-on: ubuntu-latest
+    outputs:
+      notebooks: ${{ steps.list.outputs.notebooks }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: List the notebooks
+        id: list
+        run: |
+          set -euo pipefail
+          notebooks="$(git ls-files 'docs/tutorials/notebooks/*.ipynb' | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))')"
+          echo "Notebooks: ${notebooks}"
+          echo "notebooks=${notebooks}" >> "$GITHUB_OUTPUT"
+
+  run:
+    # One job per notebook. Each notebook already uses every core of a runner
+    # through torch, so it gets a runner of its own and its own time limit.
+    name: "Run ${{ matrix.notebook }}"
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        notebook: ${{ fromJSON(needs.discover.outputs.notebooks) }}
+    env:
+      # The same fixed path as in the CI workflow, so its weight cache applies.
+      TORCH_HOME: ${{ github.workspace }}/.cache/torch
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync --group tutorials --extra nn
+
+      - name: Resolve the dataset cache directory
+        id: dataset-cache
+        run: |
+          set -euo pipefail
+          path="$(uv run --no-sync python .github/scripts/prefetch_assets.py --print-cache-dir)"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
+      # Restore only. The 'Warm asset cache' workflow owns these caches, and a
+      # notebook that downloads a subset of the weights must not save them.
+      - name: Restore the Oxford Flowers dataset
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.dataset-cache.outputs.path }}
+          key: pyvisim-dataset-${{ runner.os }}-v1
+
+      - name: Restore the pretrained backbone weights
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.TORCH_HOME }}
+          key: pyvisim-torch-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: pyvisim-torch-${{ runner.os }}-
+
+      # The coverage options in pyproject.toml belong to the unit tests. Cells
+      # get no timeout because training cells run for many minutes, and the job
+      # timeout stops a hung notebook.
+      - name: Run the notebook
+        env:
+          NOTEBOOK: ${{ matrix.notebook }}
+        run: uv run --group tutorials --extra nn pytest -o addopts="" --nbmake --nbmake-timeout=-1 "$NOTEBOOK"

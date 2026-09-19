@@ -28,7 +28,12 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
-    "myst_parser",
+    # Renders the tutorial notebooks. It sets up myst_parser itself, which parses
+    # the Markdown pulled in via '.. include::'.
+    "myst_nb",
+    # Turns the alert blocks that GitHub renders in the notebooks into the
+    # matching admonitions.
+    "github_alerts",
     # Generates one page per release from releasenotes/notes/. reno reads the
     # notes of each version from the git history and its tags, so the
     # documentation has to be built from a git checkout.
@@ -45,6 +50,8 @@ exclude_patterns = [
     ".DS_Store",
     "*.md",
     "**/*.md",
+    # Autosave copies that Jupyter writes next to the tutorial notebooks.
+    "**/.ipynb_checkpoints",
 ]
 
 language = "en"
@@ -53,7 +60,9 @@ language = "en"
 # (e.g. ../pyvisim/classic/vlad.py), which have no HTML equivalent.
 # Their H1 titles are skipped via ':start-line: 1' so that each rST page owns
 # the top-level heading, which makes the included content start at H2.
-suppress_warnings = ["myst.xref_missing", "myst.header"]
+# A notebook rendered with 'nb_execution_mode=off' carries no kernel metadata to
+# pick a lexer from, so its code cells fall back to the default highlighting.
+suppress_warnings = ["myst.xref_missing", "myst.header", "myst-nb.lexer"]
 
 # -- Autodoc -------------------------------------------------------------------
 
@@ -75,13 +84,27 @@ autodoc_default_options = {
 
 # -- MyST (Markdown) -----------------------------------------------------------
 
-# The Sphinx sources are reStructuredText; myst_parser is only needed to parse
-# the narrative Markdown pages under docs/ that are pulled in via
-# '.. include:: ... :parser: myst_parser.sphinx_'.
+# The Sphinx sources are reStructuredText. MyST parses the Markdown cells of the
+# tutorial notebooks and the narrative Markdown pages under docs/ that are
+# pulled in via '.. include:: ... :parser: myst_parser.sphinx_'.
 # dollarmath renders the $$...$$ formulas
 myst_enable_extensions = ["colon_fence", "dollarmath"]
 # Generate anchors for headings so links such as 'vlad.md#section' resolve.
 myst_heading_anchors = 3
+
+# -- MyST-NB (notebooks) -------------------------------------------------------
+
+# The tutorial notebooks are committed without outputs. The CI build executes
+# them and caches their outputs in '_build/.jupyter_cache', keyed on the code
+# cells, so a notebook only runs again once its code changes. 'make docs'
+# overrides this with 'off' and renders the notebooks as they are on disk.
+nb_execution_mode = "cache"
+# A notebook that raises fails the build instead of rendering the traceback.
+nb_execution_raise_on_error = True
+nb_execution_show_tb = True
+# Training cells run for many minutes, so no cell timeout applies. A hung
+# notebook is stopped by the timeout of the CI job instead.
+nb_execution_timeout = -1
 
 # -- Intersphinx ---------------------------------------------------------------
 
@@ -118,6 +141,9 @@ GITHUB_ICON = """
 html_theme = "furo"
 html_title = f"pyvisim {release}"
 html_static_path = ["_static"]
+# The tutorial chapters and their notebooks are numbered, and the numbers read
+# as '1.1 Title' rather than '1.1. Title'.
+html_secnumber_suffix = " "
 
 html_theme_options = {
     "footer_icons": [

@@ -83,6 +83,8 @@ lint = [
   "mypy",
   "vulture",
   "ruff",
+  # Strips notebook outputs (make strip-notebooks) and checks for them in CI.
+  "nbstripout",
 ]
 test = [
     "pytest",
@@ -102,6 +104,8 @@ test = [
 docs = [
     "sphinx",
     "myst-parser",
+    # Renders the tutorial notebooks under docs/tutorials/notebooks/.
+    "myst-nb",
     "furo",
     # The release notes pages are generated with reno (docs/_ext/reno_pages.py),
     # and dulwich is reno's git backend.
@@ -125,6 +129,20 @@ bench = [
     "nbclient",
     "ipykernel",
     "psutil",
+]
+# Libraries imported by the tutorial notebooks under docs/tutorials/notebooks/
+# and their helper module, plus the kernel that executes the notebooks.
+tutorials = [
+    "ipykernel",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "faiss-cpu",
+    "tensorboard",
+    # Run the notebooks as tests (make test-notebooks and the Tutorials workflow).
+    "pytest",
+    "nbmake",
+    "pytest-xdist",
 ]
 
 # Per-platform wheel builds for the compiled extensions, run by the publish
@@ -206,7 +224,7 @@ indent-style = "space"
 
 [tool.codespell]
 ignore-words-list = "Commun"
-skip = "./examples,./notebooks,*/_vendored/*"  # jupyter notebooks; vendored third-party code
+skip = "./docs/tutorials/notebooks,*/_vendored/*"  # jupyter notebooks and vendored third-party code
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
