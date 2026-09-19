@@ -141,7 +141,7 @@ Example:
    embedder = ClipEmbedder("ViT-B-32", pretrained="openai", device="cpu")
 
    # baseline: NumPy (H, W, C) layout
-   score_hwc = embedder.similarity_score(image1, image2)
+   score_hwc = embedder.similarity_score(image1, image2, dims="HWC")
 
    # same pixels, PyTorch (C, H, W) layout, declared via dims
    score_chw = embedder.similarity_score(
@@ -193,7 +193,7 @@ Example:
    embedder = ClipEmbedder("ViT-B-32", pretrained="openai", device="cpu")
 
    # baseline: uint8 pixels in the default [0, 255] range
-   score_uint8 = embedder.similarity_score(image1, image2)
+   score_uint8 = embedder.similarity_score(image1, image2, value_range=(0.0, 255.0))
 
    # same pixels rescaled to [-1, 1], declared via value_range
    image1_signed = image1.astype(np.float64) / 127.5 - 1.0
