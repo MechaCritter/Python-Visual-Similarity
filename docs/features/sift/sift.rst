@@ -1,8 +1,6 @@
 SIFT
 ====
 
-File: ``pyvisim/features/_sift.py``
-
 Scale-Invariant Feature Transform descriptors. SIFT was the original local
 descriptor used for VLAD and Fisher Vector embedding.
 

@@ -1,8 +1,6 @@
 RootSIFT
 ========
 
-File: ``pyvisim/features/_root_sift.py``
-
 RootSIFT is SIFT with Hellinger-kernel normalization. It is the **default
 feature extractor** for both ``VLADEmbedder`` and ``FisherVectorEmbedder``.
 

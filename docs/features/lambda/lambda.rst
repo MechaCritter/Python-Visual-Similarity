@@ -1,8 +1,6 @@
 Lambda
 ======
 
-File: ``pyvisim/features/_lambda.py``
-
 ``Lambda`` wraps any user-defined function as a feature extractor, so you can
 plug a custom descriptor into the embedders without writing a new
 ``FeatureExtractorBase`` subclass.
