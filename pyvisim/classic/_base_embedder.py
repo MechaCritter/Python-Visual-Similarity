@@ -1,5 +1,4 @@
 import abc
-import warnings
 from collections.abc import Iterator, Mapping
 from typing import Any, ClassVar, TypeVar
 
@@ -103,17 +102,13 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param pca: PCA model for dimensionality reduction (optional). Subclasses build
     it from the ``pca_params`` dictionary passed to their constructors.
-    :param raise_error_when_pca_incompatible: Whether a fitted clustering model
-        whose input size differs from the PCA output size raises a
-        ``RuntimeError``. If ``False``, the PCA is reset to ``None`` with a
-        ``FutureWarning`` instead.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
     """
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
-    __format_version__: ClassVar[int] = 3
+    __format_version__: ClassVar[int] = 4
 
     #: Whether a state written under one format version can be read under
     #: another, keyed by ``(written version, reading version)``.
@@ -127,6 +122,17 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         (2, 3): True,
         (3, 1): False,
         (3, 2): False,
+        # Version 4 drops the "raise_error_when_pca_incompatible" key. A
+        # version 4 reader ignores it in an older file, while every older
+        # reader requires it, so the compatibility only holds towards
+        # version 4 and only from version 3, the one version whose other
+        # keys version 4 still requires.
+        (4, 3): True,
+        (4, 1): False,
+        (4, 2): False,
+        (1, 4): False,
+        (2, 4): False,
+        (3, 4): False,
         #
         # TODO: when the next __format_version__ comes, check if it's forward /
         # backward compatible, then add entries like the ones above.
@@ -138,7 +144,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         "norm_order",
         "epsilon",
         "flatten",
-        "raise_error_when_pca_incompatible",
         "feature_extractor",
     }
 
@@ -152,7 +157,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         epsilon: float = 1e-9,
         flatten: bool = True,
         pca: PCA | None = None,
-        raise_error_when_pca_incompatible: bool = True,
         *,
         normalize: bool = True,
         batch_size: int = 16,
@@ -165,7 +169,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         self.norm_order = norm_order
         self.epsilon = epsilon
         self.flatten = flatten
-        self.raise_error_when_pca_incompatible = raise_error_when_pca_incompatible
 
         # The feature extractor setter validates against the (currently unset)
         # PCA / clustering model, so both must already exist as ``None`` above.
@@ -232,23 +235,11 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             return
         if self._pca is not None and self._pca.is_fitted:
             if self._pca.n_components != clustering_model.n_features_in:
-                if self.raise_error_when_pca_incompatible:
-                    raise RuntimeError(
-                        f"PCA is incompatible with the new clustering model. "
-                        f"PCA output size: {self._pca.n_components}, "
-                        f"New clustering model input size: {clustering_model.n_features_in}. "
-                        f"If you want the PCA to be reset to None instead, set raise_error_when_pca_incompatible=False."
-                    )
-                warnings.warn(
+                raise RuntimeError(
                     f"PCA is incompatible with the new clustering model. "
                     f"PCA output size: {self._pca.n_components}, "
-                    f"New clustering model input size: {clustering_model.n_features_in}. "
-                    "PCA will be reset to None to avoid errors. "
-                    "If you want to raise an Error instead when this happens, set raise_error_when_pca_incompatible=True.",
-                    FutureWarning,
-                    stacklevel=2,
+                    f"New clustering model input size: {clustering_model.n_features_in}."
                 )
-                self._pca = None
         else:
             if self._feature_extractor.output_dim != clustering_model.n_features_in:
                 raise RuntimeError(
@@ -490,7 +481,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             "norm_order": self.norm_order,
             "epsilon": self.epsilon,
             "flatten": self.flatten,
-            "raise_error_when_pca_incompatible": self.raise_error_when_pca_incompatible,
             "similarity_func": self._similarity_func_name,
             "normalize": self.normalize,
             "batch_size": self.batch_size,
@@ -511,9 +501,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             norm_order=state["norm_order"],
             epsilon=state["epsilon"],
             flatten=state["flatten"],
-            raise_error_when_pca_incompatible=state[
-                "raise_error_when_pca_incompatible"
-            ],
             normalize=state["normalize"],
             batch_size=state["batch_size"],
         )
