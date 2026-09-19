@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    The source distribution now ships the Cython source of the PSNR kernel, so
+    installing ``pyvisim`` from it no longer fails with
+    ``'pyvisim/pixelwise/_kernel/_ssd_kernel.pyx' doesn't match any files``.
