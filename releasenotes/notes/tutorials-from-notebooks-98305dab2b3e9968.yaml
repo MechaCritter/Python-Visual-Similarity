@@ -1,0 +1,48 @@
+---
+upgrade:
+  - |
+    Notebooks are committed without outputs. Run ``make strip-notebooks``
+    before committing one, since the CI rejects notebooks that still carry
+    outputs or execution metadata.
+enhancements:
+  - |
+    The tutorial notebooks moved from the separate examples repository into
+    ``docs/tutorials/notebooks/``, together with their plotting helpers.
+  - |
+    The Siamese, Triplet and VLAD/Fisher Vector tutorials train on a subset of
+    Oxford Flowers, so that they also finish on a CPU.
+  - |
+    The documentation renders every tutorial notebook as a page with its
+    executed outputs.
+  - |
+    The ``Docs`` workflow also builds pull requests, executes the tutorial
+    notebooks they change and uploads the rendered HTML as the ``docs-html``
+    artifact.
+  - |
+    The new ``Tutorials`` workflow executes every tutorial notebook from
+    scratch every three days and on demand.
+  - |
+    The clustering helper of the tutorials reports normalized mutual
+    information under nmi instead of adjusted mutual information.
+  - |
+    The image search tutorial builds its FAISS index from the embeddings of
+    the store instead of embedding the gallery a second time.
+  - |
+    The pipeline tutorial trains on every twelfth training image, which covers
+    all 102 classes instead of the three the first 500 images belong to.
+  - |
+    The Image Search and Retrieval Evaluation tutorials embed every fourth
+    training image, and the evaluation queries every fourth validation and
+    test image, so that they also finish on a CPU.
+  - |
+    GitHub alert blocks such as > [!NOTE] in the tutorial notebooks render
+    as admonitions in the documentation.
+  - |
+    The tutorials are grouped into the numbered chapters Introduction,
+    Classical methods, Metric learning methods and Image similarity search.
+    Every notebook carries a single top-level heading, which the sidebar lists
+    as ``1.1 <heading>`` under its chapter.
+  - |
+    ``make docs`` renders the tutorial notebooks as they are on disk instead of
+    executing them. ``make test-notebooks`` writes the executed notebooks back
+    in place, so that a following ``make docs`` shows their outputs.
