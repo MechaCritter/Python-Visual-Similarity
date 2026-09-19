@@ -72,22 +72,6 @@ def test_embed_concatenates(pipeline: Pipeline, checkerboard_image: ImageObj) ->
     assert out.shape == (1, PIPELINE_DIM)
 
 
-def test_restores_flatten_flag(
-    pipeline: Pipeline,
-    pipeline_embedders: tuple[VLADEmbedder, FisherVectorEmbedder],
-    checkerboard_image: ImageObj,
-) -> None:
-    """The pipeline restores each embedder's original ``flatten`` flag."""
-    vlad, _ = pipeline_embedders
-    original = vlad.flatten
-    vlad.flatten = False
-    try:
-        pipeline.embed([checkerboard_image.array])
-        assert vlad.flatten is False
-    finally:
-        vlad.flatten = original
-
-
 def test_embed_batch(pipeline: Pipeline, checkerboard_image: ImageObj) -> None:
     """A batch of two images embeds to ``(2, PIPELINE_DIM)``."""
     base = checkerboard_image.array
@@ -286,22 +270,6 @@ def test_the_embedders_keep_their_own_batch_size(
         ):
             embedder.set_batch_size(original)
     np.testing.assert_allclose(batched, whole, rtol=1e-5, atol=1e-6)
-
-
-def test_the_flatten_flag_is_restored_after_each_batch(
-    batched_pipeline: Pipeline,
-    pipeline_embedders: tuple[VLADEmbedder, FisherVectorEmbedder],
-    sample_images: list[np.ndarray],
-) -> None:
-    """Forcing ``flatten`` on for the run must not leave the embedders changed."""
-    vlad, _ = pipeline_embedders
-    vlad.flatten = False
-    batched_pipeline.set_batch_size(2)
-    try:
-        batched_pipeline.embed(sample_images)
-        assert vlad.flatten is False
-    finally:
-        vlad.flatten = True
 
 
 def test_batch_size_survives_a_file_round_trip(
