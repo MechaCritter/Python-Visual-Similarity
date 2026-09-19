@@ -13,9 +13,9 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ..base import CANONICAL_DATA_RANGE, DenseMetricBase
-from ..typing import Float64NumpyArray
-from ..utils.cython_utils import get_kernel_threads
+from ...base import CANONICAL_DATA_RANGE, DenseMetricBase
+from ...typing import Float64NumpyArray
+from ...utils.cython_utils import get_kernel_threads
 from ._filters import _as_planes, _downsample_planes, gaussian_kernel
 from ._kernel._ssim_kernels import ssim_plane_sums
 from ._ssim import _validate_stabilizers, _validate_window

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from ..typing import Float32NumpyArray, Float64NumpyArray
+from ...typing import Float32NumpyArray, Float64NumpyArray
 
 
 def _as_planes(images: Float64NumpyArray) -> Float32NumpyArray:

@@ -7,4 +7,6 @@ intermediate vector embedding. Every metric derives from
 validation and memory-bounded pair batching.
 """
 
-__all__: list[str] = []
+from . import structural
+
+__all__ = ["structural"]

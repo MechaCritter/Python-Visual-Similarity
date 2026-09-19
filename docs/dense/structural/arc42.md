@@ -1,6 +1,6 @@
 # arc42: structural
 
-Software architecture of `pyvisim.structural`. This document is for developers
+Software architecture of `pyvisim.dense.structural`. This document is for developers
 and is not part of the published documentation.
 
 ## Building block view
@@ -13,7 +13,7 @@ namely input normalization, shape validation and memory-bounded pair batching.
 are computed by the same kernel at every scale.
 
 The window statistics are computed by a compiled kernel under
-`pyvisim/structural/_kernel/`, which `make build-ext` regenerates from its
+`pyvisim/dense/structural/_kernel/`, which `make build-ext` regenerates from its
 Cython source.
 
 ## Architecture decisions

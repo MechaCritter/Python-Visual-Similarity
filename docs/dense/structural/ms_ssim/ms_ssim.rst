@@ -21,7 +21,7 @@ Usage
 
 .. code-block:: python
 
-   from pyvisim.structural import MSSSIM
+   from pyvisim.dense.structural import MSSSIM
 
    msssim = MSSSIM(batch_size=16)
    matrix = msssim.similarity_score(gallery, queries)   # (N, M) matrix
@@ -32,7 +32,7 @@ Usage
 API reference
 -------------
 
-.. autoclass:: pyvisim.structural.MSSSIM
+.. autoclass:: pyvisim.dense.structural.MSSSIM
    :members:
    :inherited-members:
    :show-inheritance:

@@ -17,11 +17,11 @@ from torchmetrics.functional.image import (
 
 from pyvisim.base import DenseMetricBase
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.structural import MSSSIM, SSIM
+from pyvisim.dense.structural import MSSSIM, SSIM
 from pyvisim.typing import UInt8NumpyArray
 
-_SCRIPT_REF = "docs/structural/benchmarks/generate_benchmark.py"
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SCRIPT_REF = "docs/dense/structural/benchmarks/generate_benchmark.py"
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # Fixed thread budget of every run.
 _NUM_THREADS = 4
@@ -432,18 +432,18 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     """Parse the command-line arguments."""
     parser = argparse.ArgumentParser(
         description='Generate the "Benchmark" documentation pages '
-        "for ``pyvisim.structural``."
+        "for ``pyvisim.dense.structural``."
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=_REPO_ROOT / "docs" / "structural" / "benchmarks",
+        default=_REPO_ROOT / "docs" / "dense" / "structural" / "benchmarks",
         help="Directory the runtime barplot PNGs are written to.",
     )
     parser.add_argument(
         "--docs-dir",
         type=Path,
-        default=_REPO_ROOT / "docs" / "structural",
+        default=_REPO_ROOT / "docs" / "dense" / "structural",
         help="Documentation folder holding one sub-folder per metric.",
     )
     parser.add_argument(

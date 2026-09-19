@@ -11,9 +11,9 @@ https://doi.org/10.1109/TIP.2003.819861
 
 import numpy as np
 
-from ..base import CANONICAL_DATA_RANGE, DenseMetricBase
-from ..typing import Float64NumpyArray
-from ..utils.cython_utils import get_kernel_threads
+from ...base import CANONICAL_DATA_RANGE, DenseMetricBase
+from ...typing import Float64NumpyArray
+from ...utils.cython_utils import get_kernel_threads
 from ._filters import _as_planes, gaussian_kernel
 from ._kernel._ssim_kernels import ssim_plane_sums
 

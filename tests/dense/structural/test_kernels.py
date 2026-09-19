@@ -1,12 +1,12 @@
-"""Tests for the compiled :mod:`pyvisim.structural._kernel._ssim_kernels` module."""
+"""Tests for the compiled :mod:`pyvisim.dense.structural._kernel._ssim_kernels` module."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from pyvisim.structural._filters import gaussian_kernel
-from pyvisim.structural._kernel._ssim_kernels import ssim_plane_sums
+from pyvisim.dense.structural._filters import gaussian_kernel
+from pyvisim.dense.structural._kernel._ssim_kernels import ssim_plane_sums
 from pyvisim.utils.cython_utils import get_kernel_threads
 
 C1 = (0.01 * 255.0) ** 2

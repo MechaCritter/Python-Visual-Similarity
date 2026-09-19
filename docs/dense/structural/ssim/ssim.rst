@@ -15,7 +15,7 @@ Usage
 
 .. code-block:: python
 
-   from pyvisim.structural import SSIM
+   from pyvisim.dense.structural import SSIM
 
    ssim = SSIM()
    scores = ssim.similarity_score(image1, image2)   # (1, 1) matrix
@@ -26,7 +26,7 @@ Usage
 API reference
 -------------
 
-.. autoclass:: pyvisim.structural.SSIM
+.. autoclass:: pyvisim.dense.structural.SSIM
    :members:
    :inherited-members:
    :show-inheritance:

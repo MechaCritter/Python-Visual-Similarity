@@ -10,6 +10,8 @@ going through an intermediate vector embedding. They all derive from
 `DenseMetricBase`, which owns the shared pipeline around the metric itself,
 namely input normalization, shape validation and memory-bounded pair batching.
 
+- [Structural](structural/arc42.md): SSIM and MSSSIM.
+
 ## Architecture decisions
 
 ### The kernels are multithreaded and their team size is an environment variable

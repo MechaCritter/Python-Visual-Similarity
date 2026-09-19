@@ -17,7 +17,6 @@ __all__ = [
     "image_store",
     "pixelwise",
     "serialization",
-    "structural",
     "typing",
 ]
 
