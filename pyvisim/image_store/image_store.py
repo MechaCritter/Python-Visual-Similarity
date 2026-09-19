@@ -146,7 +146,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - If omitted
+         - Default
          - Meaning
        * - ``graph_degree``
          - ``16``
@@ -178,7 +178,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - If omitted
+         - Default
          - Meaning
        * - ``num_threads``
          - ``-1``
