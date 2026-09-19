@@ -14,7 +14,6 @@ from pyvisim.typing import UInt8NumpyArray
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     from torch.utils.data import Dataset
-    from torchvision import transforms
 
 _torch_import.check()
 
@@ -239,19 +238,21 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
     it makes more sense to have more images for training for this project, the train and test
     splits have been swapped.
 
-    :param transform: Transformations to apply to the images.
+    .. note::
+
+        The dataset takes no ``transform``. Every item is the raw RGB ``uint8``
+        array, which is the image format all embedders, feature extractors and
+        similarity metrics of this library accept. Preprocessing is owned by
+        the model consuming the image, so a transform here would apply it
+        twice and would not reach the images loaded through ``image_paths``.
+        To train with augmentations, wrap the dataset in your own
+        ``torch.utils.data.Dataset`` and apply the transform there.
+
     :param purpose: Purpose of the dataset ('train', 'test', 'validation'). You
         can also pass a list such as ['train', 'validation'] to get a combined dataset.
     """
 
-    def __init__(
-        self,
-        transform: transforms.Compose | None = None,
-        purpose: str | list[str] = "train",
-    ) -> None:
-        if transform is not None:
-            raise NotImplementedError("Transformations are not yet supported.")
-        self.transform = transform
+    def __init__(self, purpose: str | list[str] = "train") -> None:
         self.purpose = [purpose] if isinstance(purpose, str) else purpose
         if len(set(self.purpose)) < len(self.purpose):
             raise ValueError(
@@ -337,14 +338,9 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         Get an image and its corresponding label.
 
         :param idx: Index of the image.
-        :return: Tuple of transformed image, label, and image path.
+        :return: Tuple of image, label, and image path.
         """
         img_path = self.image_paths[idx]
         label = self.labels[idx] if self.labels else -1
-
         image = read_image_rgb(img_path)
-
-        if self.transform:
-            image = self.transform(image)
-
         return image, label, img_path
