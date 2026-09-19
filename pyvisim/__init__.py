@@ -10,13 +10,12 @@ from types import ModuleType
 __all__ = [
     "base",
     "classic",
+    "dense",
     "distance",
     "eval",
     "features",
     "image_store",
-    "pixelwise",
     "serialization",
-    "structural",
     "typing",
 ]
 

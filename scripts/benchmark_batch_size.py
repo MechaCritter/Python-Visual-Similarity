@@ -32,6 +32,8 @@ from PIL import Image
 from pyvisim.base import ImageEmbedderBase, SimilarityMetric
 from pyvisim.classic import FisherVectorEmbedder, Pipeline, VLADEmbedder
 from pyvisim.datasets import OxfordFlowerDataset
+from pyvisim.dense.pixelwise import PSNR
+from pyvisim.dense.structural import MSSSIM, SSIM
 from pyvisim.features import DeepConvFeature, RootSIFT
 from pyvisim.neural_networks import (
     BCESiameseNetwork,
@@ -39,8 +41,6 @@ from pyvisim.neural_networks import (
     ContrastiveSiameseNetwork,
     TripletNeuralNetwork,
 )
-from pyvisim.pixelwise import PSNR
-from pyvisim.structural import MSSSIM, SSIM
 from pyvisim.typing import FloatNumpyArray, UInt8NumpyArray
 
 _SCRIPT_REF = "scripts/benchmark_batch_size.py"

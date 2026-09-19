@@ -3,9 +3,9 @@
 # Regenerate the checked-in Cython C sources and rebuild the editable install.
 # --inexact keeps ad-hoc packages in the venv from being pruned.
 build-ext:
-	uv run --group build cythonize -3 pyvisim/structural/_kernel/_ssim_kernels.pyx
+	uv run --group build cythonize -3 pyvisim/dense/structural/_kernel/_ssim_kernels.pyx
 	uv run --group build cythonize -3 pyvisim/features/_vendored/sift/_sift.pyx
-	uv run --group build cythonize -3 pyvisim/pixelwise/_kernel/_ssd_kernel.pyx
+	uv run --group build cythonize -3 pyvisim/dense/pixelwise/_kernel/_ssd_kernel.pyx
 	uv sync --inexact --reinstall-package pyvisim
 
 # Strict mypy type-checking

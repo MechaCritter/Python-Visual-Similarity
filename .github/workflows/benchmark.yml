@@ -54,9 +54,9 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          scripts=(docs/*/benchmarks/generate_benchmark.py)
+          scripts=(docs/*/benchmarks/generate_benchmark.py docs/*/*/benchmarks/generate_benchmark.py)
           if [ ${#scripts[@]} -eq 0 ]; then
-            echo "No benchmark scripts found under docs/*/benchmarks/." >&2
+            echo "No benchmark scripts found under docs/*/benchmarks/ or docs/*/*/benchmarks/." >&2
             exit 1
           fi
           for script in "${scripts[@]}"; do
