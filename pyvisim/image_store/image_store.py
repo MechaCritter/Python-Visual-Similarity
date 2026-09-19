@@ -146,8 +146,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - If omitted
-         - Meaning
+         - Default
+         - Explanation
        * - ``graph_degree``
          - ``16``
          - Bidirectional links created per node. Higher values raise recall on
@@ -178,8 +178,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - If omitted
-         - Meaning
+         - Default
+         - Explanation
        * - ``num_threads``
          - ``-1``
          - Threads used to run batched queries. ``-1`` uses every available
