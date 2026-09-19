@@ -249,62 +249,15 @@ It runs Sphinx with `-W`, so a dangling reference, an orphan document or a
 broken directive fails the build the same way it fails the CI. Open
 `docs/_build/html/index.html` to review the result.
 
-### Tutorial notebooks
+### Tutorials
 
-The tutorials are Jupyter notebooks under `docs/tutorials/notebooks/`, and
-Sphinx renders every notebook as a page of its own. Their helper functions live
-in `docs/tutorials/notebooks/tutorial_utils.py`. The libraries they import are
-in the `tutorials` dependency group:
+Tutorials are written as Jupyter Notebooks and will be added to the section
+`tutorials/` in the documentation after every merge. See [the guidelines
+here](docs/tutorials/notebooks/README.md).
 
-```bash
-uv sync --group tutorials --extra nn
-```
-
-The tutorials are grouped into numbered chapters, one `.rst` page per chapter
-under `docs/tutorials/` (`1_introduction.rst`, `2_classical_methods.rst`, ...).
-Each notebook carries a single top-level heading, which the sidebar lists as
-`1.1 <heading>` under its chapter. To add a tutorial, place the notebook in the
-notebooks folder and list it in the table and the `toctree` of its chapter
-page. GitHub's runners have no GPU, so keep the workload small enough to finish
-on a CPU, as the training notebooks do with their epoch and subset settings.
-
-Notebooks are committed **without outputs**, so that their images never bloat
-the history. Nothing strips them for you on commit, and the CI fails if a
-notebook still carries outputs. Run this before you commit a notebook:
-
-```bash
-make strip-notebooks
-```
-
-It also removes the kernel metadata, which your editor writes back as soon as
-you run a cell.
-
-`make docs` does not execute the notebooks. It renders them as they are on
-disk, so a freshly checked out notebook shows up without outputs. To review the
-outputs, run the notebooks first. This writes the executed notebooks back in
-place, so strip them again before you commit:
-
-```bash
-make test-notebooks
-make docs
-```
-
-`make docs NB_EXECUTION_MODE=cache` executes the notebooks the way the CI does
-and caches their outputs in `docs/_build/.jupyter_cache`, so that a notebook
-only runs again once its code cells change.
-
-On a pull request, the `Docs` workflow executes the notebooks you added or
-changed, or all of them if you changed `tutorial_utils.py`, and uploads the
-rendered HTML as the `docs-html` artifact of the run. Download it to review the
-executed notebooks, since the committed ones carry no outputs.
-
-A notebook can also break without being changed, when the library changes
-underneath it. The `Tutorials` workflow therefore runs every notebook from
-scratch every three days, and you can start it by hand from the Actions tab.
-`make test-notebooks` runs them all locally in parallel.
-
-Notebooks that share one GPU can run out of memory. Limit the parallel runs
-with `NOTEBOOK_WORKERS`, e.g. `make test-notebooks NOTEBOOK_WORKERS=2`.
+> [!IMPORTANT]
+>
+> If you made API changes unrelated to the tutorials, some tutorials might become outdated and hence break. To save us precious CI time, please run `make test-notebooks` locally first before you commit and fix the affected tutorials.
 
 ## Code style
 
