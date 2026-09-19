@@ -19,8 +19,7 @@ A Python library for image similarity analysis and retrieval.
    dataset/index
    neural_networks/index
    distance/index
-   structural/index
-   pixelwise/index
+   dense/index
    typing/index
    eval/index
 

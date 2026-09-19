@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    ``pyvisim.structural`` and ``pyvisim.pixelwise`` moved under the new
+    ``pyvisim.dense`` package. Imports of ``SSIM``, ``MSSSIM`` and ``PSNR``
+    from the old paths fail with ``ModuleNotFoundError``, so change them to
+    ``pyvisim.dense.structural`` and ``pyvisim.dense.pixelwise``:
+
+    .. code:: python
+
+        from pyvisim.dense.pixelwise import PSNR
+        from pyvisim.dense.structural import MSSSIM, SSIM
