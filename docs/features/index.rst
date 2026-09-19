@@ -32,17 +32,6 @@ The table below includes feature extractors currently implemented in
      - user-defined
      - wraps any custom function
 
-Table of Contents
------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   sift/sift
-   rootsift/rootsift
-   deep_conv_feature/deep_conv_feature
-   lambda/lambda
-
 Reconstructing feature extractors
 ---------------------------------
 
@@ -62,6 +51,23 @@ description names.
 
    # Reload extractor
    reloaded = FeatureExtractorBase.from_dict(serialized)
+
+Table of Contents
+-----------------
+
+.. toctree::
+   :maxdepth: 1
+
+   sift/sift
+   rootsift/rootsift
+   deep_conv_feature/deep_conv_feature
+   lambda/lambda
+
+Serialization
+-------------
+
+Extractors (except for :class:`~pyvisim.features.Lambda`) can 
+be (de)serialized to/from a JSON-safe dictionary with the methods below.
 
 .. automethod:: pyvisim.base.FeatureExtractorBase.to_dict
 
