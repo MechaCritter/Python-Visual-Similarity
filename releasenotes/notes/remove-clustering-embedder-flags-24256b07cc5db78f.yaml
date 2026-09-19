@@ -5,6 +5,9 @@ upgrade:
     ``raise_error_when_pca_incompatible``. A clustering model the fitted PCA
     cannot feed always raises a ``RuntimeError``, so drop the argument.
   - |
+    ``VLADEmbedder`` and ``FisherVectorEmbedder`` no longer take ``flatten``.
+    ``embed`` always returns one flat row per image, so drop the argument.
+  - |
     Embedders saved by ``VLADEmbedder`` and ``FisherVectorEmbedder`` are
     written under format version 4. Files of version 3 still load, files of
     version 4 do not load with an older ``pyvisim``.

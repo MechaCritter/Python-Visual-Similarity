@@ -39,7 +39,6 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed embedding vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
@@ -62,7 +61,6 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         power_norm_weight: float = 0.5,
         norm_order: int = 2,
         epsilon: float = 1e-9,
-        flatten: bool = True,
         similarity_func: str = "cosine",
         *,
         normalize: bool = True,
@@ -83,7 +81,6 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
             power_norm_weight=power_norm_weight,
             norm_order=norm_order,
             epsilon=epsilon,
-            flatten=flatten,
             pca=pca,
             normalize=normalize,
             batch_size=batch_size,

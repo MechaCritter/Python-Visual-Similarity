@@ -97,7 +97,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed descriptor vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
     ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param pca: PCA model for dimensionality reduction (optional). Subclasses build
@@ -122,9 +121,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         (2, 3): True,
         (3, 1): False,
         (3, 2): False,
-        # Version 4 drops the "raise_error_when_pca_incompatible" key. A
-        # version 4 reader ignores it in an older file, while every older
-        # reader requires it, so the compatibility only holds towards
+        # Version 4 drops the "flatten" and "raise_error_when_pca_incompatible"
+        # keys. A version 4 reader ignores them in an older file, while every
+        # older reader requires them, so the compatibility only holds towards
         # version 4 and only from version 3, the one version whose other
         # keys version 4 still requires.
         (4, 3): True,
@@ -143,7 +142,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         "power_norm_weight",
         "norm_order",
         "epsilon",
-        "flatten",
         "feature_extractor",
     }
 
@@ -155,7 +153,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         power_norm_weight: float = 1,
         norm_order: int = 2,
         epsilon: float = 1e-9,
-        flatten: bool = True,
         pca: PCA | None = None,
         *,
         normalize: bool = True,
@@ -168,7 +165,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         self.power_norm_weight = power_norm_weight
         self.norm_order = norm_order
         self.epsilon = epsilon
-        self.flatten = flatten
 
         # The feature extractor setter validates against the (currently unset)
         # PCA / clustering model, so both must already exist as ``None`` above.
@@ -480,7 +476,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             "power_norm_weight": self.power_norm_weight,
             "norm_order": self.norm_order,
             "epsilon": self.epsilon,
-            "flatten": self.flatten,
             "similarity_func": self._similarity_func_name,
             "normalize": self.normalize,
             "batch_size": self.batch_size,
@@ -500,7 +495,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             power_norm_weight=state["power_norm_weight"],
             norm_order=state["norm_order"],
             epsilon=state["epsilon"],
-            flatten=state["flatten"],
             normalize=state["normalize"],
             batch_size=state["batch_size"],
         )

@@ -67,7 +67,6 @@ class VLADEmbedder(ClusteringBasedEmbedder):
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
-    :param flatten: Whether to flatten the computed descriptor vector.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
     :param normalize: Whether ``embed`` L2-normalizes the embeddings it returns.
@@ -92,7 +91,6 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         power_norm_weight: float = 1,  # no paper found where power norm weight is used for VLAD
         norm_order: int = 2,
         epsilon: float = 1e-9,
-        flatten: bool = True,
         similarity_func: str = "cosine",
         *,
         normalize: bool = True,
@@ -111,7 +109,6 @@ class VLADEmbedder(ClusteringBasedEmbedder):
             power_norm_weight=power_norm_weight,
             norm_order=norm_order,
             epsilon=epsilon,
-            flatten=flatten,
             pca=pca,
             normalize=normalize,
             batch_size=batch_size,
@@ -142,8 +139,7 @@ class VLADEmbedder(ClusteringBasedEmbedder):
         :param descriptors: The ``(N, D)`` descriptors of the batch, stacked in
             image order.
         :param counts: How many of the ``N`` rows belong to each image.
-        :return: The ``(B, k * D)`` embeddings of the batch, or ``(B * k, D)``
-            when ``flatten`` is off.
+        :return: The ``(B, k * D)`` embeddings of the batch.
         """
         descriptors = self._project(descriptors).astype(np.float32)
         centroids = self.clustering_model.cluster_centers
@@ -165,5 +161,4 @@ class VLADEmbedder(ClusteringBasedEmbedder):
             + self.epsilon
         )
         residuals = residuals / norms
-        shape = (n_images, k * dim) if self.flatten else (n_images * k, dim)
-        return cast(Float32NumpyArray, residuals.reshape(shape))
+        return cast(Float32NumpyArray, residuals.reshape(n_images, k * dim))
