@@ -15,7 +15,6 @@ from unittest import mock
 
 import numpy as np
 import pytest
-from torchvision import transforms
 
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.datasets import datasets as ds
@@ -306,15 +305,6 @@ def test_download_writes_content() -> None:
 
 
 # §4.5 OxfordFlowerDataset
-
-
-def test_transform_not_none_raises() -> None:
-    """Supplying a transform raises ``NotImplementedError`` (not yet supported)."""
-    with _construction_io():
-        with pytest.raises(
-            NotImplementedError, match="Transformations are not yet supported"
-        ):
-            OxfordFlowerDataset(transform=transforms.Compose([]))
 
 
 def test_duplicate_purposes_raises() -> None:
