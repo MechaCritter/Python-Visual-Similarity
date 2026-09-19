@@ -1,0 +1,6 @@
+---
+enhancements:
+  - |
+    The tutorial notebooks define their plotting helpers themselves instead of
+    importing them from a shared module, so that a change to a helper no
+    longer executes every notebook again.
