@@ -11,6 +11,7 @@ going through an intermediate vector embedding. They all derive from
 namely input normalization, shape validation and memory-bounded pair batching.
 
 - [Structural](structural/arc42.md): SSIM and MSSSIM.
+- [Pixelwise](pixelwise/arc42.md): PSNR.
 
 ## Architecture decisions
 

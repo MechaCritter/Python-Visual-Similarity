@@ -5,7 +5,7 @@
 build-ext:
 	uv run --group build cythonize -3 pyvisim/dense/structural/_kernel/_ssim_kernels.pyx
 	uv run --group build cythonize -3 pyvisim/features/_vendored/sift/_sift.pyx
-	uv run --group build cythonize -3 pyvisim/pixelwise/_kernel/_ssd_kernel.pyx
+	uv run --group build cythonize -3 pyvisim/dense/pixelwise/_kernel/_ssd_kernel.pyx
 	uv sync --inexact --reinstall-package pyvisim
 
 # Strict mypy type-checking

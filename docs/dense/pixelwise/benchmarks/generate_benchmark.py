@@ -13,11 +13,11 @@ from skimage.metrics import peak_signal_noise_ratio
 
 from pyvisim.base import SimilarityMetric
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.pixelwise import PSNR
+from pyvisim.dense.pixelwise import PSNR
 from pyvisim.typing import UInt8NumpyArray
 
-_SCRIPT_REF = "docs/pixelwise/benchmarks/generate_benchmark.py"
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SCRIPT_REF = "docs/dense/pixelwise/benchmarks/generate_benchmark.py"
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # Fixed thread budget of every run: the compiled SSD kernel's OpenMP team size.
 _NUM_WORKERS = 4
@@ -356,18 +356,18 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     """Parse the command-line arguments."""
     parser = argparse.ArgumentParser(
         description='Generate the "Benchmark" documentation pages '
-        "for ``pyvisim.pixelwise``."
+        "for ``pyvisim.dense.pixelwise``."
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=_REPO_ROOT / "docs" / "pixelwise" / "benchmarks",
+        default=_REPO_ROOT / "docs" / "dense" / "pixelwise" / "benchmarks",
         help="Directory the runtime barplot PNGs are written to.",
     )
     parser.add_argument(
         "--docs-dir",
         type=Path,
-        default=_REPO_ROOT / "docs" / "pixelwise",
+        default=_REPO_ROOT / "docs" / "dense" / "pixelwise",
         help="Documentation folder holding one sub-folder per metric.",
     )
     parser.add_argument(

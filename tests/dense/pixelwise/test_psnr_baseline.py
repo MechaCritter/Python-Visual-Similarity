@@ -1,10 +1,10 @@
-"""Slow tests of :class:`pyvisim.pixelwise.PSNR` against its reference.
+"""Slow tests of :class:`pyvisim.dense.pixelwise.PSNR` against its reference.
 
 The baseline is the one the documented benchmark uses,
 ``skimage.metrics.peak_signal_noise_ratio(data_range=255)``, and so is the
 setup: Oxford Flower images distorted with Gaussian noise for the accuracy
 checks, square-resized galleries and a median over repeated calls for the
-runtime one (see ``docs/pixelwise/benchmarks/generate_benchmark.py``).
+runtime one (see ``docs/dense/pixelwise/benchmarks/generate_benchmark.py``).
 
 The module is marked ``slow`` because it downloads the flower dataset.
 """
@@ -20,7 +20,7 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio
 
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.pixelwise import PSNR
+from pyvisim.dense.pixelwise import PSNR
 from pyvisim.typing import UInt8NumpyArray
 
 pytestmark = pytest.mark.slow

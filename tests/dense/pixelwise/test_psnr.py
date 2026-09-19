@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.pixelwise.PSNR`."""
+"""Tests for :class:`pyvisim.dense.pixelwise.PSNR`."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from pyvisim.pixelwise import PSNR
-from pyvisim.pixelwise import psnr as psnr_module
+from pyvisim.dense.pixelwise import PSNR
+from pyvisim.dense.pixelwise import psnr as psnr_module
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj

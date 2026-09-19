@@ -1,6 +1,6 @@
 # arc42: pixelwise
 
-Software architecture of `pyvisim.pixelwise`. This document is for developers
+Software architecture of `pyvisim.dense.pixelwise`. This document is for developers
 and is not part of the published documentation.
 
 ## Building block view
@@ -11,7 +11,7 @@ which owns the shared pipeline around the metric itself, namely input
 normalization, shape validation and memory-bounded pair batching.
 
 The squared differences are summed by a compiled OpenMP kernel under
-`pyvisim/pixelwise/_kernel/`, which `make build-ext` regenerates from its
+`pyvisim/dense/pixelwise/_kernel/`, which `make build-ext` regenerates from its
 Cython source. This is also why every compared pair must share the same
 `(H, W[, C])` shape: the kernel walks the two buffers in step.
 

@@ -26,7 +26,7 @@ Usage
 
 .. code-block:: python
 
-   from pyvisim.pixelwise import PSNR
+   from pyvisim.dense.pixelwise import PSNR
 
    psnr = PSNR()
    scores = psnr.similarity_score(image1, image2)       # (1, 1) matrix, in decibels
@@ -46,7 +46,7 @@ caps the peak memory of very large galleries.
 API reference
 -------------
 
-.. autoclass:: pyvisim.pixelwise.PSNR
+.. autoclass:: pyvisim.dense.pixelwise.PSNR
    :members:
    :inherited-members:
    :show-inheritance:

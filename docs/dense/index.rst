@@ -11,3 +11,4 @@ Table of Contents
    :maxdepth: 1
 
    structural/index
+   pixelwise/index

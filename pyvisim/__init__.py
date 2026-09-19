@@ -15,7 +15,6 @@ __all__ = [
     "eval",
     "features",
     "image_store",
-    "pixelwise",
     "serialization",
     "typing",
 ]

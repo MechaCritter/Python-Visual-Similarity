@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..base import CANONICAL_DATA_RANGE, DenseMetricBase
-from ..typing import Float64NumpyArray, UInt8NumpyArray
-from ..utils.cython_utils import get_kernel_threads
+from ...base import CANONICAL_DATA_RANGE, DenseMetricBase
+from ...typing import Float64NumpyArray, UInt8NumpyArray
+from ...utils.cython_utils import get_kernel_threads
 from ._kernel._ssd_kernel import ssd_matrix
 
 __all__ = ["PSNR"]
@@ -60,7 +60,7 @@ class PSNR(DenseMetricBase):
     Example:
 
     >>> import numpy as np
-    >>> from pyvisim.pixelwise import PSNR
+    >>> from pyvisim.dense.pixelwise import PSNR
     >>> image = np.random.default_rng(0).integers(0, 256, (32, 32, 3), dtype=np.uint8)
     >>> PSNR().similarity_score(image, image)
     array([[inf]])

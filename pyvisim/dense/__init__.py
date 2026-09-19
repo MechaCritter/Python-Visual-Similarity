@@ -7,6 +7,6 @@ intermediate vector embedding. Every metric derives from
 validation and memory-bounded pair batching.
 """
 
-from . import structural
+from . import pixelwise, structural
 
-__all__ = ["structural"]
+__all__ = ["pixelwise", "structural"]

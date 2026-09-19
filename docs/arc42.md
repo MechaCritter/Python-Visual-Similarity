@@ -11,7 +11,7 @@ own `arc42.md` next to its pages, and this one carries what spans them.
 - [Distance](distance/arc42.md): the distance metrics that compare embeddings.
 - [Dense](dense/arc42.md): what the dense metrics share.
 - [Structural](dense/structural/arc42.md): SSIM and MSSSIM.
-- [Pixelwise](pixelwise/arc42.md): PSNR.
+- [Pixelwise](dense/pixelwise/arc42.md): PSNR.
 - [Classic](classic/arc42.md): classical embedding methods pre deep learning
   era.
 - [Image similarity retrieval](image_similarity_retrieval/arc42.md): image
