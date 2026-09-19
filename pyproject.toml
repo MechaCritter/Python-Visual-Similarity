@@ -64,10 +64,10 @@ include = ["pyvisim", "pyvisim.*"]
 [tool.setuptools.package-data]
 pyvisim = [
     "py.typed",
-    "structural/_kernel/*.pyx",
-    "structural/_kernel/*.pyi",
-    "pixelwise/_kernel/*.pyx",
-    "pixelwise/_kernel/*.pyi",
+    "dense/structural/_kernel/*.pyx",
+    "dense/structural/_kernel/*.pyi",
+    "dense/pixelwise/_kernel/*.pyx",
+    "dense/pixelwise/_kernel/*.pyi",
     "features/_vendored/sift/*.pyx",
     "features/_vendored/sift/*.pxd",
     "image_store/_index/_bindings/*.cpp",
@@ -119,7 +119,7 @@ build = [
     "pybind11>=3.0.0",
 ]
 # Reference implementations and tooling for the notebooks/benchmark_*.ipynb
-# notebooks and docs/structural/benchmarks/generate_benchmark.py; scikit-learn
+# notebooks and docs/dense/structural/benchmarks/generate_benchmark.py; scikit-learn
 # is the comparison baseline of the clustering/PCA benchmarks.
 bench = [
     "scikit-image",
