@@ -1,8 +1,7 @@
 Dense
 =====
 
-Contains metrics that compare two aligned images directly instead of going
-through an intermediate vector embedding.
+Contains metrics that compare two aligned images directly.
 
 Table of Contents
 -----------------
