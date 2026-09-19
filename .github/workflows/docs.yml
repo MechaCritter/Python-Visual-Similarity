@@ -91,15 +91,14 @@ jobs:
 
       # jupyter-cache keys every executed notebook on its code cells, so the
       # newest cache is safe to restore and only changed notebooks run again.
-      # It does not track tutorial_utils.py, so a change there starts from an
-      # empty cache. Bump '-v1' to discard every cached execution.
+      # Bump '-v1' to discard every cached execution.
       - name: Restore the executed notebooks
         id: notebook-cache
         uses: actions/cache/restore@v6
         with:
           path: docs/_build/.jupyter_cache
-          key: pyvisim-notebooks-v1-${{ hashFiles('docs/tutorials/notebooks/tutorial_utils.py') }}
-          restore-keys: pyvisim-notebooks-v1-${{ hashFiles('docs/tutorials/notebooks/tutorial_utils.py') }}-
+          key: pyvisim-notebooks-v1
+          restore-keys: pyvisim-notebooks-v1-
 
       - name: Resolve the dataset cache directory
         id: dataset-cache
@@ -136,11 +135,11 @@ jobs:
       # The key hashes the cached executions, so a build that neither executed
       # nor pruned a notebook does not save the same cache again.
       - name: Save the executed notebooks
-        if: ${{ !cancelled() && hashFiles('docs/_build/.jupyter_cache/executed/**') != '' && steps.notebook-cache.outputs.cache-matched-key != format('pyvisim-notebooks-v1-{0}-{1}', hashFiles('docs/tutorials/notebooks/tutorial_utils.py'), hashFiles('docs/_build/.jupyter_cache/executed/**')) }}
+        if: ${{ !cancelled() && hashFiles('docs/_build/.jupyter_cache/executed/**') != '' && steps.notebook-cache.outputs.cache-matched-key != format('pyvisim-notebooks-v1-{0}', hashFiles('docs/_build/.jupyter_cache/executed/**')) }}
         uses: actions/cache/save@v6
         with:
           path: docs/_build/.jupyter_cache
-          key: pyvisim-notebooks-v1-${{ hashFiles('docs/tutorials/notebooks/tutorial_utils.py') }}-${{ hashFiles('docs/_build/.jupyter_cache/executed/**') }}
+          key: pyvisim-notebooks-v1-${{ hashFiles('docs/_build/.jupyter_cache/executed/**') }}
 
       # The pull request opened from the 'Benchmarks' workflow publishes them
       # under 'benchmark/' on the orphan 'assets' branch, and they are overlaid
