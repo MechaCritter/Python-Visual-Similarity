@@ -64,6 +64,16 @@ jobs:
       - name: Check format
         run: uv run --group lint ruff format --check .
 
+      # Notebooks are committed without outputs, so that no image ever enters the
+      # history. Nothing strips them on commit, the author runs the make target.
+      - name: Check notebooks are stripped
+        run: |
+          if ! make check-notebooks
+          then
+            echo "::error::Some notebooks still carry outputs or execution metadata. Run 'make strip-notebooks' and commit the result."
+            exit 1
+          fi
+
   # 3: pytest unit tests with coverage
   tests:
     name: "Unit tests (${{ matrix.os }})"

@@ -249,6 +249,16 @@ It runs Sphinx with `-W`, so a dangling reference, an orphan document or a
 broken directive fails the build the same way it fails the CI. Open
 `docs/_build/html/index.html` to review the result.
 
+### Tutorials
+
+Tutorials are written as Jupyter Notebooks and will be added to the section
+`tutorials/` in the documentation after every merge. See [the guidelines
+here](docs/tutorials/notebooks/README.md).
+
+> [!IMPORTANT]
+>
+> If you made API changes unrelated to the tutorials, some tutorials might become outdated and hence break. To save us precious CI time, please run `make test-notebooks` locally first before you commit and fix the affected tutorials.
+
 ## Code style
 
 - Use **snake_case** for variables and functions, **PascalCase** for classes.
