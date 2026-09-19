@@ -298,23 +298,6 @@ def test_the_batch_size_applies_to_a_generator_of_images(
     np.testing.assert_array_equal(from_generator, batched_vlad.embed(sample_images))
 
 
-def test_unflattened_batching_keeps_the_layout(
-    batched_vlad: VLADEmbedder, sample_images: list[np.ndarray]
-) -> None:
-    """With ``flatten`` off, batches stack per-cluster rows just as singles do."""
-    batched_vlad.flatten = False
-    try:
-        batched_vlad.set_batch_size(1)
-        one_by_one = batched_vlad.embed(sample_images)
-        batched_vlad.set_batch_size(3)
-        batched = batched_vlad.embed(sample_images)
-    finally:
-        batched_vlad.flatten = True
-    n_clusters = batched_vlad.clustering_model.n_clusters
-    assert one_by_one.shape[0] == len(sample_images) * n_clusters
-    np.testing.assert_allclose(batched, one_by_one, rtol=1e-5, atol=1e-6)
-
-
 def test_a_featureless_image_is_reported_inside_a_batch(
     batched_vlad: VLADEmbedder,
     sample_images: list[np.ndarray],

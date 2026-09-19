@@ -14,10 +14,6 @@ class Pipeline(SerializableImageEmbedder):
     A pipeline for computing feature vectors using a set of
     embedders.
 
-    Currently, all vectors computed using the Embedders listed
-    will always be flattened, because different Embedders also
-    have different output sizes.
-
     :param embedders: A list of SerializableImageEmbedder instances.
     :param similarity_func: Name of the built-in similarity metric to use. One of
         ``"cosine"``, ``"euclidean"``, ``"l1"`` or ``"manhattan"``.
@@ -92,23 +88,9 @@ class Pipeline(SerializableImageEmbedder):
         )
 
     def _embed(self, images: list[UInt8NumpyArray]) -> FloatNumpyArray:
-        all_embeddings = []
-        for metric in self.embedders:
-            # Each embedder has to be flattened to be usable here. Embedders that
-            # do not expose a ``flatten`` flag are assumed to already emit flat
-            # ``(num_imgs, feature_dim)`` embeddings.
-            has_flatten = hasattr(metric, "flatten")
-            if has_flatten:
-                original_flatten = metric.flatten  # type: ignore[attr-defined]
-                metric.flatten = True  # type: ignore[attr-defined]
-            try:
-                # Each of size (num_imgs, feature_dim)
-                all_embeddings.append(metric.embed(images))
-            finally:
-                if has_flatten:
-                    metric.flatten = original_flatten  # type: ignore[attr-defined]
-        # The embedders' vectors sit side by side, in the pipeline's order.
-        return np.hstack(all_embeddings)
+        # Each embedder emits ``(num_imgs, feature_dim)`` embeddings, and their
+        # vectors sit side by side, in the pipeline's order.
+        return np.hstack([embedder.embed(images) for embedder in self.embedders])
 
     def __repr__(self) -> str:
         """
