@@ -260,10 +260,13 @@ in the `tutorials` dependency group:
 uv sync --group tutorials --extra nn
 ```
 
-To add a tutorial, place the notebook in that folder and list it in the table
-and the `toctree` of `docs/tutorials/tutorial.rst`. GitHub's runners have no
-GPU, so keep the workload small enough to finish on a CPU, as the training
-notebooks do with their epoch and subset settings.
+The tutorials are grouped into numbered chapters, one `.rst` page per chapter
+under `docs/tutorials/` (`1_introduction.rst`, `2_classical_methods.rst`, ...).
+Each notebook carries a single top-level heading, which the sidebar lists as
+`1.1 <heading>` under its chapter. To add a tutorial, place the notebook in the
+notebooks folder and list it in the table and the `toctree` of its chapter
+page. GitHub's runners have no GPU, so keep the workload small enough to finish
+on a CPU, as the training notebooks do with their epoch and subset settings.
 
 Notebooks are committed **without outputs**, so that their images never bloat
 the history. Nothing strips them for you on commit, and the CI fails if a

@@ -110,7 +110,7 @@ best = KReciprocalReranker(image_store).rerank(pool, top_k=5)
 ```
 
 For more examples, please refer to the
-[tutorials](https://mechacritter.github.io/Python-Visual-Similarity/tutorials/tutorial.html).
+[tutorials](https://mechacritter.github.io/Python-Visual-Similarity/tutorials/1_introduction.html).
 
 ## Installation
 

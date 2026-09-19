@@ -140,6 +140,9 @@ GITHUB_ICON = """
 html_theme = "furo"
 html_title = f"pyvisim {release}"
 html_static_path = ["_static"]
+# The tutorial chapters and their notebooks are numbered, and the numbers read
+# as '1.1 Title' rather than '1.1. Title'.
+html_secnumber_suffix = " "
 
 html_theme_options = {
     "footer_icons": [

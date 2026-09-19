@@ -34,6 +34,7 @@ enhancements:
     GitHub alert blocks such as > [!NOTE] in the tutorial notebooks render
     as admonitions in the documentation.
   - |
-    Every tutorial notebook carries a single top-level heading, so the
-    documentation sidebar lists one entry per notebook instead of one per
-    section.
+    The tutorials are grouped into the numbered chapters Introduction,
+    Classical methods, Metric learning methods and Image similarity search.
+    Every notebook carries a single top-level heading, which the sidebar lists
+    as ``1.1 <heading>`` under its chapter.
