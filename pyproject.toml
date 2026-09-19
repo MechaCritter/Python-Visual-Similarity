@@ -130,8 +130,8 @@ bench = [
     "ipykernel",
     "psutil",
 ]
-# Libraries imported by the tutorial notebooks under docs/tutorials/notebooks/
-# and their helper module, plus the kernel that executes the notebooks.
+# Libraries imported by the tutorial notebooks under docs/tutorials/notebooks/,
+# plus the kernel that executes the notebooks.
 tutorials = [
     "ipykernel",
     "matplotlib",
