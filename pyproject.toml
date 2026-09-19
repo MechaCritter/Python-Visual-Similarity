@@ -66,6 +66,8 @@ pyvisim = [
     "py.typed",
     "structural/_kernel/*.pyx",
     "structural/_kernel/*.pyi",
+    "pixelwise/_kernel/*.pyx",
+    "pixelwise/_kernel/*.pyi",
     "features/_vendored/sift/*.pyx",
     "features/_vendored/sift/*.pxd",
     "image_store/_index/_bindings/*.cpp",
