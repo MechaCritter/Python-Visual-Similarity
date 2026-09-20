@@ -109,6 +109,11 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
         numbers of descriptors; each is a matrix product over all descriptors
         of that image.
 
+        .. note::
+           The batch arrives as the float32 extractor output, but a PCA
+           projection hands back float64. This method therefore
+           takes the generic ``FloatNumpyArray`` instead of ``Float32NumpyArray``.
+
         :param descriptors: The ``(N, D)`` descriptors of the batch, stacked in
             image order.
         :param counts: How many of the ``N`` rows belong to each image.
