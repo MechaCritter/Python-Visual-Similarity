@@ -11,7 +11,7 @@ Use this checklist to stay on track for your first code PR:
 
 - **Fork and clone this repository**: see [Set up developer environment](#set-up-developer-environment) section.
 - **Check out the coding style**: see [Code style](#code-style) section.
-- **Run tests**: run `make test-types` and `make fmt` before you make a PR.
+- **Run tests**: run `make test-types` and `make fmt` before you make a PR. If `make test-types` stops on a syntax error inside NumPy, see [Known type-check issues](docs/ci/known_errors.md).
 - **Add a release note**: run `make release-note NAME=my-change` and fill in the generated file, see [Release notes](#release-notes).
 - **Open a PR** on GitHub.
 
@@ -175,7 +175,7 @@ folder is wiped and regenerated on every benchmark run.
 
 > [!IMPORTANT]
 > 1. Changes to `assets` go through a pull request via your fork, just like the `main` branch.
-> 
+>
 > 2. Start your branch from the `assets` branch of this repository, not from `main`.
 >
 > 3. When you open the pull request, select `assets` as the base branch, since GitHub suggests `main` by default.
