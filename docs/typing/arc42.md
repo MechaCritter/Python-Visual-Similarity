@@ -5,37 +5,37 @@ is not part of the published documentation.
 
 ## Building block view
 
-The module holds the input types and the normalization helpers every public
-method accepts, plus the protocols the library's own components are written
-against. The implementation is split: numeric types and image normalization
-live in `pyvisim/typing/numeric.py`, the embedder protocol in
+The module holds the input types and the normalization helpers that every
+public method accepts, plus the protocols the library's own components are
+written against. The implementation is split in two: numeric types and image
+normalization live in `pyvisim/typing/numeric.py`, the embedder protocol in
 `pyvisim/typing/embedders.py`.
 
 ## Architecture decisions
 
-### Components are coupled through protocols, not base classes
+### Components are coupled through protocols instead of base classes
 
 `Embedder`, `EmbeddingStore` and `SearchIndex` are `typing.Protocol` types, so
-a class satisfies one by having the right methods rather than by inheriting
+a class satisfies one by having the right methods and does not need to inherit
 from it. `VLADEmbedder`, `FisherVectorEmbedder` and `Pipeline` satisfy
-`Embedder` without any of them importing it, which is what lets
-`InMemoryImageEmbeddingStore` accept any of them without importing the concrete
-embedder classes, and lets `top_k_map` and `top_k_accuracy` stay decoupled from
-the concrete store.
+`Embedder` without importing it. In turn, `InMemoryImageEmbeddingStore` accepts
+any of them without importing the concrete embedder classes, and `top_k_map`
+and `top_k_accuracy` stay decoupled from the concrete store.
 
 ### Every input is normalized to one canonical image once per call
 
-Whatever a caller passes, it is converted to a `uint8` array in `[0, 255]` with
+Whatever a caller passes is converted to a `uint8` array in `[0, 255]`, with
 the axes read off the `dims` string, once per call and before the feature
 extractor sees it. That single conversion point is why `dims` and
-`value_range` appear on every method that takes image data instead of each
+`value_range` appear on every method that takes image data, instead of each
 component inventing its own layout convention.
 
 ### float32 is the storage dtype, float64 the compute dtype
 
-Two float aliases are exported, and the choice between them is explained below:
+Three float aliases are exported, and the choice between them is explained
+below:
 
-1. `Float32NumpyArray`: used for data that is kept in memory or handed to a
+1. `Float32NumpyArray` is used for data that is kept in memory or handed to a
    search index: the descriptors a feature extractor returns, the embeddings
    that reach an `EmbeddingStore`, and the gallery and query matrices of every
    `SearchIndex`.
@@ -45,7 +45,7 @@ Two float aliases are exported, and the choice between them is explained below:
    - VLAD vectors are kept in `float32` as well, since they are sums of
      residuals, which are numerically benign, and are written straight into an
      index.
-2. `Float64NumpyArray`: used for numbers that are being reduced, normalized
+2. `Float64NumpyArray` is used for numbers that are being reduced, normalized
    or scored: the pairwise metrics in `pyvisim.distance`, the parameters of the
    GMM and the PCA, Fisher vectors, and the score matrices of the dense
    metrics.
@@ -55,7 +55,7 @@ Two float aliases are exported, and the choice between them is explained below:
      entry.
    - The result is narrowed back to `float32` only where it is written into an
      index or returned as a public score matrix.
-3. `FloatNumpyArray`: used wherever either dtype may arrive, for example on
+3. `FloatNumpyArray` is used wherever either dtype may arrive, for example on
    the descriptors after an optional PCA projection or on the inputs of the
    pairwise metrics.
    - There is one place where a `float64` batch is narrowed to `float32` before
