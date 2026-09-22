@@ -32,38 +32,104 @@ by the dense metrics).
 
 ### Serialization uses the safetensors `.embedder` format
 
-Pickling is avoided on purpose, since one can never rule out that a pickle
-file contains malicious objects. Arrays are written as
-[safetensors](https://github.com/huggingface/safetensors), and the structure
-plus the scalars are stored as one JSON blob in the file metadata. A class-name
-registry then maps a file back to the class that wrote it.
-
-`torch.save` and `torch.load` still work on the neural networks, the usual
-PyTorch way.
+Pickling is avoided on purpose due to the risks of pickled files containing malicious
+objects. Arrays are written as
+[safetensors](https://github.com/huggingface/safetensors), and the structure plus the
+scalars are stored as one JSON blob in the file metadata. A class-name registry then
+maps a file back to the class that wrote it.
 
 ### A serializable class owns its file format under dunder names
 
-The class attributes `__file_format__`, `__metadata_key__`, `__class_key__`,
-`__format_version__`, `__state_keys__` and `__compatibility_mapping__` describe
-the file format, and `SerializerMixin` does the serialization and
-deserialization based on them. Since these are plain class attributes, a
-subclass inherits the contract and overrides only what differs. A new
-serializable class therefore declares a version and its state keys instead of
-repeating the file suffix, the metadata key and the class key.
+The [SerializerMixin](pyvisim/serialization/mixin.py) defines the serialization
+and deserialization interface for serializable classes (which are **almost all
+classes** in `pyvisim`).
 
-The names carry leading *and* trailing double underscores. With two leading
-underscores alone, Python would mangle the name inside every class body that
-reads it. The trailing pair marks the attribute as part of the framework's
-contract, so a user is not expected to set it.
+For each class, following class attributes must be defined:
+
+- `__file_format__`: the file suffix, appended to the filename upon saving
+to disk.
+- `__metadata_key__`: upon saving to disk, the `safetensors` file will contain this
+metadata key. If the key is missing (for example, loading an arbitrary `safetensors` file
+that does not belong to this library), the load will be rejected.
+- `__class_key__`: the key that maps to the class name in the `safetensors` file metadata.
+- `__format_version__`: whenever the serialization interface is updated, this version
+number is incremented by 1.
+- `__state_keys__`: keys that describe which attributes of the class will flow into
+the serialized file.
+
+An example is provided below:
+
+```python
+from pyvisim.serialization import SerializerMixin
+
+class Embedder(SerializerMixin):
+    __file_format__ = ".safetensors"
+    __metadata_key__ = "pyvisim_metadata"
+    __class_key__ = "pyvisim_class"
+    __format_version__ = 1
+    __state_keys__ = ["similarity_func", "embedding_dim"]
+
+    def __init__(self, similarity_func, embedding_dim):
+        self.similarity_func = similarity_func
+        self.embedding_dim = embedding_dim
+
+    @classmethod
+    def from_dict(cls, state):
+        instance = cls(
+            similarity_func=state["similarity_func"],
+            embedding_dim=state["embedding_dim"]
+        )
+        return instance
+
+    def _state(self):
+        return {
+          "similarity_func": self.similarity_func,
+          "embedding_dim": self.embedding_dim
+        }
+```
+
+Now, instantiate the object and save it to disk.
+
+```python
+embedder = Embedder(similarity_func="cosine", embedding_dim=128)
+embedder.save_to_disk("my_embedder")
+```
+
+Inspect the dictionary of the object after we have deserialized it:
+
+```python
+import json
+from safetensors import safe_open
+
+
+with safe_open("my_embedder.safetensors", framework="numpy") as f:
+    meta = f.metadata()
+    # NOTE: The metadata key matches __metadata_key__ defined in the class
+    parsed = json.loads(meta["pyvisim_metadata"])
+    print(json.dumps(parsed, indent=4))
+```
+
+Expected output. **Note** that the key `pyvisim_class` matches what is
+defined in `__class_key__` of the class.
+
+```json
+{
+    "format_version": 1,
+    "pyvisim_class": "Embedder",
+    "similarity_func": "cosine",
+    "embedding_dim": 128
+}
+```
 
 ### Heavyweight dependencies are optional and imported lazily
 
-`pyvisim` offers heavyweight extras without forcing every user to install
-them. This is done through [Optional
-Imports](https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/pyvisim/lazy_import):
-the import is attempted eagerly, and if the dependency is missing, the
+`pyvisim` uses [Optional
+Imports](https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/pyvisim/lazy_import) to
+reduce the total install size for users who don't use deep learning features (which installs
+`torch`). This way, import is attempted eagerly, and if the dependency is missing, the
 resulting `ImportError` is caught and only re-raised once the code that needs
-it is actually called.
+it is actually called. So if such users never touch a deep learning class/module,
+no exception is raised.
 
 The classical pipeline still *accepts* torch tensors when torch happens to be
 installed, but it must not depend on torch. That is why `is_tensor` returns
