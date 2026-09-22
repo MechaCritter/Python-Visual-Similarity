@@ -53,6 +53,12 @@ class MSSSIM(DenseMetricBase):
     For more information, see  the documentation:
     ``https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ms_ssim/ms_ssim.html``.
 
+    NOTE
+    ----
+    Scale means below zero are clamped to zero before they are raised to a
+    fractional power, which keeps the result real. Howevcer, natural image pairs
+    are rarely affected by the clamping.
+
     :param weights: One positive exponent per scale, coarsest scale last. The
         number of weights sets the number of scales. :data:`WANG_WEIGHTS`
         holds the five exponents calibrated in the original paper.

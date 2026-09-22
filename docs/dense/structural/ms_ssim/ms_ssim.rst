@@ -20,37 +20,22 @@ where:
   weight the contribution of each scale. In ``pyvisim``, the default weights,
   proposed by Wang et al. (2003), are used.
 
-The pyramid is dyadic: at the end of each scale, the images are low-pass
-filtered and downsampled by a factor of two through 2x2 average pooling. The
-luminance component is evaluated at the coarsest scale :math:`M` only, so the
-product above is computed from the per-scale contrast-structure map means
-:math:`cs_j` and the full SSIM mean :math:`\text{ssim}_M`:
+At the end of each scale, the images are low-pass filtered and downsampled by a
+factor of two through 2x2 average pooling. The luminance component is evaluated
+at the coarsest scale :math:`M` only, so the product above is computed from the
+per-scale contrast-structure map means :math:`cs_j` and the full SSIM mean
+:math:`\text{ssim}_M`:
 
 .. math::
 
    \text{MS-SSIM}(x, y) = \text{ssim}_M^{\,w_M} \cdot \prod_{j=1}^{M-1} cs_j^{\,w_j}
 
-Each entry of ``weights`` is one exponent :math:`w_j`, ordered with the
-coarsest scale last, and the number of entries sets the number of scales.
-Scale means below zero are clamped to zero before they are raised to a
-fractional power, which keeps the result real. Natural image pairs are rarely
-affected by the clamping.
-
-As in ``SSIM``, the dynamic range :math:`L` behind the stabilization constants
-is fixed at 255, because every input is normalized to the canonical
-``[0, 255]`` range. Higher values mean more similar: identical images score 1
-and unrelated images score near 0.
-
-The window statistics are computed by a compiled OpenMP kernel in ``float32``
-precision, and the scores match a ``float64`` computation to about ``1e-5``.
-Its team size is set by ``num_workers``, or, where that is ``None``, by the
-``PYVISIM_NUM_THREADS`` environment variable. ``batch_size`` bounds how many
-image pairs enter one kernel call, which caps the peak memory of very large
-galleries.
+Each entry of ``weights`` is one exponent :math:`w_j`, ordered with the coarsest
+scale last, and the number of entries sets the number of scales. 
 
 The Gaussian window has to fit the images after ``n_scales - 1`` halvings, so
-each image side has to measure at least
-``window_size * 2 ** (n_scales - 1)`` pixels.
+each image side has to measure at least ``window_size * 2 ** (n_scales - 1)``
+pixels.
 
 Usage
 -----

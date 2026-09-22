@@ -53,6 +53,12 @@ class SSIM(DenseMetricBase):
 
     For more information, see  the documentation:
     ``https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ssim/ssim.html``.
+    
+    NOTE
+    ----
+
+    Windows are applied in "valid" mode with population statistics, and the
+    final score is the mean over the whole SSIM map (all channels pooled)   
 
     :param window_size: Side length of the Gaussian window, an odd integer
         >= 3.
