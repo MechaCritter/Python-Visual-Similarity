@@ -62,7 +62,7 @@ ranked by cosine similarity.
    The weights are always computed on normalised copies of the vectors. Hence,
    make sure that the embeddings are L2-normalised before building the index!
 
-Serialisation
+Serialization
 -------------
 
 To save the store to disk:

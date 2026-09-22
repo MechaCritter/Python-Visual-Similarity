@@ -780,7 +780,7 @@ def test_save_rejects_mismatched_vectors(
 def test_save_does_not_mutate_store(
     store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
-    """Serialising the store leaves its own state untouched."""
+    """Serializing the store leaves its own state untouched."""
     before = store.embeddings.copy()
     target = tmp_path_factory.mktemp("no_mutate") / "store.safetensors"
     store.save_to_disk(target)
@@ -794,7 +794,7 @@ def test_store_with_pipeline_embedder_round_trips(
     tmp_path_factory: pytest.TempPathFactory,
     category_train_images_flat: list[np.ndarray],
 ) -> None:
-    """A store built on a Pipeline serialises and reconstructs the Pipeline."""
+    """A store built on a Pipeline serializes and reconstructs the Pipeline."""
     pipeline = Pipeline([learned_vlad_embedder])
     store = InMemoryImageEmbeddingStore(gallery_paths[:8], pipeline)
     target = tmp_path_factory.mktemp("pipeline_store") / "store.safetensors"
@@ -817,7 +817,7 @@ def test_save_load_preserves_embedder(
 
     The reconstructed embedder is compared against the store's own embedder
     behaviourally (same image embeds to the same vector) and against the same
-    embedder serialised on its own with ``save_to_disk``.
+    embedder serialized on its own with ``save_to_disk``.
     """
     target = tmp_path_factory.mktemp("rt_embedder")
     loaded = InMemoryImageEmbeddingStore.load_from_disk(
@@ -825,7 +825,7 @@ def test_save_load_preserves_embedder(
     )
     assert isinstance(loaded.embedder, VLADEmbedder)
 
-    # The store's embedder, serialised on its own, reloaded from disk.
+    # The store's embedder, serialized on its own, reloaded from disk.
     embedder_path = store.embedder.save_to_disk(target / "embedder")
     directly_loaded = VLADEmbedder.load_from_disk(embedder_path)
 
@@ -874,7 +874,7 @@ def test_load_forwards_kwargs_to_the_embedder(
         InMemoryImageEmbeddingStore.load_from_disk(written, transform=object())
 
 
-class _UnserialisableEmbedder:
+class _UnserializableEmbedder:
     """An embedder that satisfies the ``Embedder`` protocol only."""
 
     batch_size = 16
@@ -883,19 +883,19 @@ class _UnserialisableEmbedder:
         return np.ones((1, 4), dtype=np.float32)
 
 
-def test_save_with_an_unserialisable_embedder_raises(
+def test_save_with_an_unserializable_embedder_raises(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
     """A store can only be saved with an embedder it can rebuild on load."""
     store = InMemoryImageEmbeddingStore._from_components(
         paths=["image.jpg"],
         embeddings=np.ones((1, 4), dtype=np.float32),
-        embedder=_UnserialisableEmbedder(),
+        embedder=_UnserializableEmbedder(),
         index_name="brute-force",
         space="cosine",
         index_params={},
     )
-    target = tmp_path_factory.mktemp("rt_unserialisable") / "store.safetensors"
+    target = tmp_path_factory.mktemp("rt_unserializable") / "store.safetensors"
     with pytest.raises(TypeError, match="SerializableImageEmbedder"):
         store.save_to_disk(target)
 

@@ -563,19 +563,19 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         """
         Describe the store around a gallery matrix.
 
-        The image paths, index configuration and the fully serialised embedder
+        The image paths, index configuration and the fully serialized embedder
         are described alongside the embeddings, so the store can later be
         rebuilt without access to the original images.
 
         :param embeddings: Embeddings to write instead of the ones the index
             holds, shape ``(N, D)``, in the order of :attr:`paths`.
         :return: A JSON-safe store description.
-        :raises TypeError: If the embedder is not serialisable.
+        :raises TypeError: If the embedder is not serializable.
         """
         if not isinstance(self._embedder, SerializableImageEmbedder):
             raise TypeError(
                 f"Embedder of type {type(self._embedder).__name__!r} is not "
-                "serialisable, it must be a SerializableImageEmbedder."
+                "serializable, it must be a SerializableImageEmbedder."
             )
         if embeddings is None:
             embeddings = self.embeddings
@@ -648,7 +648,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         Persist the store to a single ``.safetensors`` file.
 
         The embeddings, image paths, index configuration and the fully
-        serialised embedder are written together, so the store can later be
+        serialized embedder are written together, so the store can later be
         rebuilt without access to the original images.
 
         The embeddings written are the ones the index holds, which are not
@@ -663,7 +663,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             ``(N, D)``, in the order of :attr:`paths`.
         :return: The path of the written file.
         :raises OSError: If the destination directory does not exist.
-        :raises TypeError: If the embedder is not serialisable.
+        :raises TypeError: If the embedder is not serializable.
         :raises ValueError: If ``vectors`` does not hold one row per path.
         """
         path = self._resolve_save_path(path)
@@ -1136,7 +1136,7 @@ def _decode_stream(
     The threads stop at the decoded image and the callable copies it into an
     array on the consuming thread. The decoder itself releases the GIL and so
     runs in parallel, while the copy holds it for its whole duration: leaving
-    the copy in the threads would serialise the decodes behind it."""
+    the copy in the threads would serialize the decodes behind it."""
     if num_workers == 1:
         for path in paths:
             yield path, functools.partial(_decode_image_array, path)

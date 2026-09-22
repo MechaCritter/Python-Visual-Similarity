@@ -39,7 +39,7 @@ registry dispatching a file back onto the class that wrote it.
 `torch.save` and `torch.load` still work on the neural networks, as
 conventionally used in PyTorch.
 
-### A serialisable class owns its file format under dunder names
+### A serializable class owns its file format under dunder names
 
 Class attributes `__file_format__`, `__metadata_key__`, `__class_key__`,
 `__format_version__`, `__state_keys__` and `__compatibility_mapping__`.
