@@ -44,18 +44,13 @@ The constructor's ``purpose`` accepts ``"train"``, ``"validation"``,
 ``"test"``, or a list to combine splits (for example
 ``["train", "validation"]``).
 
-.. attention:: 
+.. attention::
    The original dataset contains 1020 training, 1020
    validation and 6149 test images. This class maps the original **test** ids to
-   ``train`` and the original **train** ids to ``test``, so the training set has 
-   the most images, which makes more sense. However, keep this in mind if you compare results against 
+   ``train`` and the original **train** ids to ``test``, so the training set has
+   the most images, which makes more sense. However, keep this in mind if you compare results against
    papers that use the original split. For more technical information, visit
    https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/dataset/arc42.md.
-
-TODO
-----
-
-- Implement ``transform`` method
 
 API reference
 -------------

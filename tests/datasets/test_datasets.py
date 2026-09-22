@@ -15,7 +15,6 @@ from unittest import mock
 
 import numpy as np
 import pytest
-from torchvision import transforms
 
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.datasets import datasets as ds
@@ -31,7 +30,7 @@ _FAKE_JPGS = [f"image_{i:05d}.jpg" for i in range(1, 6)]
 
 
 def _fake_loadmat(path: str, *args: Any, **kwargs: Any) -> dict[str, np.ndarray]:
-    """A small, internally consistent fake of ``load_mat`` for 5 images.
+    """A small, internally consistent fake of ``loadmat`` for 5 images.
 
     The setid arrays follow the dataset's deliberate train/test swap: ``tstid``
     becomes the train split and ``trnid`` becomes the test split.
@@ -75,7 +74,7 @@ def _construction_io(
 
     :param downloaded: value returned by the mocked ``_data_downloaded``.
     :param integrity: value returned by the mocked ``_check_data_integrity``.
-    :param loadmat: side effect for the mocked ``load_mat``.
+    :param loadmat: side effect for the mocked ``loadmat``.
     :param listdir: return value for the mocked ``os.listdir``.
     :yields: the mock standing in for ``download_oxford_flowers_data``.
     """
@@ -84,7 +83,7 @@ def _construction_io(
         mock.patch.object(ds, "_data_downloaded", return_value=downloaded),
         mock.patch.object(ds, "_check_data_integrity", return_value=integrity),
         mock.patch.object(ds, "download_oxford_flowers_data") as download_mock,
-        mock.patch.object(ds, "load_mat", side_effect=loadmat),
+        mock.patch.object(ds, "loadmat", side_effect=loadmat),
         mock.patch.object(ds.os, "listdir", return_value=listing),
     ):
         yield download_mock
@@ -129,7 +128,7 @@ def test_integrity_all_good() -> None:
     with (
         mock.patch.object(ds.os.path, "isfile", return_value=True),
         mock.patch.object(ds.os.path, "isdir", return_value=True),
-        mock.patch.object(ds, "load_mat", side_effect=_good_loadmat),
+        mock.patch.object(ds, "loadmat", side_effect=_good_loadmat),
         mock.patch.object(ds.os, "listdir", return_value=all_jpgs),
     ):
         assert ds._check_data_integrity() is True
@@ -153,7 +152,7 @@ def test_integrity_wrong_label_count() -> None:
     with (
         mock.patch.object(ds.os.path, "isfile", return_value=True),
         mock.patch.object(ds.os.path, "isdir", return_value=True),
-        mock.patch.object(ds, "load_mat", side_effect=bad_labels),
+        mock.patch.object(ds, "loadmat", side_effect=bad_labels),
         mock.patch.object(ds.os, "listdir", return_value=all_jpgs),
     ):
         assert ds._check_data_integrity() is False
@@ -175,7 +174,7 @@ def test_integrity_wrong_setid_lengths() -> None:
     with (
         mock.patch.object(ds.os.path, "isfile", return_value=True),
         mock.patch.object(ds.os.path, "isdir", return_value=True),
-        mock.patch.object(ds, "load_mat", side_effect=bad_setid),
+        mock.patch.object(ds, "loadmat", side_effect=bad_setid),
         mock.patch.object(ds.os, "listdir", return_value=all_jpgs),
     ):
         assert ds._check_data_integrity() is False
@@ -186,7 +185,7 @@ def test_integrity_wrong_image_count() -> None:
     with (
         mock.patch.object(ds.os.path, "isfile", return_value=True),
         mock.patch.object(ds.os.path, "isdir", return_value=True),
-        mock.patch.object(ds, "load_mat", side_effect=_good_loadmat),
+        mock.patch.object(ds, "loadmat", side_effect=_good_loadmat),
         mock.patch.object(ds.os, "listdir", return_value=_FAKE_JPGS),
     ):
         assert ds._check_data_integrity() is False
@@ -198,7 +197,7 @@ def test_integrity_loadmat_raises() -> None:
     with (
         mock.patch.object(ds.os.path, "isfile", return_value=True),
         mock.patch.object(ds.os.path, "isdir", return_value=True),
-        mock.patch.object(ds, "load_mat", side_effect=Exception("boom")),
+        mock.patch.object(ds, "loadmat", side_effect=Exception("boom")),
         mock.patch.object(ds.os, "listdir", return_value=all_jpgs),
     ):
         assert ds._check_data_integrity() is False
@@ -306,15 +305,6 @@ def test_download_writes_content() -> None:
 
 
 # §4.5 OxfordFlowerDataset
-
-
-def test_transform_not_none_raises() -> None:
-    """Supplying a transform raises ``NotImplementedError`` (not yet supported)."""
-    with _construction_io():
-        with pytest.raises(
-            NotImplementedError, match="Transformations are not yet supported"
-        ):
-            OxfordFlowerDataset(transform=transforms.Compose([]))
 
 
 def test_duplicate_purposes_raises() -> None:

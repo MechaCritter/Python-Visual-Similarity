@@ -5,16 +5,15 @@ from multiprocessing import Process
 
 import requests
 from platformdirs import user_cache_dir
+from scipy.io import loadmat
 from tqdm import tqdm
 
 from pyvisim._utils import read_image_rgb
-from pyvisim.datasets._matloader import load_mat
 from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     from torch.utils.data import Dataset
-    from torchvision import transforms
 
 _torch_import.check()
 
@@ -145,7 +144,7 @@ def _check_data_integrity() -> bool:
         logger.warning(f"Label file not found at {_IMAGE_LABEL_FILE}.")
         return False
     try:
-        mat_data = load_mat(_IMAGE_LABEL_FILE)
+        mat_data = loadmat(_IMAGE_LABEL_FILE)
         labels = mat_data["labels"].squeeze().tolist()
         if len(labels) != OXFORD_NUM_IMAGES:
             logger.warning(f"Expected {OXFORD_NUM_IMAGES} labels, got {len(labels)}.")
@@ -158,7 +157,7 @@ def _check_data_integrity() -> bool:
         logger.warning(f"setid.mat not found at {_SETID_FILE}.")
         return False
     try:
-        mat_data = load_mat(_SETID_FILE)
+        mat_data = loadmat(_SETID_FILE)
         tstid = mat_data["tstid"].squeeze().tolist()  # len 6149
         valid = mat_data["valid"].squeeze().tolist()  # len 1020
         trnid = mat_data["trnid"].squeeze().tolist()  # len 1020
@@ -239,19 +238,21 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
     it makes more sense to have more images for training for this project, the train and test
     splits have been swapped.
 
-    :param transform: Transformations to apply to the images.
+    .. note::
+
+        The dataset takes no ``transform``. Every item is the raw RGB ``uint8``
+        array, which is the image format all embedders, feature extractors and
+        similarity metrics of this library accept. Preprocessing is owned by
+        the model consuming the image, so a transform here would apply it
+        twice and would not reach the images loaded through ``image_paths``.
+        To train with augmentations, wrap the dataset in your own
+        ``torch.utils.data.Dataset`` and apply the transform there.
+
     :param purpose: Purpose of the dataset ('train', 'test', 'validation'). You
         can also pass a list such as ['train', 'validation'] to get a combined dataset.
     """
 
-    def __init__(
-        self,
-        transform: transforms.Compose | None = None,
-        purpose: str | list[str] = "train",
-    ) -> None:
-        if transform is not None:
-            raise NotImplementedError("Transformations are not yet supported.")
-        self.transform = transform
+    def __init__(self, purpose: str | list[str] = "train") -> None:
         self.purpose = [purpose] if isinstance(purpose, str) else purpose
         if len(set(self.purpose)) < len(self.purpose):
             raise ValueError(
@@ -271,7 +272,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         :param labels_file: Path to the .mat file with labels.
         :return: List of labels.
         """
-        mat_data = load_mat(labels_file)
+        mat_data = loadmat(labels_file)
         return [int(label) for label in mat_data["labels"].squeeze()]
 
     def _load_image_paths(self) -> list[str]:
@@ -290,7 +291,7 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         :param set_id_file: Path to the .mat file with set IDs.
         :return: Tuple of train, validation, and test IDs.
         """
-        mat_data = load_mat(set_id_file)
+        mat_data = loadmat(set_id_file)
         train_ids = (
             mat_data["tstid"].flatten().tolist()
         )  # Swaps train and test, since test contains significantly more images
@@ -337,14 +338,9 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
         Get an image and its corresponding label.
 
         :param idx: Index of the image.
-        :return: Tuple of transformed image, label, and image path.
+        :return: Tuple of image, label, and image path.
         """
         img_path = self.image_paths[idx]
         label = self.labels[idx] if self.labels else -1
-
         image = read_image_rgb(img_path)
-
-        if self.transform:
-            image = self.transform(image)
-
         return image, label, img_path

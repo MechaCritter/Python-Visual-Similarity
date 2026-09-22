@@ -152,8 +152,8 @@ def _extensions() -> list[Extension]:
     optimize_args = [] if sys.platform == "win32" else ["-O3"]
     return [
         Extension(
-            "pyvisim.structural._kernel._ssim_kernels",
-            ["pyvisim/structural/_kernel/_ssim_kernels.pyx"],
+            "pyvisim.dense.structural._kernel._ssim_kernels",
+            ["pyvisim/dense/structural/_kernel/_ssim_kernels.pyx"],
             extra_compile_args=optimize_args + openmp_compile_args,
             extra_link_args=openmp_link_args,
         ),
@@ -164,8 +164,8 @@ def _extensions() -> list[Extension]:
             extra_compile_args=optimize_args,
         ),
         Extension(
-            "pyvisim.pixelwise._kernel._ssd_kernel",
-            ["pyvisim/pixelwise/_kernel/_ssd_kernel.pyx"],
+            "pyvisim.dense.pixelwise._kernel._ssd_kernel",
+            ["pyvisim/dense/pixelwise/_kernel/_ssd_kernel.pyx"],
             extra_compile_args=optimize_args + openmp_compile_args,
             extra_link_args=openmp_link_args,
         ),
