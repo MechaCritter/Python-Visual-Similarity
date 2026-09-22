@@ -380,3 +380,26 @@ def test_getitem_calls_read_image_rgb() -> None:
         ) as read_mock:
             dataset[0]
     assert read_mock.call_args[0][0] == dataset.image_paths[0]
+
+
+def test_getitem_slice_raises_type_error() -> None:
+    """Slicing is not supported and raises a ``TypeError`` before any image is read."""
+    with _construction_io():
+        dataset = OxfordFlowerDataset(purpose="train")
+        with mock.patch.object(ds, "read_image_rgb") as read_mock:
+            with pytest.raises(TypeError, match="integer indexing only, got slice"):
+                dataset[:2]
+    assert read_mock.call_count == 0
+
+
+def test_getitem_accepts_numpy_integer() -> None:
+    """A NumPy integer index is accepted like a Python ``int``."""
+    with _construction_io():
+        dataset = OxfordFlowerDataset(purpose="train")
+        with mock.patch.object(
+            ds, "read_image_rgb", return_value=np.zeros((256, 256, 3), np.uint8)
+        ) as read_mock:
+            _, label, path = dataset[np.int64(1)]
+    assert label == 1
+    assert path == dataset.image_paths[1]
+    assert read_mock.call_args[0][0] == dataset.image_paths[1]
