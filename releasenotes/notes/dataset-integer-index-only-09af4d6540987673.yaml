@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    A ``try-except`` block is added in class ``OxfordFlowerDataset`` so that it raises a
+    ``TypeError`` when it is indexed with anything that is not an integer, for example a
+    slice such as ``dataset[:20]``, instead of failing inside Pillow with an
+    ``AttributeError`` about a ``list`` object, which made it hard to understand the
+    cause. NumPy integers keep working as indices.
