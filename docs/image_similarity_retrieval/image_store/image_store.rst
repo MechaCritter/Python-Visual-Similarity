@@ -32,11 +32,11 @@ query expansion** (αQE) of Radenović et al. [1] before the final search, which
 has been shown to **substantially improve** ``mean Average Precision`` (mAP).
 
 When enabled, the query is searched once, the embeddings of its
-``expansion_neighbours`` best matches are read back from the index, and the
+``expansion_neighbors`` best matches are read back from the index, and the
 query is replaced by the L2-normalised weighted average of itself and those
 matches, where each match weighs its cosine similarity to the query raised to
 ``expansion_alpha``, and a match whose similarity is not positive weighs
-nothing. The results are thereby pulled towards the whole neighbourhood the
+nothing. The results are thereby pulled towards the whole neighborhood the
 query belongs to instead of the single point that was embedded. With
 ``expansion_alpha=0`` every match that resembles the query weighs the same,
 which is the classic average query expansion (AQE).
@@ -48,12 +48,12 @@ which is the classic average query expansion (AQE).
        k=5,
        query_expansion=True,
        expansion_alpha=3.0,
-       expansion_neighbours=50,
+       expansion_neighbors=50,
    )[0]
 
 The expansion is off by default: it costs one extra index search per query plus
-the decoding of ``expansion_neighbours`` gallery vectors. The defaults
-``expansion_alpha=3`` and ``expansion_neighbours=50`` are the values used in
+the decoding of ``expansion_neighbors`` gallery vectors. The defaults
+``expansion_alpha=3`` and ``expansion_neighbors=50`` are the values used in
 the original paper. It also defines the expansion on L2-normalised embeddings
 ranked by cosine similarity.
 

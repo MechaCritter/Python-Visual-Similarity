@@ -58,7 +58,7 @@ _INDEX_PARAMS = {"graph_degree": 16, "build_candidates": 200, "search_candidates
 
 #: Grid of the alpha query expansion, swept on the tuning split.
 _ALPHAS = (0.0, 1.0, 2.0, 3.0, 5.0)
-_NEIGHBOURS = (2, 3, 5, 10, 20, 50)
+_NEIGHBORS = (2, 3, 5, 10, 20, 50)
 #: Grid of the k-reciprocal re-ranking, swept on top of the selected expansion.
 _K1S = (10, 20, 40)
 _K2S = (1, 3, 6)
@@ -112,15 +112,15 @@ class ExpansionSetting:
     One setting of the alpha query expansion.
 
     :param alpha: Exponent of the similarity weights.
-    :param neighbours: Top-ranked gallery images averaged into the query.
+    :param neighbors: Top-ranked gallery images averaged into the query.
     """
 
     alpha: float
-    neighbours: int
+    neighbors: int
 
     def describe(self) -> str:
         """Name the setting for the report."""
-        return f"alpha={self.alpha:g}, {self.neighbours} neighbours"
+        return f"alpha={self.alpha:g}, {self.neighbors} neighbors"
 
 
 @dataclass(frozen=True)
@@ -128,8 +128,8 @@ class RerankSetting:
     """
     One setting of the k-reciprocal re-ranking.
 
-    :param k1: Size of the neighbourhoods the k-reciprocal sets are built from.
-    :param k2: Size of the neighbourhood of the local query expansion.
+    :param k1: Size of the neighborhoods the k-reciprocal sets are built from.
+    :param k2: Size of the neighborhood of the local query expansion.
     :param lambda_value: Weight of the original distance in the final one.
     """
 
@@ -240,7 +240,7 @@ def _retrieve(
             k=depth,
             query_expansion=True,
             expansion_alpha=expansion.alpha,
-            expansion_neighbours=expansion.neighbours,
+            expansion_neighbors=expansion.neighbors,
         )
     return rankings, time.perf_counter() - start
 
@@ -349,8 +349,8 @@ def _sweep_expansion(
     """
     scores: dict[ExpansionSetting, Scores] = {}
     for alpha in _ALPHAS:
-        for neighbours in _NEIGHBOURS:
-            setting = ExpansionSetting(alpha, neighbours)
+        for neighbors in _NEIGHBORS:
+            setting = ExpansionSetting(alpha, neighbors)
             rankings, seconds = _retrieve(store, split, depth, setting)
             scores[setting] = _score(
                 rankings, split, path_labels, class_sizes, depth, seconds
@@ -520,12 +520,12 @@ def _format_expansion_sweep(
     scores: dict[ExpansionSetting, Scores], best: ExpansionSetting
 ) -> str:
     """Render the expansion sweep as a grid of mAP values, the best in bold."""
-    header = " | ".join(f"{n} neighbours" for n in _NEIGHBOURS)
-    lines = [f"| alpha | {header} |", "|---|" + "---|" * len(_NEIGHBOURS)]
+    header = " | ".join(f"{n} neighbors" for n in _NEIGHBORS)
+    lines = [f"| alpha | {header} |", "|---|" + "---|" * len(_NEIGHBORS)]
     for alpha in _ALPHAS:
         cells = []
-        for neighbours in _NEIGHBOURS:
-            setting = ExpansionSetting(alpha, neighbours)
+        for neighbors in _NEIGHBORS:
+            setting = ExpansionSetting(alpha, neighbors)
             cell = _format_percent(scores[setting].mean_average_precision)
             cells.append(f"**{cell}**" if setting == best else cell)
         lines.append(f"| {alpha:g} | " + " | ".join(cells) + " |")

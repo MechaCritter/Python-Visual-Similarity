@@ -281,7 +281,7 @@ def test_retrieve_ranks_every_query(
     assert all(candidate.path in store for ranked in results for candidate in ranked)
 
 
-def test_retrieve_drops_the_missing_neighbours(
+def test_retrieve_drops_the_missing_neighbors(
     gallery_paths: list[str],
     learned_vlad_embedder: VLADEmbedder,
     category_train_images_flat: list[np.ndarray],
@@ -318,7 +318,7 @@ def test_query_expansion_ranks_every_query(
         np.stack([gray, gray, gray], axis=-1) for gray in category_train_images_flat[:3]
     ]
     results = store.retrieve_top_k_similar(
-        probes, k=4, query_expansion=True, expansion_neighbours=5
+        probes, k=4, query_expansion=True, expansion_neighbors=5
     )
     assert len(results) == 3
     assert all(len(ranked) == 4 for ranked in results)
@@ -330,7 +330,7 @@ def test_query_expansion_recovers_self(
     gallery_paths: list[str],
     category_train_images_flat: list[np.ndarray],
 ) -> None:
-    """A gallery image expanded with its own neighbourhood still ranks itself first."""
+    """A gallery image expanded with its own neighborhood still ranks itself first."""
     gray = category_train_images_flat[2]
     probe = np.stack([gray, gray, gray], axis=-1)
     results = store.retrieve_top_k_similar(probe, k=3, query_expansion=True)
@@ -351,22 +351,22 @@ def test_query_expansion_stays_in_the_category(
         gray = category_query_images[name][0]
         probe = np.stack([gray, gray, gray], axis=-1)
         ranked = store.retrieve_top_k_similar(
-            probe, k=5, query_expansion=True, expansion_neighbours=5
+            probe, k=5, query_expansion=True, expansion_neighbors=5
         )[0]
         assert {candidate.path for candidate in ranked} <= own
 
 
-def test_query_expansion_handles_a_gallery_smaller_than_its_neighbourhood(
+def test_query_expansion_handles_a_gallery_smaller_than_its_neighborhood(
     gallery_paths: list[str],
     learned_vlad_embedder: VLADEmbedder,
     category_train_images_flat: list[np.ndarray],
 ) -> None:
-    """Fewer gallery images than ``expansion_neighbours`` are averaged as they are."""
+    """Fewer gallery images than ``expansion_neighbors`` are averaged as they are."""
     store = InMemoryImageEmbeddingStore(gallery_paths[:3], learned_vlad_embedder)
     gray = category_train_images_flat[0]
     probe = np.stack([gray, gray, gray], axis=-1)
     ranked = store.retrieve_top_k_similar(
-        probe, k=2, query_expansion=True, expansion_neighbours=50
+        probe, k=2, query_expansion=True, expansion_neighbors=50
     )[0]
     assert len(ranked) == 2
     assert ranked[0].path == gallery_paths[0]
@@ -382,13 +382,13 @@ def _unit(vectors: np.ndarray) -> np.ndarray:
 
 
 # The expansion answers a single ``(D,)`` query against its own ``(n, D)``
-# neighbours and an ``(M, D)`` batch against the ``(M, n, D)`` block holding
-# the neighbours of each of its queries. Every case below is stated in both
+# neighbors and an ``(M, D)`` batch against the ``(M, n, D)`` block holding
+# the neighbors of each of its queries. Every case below is stated in both
 # forms: the batch carries the single case in its first row and a second query
 # that is the same scenario turned onto the other axis, which is what shows
 # that the rows of a batch stay independent of one another.
 @pytest.mark.parametrize(
-    ("query", "neighbours"),
+    ("query", "neighbors"),
     [
         pytest.param(
             np.array([1.0, 0.0]),
@@ -408,17 +408,17 @@ def _unit(vectors: np.ndarray) -> np.ndarray:
     ],
 )
 def test_alpha_query_expansion_follows_the_paper(
-    query: np.ndarray, neighbours: np.ndarray
+    query: np.ndarray, neighbors: np.ndarray
 ) -> None:
-    """The expansion is the normalised sum of the query and its weighted neighbours.
+    """The expansion is the normalised sum of the query and its weighted neighbors.
 
-    The weight of a neighbour is its cosine similarity to the query raised to
+    The weight of a neighbor is its cosine similarity to the query raised to
     ``alpha``, the query itself weighs one, and a negative similarity weighs
-    nothing. Every query meets one neighbour of its own direction, one
+    nothing. Every query meets one neighbor of its own direction, one
     orthogonal to it, the diagonal, and its opposite. It is expected that
     only the first and the diagonal contribute.
     """
-    expanded = _alpha_query_expansion(query, neighbours, alpha=1.0)
+    expanded = _alpha_query_expansion(query, neighbors, alpha=1.0)
     diagonal = np.array([1.0, 1.0]) / np.sqrt(2.0)
     expected = query + query + (1.0 / np.sqrt(2.0)) * diagonal
     assert expanded.dtype == np.float32
@@ -427,7 +427,7 @@ def test_alpha_query_expansion_follows_the_paper(
 
 
 @pytest.mark.parametrize(
-    ("query", "neighbours"),
+    ("query", "neighbors"),
     [
         pytest.param(
             np.array([1.0, 0.0]),
@@ -442,16 +442,16 @@ def test_alpha_query_expansion_follows_the_paper(
     ],
 )
 def test_zero_alpha_reduces_to_the_average_query_expansion(
-    query: np.ndarray, neighbours: np.ndarray
+    query: np.ndarray, neighbors: np.ndarray
 ) -> None:
-    """``alpha=0`` weights every resembling neighbour alike, whatever its similarity.
+    """``alpha=0`` weights every resembling neighbor alike, whatever its similarity.
 
-    The two neighbours of a query have different cosine similarities to it
+    The two neighbors of a query have different cosine similarities to it
     (about 0.8 and 0.7), yet both enter the plain average query expansion with
     the same unit weight.
     """
-    expanded = _alpha_query_expansion(query, neighbours, alpha=0.0)
-    expected = query + _unit(neighbours[..., 0, :]) + _unit(neighbours[..., 1, :])
+    expanded = _alpha_query_expansion(query, neighbors, alpha=0.0)
+    expected = query + _unit(neighbors[..., 0, :]) + _unit(neighbors[..., 1, :])
     assert np.allclose(expanded, _unit(expected), atol=1e-6)
 
 
@@ -461,8 +461,8 @@ def test_zero_alpha_reduces_to_the_average_query_expansion(
         ("expansion_alpha", -1.0),
         ("expansion_alpha", float("nan")),
         ("expansion_alpha", True),
-        ("expansion_neighbours", 0),
-        ("expansion_neighbours", 2.5),
+        ("expansion_neighbors", 0),
+        ("expansion_neighbors", 2.5),
     ],
 )
 def test_bad_expansion_parameters_raise(
@@ -501,7 +501,7 @@ def test_negative_similarities_never_contribute(
 ) -> None:
     """Clipping happens before exponentiation, so no NaNs and no sign flips.
 
-    Given is a query vector, one similar and one dissimilar neighbour vector.
+    Given is a query vector, one similar and one dissimilar neighbor vector.
     We want to verify 3 cases:
 
     Case 1. alpha=0.5:
@@ -509,17 +509,17 @@ def test_negative_similarities_never_contribute(
             * We want to avoid getting NaN results
     Case 2. alpha=2.0:
         w = (negative) ** 2.0 = positive
-            * We don't want the query to be pulled towards a dissimilar neighbour
+            * We don't want the query to be pulled towards a dissimilar neighbor
         w = (positive) ** 2.0 = positive
-            * We want the query to be pulled towards a similar neighbour.
+            * We want the query to be pulled towards a similar neighbor.
     Case 3. alpha=3.0:
         w = (negative) ** 3.0 = negative
-            * The query is pushed away from the neighbour, along -d, by an
+            * The query is pushed away from the neighbor, along -d, by an
             arbitrary amount. -d carries no relation to the query, whereas
             negative weights are supposed to contribute nothing.
     """
     # ``similar`` sits at s = +0.8 and contributes, ``dissimilar`` at s = -0.6
-    # and must not. Stacking along the neighbour axis holds for a lone query
+    # and must not. Stacking along the neighbor axis holds for a lone query
     # and for a batch alike.
     with_dissimilar = _alpha_query_expansion(
         query, np.stack([similar, dissimilar], axis=-2), alpha=alpha
@@ -537,7 +537,7 @@ def test_negative_similarities_never_contribute(
 
 
 @pytest.mark.parametrize(
-    ("query", "neighbours"),
+    ("query", "neighbors"),
     [
         pytest.param(
             np.array([1.0, 0.0]),
@@ -551,21 +551,21 @@ def test_negative_similarities_never_contribute(
         ),
     ],
 )
-def test_zero_alpha_still_ignores_negative_neighbours(
-    query: np.ndarray, neighbours: np.ndarray
+def test_zero_alpha_still_ignores_negative_neighbors(
+    query: np.ndarray, neighbors: np.ndarray
 ) -> None:
     """
     Consider these steps:
         * cosine([1, 0], [-1, 0]) = -1
         * w = max(-1, 0) ** 0 = 0 ** 0 = 1 (NumPy defines 0**0 = 1)
-            => The dissimilar neighbour contributes to the expansion.
+            => The dissimilar neighbor contributes to the expansion.
 
     Hence, the clip must not be a plain maximum."""
-    expanded = _alpha_query_expansion(query, neighbours, alpha=0.0)
+    expanded = _alpha_query_expansion(query, neighbors, alpha=0.0)
     assert np.allclose(expanded, query, atol=1e-6)
 
 
-def test_empty_neighbours_returns_the_normalised_query() -> None:
+def test_empty_neighbors_returns_the_normalised_query() -> None:
     """With no neighbors, the formula simplifies to:
 
     q' = q / ||q||
