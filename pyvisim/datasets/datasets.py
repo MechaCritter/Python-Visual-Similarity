@@ -1,4 +1,5 @@
 import logging
+import operator
 import os
 from functools import partial
 from multiprocessing import Process
@@ -339,8 +340,16 @@ class OxfordFlowerDataset(Dataset[tuple[UInt8NumpyArray, int, str]]):
 
         :param idx: Index of the image.
         :return: Tuple of image, label, and image path.
+        :raises TypeError: If ``idx`` is not an integer, for example a slice.
         """
-        img_path = self.image_paths[idx]
-        label = self.labels[idx] if self.labels else -1
+        try:
+            index = operator.index(idx)
+        except TypeError as error:
+            raise TypeError(
+                f"{type(self).__name__} supports integer indexing only, "
+                f"got {type(idx).__name__}."
+            ) from error
+        img_path = self.image_paths[index]
+        label = self.labels[index] if self.labels else -1
         image = read_image_rgb(img_path)
         return image, label, img_path
