@@ -22,6 +22,27 @@ store on an ``ExternalSearchIndex`` is rejected. For more technical
 information, visit
 https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/image_similarity_retrieval/arc42.md.
 
+Example
+~~~~~~~
+
+.. tip::
+   See :doc:`this tutorial </tutorials/notebooks/image_search>` for a
+   more detailed walkthrough.
+
+.. code-block:: python
+
+   from pyvisim.image_store import InMemoryImageEmbeddingStore, KReciprocalReranker
+   from pyvisim.neural_networks import ClipEmbedder
+
+   store = InMemoryImageEmbeddingStore(gallery_paths, ClipEmbedder(), "hnsw")
+   reranker = KReciprocalReranker(store, k1=20, k2=6, lambda_value=0.3)
+
+   # Retrieve a pool of candidates, then keep the best five after re-ranking
+   # Retrieve more candidates than you finally want with the `InMemoryImageEmbeddingStore`,
+   # at least `k1` and better a few dozen more than `top_k`.
+   candidates = store.retrieve_top_k_similar(query_image, k=100)[0]
+   best = reranker.rerank(candidates, top_k=5)
+
 Reranking algorithm
 ~~~~~~~~~~~~~~~~~~~
 

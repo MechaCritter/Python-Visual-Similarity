@@ -50,25 +50,14 @@ class MSSSIM(DenseMetricBase):
     """
     Multi-Scale Structural Similarity index (Wang et al., 2003).
 
-    MS-SSIM evaluates the SSIM contrast-structure component on a dyadic image
-    pyramid: after each scale the images are low-pass filtered and downsampled
-    by two (2x2 average pooling), and the luminance component enters only at
-    the coarsest scale. With per-scale map means ``cs_j`` and the full SSIM
-    mean ``ssim_M`` at the coarsest scale ``M``, the score is the weighted
-    geometric mean::
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ms_ssim/ms_ssim.html``.
 
-        MS-SSIM(x, y) = ssim_M ** w_M * prod_{j=1..M-1} cs_j ** w_j
-
-    Negative per-scale means are clamped to zero before exponentiation so the
-    fractional powers stay real (the usual "relu" normalization, as in
-    torchmetrics); natural image pairs are unaffected. Because every input is
-    normalized to the canonical ``[0, 255]`` range, the dynamic range ``L``
-    is fixed at 255. The window statistics are computed by a compiled
-    multithreaded kernel in ``float32`` precision (scores match a ``float64``
-    computation to ~1e-5).
-
-    Higher values mean more similar: identical images score 1 and unrelated
-    images score near 0.
+    NOTE
+    ----
+    Scale means below zero are clamped to zero before they are raised to a
+    fractional power, which keeps the result real. Howevcer, natural image pairs
+    are rarely affected by the clamping.
 
     :param weights: One positive exponent per scale, coarsest scale last. The
         number of weights sets the number of scales. :data:`WANG_WEIGHTS`
