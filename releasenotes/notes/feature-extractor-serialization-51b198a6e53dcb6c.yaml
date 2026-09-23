@@ -6,7 +6,7 @@ upgrade:
     ``from_dict(data=...)`` becomes ``from_dict(state=...)``.
   - |
     The mapping returned by a feature extractor's ``to_dict`` now also holds a
-    ``"format_version"`` key. Saved ``.embedder`` files load as before.
+    ``"format_version"`` key.
   - |
     The ``_serialization_config`` hook of ``FeatureExtractorBase`` was removed.
     A custom extractor that overrides it now overrides ``_state`` instead and
