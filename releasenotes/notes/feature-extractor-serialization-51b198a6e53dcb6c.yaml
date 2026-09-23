@@ -7,6 +7,10 @@ upgrade:
   - |
     The mapping returned by a feature extractor's ``to_dict`` now also holds a
     ``"format_version"`` key. Saved ``.embedder`` files load as before.
+  - |
+    The ``_serialization_config`` hook of ``FeatureExtractorBase`` was removed.
+    A custom extractor that overrides it now overrides ``_state`` instead and
+    returns ``{"config": ...}``, otherwise its arguments are no longer saved.
 features:
   - |
     Feature extractors can be saved on their own with ``save_to_disk`` and
