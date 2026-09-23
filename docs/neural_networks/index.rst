@@ -25,8 +25,6 @@ save/load to/from a file. ``pyvisim`` only uses ``safetensors`` format for
 (de)serialization. For more technical information, visit
 https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/arc42.md.
 
-You can, of course, also use ``torch.save`` and ``torch.load`` as
-conventionally used in PyTorch.
 
 References
 ----------

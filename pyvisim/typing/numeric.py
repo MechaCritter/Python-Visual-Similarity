@@ -1,50 +1,4 @@
-"""
-Typing utilities and image-normalization helpers for pyvisim.
-
-This module defines :data:`MatLike`, the permissive image type accepted across
-the public API, and the helpers that turn any ``MatLike`` input into the
-canonical NumPy layout the rest of the library works with.
-
-Canonical layout
-=================
-Every image is normalized to a ``uint8`` NumPy array of shape ``(H, W, C)``
-(or ``(H, W)`` for single-channel images) with values in the ``[0, 255]``
-range. SIFT/RootSIFT and :class:`DeepConvFeature` (torchvision
-transforms) both expect this representation, so normalizing once keeps the
-downstream code unified.
-
-Dimension labels (``dims``)
-===========================
-The ``dims`` string tells the helpers how to read the axes of an input array.
-Each character names one axis, in the exact order the axes appear:
-
-- ``"B"``: batch axis (number of images).
-- ``"H"``: height axis (number of rows).
-- ``"W"``: width axis (number of columns).
-- ``"C"``: channel axis (e.g. RGB color channels).
-
-Common examples:
-
-- ``"HWC"``: a single image laid out height x width x channels
-  (the classic NumPy/OpenCV layout).
-- ``"CHW"``: a single image laid out channels x height x width
-  (the classic PyTorch layout).
-- ``"BHWC"``: a batch of images, batch x height x width x channels.
-- ``"BCHW"``: a batch of images, batch x channels x height x width
-  (the PyTorch batched layout).
-- ``"HWCB"``: height x width x channels x batch.
-
-``"B"`` and ``"C"`` are optional; ``"H"`` and ``"W"`` are mandatory. When the
-``dims`` string contains a batch axis, the input is split into the individual
-images it contains.
-
-Value range (``value_range``)
-=============================
-``value_range`` is the ``(low, high)`` range the *input* values live in,
-such as ``(0.0, 255.0)`` for standard 8-bit images or ``(0.0, 1.0)`` for
-normalized float tensors. The values are rescaled into the canonical
-``[0, 255]`` range.
-"""
+"""Typing utilities and image-normalization helpers for pyvisim."""
 
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, cast
@@ -76,8 +30,6 @@ SimilarityFunc = Callable[[FloatNumpyArray, FloatNumpyArray], FloatNumpyArray]
 
 #: Anything that can be turned into a numerical NumPy array: a NumPy array, a
 #: PyTorch tensor, or any array-like object (e.g. nested lists of numbers).
-#: ``torch.Tensor`` is part of the union only when torch (the ``nn`` extra) is
-#: installed; without torch the alias collapses to ``npt.ArrayLike`` at runtime.
 if TYPE_CHECKING:
     import torch
 
@@ -95,13 +47,7 @@ _DEFAULT_VALUE_RANGE: tuple[float, float] = (0.0, 255.0)
 
 
 def _to_ndarray(data: MatLike) -> NumpyArray:
-    """
-    Convert any ``MatLike`` object into a numerical NumPy array.
-
-    :param data: A NumPy array, a PyTorch tensor, or any array-like object.
-    :return: The data as a NumPy array.
-    :raises InvalidImageError: If the data cannot be turned into a numeric array.
-    """
+    """Convert any ``MatLike`` object into a numerical NumPy array."""
     if is_tensor(data):
         return data.detach().cpu().numpy()
     if isinstance(data, np.ndarray):
@@ -202,8 +148,9 @@ def _to_image_list(
     Normalize a single ``MatLike`` object into canonical per-image arrays.
 
     The input may carry a batch axis (when ``dims`` contains ``"B"``), in which
-    case it is split into the individual images it holds. See the module
-    docstring for the meaning of ``dims`` and ``value_range``.
+    case it is split into the individual images it holds. Check out the
+    documentation here for more informaton:
+    https://mechacritter.github.io/Python-Visual-Similarity/typing/index.html#keyword-arguments-for-image-data
 
     :param images: A NumPy array, a PyTorch tensor, or any array-like object.
     :param dims: Axis-label string, one character per array axis in order:

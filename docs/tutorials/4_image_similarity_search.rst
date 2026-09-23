@@ -7,7 +7,7 @@ Image similarity search
 
    * - Tutorial
      - Description
-     - Notebook
+     - Link
    * - Image search
      - This is the most interesting tutorial of this library, so I recommend that you
        definitely check this out 😊

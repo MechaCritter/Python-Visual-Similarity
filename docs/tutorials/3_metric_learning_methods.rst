@@ -7,7 +7,7 @@ Metric learning methods
 
    * - Tutorial
      - Description
-     - Notebook
+     - Link
    * - Train a Siamese network
      - Train a Siamese network, one of the earlier concepts of how to use neural networks for
        image similarity tasks.

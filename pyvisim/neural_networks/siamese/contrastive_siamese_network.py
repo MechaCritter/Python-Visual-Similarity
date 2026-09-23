@@ -14,28 +14,8 @@ class ContrastiveSiameseNetwork(BackboneWithHead):
     `Hadsell, R., Chopra, S., & LeCun, Y. (2006). Dimensionality Reduction
     by Learning an Invariant Mapping`.
 
-    This network "learns" the similarity metric directly. Two images are passed
-    through the same shared-weight ``backbone`` and projection ``head`` to
-    produce embeddings, which are L2-normalized so that cosine similarity
-    reduces to a dot product. The network is trained so that similar images map
-    to nearby embeddings and dissimilar images map far apart. Following diagram
-    visualizes this::
-
-        Input Image A ──► Backbone ──► Embedding Head ──► L2 Normalize ──► Embedding A
-                        │
-                        │ Shared Weights
-                        │
-        Input Image B ──► Backbone ──► Embedding Head ──► L2 Normalize ──► Embedding B
-
-        Embedding A + Embedding B
-                    │
-                    ▼
-            Contrastive Loss (training) / fixed metric, e.g. cosine (inference)
-
-    `Contrastive loss` is used to train this network, which has the formula:
-
-    .. math::
-        L = \\frac{1}{2N} \\sum_{i=1}^{N} \\Bigl( y_i \\, D_i^2 + (1 - y_i) \\, \\max(0, m - D_i)^2 \\Bigr)
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/neural_networks/contrastive_siamese/contrastive_siamese.html``.
 
     References:
     ===========

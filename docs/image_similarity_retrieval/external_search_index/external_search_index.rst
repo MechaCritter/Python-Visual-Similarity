@@ -14,7 +14,12 @@ provided.
    the embeddings themselves (which, in the worst case, can be the **same as
    the original embeddings**).
 
-An example use-case is provided below:
+Example
+-------
+
+.. tip::
+   See :doc:`this tutorial </tutorials/notebooks/image_search>` for a
+   more detailed walkthrough.
 
 .. code-block:: python
 

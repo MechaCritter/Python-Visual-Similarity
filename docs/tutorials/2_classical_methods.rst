@@ -7,7 +7,7 @@ Classical methods
 
    * - Tutorial
      - Description
-     - Notebook
+     - Link
    * - VLAD and Fisher Vector
      - Learn how ``VLAD`` and ``Fisher Vector``, previously state-of-the-art methods for
        image retrieval, work.

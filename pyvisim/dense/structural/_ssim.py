@@ -51,21 +51,14 @@ class SSIM(DenseMetricBase):
     """
     Structural Similarity index (Wang et al., 2004) between image batches.
 
-    SSIM compares two aligned images through local luminance, contrast and
-    structure statistics estimated under a sliding Gaussian window::
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ssim/ssim.html``.
 
-        SSIM(x, y) = (2*mu_x*mu_y + c1) * (2*cov_xy + c2)
-                     -------------------------------------------
-                     (mu_x^2 + mu_y^2 + c1) * (var_x + var_y + c2)
+    NOTE
+    ----
 
-    where ``c1 = (k1 * L) ** 2`` and ``c2 = (k2 * L) ** 2``. Windows are
-    applied in "valid" mode with population statistics, and the final score is
-    the mean over the whole SSIM map (all channels pooled), matching the
-    author's reference implementation. Because every input is normalized to
-    the canonical ``[0, 255]`` range, the dynamic range ``L`` is fixed at 255.
-
-    Higher values mean more similar: identical images score 1, structurally
-    unrelated images score near 0 and inverted structures can go negative.
+    Windows are applied in "valid" mode with population statistics, and the
+    final score is the mean over the whole SSIM map (all channels pooled)
 
     :param window_size: Side length of the Gaussian window, an odd integer
         >= 3.
