@@ -52,6 +52,16 @@ description names.
    # Reload extractor
    reloaded = FeatureExtractorBase.from_dict(serialized)
 
+An extractor can also be saved to a ``.safetensors`` file and loaded with the
+``load_from_disk`` method of its class.
+
+.. code-block:: python
+
+   from pyvisim.features import RootSIFT
+
+   path = RootSIFT(n_hist=2, n_ori=4).save_to_disk("root_sift")
+   reloaded = RootSIFT.load_from_disk(path)
+
 Table of Contents
 -----------------
 
@@ -66,9 +76,14 @@ Table of Contents
 Serialization
 -------------
 
-Extractors (except for :class:`~pyvisim.features.Lambda`) can 
-be (de)serialized to/from a JSON-safe dictionary with the methods below.
+Every extractor except :class:`~pyvisim.features.Lambda` can be written to and
+read from a JSON-safe dictionary or a ``.safetensors`` file with the methods
+below.
 
 .. automethod:: pyvisim.base.FeatureExtractorBase.to_dict
 
 .. automethod:: pyvisim.base.FeatureExtractorBase.from_dict
+
+.. automethod:: pyvisim.base.FeatureExtractorBase.save_to_disk
+
+.. automethod:: pyvisim.base.FeatureExtractorBase.load_from_disk

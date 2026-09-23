@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
+from torchvision import transforms
 
 from pyvisim.base import FeatureExtractorBase
 from pyvisim.features import DeepConvFeature
@@ -74,6 +77,68 @@ def test_a_user_supplied_model_cannot_be_rebuilt() -> None:
     assert state["config"]["backbone"] is None
     with pytest.raises(ValueError, match="user-supplied model"):
         FeatureExtractorBase.from_dict(state)
+
+
+def test_from_dict_rejects_unsupported_kwargs() -> None:
+    """DeepConvFeature takes only a backbone and a transform besides its state."""
+    extractor = DeepConvFeature(
+        build_backbone("resnet18", pretrained=False), device="cpu"
+    )
+    with pytest.raises(TypeError, match="does not take the deserialization"):
+        FeatureExtractorBase.from_dict(extractor.to_dict(), pretrained=False)
+
+
+def test_a_user_supplied_model_is_rebuilt_from_the_backbone_argument(
+    image: UInt8NumpyArray,
+) -> None:
+    """A model passed back on rebuild gives the descriptors of the original."""
+    extractor = DeepConvFeature(
+        build_backbone("resnet18", pretrained=False), layer_index=-2, device="cpu"
+    )
+    reloaded = FeatureExtractorBase.from_dict(
+        extractor.to_dict(), backbone=extractor.model
+    )
+    assert isinstance(reloaded, DeepConvFeature)
+    assert reloaded.selected_layer_name == extractor.selected_layer_name
+    np.testing.assert_array_equal(reloaded(image), extractor(image))
+
+
+def test_the_backbone_argument_overrides_the_stored_name() -> None:
+    """A model passed back on rebuild is used instead of the stored backbone name."""
+    model = build_backbone("resnet18", pretrained=False)
+    state = DeepConvFeature(model, device="cpu").to_dict()
+    state["config"]["backbone"] = "vgg16"
+    reloaded = FeatureExtractorBase.from_dict(state, backbone=model)
+    assert isinstance(reloaded, DeepConvFeature)
+    assert reloaded.model is model
+
+
+def test_a_transform_passed_back_is_used_without_a_warning() -> None:
+    """The transform the extractor was saved with rebuilds it silently."""
+    model = build_backbone("resnet18", pretrained=False)
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Resize((112, 112))]
+    )
+    state = DeepConvFeature(model, device="cpu", transform=transform).to_dict()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        reloaded = FeatureExtractorBase.from_dict(
+            state, backbone=model, transform=transform
+        )
+    assert isinstance(reloaded, DeepConvFeature)
+    assert reloaded.transform is transform
+
+
+def test_a_different_transform_warns_at_the_caller() -> None:
+    """Rebuilding without the saved transform warns, pointing at the caller."""
+    model = build_backbone("resnet18", pretrained=False)
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Resize((112, 112))]
+    )
+    state = DeepConvFeature(model, device="cpu", transform=transform).to_dict()
+    with pytest.warns(FutureWarning, match="transform") as record:
+        FeatureExtractorBase.from_dict(state, backbone=model)
+    assert record[0].filename == __file__
 
 
 @pytest.mark.parametrize("backbone", list_backbones())

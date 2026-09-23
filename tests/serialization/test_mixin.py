@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from pyvisim.classic import FisherVectorEmbedder, Pipeline, VLADEmbedder
+from pyvisim.features import SIFT, DeepConvFeature, RootSIFT
 from pyvisim.image_store import InMemoryImageEmbeddingStore
 from pyvisim.serialization import SerializerMixin, save_state
 
@@ -79,7 +80,15 @@ def test_an_unreadable_file_names_its_kind_and_the_reason(tmp_path: Path) -> Non
 
 @pytest.mark.parametrize(
     "serializable",
-    [VLADEmbedder, FisherVectorEmbedder, Pipeline, InMemoryImageEmbeddingStore],
+    [
+        VLADEmbedder,
+        FisherVectorEmbedder,
+        Pipeline,
+        InMemoryImageEmbeddingStore,
+        SIFT,
+        RootSIFT,
+        DeepConvFeature,
+    ],
 )
 def test_every_shipped_class_declares_its_own_file_format(
     serializable: type[SerializerMixin],

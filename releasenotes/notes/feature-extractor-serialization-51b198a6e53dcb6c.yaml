@@ -1,0 +1,32 @@
+---
+upgrade:
+  - |
+    The first parameter of ``FeatureExtractorBase.from_dict`` was renamed from
+    ``data`` to ``state``. You are affected if you pass it by keyword, and
+    ``from_dict(data=...)`` becomes ``from_dict(state=...)``.
+  - |
+    The mapping returned by a feature extractor's ``to_dict`` now also holds a
+    ``"format_version"`` key. Saved ``.embedder`` files load as before.
+  - |
+    The ``_serialization_config`` hook of ``FeatureExtractorBase`` was removed.
+    A custom extractor that overrides it now overrides ``_state`` instead and
+    returns ``{"config": ...}``, otherwise its arguments are no longer saved.
+features:
+  - |
+    Feature extractors can be saved on their own with ``save_to_disk`` and
+    loaded back with ``load_from_disk``, as ``.safetensors`` files.
+enhancements:
+  - |
+    ``FeatureExtractorBase.from_dict`` forwards its keyword arguments to the
+    ``_from_config`` hook, so a custom extractor can take objects its state
+    cannot hold.
+  - |
+    A ``DeepConvFeature`` built on a user-supplied model or a custom transform
+    can be rebuilt by passing them back as ``backbone=`` and ``transform=``. A
+    ``FutureWarning`` is emitted if the transform differs from the saved one.
+  - |
+    ``VLADEmbedder`` and ``FisherVectorEmbedder`` take a
+    ``feature_extractor_params`` dict in ``from_dict`` and ``load_from_disk``,
+    which is forwarded to the feature extractor. An embedder on a
+    ``DeepConvFeature`` with a user-supplied model is loaded with
+    ``feature_extractor_params={"backbone": model}``.

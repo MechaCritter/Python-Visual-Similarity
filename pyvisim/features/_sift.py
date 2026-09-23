@@ -59,8 +59,8 @@ class SIFT(FeatureExtractorBase, _SIFT):
     def output_dim(self) -> int:
         return self._output_dim
 
-    def _serialization_config(self) -> dict[str, Any]:
-        return dict(self._params)
+    def _state(self) -> dict[str, Any]:
+        return {"config": dict(self._params)}
 
     @staticmethod
     def _to_grayscale(image: UInt8NumpyArray) -> UInt8NumpyArray:
