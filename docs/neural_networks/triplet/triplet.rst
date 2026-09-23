@@ -1,10 +1,35 @@
 TripletNeuralNetwork
 ====================
 
-Learns an embedding space from *triplets*: an anchor, a positive (same class)
-and a negative (different class). Training pulls the anchor towards the
-positive and pushes it away from the negative by at least a margin. Embeddings
-come out L2-normalized, so cosine similarity is a plain dot product.
+A triplet network is a shared-weight embedding network trained on
+triplets of anchor, positive (same class) and negative (different class)
+images: the anchor is pulled towards the positive and pushed away from
+the negative by at least a margin. The three classic "branches" of the
+architecture are realized implicitly by weight sharing: every image is
+passed through the same ``backbone`` and projection ``head``, and the
+embeddings are L2-normalized so that cosine similarity reduces to a dot
+product. Following diagram visualizes this:
+
+.. code-block:: text
+
+   Anchor   ───┐
+               │    ┌──────────┐    ┌────────────────┐    ┌──────────────┐
+   Positive ───┼───►│ Backbone │───►│ Embedding Head │───►│ L2 Normalize │───► Embeddings
+               │    └──────────┘    └────────────────┘    └──────────────┘
+   Negative ───┘    (Shared Weights)
+
+                 Embedding A + Embedding P + Embedding N
+                                    │
+                                    ▼
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ Triplet Loss (training) / fixed metric, e.g. cosine (inference) │
+   └─────────────────────────────────────────────────────────────────┘
+
+`Triplet loss` is used to train this network, which has the formula:
+
+.. math::
+
+   L(a, p, n) = \max\bigl(0, \, d(a, p) - d(a, n) + m\bigr)
 
 Training with online mining
 ---------------------------

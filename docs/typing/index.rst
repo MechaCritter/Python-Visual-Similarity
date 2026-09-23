@@ -1,11 +1,8 @@
 Typing
 ======
 
-File: ``pyvisim/typing/__init__.py``
-
-``pyvisim.typing`` is the public home for the input types and normalization
-helpers used across the library. Everything that accepts image data uses the
-types defined here so you only need to learn them once.
+``pyvisim.typing`` is the contains public types for annotation as well as
+normalization helpers that are used across this library.
 
 Types
 -----
@@ -15,7 +12,7 @@ Types
 
 .. code-block:: python
 
-   MatLike = np.ndarray | torch.Tensor | npt.ArrayLike
+   from pyvisim.typing import MatLike
 
 Anything that can be treated as a numerical image array:
 
@@ -30,41 +27,53 @@ Anything that can be treated as a numerical image array:
 
 .. code-block:: python
 
-   ImageInput = MatLike | Iterable[MatLike]
+   from pyvisim.typing import ImageInput
 
-The widest input type accepted by ``embed``, ``learn``, and
-``similarity_score``. You can pass:
-
-- a single image (NumPy array, tensor, ...)
-- a single *batched* array where one axis is a batch dimension (use ``dims`` to
-  say which)
-- an iterable of individual images, for example a generator over large datasets
+The widest input type accepted wherever the library takes image data, for
+example ``embed``, ``learn``, and ``similarity_score``. It covers a single
+image, a single batched array/tensor, and an iterable of individual images such as a
+generator over a large dataset. Both NumPy arrays and PyTorch tensors are accepted.
 
 ``Embedder``
 ~~~~~~~~~~~~
 
 .. code-block:: python
 
-   class Embedder(Protocol):
-       def embed(self, images: ImageInput, *, dims=..., value_range=...) -> FloatNumpyArray: ...
+   from pyvisim.typing import Embedder
 
-A structural type (a :class:`typing.Protocol`) for anything that turns images
-into vectors: all it needs is an ``embed`` method. ``VLADEmbedder``,
-``FisherVectorEmbedder``, and ``Pipeline`` all satisfy it without inheriting
-from it.
+A type that represents all image embedders in this library. Example: ``ClipEmbedder``.
 
-There is a matching ``EmbeddingStore`` protocol too (the gallery surface that
-retrieval and evaluation rely on: ``paths``, ``embeddings``, ``embedder``, and
-``search``). ``SearchIndex`` describes the other half, what a store searches
-through: the ``vectors`` an index owns, its ``dim``, ``vectors_at`` to read a
-few of those vectors back by row number, and its own ``search``.
+``EmbeddingStore``
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from pyvisim.typing import EmbeddingStore
+
+A structural type for a gallery of embedded images. Example: ``InMemoryEmbeddingStore``.
+
+``SearchIndex``
+~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from pyvisim.typing import SearchIndex
+
+A structural type for the index a store searches through. Example: ``HnswIndex``.
+
+Keyword arguments for image data
+--------------------------------
+
+``dims`` and ``value_range`` are important parameters that describe how the images 
+are read by this library. These are used by methods like ``embed``, ``learn``, 
+and ``similarity_score``.
+
 
 The ``dims`` string
--------------------
+~~~~~~~~~~~~~~~~~~~
 
-Every method that accepts image data also accepts a ``dims`` keyword argument.
-It is a short string that tells the library how to read your array's axes, one
-character per dimension in the exact order the axes appear:
+``dims`` tells the library how to read your array's axes, one character per
+dimension in the exact order the axes appear:
 
 .. list-table::
    :header-rows: 1
@@ -117,8 +126,34 @@ processed individually. You do not need to loop yourself.
 ``dims`` is **case-insensitive**: ``"hwc"``, ``"HWC"``, ``"Hwc"`` all work the
 same way.
 
+Example:
+
+.. code-block:: python
+
+   import numpy as np
+
+   from pyvisim.neural_networks import ClipEmbedder
+
+   rng = np.random.default_rng(0)
+   image1 = rng.integers(64, 256, size=(64, 80, 3), dtype=np.uint8)
+   image2 = rng.integers(64, 256, size=(64, 80, 3), dtype=np.uint8)
+
+   embedder = ClipEmbedder("ViT-B-32", pretrained="openai", device="cpu")
+
+   # baseline: NumPy (H, W, C) layout
+   score_hwc = embedder.similarity_score(image1, image2, dims="HWC")
+
+   # same pixels, PyTorch (C, H, W) layout, declared via dims
+   score_chw = embedder.similarity_score(
+       image1.transpose(2, 0, 1), image2.transpose(2, 0, 1), dims="CHW"
+   )
+
+   # The results should be the same
+   print(score_hwc, score_chw)
+
+
 The ``value_range`` tuple
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -140,27 +175,32 @@ rescaled into ``[0, 255]`` before feature extraction. Common cases:
    * - float image, values -1 to 1 (e.g. some augmentation pipelines)
      - ``(-1.0, 1.0)``
 
-If your image is already ``uint8`` in ``(0, 255)`` the rescaling step is a
+If your image is already ``uint8`` in ``(0, 255)``, the rescaling step is a
 no-op.
 
-Passing torch images to an embedder
------------------------------------
-
-You do not need to convert manually. Just tell the embedder what layout your
-tensor is in:
+Example:
 
 .. code-block:: python
 
-   import torch
-   from pyvisim.classic import VLADEmbedder
+   import numpy as np
 
-   embedder = VLADEmbedder(n_clusters=64)
-   embedder.learn(train_images)  # train_images: list of uint8 HWC NumPy arrays
+   from pyvisim.neural_networks import ClipEmbedder
 
-   # PyTorch DataLoader typically yields BCHW float tensors in [0, 1]
-   batch: torch.Tensor  # shape (8, 3, 224, 224)
-   embeddings = embedder.embed(batch, dims="BCHW", value_range=(0.0, 1.0))
-   # embeddings.shape == (8, 64 * feature_dim)
+   rng = np.random.default_rng(0)
+   image1 = rng.integers(64, 256, size=(64, 80, 3), dtype=np.uint8)
+   image2 = rng.integers(64, 256, size=(64, 80, 3), dtype=np.uint8)
 
-The conversion happens once per call, before the feature extractor runs, so
-there is no overhead from calling ``to_single_image`` yourself first.
+   embedder = ClipEmbedder("ViT-B-32", pretrained="openai", device="cpu")
+
+   # baseline: uint8 pixels in the default [0, 255] range
+   score_uint8 = embedder.similarity_score(image1, image2, value_range=(0.0, 255.0))
+
+   # same pixels rescaled to [-1, 1], declared via value_range
+   image1_signed = image1.astype(np.float64) / 127.5 - 1.0
+   image2_signed = image2.astype(np.float64) / 127.5 - 1.0
+   score_signed = embedder.similarity_score(
+       image1_signed, image2_signed, value_range=(-1.0, 1.0)
+   )
+   
+   # The results should be the same
+   print(score_uint8, score_signed)

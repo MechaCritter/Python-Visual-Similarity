@@ -7,7 +7,7 @@ Introduction
 
    * - Tutorial
      - Description
-     - Notebook
+     - Link
    * - Introduction to this library
      - An overview of the features offered by `pyvisim`, to get you familiar with
        its **API**.
