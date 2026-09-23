@@ -1,0 +1,10 @@
+---
+upgrade:
+  - |
+    The British spelling ``neighbour`` is replaced by ``neighbor`` throughout
+    the library. One public name changes with it:
+    ``InMemoryImageEmbeddingStore.retrieve_top_k_similar`` now takes
+    ``expansion_neighbors`` where it took ``expansion_neighbours``.
+  - |
+    The British spelling ``serialise`` is replaced by ``serialize`` throughout
+    the library. Only documentation, docstrings and comments are affected.

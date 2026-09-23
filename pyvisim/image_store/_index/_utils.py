@@ -3,7 +3,7 @@ Shared array plumbing for the search indexes.
 
 The helpers here validate and shape the matrices that go into an index and come
 back out of it: the gallery matrix an index takes ownership of, the query batch
-handed to a nearest-neighbour search, and the fixed-width result arrays a search
+handed to a nearest-neighbor search, and the fixed-width result arrays a search
 returns.
 """
 
@@ -157,9 +157,9 @@ def is_explicit_thread_count(num_threads: int) -> bool:
 
 def validate_k(k: int) -> int:
     """
-    Reject a non-positive neighbour count.
+    Reject a non-positive neighbor count.
 
-    :param k: Number of nearest neighbours requested per query.
+    :param k: Number of nearest neighbors requested per query.
     :return: ``k`` as an integer.
     :raises ValueError: If ``k`` is not a positive integer.
     """
@@ -174,9 +174,9 @@ def pad_results(
     k: int,
 ) -> tuple[Float32NumpyArray, IntNumpyArray]:
     """
-    Widen a result block to ``k`` columns, marking the missing neighbours.
+    Widen a result block to ``k`` columns, marking the missing neighbors.
 
-    A gallery smaller than ``k`` yields fewer neighbours than were asked for.
+    A gallery smaller than ``k`` yields fewer neighbors than were asked for.
     The free columns are filled with the ``-1`` id and an infinite distance, so
     callers always receive the ``(M, k)`` block they requested.
 

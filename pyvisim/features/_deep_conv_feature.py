@@ -108,7 +108,7 @@ class DeepConvFeature(FeatureExtractorBase):
         super().__init__()
         _torch_import.check()
         backbone = self._resolve_deprecated_model(backbone, kwargs)
-        # Track which built-in backbone is used, if any: serialising stores its
+        # Track which built-in backbone is used, if any: serializing stores its
         # name and rebuilds it from torchvision on load, while a user-supplied
         # model has no name to rebuild it from.
         model, self._backbone_name = _resolve_backbone(backbone)
@@ -196,7 +196,7 @@ class DeepConvFeature(FeatureExtractorBase):
         Only the name of the built-in backbone is stored, and the model is
         rebuilt from torchvision's default weights on load. A user-supplied
         model has no such name, and is stored as ``None``. The custom
-        ``transform`` is not serialised, so the reconstructed extractor uses
+        ``transform`` is not serialized, so the reconstructed extractor uses
         the transform built for ``transform=None``.
 
         :return: A mapping of constructor arguments.
@@ -211,10 +211,10 @@ class DeepConvFeature(FeatureExtractorBase):
     @classmethod
     def _from_config(cls, config: dict[str, Any]) -> DeepConvFeature:
         """
-        Rebuild a :class:`DeepConvFeature` from a serialised configuration.
+        Rebuild a :class:`DeepConvFeature` from a serialized configuration.
 
         The backbone is rebuilt by name and the device is resolved again, so
-        the reconstructed extractor can be serialised again in turn.
+        the reconstructed extractor can be serialized again in turn.
 
         :param config: Mapping produced by :meth:`_serialization_config`.
         :return: A reconstructed deep feature extractor.

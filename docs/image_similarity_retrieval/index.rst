@@ -10,7 +10,7 @@ for large galleries. The ``C++`` backend further increases the retrieval speed.
 Additionally, the :ref:`alpha query expansion <query-expansion>` averages a
 query with its best matches before the final search, and the
 :doc:`k-reciprocal re-ranking <reranking/reranking>` re-orders a pool of
-candidates by how much their neighbourhoods agree with the query's, improving
+candidates by how much their neighborhoods agree with the query's, improving
 the ``mean average precision`` of the retrieval.
 
 Table of Contents

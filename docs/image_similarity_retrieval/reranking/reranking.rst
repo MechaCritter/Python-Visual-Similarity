@@ -6,14 +6,14 @@ k-reciprocal re-ranking
 
 ``KReciprocalReranker`` re-orders the candidates a store retrieved for a query
 with the **k-reciprocal encoding** of Zhong et al. [1]. Two images are
-k-reciprocal neighbours when each is among the ``k1`` nearest neighbours of the
+k-reciprocal neighbors when each is among the ``k1`` nearest neighbors of the
 other, a far stricter relation than merely being close to the query: a false
 match may lie close to the query, but the query rarely lies close to the false
-match's own neighbours. The query and every candidate are encoded into a
+match's own neighbors. The query and every candidate are encoded into a
 k-reciprocal feature, a vector over the candidate set that holds a Gaussian
-weight for each of their k-reciprocal neighbours and zero elsewhere, and the
+weight for each of their k-reciprocal neighbors and zero elsewhere, and the
 Jaccard distance between the query's feature and a candidate's says how much
-their neighbourhoods agree. The candidates are finally re-ranked by
+their neighborhoods agree. The candidates are finally re-ranked by
 ``(1 - lambda_value) * jaccard + lambda_value * original``, where ``original``
 is the distance the store ranked them by.
 
@@ -27,7 +27,7 @@ Reranking algorithm
 
 Let the probe :math:`p` be the query and
 :math:`\mathcal{G} = \{g_i \mid i = 1, 2, \dots, N\}` are the candidates, so
-the set the neighbourhoods are built over holds :math:`N + 1` images.
+the set the neighborhoods are built over holds :math:`N + 1` images.
 
 - **Original distance.** :math:`d(p, g_i)` is the score the store ranked the
   candidate by, and :math:`d(g_i, g_j)` is computed from the candidates'
@@ -35,7 +35,7 @@ the set the neighbourhoods are built over holds :math:`N + 1` images.
   largest entry (reference implementation), and hence lies in range
   :math:`[0, 1]`.
 
-- **k-nearest neighbours, Eq. (2).** The ranking list
+- **k-nearest neighbors, Eq. (2).** The ranking list
   :math:`\mathcal{L}(p, \mathcal{G})` sorts the set by :math:`d`, and
   :math:`N(p, k)` is its top-:math:`k`:
 
@@ -47,8 +47,8 @@ the set the neighbourhoods are built over holds :math:`N + 1` images.
   itself at rank zero (reference implementation), and the same definition
   serves every candidate :math:`g_i` in place of :math:`p`.
 
-- **k-reciprocal neighbours, Eq. (3).** Only the neighbours that hold :math:`p`
-  among their own :math:`k` nearest neighbours are kept:
+- **k-reciprocal neighbors, Eq. (3).** Only the neighbors that hold :math:`p`
+  among their own :math:`k` nearest neighbors are kept:
 
   .. math::
 
@@ -56,7 +56,7 @@ the set the neighbourhoods are built over holds :math:`N + 1` images.
 
 - **Expansion, Eq. (4).** With :math:`k = k_1`, every member :math:`q` of
   :math:`\mathcal{R}(p, k)` brings its own :math:`\tfrac{1}{2}k`-reciprocal
-  neighbours in, provided at least two thirds of them already lie in
+  neighbors in, provided at least two thirds of them already lie in
   :math:`\mathcal{R}(p, k)`:
 
   .. math::
@@ -68,7 +68,7 @@ the set the neighbourhoods are built over holds :math:`N + 1` images.
 
 - **k-reciprocal feature, Eq. (7).** Each image is encoded into a vector over
   the set, a Gaussian kernel of the original distance on its expanded
-  neighbourhood and zero elsewhere:
+  neighborhood and zero elsewhere:
 
   .. math::
 
@@ -79,18 +79,18 @@ the set the neighbourhoods are built over holds :math:`N + 1` images.
      \end{cases}
 
   Each vector is scaled to unit :math:`L_1` norm (reference implementation), so
-  the Jaccard distance below compares the shape of two neighbourhoods rather
+  the Jaccard distance below compares the shape of two neighborhoods rather
   than their size.
 
 - **Local query expansion, Eq. (11).** The feature of every image is replaced
-  by the mean feature of its :math:`k_2` nearest neighbours, the image itself
+  by the mean feature of its :math:`k_2` nearest neighbors, the image itself
   included (reference implementation). ``k2=1`` skips this step.
 
   .. math::
 
      \mathcal{V}_p = \frac{1}{|N(p, k_2)|} \sum_{g_i \in N(p, k_2)} \mathcal{V}_{g_i}
 
-- **Jaccard distance, Eq. (10).** The overlap of two neighbourhoods is read off
+- **Jaccard distance, Eq. (10).** The overlap of two neighborhoods is read off
   their features with the element-wise minimum and maximum:
 
   .. math::
