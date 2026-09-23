@@ -3,7 +3,7 @@
 The fast suite in ``tests/neural_networks/test_serialization.py`` keeps
 itself offline: it builds the network with an untrained backbone (or a stub
 one) and embeds synthetic images. These tests take the opposite route and
-serialise the model a user actually builds: the ImageNet-pretrained
+serialize the model a user actually builds: the ImageNet-pretrained
 ResNet-18 backbone, run on real flower images, so the round trip is checked
 over real weights instead of random ones.
 

@@ -79,11 +79,11 @@ def test_an_unreadable_file_names_its_kind_and_the_reason(tmp_path: Path) -> Non
 
 
 @pytest.mark.parametrize(
-    "serialisable",
+    "serializable",
     [VLADEmbedder, FisherVectorEmbedder, Pipeline, InMemoryImageEmbeddingStore],
 )
 def test_every_shipped_class_declares_its_own_file_format(
-    serialisable: type[SerializerMixin],
+    serializable: type[SerializerMixin],
 ) -> None:
     """The classes users save and load describe their files themselves."""
     contract = (
@@ -93,4 +93,4 @@ def test_every_shipped_class_declares_its_own_file_format(
         "__format_version__",
         "__state_keys__",
     )
-    assert all(getattr(serialisable, name, None) is not None for name in contract)
+    assert all(getattr(serializable, name, None) is not None for name in contract)

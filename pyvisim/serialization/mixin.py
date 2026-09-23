@@ -37,9 +37,9 @@ class SerializerMixin(abc.ABC):
     __metadata_key__: ClassVar[str]
     #: State key naming the class that wrote the file.
     __class_key__: ClassVar[str]
-    #: On-disk format version, written into every state this class serialises.
+    #: On-disk format version, written into every state this class serializes.
     __format_version__: ClassVar[int]
-    #: Keys a serialised state must contain to be a valid file of this kind,
+    #: Keys a serialized state must contain to be a valid file of this kind,
     #: besides the format version and the class name :meth:`to_dict` adds.
     __state_keys__: ClassVar[frozenset[str]]
     #: Whether a file written under one format version can be read under
@@ -67,13 +67,13 @@ class SerializerMixin(abc.ABC):
         )
         if missing:
             raise TypeError(
-                f"{cls.__name__} serialises itself to a file but does not "
+                f"{cls.__name__} serializes itself to a file but does not "
                 f"declare {', '.join(missing)}."
             )
 
     def to_dict(self) -> dict[str, Any]:
         """
-        Serialises this object into a JSON-safe state dictionary.
+        Serializes this object into a JSON-safe state dictionary.
 
         The mapping holds the output of :meth:`_state` plus the format version
         under ``"format_version"`` and the class name under
@@ -135,7 +135,7 @@ class SerializerMixin(abc.ABC):
 
     def save_to_disk(self, path: str | pathlib.Path) -> pathlib.Path:
         """
-        Saves the serialised state of this object to a file.
+        Saves the serialized state of this object to a file.
 
         :param path: Target file path. The suffix of the file kind is appended
             if missing. Overwritten if it exists.
@@ -143,7 +143,7 @@ class SerializerMixin(abc.ABC):
         :raises OSError: If the destination directory does not exist.
         """
         # The destination is resolved first so that an unwritable one is
-        # reported before the state is serialised.
+        # reported before the state is serialized.
         target = self._resolve_save_path(path)
         return self._write_state(self.to_dict(), target)
 
@@ -198,7 +198,7 @@ class SerializerMixin(abc.ABC):
 
     def _write_state(self, state: dict[str, Any], path: pathlib.Path) -> pathlib.Path:
         """
-        Writes a serialised state to an already-resolved path.
+        Writes a serialized state to an already-resolved path.
 
         :param state: A JSON-safe description of the object.
         :param path: Destination path, as returned by :meth:`_resolve_save_path`.
@@ -210,7 +210,7 @@ class SerializerMixin(abc.ABC):
     @classmethod
     def _read_state(cls, path: pathlib.Path) -> dict[str, Any]:
         """
-        Reads the serialised state a file holds.
+        Reads the serialized state a file holds.
 
         :param path: Path to the file to read.
         :return: The state, with arrays restored to ``numpy.ndarray``.

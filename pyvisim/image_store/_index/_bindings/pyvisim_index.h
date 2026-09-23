@@ -54,7 +54,7 @@ class PyvisimIndex : public Index<float> {
 
 
     /**
-     * Copy an index through the parameters it serialises itself into.
+     * Copy an index through the parameters it serializes itself into.
      */
     static PyvisimIndex *createFromIndex(const PyvisimIndex &index) {
         return createFromParams(index.getIndexParams());
@@ -80,7 +80,7 @@ class PyvisimIndex : public Index<float> {
         num_threads_default = source.num_threads_default;
         seed = source.seed;
         default_ef = source.default_ef;
-        // An index that was serialised before it was initialised holds no
+        // An index that was serialized before it was initialised holds no
         // element count to take over.
         cur_l = source.index_inited ? source.cur_l : 0;
     }

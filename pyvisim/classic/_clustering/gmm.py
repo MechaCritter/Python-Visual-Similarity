@@ -16,7 +16,7 @@ from .kmeans import _kmeans_plusplus, _rng_from_sklearn
 
 _GaussianMixtureT = TypeVar("_GaussianMixtureT", bound="DiagCovarGaussianMixture")
 
-#: Constructor arguments (besides ``n_components``) restored on deserialisation.
+#: Constructor arguments (besides ``n_components``) restored on deserialization.
 _INIT_PARAM_NAMES = ("n_init", "max_iter", "tol", "reg_covar", "rng")
 
 #: Maps :class:`sklearn.mixture.GaussianMixture` constructor arguments to this
