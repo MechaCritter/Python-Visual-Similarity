@@ -209,7 +209,7 @@ class DeepConvFeature(FeatureExtractorBase):
         }
 
     @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> DeepConvFeature:
+    def _from_config(cls, config: dict[str, Any], **kwargs: Any) -> DeepConvFeature:
         """
         Rebuild a :class:`DeepConvFeature` from a serialized configuration.
 
@@ -217,11 +217,14 @@ class DeepConvFeature(FeatureExtractorBase):
         the reconstructed extractor can be serialized again in turn.
 
         :param config: Mapping produced by :meth:`_serialization_config`.
+        :param kwargs: Not supported, must be empty.
         :return: A reconstructed deep feature extractor.
+        :raises TypeError: If ``kwargs`` is not empty.
         :raises ValueError: If the extractor was built on a user-supplied model,
             or on a backbone this release no longer knows.
         :raises ImportError: If the optional torch dependency is not installed.
         """
+        cls._reject_unsupported_kwargs(kwargs)
         _torch_import.check()
         backbone = config.get("backbone")
         if backbone is None:

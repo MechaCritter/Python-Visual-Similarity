@@ -125,7 +125,7 @@ class SimilarityMetric(abc.ABC):
         pass
 
 
-class FeatureExtractorBase(abc.ABC):
+class FeatureExtractorBase(SerializerMixin):
     """
     Abstract interface for extracting features from images.
 
@@ -133,8 +133,11 @@ class FeatureExtractorBase(abc.ABC):
     set of feature vectors (NumPy array).
     """
 
-    #: State key naming the extractor class a serialized description belongs to.
+    __file_format__: ClassVar[str] = ".safetensors"
+    __metadata_key__: ClassVar[str] = "pyvisim_feature_extractor"
     __class_key__: ClassVar[str] = "__class__"
+    __format_version__: ClassVar[int] = 1
+    __state_keys__: ClassVar[frozenset[str]] = frozenset({"config"})
 
     #: Every subclass defined so far, keyed by class name.
     _subclasses_by_name: ClassVar[dict[str, type["FeatureExtractorBase"]]] = {}
@@ -207,19 +210,8 @@ class FeatureExtractorBase(abc.ABC):
         """
         pass
 
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Serialize this feature extractor into a JSON-safe configuration dict.
-
-        The dict captures the extractor's class name and the keyword arguments
-        needed to rebuild an equivalent instance (see :meth:`from_dict`).
-
-        :return: A mapping ``{"__class__": str, "config": dict}``.
-        """
-        return {
-            self.__class_key__: type(self).__name__,
-            "config": self._serialization_config(),
-        }
+    def _state(self) -> dict[str, Any]:
+        return {"config": self._serialization_config()}
 
     def _serialization_config(self) -> dict[str, Any]:
         """
@@ -234,37 +226,39 @@ class FeatureExtractorBase(abc.ABC):
         return {}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "FeatureExtractorBase":
+    def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "FeatureExtractorBase":
         """
         Rebuilds the feature extractor from a dict produced by :meth:`to_dict`.
 
-        :param data: A mapping ``{"__class__": str, "config": dict}``.
+        :param state: A mapping produced by :meth:`to_dict`.
+        :param kwargs: Objects the state cannot describe.
         :return: The reconstructed feature extractor.
-        :raises TypeError: If ``data`` is not a mapping produced by
-            :meth:`to_dict`.
-        :raises ValueError: If ``data`` names no known extractor class, or names
+        :raises TypeError: If ``state`` is not a mapping produced by
+            :meth:`to_dict`, or the named class does not take one of
+            ``kwargs``.
+        :raises ValueError: If ``state`` names no known extractor class, or names
             one that cannot be rebuilt automatically (e.g. a Lambda extractor).
         """
-        config = cls._validated_config(data)
-        extractor_cls = cls._subclass_named(data[cls.__class_key__])
-        return extractor_cls._from_config(config)
+        config = cls._validated_config(state)
+        extractor_cls = cls._subclass_named(state[cls.__class_key__])
+        return extractor_cls._from_config(config, **kwargs)
 
     @classmethod
-    def _validated_config(cls, data: dict[str, Any]) -> dict[str, Any]:
+    def _validated_config(cls, state: dict[str, Any]) -> dict[str, Any]:
         """
         Extracts the constructor arguments a serialized description carries.
 
         A description written before an extractor stored its arguments carries
         none, and the defaults of the constructor are used instead.
 
-        :param data: A mapping produced by :meth:`to_dict`.
+        :param state: A mapping produced by :meth:`to_dict`.
         :return: The configuration the description holds.
-        :raises TypeError: If ``data`` is not a mapping produced by
+        :raises TypeError: If ``state`` is not a mapping produced by
             :meth:`to_dict`.
         """
-        if not isinstance(data, dict) or cls.__class_key__ not in data:
+        if not isinstance(state, dict) or cls.__class_key__ not in state:
             raise TypeError("Expected a feature-extractor dict from to_dict().")
-        return cast(dict[str, Any], data.get("config", {}))
+        return cast(dict[str, Any], state.get("config", {}))
 
     @classmethod
     def _subclass_named(cls, name: Any) -> type["FeatureExtractorBase"]:
@@ -295,17 +289,23 @@ class FeatureExtractorBase(abc.ABC):
         return extractor_cls
 
     @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> "FeatureExtractorBase":
+    def _from_config(
+        cls, config: dict[str, Any], **kwargs: Any
+    ) -> "FeatureExtractorBase":
         """
         Rebuilds an extractor from the arguments :meth:`_serialization_config` produced.
 
-        The default hands them straight to the constructor. Subclasses that
-        need more than that, or that cannot be rebuilt at all, override this
-        hook.
+        The default hands them straight to the constructor and takes no
+        ``kwargs``. Subclasses that need more than that, or that cannot be
+        rebuilt at all, override this hook.
 
         :param config: A mapping produced by :meth:`_serialization_config`.
+        :param kwargs: Objects the configuration cannot describe, forwarded by
+            :meth:`from_dict`.
         :return: A reconstructed feature extractor.
+        :raises TypeError: If the class does not take one of ``kwargs``.
         """
+        cls._reject_unsupported_kwargs(kwargs)
         return cls(**config)
 
 
