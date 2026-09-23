@@ -17,6 +17,8 @@ from pyvisim.features import SIFT, RootSIFT
 from pyvisim.features._vendored.sift.dtype import _convert
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from tests.conftest import ImageObj
 
 COINS_URL = (
@@ -285,3 +287,34 @@ def test_an_empty_legacy_config_rebuilds_the_default_arguments() -> None:
     """Files written before SIFT stored its arguments still load."""
     reloaded = FeatureExtractorBase.from_dict({"__class__": "SIFT", "config": {}})
     assert reloaded.to_dict() == SIFT().to_dict()
+
+
+def test_to_dict_carries_the_format_version() -> None:
+    """A serialized extractor is stamped with the version of its format."""
+    assert SIFT().to_dict()["format_version"] == SIFT.__format_version__
+
+
+@pytest.mark.parametrize("extractor_cls", [SIFT, RootSIFT])
+def test_file_round_trip_keeps_the_constructor_arguments(
+    extractor_cls: type[SIFT], tmp_path: Path
+) -> None:
+    """An extractor loaded from its file has the arguments it was saved with."""
+    extractor = extractor_cls(n_scales=4, c_edge=5.0, n_hist=2, n_ori=4)
+    path = extractor.save_to_disk(tmp_path / "extractor")
+    reloaded = extractor_cls.load_from_disk(path)
+    assert path.suffix == ".safetensors"
+    assert type(reloaded) is extractor_cls
+    assert reloaded.to_dict() == extractor.to_dict()
+
+
+def test_a_file_of_another_extractor_is_rejected(tmp_path: Path) -> None:
+    """A RootSIFT file is not loaded as a SIFT."""
+    path = RootSIFT().save_to_disk(tmp_path / "extractor")
+    with pytest.raises(ValueError, match="was saved by RootSIFT"):
+        SIFT.load_from_disk(path)
+
+
+def test_from_dict_rejects_unsupported_kwargs() -> None:
+    """SIFT is rebuilt from its state alone and takes no extra objects."""
+    with pytest.raises(TypeError, match="does not take the deserialization"):
+        FeatureExtractorBase.from_dict(SIFT().to_dict(), transform=None)
