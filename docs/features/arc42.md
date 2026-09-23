@@ -24,5 +24,9 @@ subclassing `FeatureExtractorBase`. It is also the reason `output_dim` is a
 constructor argument there: an arbitrary function has no inspectable descriptor
 size, so the caller has to supply the value.
 
-`FeatureExtractorBase.from_dict` rebuilds an extractor from the description
-`to_dict` wrote.
+`FeatureExtractorBase` inherits the file contract of `SerializerMixin`, as the
+embedders and the clustering models do. An extractor is described by its
+constructor arguments under `"config"`, and `FeatureExtractorBase.from_dict`
+rebuilds the class named in that description. This description is also nested
+in the state of every classic embedder, so an extractor is saved either inside
+an embedder file or in a file of its own.

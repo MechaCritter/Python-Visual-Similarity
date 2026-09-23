@@ -102,7 +102,7 @@ class DeepConvFeature(FeatureExtractorBase):
         target_submodule: str | None = None,
         layer_index: int = -1,
         device: str | None = None,
-        transform: transforms.Compose = None,
+        transform: transforms.Compose | None = None,
         **kwargs: Any,
     ):
         super().__init__()
@@ -116,11 +116,13 @@ class DeepConvFeature(FeatureExtractorBase):
         self._target_submodule = target_submodule
         self.layer_index = layer_index
         self.device = resolve_device(device)
-        self.transform = transform
-        if self.transform is None:
-            self.transform = transforms.Compose(
+        self.transform: transforms.Compose = (
+            transform
+            if transform is not None
+            else transforms.Compose(
                 [transforms.ToTensor(), transforms.Resize((224, 224))]
             )
+        )
 
         self.model: torch.nn.Module = model  # Trigger setter
         self._modules: torch.nn.Module = self._get_submodule(target_submodule)
@@ -189,53 +191,77 @@ class DeepConvFeature(FeatureExtractorBase):
     def output_dim(self) -> int:
         return self._output_dim
 
-    def _serialization_config(self) -> dict[str, Any]:
-        """
-        Return the configuration needed to rebuild this deep feature extractor.
-
-        Only the name of the built-in backbone is stored, and the model is
-        rebuilt from torchvision's default weights on load. A user-supplied
-        model has no such name, and is stored as ``None``. The custom
-        ``transform`` is not serialized, so the reconstructed extractor uses
-        the transform built for ``transform=None``.
-
-        :return: A mapping of constructor arguments.
-        """
+    def _state(self) -> dict[str, Any]:
         return {
-            "backbone": self._backbone_name,
-            "target_submodule": self._target_submodule,
-            "layer_index": self.layer_index,
-            "device": self.device,
+            "config": {
+                "backbone": self._backbone_name,
+                "target_submodule": self._target_submodule,
+                "layer_index": self.layer_index,
+                "device": self.device,
+                "transform": repr(self.transform),
+            }
         }
 
     @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> DeepConvFeature:
+    def _from_config(
+        cls,
+        config: dict[str, Any],
+        *,
+        backbone: torch.nn.Module | None = None,
+        transform: transforms.Compose | None = None,
+        **kwargs: Any,
+    ) -> DeepConvFeature:
         """
         Rebuild a :class:`DeepConvFeature` from a serialized configuration.
 
-        The backbone is rebuilt by name and the device is resolved again, so
-        the reconstructed extractor can be serialized again in turn.
+        The backbone is rebuilt by name unless ``backbone`` is given, and the
+        device is resolved again, so the reconstructed extractor can be
+        serialized again in turn.
 
-        :param config: Mapping produced by :meth:`_serialization_config`.
+        :param config: The ``"config"`` mapping produced by :meth:`_state`.
+        :param backbone: The model to extract features from. If ``None``, the
+            built-in backbone named in ``config`` is used.
+        :param transform: The transform the extractor was built with. If
+            ``None``, the transform built for ``transform=None`` is used.
+        :param kwargs: Not supported, must be empty.
         :return: A reconstructed deep feature extractor.
-        :raises ValueError: If the extractor was built on a user-supplied model,
-            or on a backbone this release no longer knows.
+        :raises TypeError: If ``kwargs`` is not empty.
+        :raises ValueError: If the extractor was built on a user-supplied model
+            and ``backbone`` is not given, or on a backbone this release no
+            longer knows.
         :raises ImportError: If the optional torch dependency is not installed.
         """
+        cls._reject_unsupported_kwargs(kwargs)
         _torch_import.check()
-        backbone = config.get("backbone")
-        if backbone is None:
+        rebuilt_backbone: str | torch.nn.Module | None = (
+            backbone if backbone is not None else config.get("backbone")
+        )
+        if rebuilt_backbone is None:
             raise ValueError(
                 "Cannot automatically rebuild a DeepConvFeature built on a "
-                "user-supplied model. Provide 'feature_extractor' explicitly "
-                "when loading."
+                "user-supplied model. Pass the model back through the "
+                "'backbone' keyword argument."
             )
-        return cls(
-            backbone=backbone,
+        extractor = cls(
+            backbone=rebuilt_backbone,
             target_submodule=config.get("target_submodule"),
             layer_index=config["layer_index"],
             device=resolve_device(config.get("device", "cpu")),
+            transform=transform,
         )
+        if (
+            serialized_transform := config.get("transform")
+        ) is not None and serialized_transform != repr(extractor.transform):
+            warnings.warn(
+                "The transform of this DeepConvFeature differs from the one the "
+                "saved extractor was built with, so the reloaded extractor will "
+                f"produce different descriptors. Saved: {serialized_transform}. "
+                f"Current: {extractor.transform!r}. Pass the original transform "
+                "back through the 'transform' keyword argument to reproduce them.",
+                FutureWarning,
+                stacklevel=3,
+            )
+        return extractor
 
     @property
     def model(self) -> torch.nn.Module:
