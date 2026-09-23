@@ -211,19 +211,9 @@ class FeatureExtractorBase(SerializerMixin):
         pass
 
     def _state(self) -> dict[str, Any]:
-        return {"config": self._serialization_config()}
-
-    def _serialization_config(self) -> dict[str, Any]:
-        """
-        Return the JSON-safe constructor arguments needed to rebuild this extractor.
-
-        Extractors without constructor arguments return an empty mapping.
-        Subclasses override this hook when they carry reconstructable
-        parameters.
-
-        :return: A JSON-safe mapping of constructor arguments.
-        """
-        return {}
+        # Each subclass needs to concretely define the expected JSON format!
+        # Left empty here to avoid exception raised by the abstract base class
+        return {"config": {}}
 
     @classmethod
     def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "FeatureExtractorBase":
@@ -293,13 +283,13 @@ class FeatureExtractorBase(SerializerMixin):
         cls, config: dict[str, Any], **kwargs: Any
     ) -> "FeatureExtractorBase":
         """
-        Rebuilds an extractor from the arguments :meth:`_serialization_config` produced.
+        Rebuilds an extractor from the ``"config"`` mapping of :meth:`_state`.
 
-        The default hands them straight to the constructor and takes no
+        The default hands it straight to the constructor and takes no
         ``kwargs``. Subclasses that need more than that, or that cannot be
         rebuilt at all, override this hook.
 
-        :param config: A mapping produced by :meth:`_serialization_config`.
+        :param config: The ``"config"`` mapping produced by :meth:`_state`.
         :param kwargs: Objects the configuration cannot describe, forwarded by
             :meth:`from_dict`.
         :return: A reconstructed feature extractor.

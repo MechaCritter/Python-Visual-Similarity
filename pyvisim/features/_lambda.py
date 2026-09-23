@@ -35,7 +35,7 @@ class Lambda(FeatureExtractorBase):
     def output_dim(self) -> int:
         return self._output_dim
 
-    def _serialization_config(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         """
         Lambda extractors wrap an arbitrary user function and cannot be
         serialized.

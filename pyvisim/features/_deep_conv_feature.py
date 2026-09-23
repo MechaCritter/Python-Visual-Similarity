@@ -191,24 +191,15 @@ class DeepConvFeature(FeatureExtractorBase):
     def output_dim(self) -> int:
         return self._output_dim
 
-    def _serialization_config(self) -> dict[str, Any]:
-        """
-        Return the configuration needed to rebuild this deep feature extractor.
-
-        Only the name of the built-in backbone is stored, and the model is
-        rebuilt from torchvision's default weights on load. A user-supplied
-        model has no such name, and is stored as ``None``. The ``transform``
-        is stored as its ``repr`` only, to detect a different transform on
-        load.
-
-        :return: A mapping of constructor arguments.
-        """
+    def _state(self) -> dict[str, Any]:
         return {
-            "backbone": self._backbone_name,
-            "target_submodule": self._target_submodule,
-            "layer_index": self.layer_index,
-            "device": self.device,
-            "transform": repr(self.transform),
+            "config": {
+                "backbone": self._backbone_name,
+                "target_submodule": self._target_submodule,
+                "layer_index": self.layer_index,
+                "device": self.device,
+                "transform": repr(self.transform),
+            }
         }
 
     @classmethod
@@ -227,7 +218,7 @@ class DeepConvFeature(FeatureExtractorBase):
         device is resolved again, so the reconstructed extractor can be
         serialized again in turn.
 
-        :param config: Mapping produced by :meth:`_serialization_config`.
+        :param config: The ``"config"`` mapping produced by :meth:`_state`.
         :param backbone: The model to extract features from. If ``None``, the
             built-in backbone named in ``config`` is used.
         :param transform: The transform the extractor was built with. If
