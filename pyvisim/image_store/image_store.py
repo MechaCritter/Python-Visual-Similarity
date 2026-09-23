@@ -68,10 +68,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     """
     Embed a gallery of images and index their embeddings for fast retrieval.
 
-    A store built on an :class:`~pyvisim.image_store.ExternalSearchIndex`
-    embeds nothing: that index already holds its gallery, so ``image_paths``
-    only names its rows and must be exactly as long as the index is.
-
     .. important::
 
         - Upon constructing the store, all images are embedded immediately and the
@@ -81,6 +77,12 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         - For **FAISS**-based indexes, the returned embeddings may not be
           exactly the same as the original embeddings due to compression or
           quantization, and for some indexes, reconstruction is impossible.
+        - If you use an :class:`~pyvisim.image_store.ExternalSearchIndex`
+          instead, that index must already hold the gallery. ``image_paths``
+          then assumes each path matches the corresponding row in the index.
+
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/image_store.html``.
 
     :param image_paths: Iterable of image file paths to embed. Duplicates are
         dropped, keeping the first occurrence.
@@ -146,8 +148,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - If omitted
-         - Meaning
+         - Default
+         - Explanation
        * - ``graph_degree``
          - ``16``
          - Bidirectional links created per node. Higher values raise recall on
@@ -178,41 +180,12 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
        :widths: 20 15 65
 
        * - Parameter
-         - If omitted
-         - Meaning
+         - Default
+         - Explanation
        * - ``num_threads``
          - ``-1``
          - Threads used to run batched queries. ``-1`` uses every available
            core.
-
-    Example
-    -------
-
-    >>> from pyvisim.neural_networks import ClipEmbedder
-    >>> from pyvisim.image_store import InMemoryImageEmbeddingStore
-    >>>
-    >>> embedder = ClipEmbedder("ViT-B/32")
-    >>> store = InMemoryImageEmbeddingStore(
-    ...     image_paths=["image1.jpg", "image2.jpg", "image3.jpg"],
-    ...     embedder=embedder,
-    ...     search_index="hnsw",
-    ...     space="cosine",
-    ...     index_params={"graph_degree": 32, "search_candidates": 100},
-    ... )
-    >>> # Save the store to disk and load it back later
-    >>> store.save_to_disk("gallery.safetensors")
-    >>>
-    >>> # Retrieve top-k most similar images to a query image
-    >>> query_image = np.array(Image.open("query.jpg"))
-    >>> results = store.retrieve_top_k_similar(query_image, k=5)[0]
-    >>>
-    >>> for candidate in results:
-    ...     print(candidate.path, candidate.score)
-    >>>
-    >>> # Refine the query with its own neighborhood first (alpha query expansion)
-    >>> results = store.retrieve_top_k_similar(
-    ...     query_image, k=5, query_expansion=True, expansion_alpha=3.0
-    ... )[0]
     """
 
     __file_format__: ClassVar[str] = ".safetensors"

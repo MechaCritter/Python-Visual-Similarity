@@ -39,3 +39,11 @@ Additional features include (note: these pull in heavy dependencies like
 
    # For deep learning features and the OxfordFlowerDataset
    pip install "pyvisim[nn]"
+
+``torch`` and ``numpy`` images supported
+----------------------------------------
+
+All Similarity Metrics in ``pyvisim`` accept images as either ``numpy.ndarray`` or
+``torch.Tensor``. The outputs are, however, always ``numpy.ndarray``. Make sure the 
+dimensions and data ranges are passed correctly. See :doc:`This Document <../typing/index>` for 
+more information.
