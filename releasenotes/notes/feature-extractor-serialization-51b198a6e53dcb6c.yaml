@@ -24,3 +24,9 @@ enhancements:
     A ``DeepConvFeature`` built on a user-supplied model or a custom transform
     can be rebuilt by passing them back as ``backbone=`` and ``transform=``. A
     ``FutureWarning`` is emitted if the transform differs from the saved one.
+  - |
+    ``VLADEmbedder`` and ``FisherVectorEmbedder`` take a
+    ``feature_extractor_params`` dict in ``from_dict`` and ``load_from_disk``,
+    which is forwarded to the feature extractor. An embedder on a
+    ``DeepConvFeature`` with a user-supplied model is loaded with
+    ``feature_extractor_params={"backbone": model}``.
