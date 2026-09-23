@@ -27,8 +27,8 @@ class ExternalSearchIndex:
     .. important::
         Whether a score is a distance (lower is better) or a
         similarity (higher is better) depends on the metric the wrapped
-        index was built for, and any necessary normalization of the vectors 
-        (for a cosine ranking) must be done by the caller, before the 
+        index was built for, and any necessary normalization of the vectors
+        (for a cosine ranking) must be done by the caller, before the
         index is built.
 
     For more information, see the documentation:

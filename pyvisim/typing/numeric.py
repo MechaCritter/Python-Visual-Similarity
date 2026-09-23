@@ -149,7 +149,7 @@ def _to_image_list(
 
     The input may carry a batch axis (when ``dims`` contains ``"B"``), in which
     case it is split into the individual images it holds. Check out the
-    documentation here for more informaton: 
+    documentation here for more informaton:
     https://mechacritter.github.io/Python-Visual-Similarity/typing/index.html#keyword-arguments-for-image-data
 
     :param images: A NumPy array, a PyTorch tensor, or any array-like object.
