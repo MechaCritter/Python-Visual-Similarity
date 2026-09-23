@@ -133,9 +133,6 @@ class FeatureExtractorBase(abc.ABC):
     set of feature vectors (NumPy array).
     """
 
-    #: State key naming the extractor class a serialized description belongs to.
-    __class_key__: ClassVar[str] = "__class__"
-
     #: Every subclass defined so far, keyed by class name.
     _subclasses_by_name: ClassVar[dict[str, type["FeatureExtractorBase"]]] = {}
 
@@ -217,7 +214,7 @@ class FeatureExtractorBase(abc.ABC):
         :return: A mapping ``{"__class__": str, "config": dict}``.
         """
         return {
-            self.__class_key__: type(self).__name__,
+            "__class__": type(self).__name__,
             "config": self._serialization_config(),
         }
 
@@ -246,7 +243,7 @@ class FeatureExtractorBase(abc.ABC):
             one that cannot be rebuilt automatically (e.g. a Lambda extractor).
         """
         config = cls._validated_config(data)
-        extractor_cls = cls._subclass_named(data[cls.__class_key__])
+        extractor_cls = cls._subclass_named(data["__class__"])
         return extractor_cls._from_config(config)
 
     @classmethod
@@ -262,7 +259,7 @@ class FeatureExtractorBase(abc.ABC):
         :raises TypeError: If ``data`` is not a mapping produced by
             :meth:`to_dict`.
         """
-        if not isinstance(data, dict) or cls.__class_key__ not in data:
+        if not isinstance(data, dict) or "__class__" not in data:
             raise TypeError("Expected a feature-extractor dict from to_dict().")
         return cast(dict[str, Any], data.get("config", {}))
 
@@ -477,7 +474,6 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     __file_format__: ClassVar[str] = ".embedder"
     #: Metadata key under which the embedder JSON skeleton is stored.
     __metadata_key__: ClassVar[str] = "pyvisim_embedder"
-    __class_key__: ClassVar[str] = "embedder_class"
 
     #: Keys a serialized state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
@@ -501,8 +497,8 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         Rebuilds the embedder a state dictionary describes.
 
         Called on :class:`SerializableImageEmbedder` itself, it hands the state
-        to the ``from_dict`` of the class named under :attr:`__class_key__`, so
-        a state can be rebuilt without knowing which embedder wrote it.
+        to the ``from_dict`` of the class named under ``"__class__"``, so a
+        state can be rebuilt without knowing which embedder wrote it.
 
         :param state: A JSON-safe embedder description.
         :param kwargs: Objects the state cannot describe, forwarded to the
@@ -514,7 +510,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         """
         if cls is not SerializableImageEmbedder:
             raise NotImplementedError(f"{cls.__name__} does not implement from_dict.")
-        embedder_cls = cls._subclass_named(state.get(cls.__class_key__))
+        embedder_cls = cls._subclass_named(state.get("__class__"))
         return embedder_cls.from_dict(state, **kwargs)
 
     @classmethod

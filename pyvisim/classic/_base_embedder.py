@@ -107,7 +107,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     """
 
     _clustering_model_cls: ClassVar[type[ClusteringModelBase]]
-    __format_version__: ClassVar[int] = 4
+    __format_version__: ClassVar[int] = 5
 
     #: Whether a state written under one format version can be read under
     #: another, keyed by ``(written version, reading version)``.
@@ -132,6 +132,17 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         (1, 4): False,
         (2, 4): False,
         (3, 4): False,
+        # Version 5 names the embedder class under "__class__" instead of
+        # "embedder_class". No older reader finds the new key and no older
+        # file carries it, so the compatibility holds in neither direction.
+        (5, 1): False,
+        (5, 2): False,
+        (5, 3): False,
+        (5, 4): False,
+        (1, 5): False,
+        (2, 5): False,
+        (3, 5): False,
+        (4, 5): False,
         #
         # TODO: when the next __format_version__ comes, check if it's forward /
         # backward compatible, then add entries like the ones above.
