@@ -279,7 +279,7 @@ class KMeans(ClusteringModelBase):
         """
         Rebuilds a model from a dictionary produced by :meth:`to_dict`.
 
-        Dictionaries serialised by older releases are also accepted: the
+        Dictionaries serialized by older releases are also accepted: the
         centroids are restored, the whitening scale is set to ones (those
         models were trained without whitening) and parameters missing from
         the state take the constructor's values.

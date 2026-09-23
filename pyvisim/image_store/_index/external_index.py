@@ -160,9 +160,9 @@ class ExternalSearchIndex:
 
         :param query_vectors: A ``(D,)`` vector or an ``(M, D)`` batch of query
             vectors.
-        :param k: Number of nearest neighbours to return per query.
+        :param k: Number of nearest neighbors to return per query.
         :return: A ``(scores, ids)`` tuple of ``(M, k)`` arrays. ``ids`` are
-            gallery row numbers, and missing neighbours are reported as ``-1``.
+            gallery row numbers, and missing neighbors are reported as ``-1``.
         :raises ValueError: If ``k`` is not positive or the queries do not match
             the indexed dimensionality.
         """

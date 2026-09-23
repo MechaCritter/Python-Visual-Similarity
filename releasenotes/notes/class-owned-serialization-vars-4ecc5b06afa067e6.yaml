@@ -1,7 +1,7 @@
 ---
 upgrade:
   - |
-    The file format of a serialisable class is now declared on the class itself
+    The file format of a serializable class is now declared on the class itself
     under one set of names, and the module-level constants that held it are
     gone. ``_FILE_SUFFIX`` became ``__file_format__``, ``_METADATA_KEY`` became
     ``__metadata_key__``, ``_CLASS_KEY`` became ``__class_key__``,

@@ -61,7 +61,7 @@ def store(
 
 @pytest.fixture(scope="module")
 def reranker(store: InMemoryImageEmbeddingStore) -> KReciprocalReranker:
-    """A reranker with neighbourhoods sized for the 20-image gallery.
+    """A reranker with neighborhoods sized for the 20-image gallery.
 
     :param store: the store the candidates come from.
     :returns: a reranker with ``k1=6``, ``k2=3`` and the paper's ``lambda``.
@@ -100,8 +100,8 @@ def _paper_distances(
     scaled by their row maximum and the features are L1-normalised.
 
     :param distances: the symmetric pairwise distance matrix, probe first.
-    :param k1: neighbourhood size of the k-reciprocal sets.
-    :param k2: neighbourhood size of the local query expansion.
+    :param k1: neighborhood size of the k-reciprocal sets.
+    :param k2: neighborhood size of the local query expansion.
     :param lambda_value: weight of the original distance.
     :returns: the final distances from the probe to every candidate.
     """
@@ -109,13 +109,13 @@ def _paper_distances(
     size = scaled.shape[0]
     ranking = [list(np.argsort(scaled[i], kind="stable")) for i in range(size)]
 
-    def neighbours(i: int, k: int) -> set[int]:
-        """Eq. (2): the k nearest neighbours, the element itself included."""
+    def neighbors(i: int, k: int) -> set[int]:
+        """Eq. (2): the k nearest neighbors, the element itself included."""
         return set(ranking[i][: k + 1])
 
     def reciprocal(i: int, k: int) -> set[int]:
-        """Eq. (3): the neighbours that hold ``i`` among their own."""
-        return {g for g in neighbours(i, k) if i in neighbours(g, k)}
+        """Eq. (3): the neighbors that hold ``i`` among their own."""
+        return {g for g in neighbors(i, k) if i in neighbors(g, k)}
 
     half = int(np.around(k1 / 2))
     expanded: list[set[int]] = []
@@ -187,7 +187,7 @@ def test_rejects_a_store_on_an_external_index(
             """Return the first ``k`` gallery rows for every query.
 
             :param queries: the ``(M, D)`` query batch.
-            :param k: number of neighbours per query.
+            :param k: number of neighbors per query.
             :returns: a ``(scores, ids)`` pair of ``(M, k)`` arrays.
             """
             rows = queries.shape[0]
@@ -215,7 +215,7 @@ def test_rejects_a_store_on_an_external_index(
 def test_rejects_bad_parameters(
     store: InMemoryImageEmbeddingStore, params: dict[str, Any]
 ) -> None:
-    """The neighbourhood sizes and the mixing weight are checked up front."""
+    """The neighborhood sizes and the mixing weight are checked up front."""
     with pytest.raises(ValueError):
         KReciprocalReranker(store, **params)
 
@@ -343,16 +343,16 @@ def test_keeps_the_query_category_on_top(
         assert {candidate.path for candidate in best} <= by_category[name]
 
 
-def test_demotes_an_impostor_with_a_foreign_neighbourhood(
+def test_demotes_an_impostor_with_a_foreign_neighborhood(
     store: InMemoryImageEmbeddingStore,
     gallery: tuple[list[str], dict[str, set[str]]],
     category_query_images: dict[str, list[np.ndarray]],
 ) -> None:
-    """A perfect score does not save a candidate whose neighbours disagree.
+    """A perfect score does not save a candidate whose neighbors disagree.
 
     The best match of the other category is planted at the top of the ranking
     with a distance of zero. The Jaccard distance alone (``lambda_value=0``)
-    then ranks it below the query's own category, whose neighbourhoods overlap
+    then ranks it below the query's own category, whose neighborhoods overlap
     with the query's while the impostor's does not.
     """
     _, by_category = gallery
@@ -433,7 +433,7 @@ def test_distances_lie_in_the_unit_interval() -> None:
 
 
 def test_a_duplicate_of_the_probe_gets_distance_zero() -> None:
-    """A candidate at distance zero from the probe shares its neighbourhood."""
+    """A candidate at distance zero from the probe shares its neighborhood."""
     distances = _random_distances(np.random.default_rng(7), 12)
     distances[1, :] = distances[0, :]
     distances[:, 1] = distances[:, 0]

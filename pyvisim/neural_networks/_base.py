@@ -109,11 +109,11 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
         cls, config: dict[str, Any], **kwargs: Any
     ) -> "NeuralImageEmbedder":
         """
-        Rebuild an embedder skeleton from a serialised configuration.
+        Rebuild an embedder skeleton from a serialized configuration.
 
         Implementations must build the architecture *without* loading any
         pretrained weights: :meth:`from_dict` overwrites them right after with
-        the serialised ``state_dict``.
+        the serialized ``state_dict``.
 
         :param config: Mapping produced by :meth:`_serialization_config`.
         :param kwargs: Parameters the configuration alone cannot describe, forwarded

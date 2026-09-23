@@ -18,14 +18,14 @@ upgrade:
 
         extractor = FeatureExtractorBase.from_dict(data)
 
-    Saved ``.embedder`` files are unaffected, since the serialised format did
+    Saved ``.embedder`` files are unaffected, since the serialized format did
     not change.
 enhancements:
   - |
     ``FeatureExtractorBase`` now owns both halves of its serialization
     contract: ``to_dict`` and the new ``from_dict``. Subclasses register
     themselves as they are defined, so a new feature extractor is rebuilt from
-    a serialised description without being added to a hand-maintained table.
+    a serialized description without being added to a hand-maintained table.
     Extractors that need more than their stored constructor arguments override
     the ``_from_config`` hook, as ``DeepConvFeature`` does to rebuild its
     backbone by name.

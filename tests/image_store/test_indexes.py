@@ -212,7 +212,7 @@ def test_vectors_at_rejects_rows_outside_the_gallery(
 
 
 def test_search_finds_the_query_itself(vectors: np.ndarray) -> None:
-    """A gallery vector used as a query is its own nearest neighbour."""
+    """A gallery vector used as a query is its own nearest neighbor."""
     for index in (HnswIndex(vectors), BruteForceIndex(vectors)):
         _, ids = index.search(vectors[:5], k=3)
         assert np.array_equal(ids[:, 0], np.arange(5))
@@ -235,7 +235,7 @@ def test_search_accepts_a_single_vector(vectors: np.ndarray) -> None:
 
 
 def test_search_pads_a_gallery_smaller_than_k(vectors: np.ndarray) -> None:
-    """Missing neighbours are reported as the id ``-1``."""
+    """Missing neighbors are reported as the id ``-1``."""
     for index in (HnswIndex(vectors[:3]), BruteForceIndex(vectors[:3])):
         scores, ids = index.search(vectors[:1], k=5)
         assert ids.shape == (1, 5)
@@ -244,7 +244,7 @@ def test_search_pads_a_gallery_smaller_than_k(vectors: np.ndarray) -> None:
 
 
 def test_hnsw_widens_its_walk_for_a_large_k(vectors: np.ndarray) -> None:
-    """A search asking for more neighbours than ``search_candidates`` returns k."""
+    """A search asking for more neighbors than ``search_candidates`` returns k."""
     index = HnswIndex(vectors, search_candidates=2)
     scores, ids = index.search(vectors[:1], k=20)
     assert ids.shape == (1, 20)

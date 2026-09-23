@@ -133,7 +133,7 @@ class FeatureExtractorBase(abc.ABC):
     set of feature vectors (NumPy array).
     """
 
-    #: State key naming the extractor class a serialised description belongs to.
+    #: State key naming the extractor class a serialized description belongs to.
     __class_key__: ClassVar[str] = "__class__"
 
     #: Every subclass defined so far, keyed by class name.
@@ -209,7 +209,7 @@ class FeatureExtractorBase(abc.ABC):
 
     def to_dict(self) -> dict[str, Any]:
         """
-        Serialise this feature extractor into a JSON-safe configuration dict.
+        Serialize this feature extractor into a JSON-safe configuration dict.
 
         The dict captures the extractor's class name and the keyword arguments
         needed to rebuild an equivalent instance (see :meth:`from_dict`).
@@ -252,7 +252,7 @@ class FeatureExtractorBase(abc.ABC):
     @classmethod
     def _validated_config(cls, data: dict[str, Any]) -> dict[str, Any]:
         """
-        Extracts the constructor arguments a serialised description carries.
+        Extracts the constructor arguments a serialized description carries.
 
         A description written before an extractor stored its arguments carries
         none, and the defaults of the constructor are used instead.
@@ -275,7 +275,7 @@ class FeatureExtractorBase(abc.ABC):
         imported, so that package is imported before a name is reported as
         unknown.
 
-        :param name: The class name recorded in a serialised description.
+        :param name: The class name recorded in a serialized description.
         :return: The extractor class of that name.
         :raises ValueError: If no concrete extractor class has that name.
         """
@@ -479,7 +479,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     __metadata_key__: ClassVar[str] = "pyvisim_embedder"
     __class_key__: ClassVar[str] = "embedder_class"
 
-    #: Keys a serialised state must contain to be a valid embedder file.
+    #: Keys a serialized state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
     __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {"similarity_func", "normalize", "batch_size"}

@@ -8,7 +8,7 @@ precision over the top 100 results, and the expansion has to come out ahead.
 
 The default parameters of Radenovic et al. are adjusted as following:
 
-- number of neighbours averaged reduced from 50 to 5, since some flower
+- number of neighbors averaged reduced from 50 to 5, since some flower
 categories have only 60 images in total, and averaging 50 of them pulls the
 query away from its own category.
 - The exponent of 3.0 is kept as it is.
@@ -35,7 +35,7 @@ EXPANSION_ALPHA = 3.0
 
 #: Top-ranked gallery images averaged into the expanded query, sized for the
 #: flower categories rather than taken from the paper.
-EXPANSION_NEIGHBOURS = 5
+EXPANSION_NEIGHBORS = 5
 
 
 def test_alpha_query_expansion_improves_map(
@@ -54,7 +54,7 @@ def test_alpha_query_expansion_improves_map(
             k=DEPTH,
             query_expansion=True,
             expansion_alpha=EXPANSION_ALPHA,
-            expansion_neighbours=EXPANSION_NEIGHBOURS,
+            expansion_neighbors=EXPANSION_NEIGHBORS,
         )
 
     plain_map = mean_average_precision(gallery, queries, plain)

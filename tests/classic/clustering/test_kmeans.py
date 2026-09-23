@@ -171,7 +171,7 @@ def test_kmeans_fit_integer_data() -> None:
 
 
 def test_kmeans_to_dict_from_dict_roundtrip(fitted_kmeans: KMeans) -> None:
-    """A serialised model reloads with identical centroids and predictions."""
+    """A serialized model reloads with identical centroids and predictions."""
     rng = np.random.default_rng(3)
     samples = rng.random((30, 5))
     restored = KMeans.from_dict(fitted_kmeans.to_dict())
@@ -182,7 +182,7 @@ def test_kmeans_to_dict_from_dict_roundtrip(fitted_kmeans: KMeans) -> None:
 
 
 def test_kmeans_from_dict_legacy_sklearn_state() -> None:
-    """States serialised from the old sklearn-backed model still load."""
+    """States serialized from the old sklearn-backed model still load."""
     centers = np.arange(15, dtype=np.float64).reshape(3, 5)
     legacy = {
         "__class__": "KMeans",
@@ -298,8 +298,8 @@ def test_kmeans_from_sklearn_wrong_type_raises() -> None:
 
 
 def test_kmeans_from_dict_wrong_class_raises() -> None:
-    """``from_dict`` rejects dictionaries serialised by other model types."""
-    with pytest.raises(ValueError, match="expects a serialised"):
+    """``from_dict`` rejects dictionaries serialized by other model types."""
+    with pytest.raises(ValueError, match="expects a serialized"):
         KMeans.from_dict({"__class__": "PCA", "state": {}})
 
 
