@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -12,9 +12,12 @@ from pyvisim._errors import NotFittedError
 from pyvisim.classic import FisherVectorEmbedder, VLADEmbedder
 from pyvisim.classic._base_embedder import ClusteringBasedEmbedder
 from pyvisim.classic._clustering import PCA
-from pyvisim.features import Lambda, RootSIFT
+from pyvisim.features import DeepConvFeature, Lambda, RootSIFT
+from pyvisim.neural_networks.backbones import build_backbone
 
 if TYPE_CHECKING:
+    import torch
+
     from tests.conftest import ImageObj
 
 
@@ -285,10 +288,87 @@ def test_load_invalid_file_raises(tmp_path: Path) -> None:
 def test_load_rejects_deserialization_kwargs(
     learned_vlad: VLADEmbedder, tmp_path: Path
 ) -> None:
-    """A classic embedder is fully described by its file and takes no extras."""
+    """A classic embedder takes no extras besides ``feature_extractor_params``."""
     path = learned_vlad.save_to_disk(tmp_path / "model")
     with pytest.raises(TypeError, match="'transform'"):
         VLADEmbedder.load_from_disk(path, transform=object())
+
+
+def test_feature_extractor_params_reach_the_feature_extractor(
+    learned_vlad: VLADEmbedder, tmp_path: Path
+) -> None:
+    """An object RootSIFT does not take is rejected by the extractor itself."""
+    path = learned_vlad.save_to_disk(tmp_path / "model")
+    with pytest.raises(TypeError, match="RootSIFT does not take"):
+        VLADEmbedder.load_from_disk(path, feature_extractor_params={"backbone": None})
+
+
+#: Clustering arguments small enough to learn from a handful of random images.
+_SMALL_CLUSTERING_PARAMS: dict[type[ClusteringBasedEmbedder], dict[str, Any]] = {
+    VLADEmbedder: {"n_clusters": 2, "kmeans_params": {"rng": 0}},
+    FisherVectorEmbedder: {"n_components": 2, "gmm_params": {"rng": 0}},
+}
+
+
+@pytest.fixture(scope="module")
+def random_images() -> list[np.ndarray]:
+    """A few random RGB images.
+
+    :returns: four ``(64, 64, 3)`` uint8 images.
+    """
+    rng = np.random.default_rng(0)
+    return [rng.integers(0, 256, size=(64, 64, 3), dtype=np.uint8) for _ in range(4)]
+
+
+@pytest.fixture(
+    scope="module",
+    params=list(_SMALL_CLUSTERING_PARAMS),
+    ids=lambda embedder_cls: embedder_cls.__name__,
+)
+def embedder_on_a_user_supplied_model(
+    request: pytest.FixtureRequest, random_images: list[np.ndarray]
+) -> tuple[ClusteringBasedEmbedder, torch.nn.Module]:
+    """A learned embedder whose DeepConvFeature runs on a user-supplied model.
+
+    :param request: selects the embedder class.
+    :param random_images: the images to learn from.
+    :returns: the learned embedder and the model its extractor runs on.
+    """
+    model = build_backbone("resnet18", pretrained=False)
+    embedder_cls = request.param
+    embedder = embedder_cls(
+        feature_extractor=DeepConvFeature(model, device="cpu"),
+        **_SMALL_CLUSTERING_PARAMS[embedder_cls],
+    )
+    embedder.learn(random_images)
+    return embedder, model
+
+
+def test_feature_extractor_params_rebuild_a_user_supplied_model(
+    embedder_on_a_user_supplied_model: tuple[ClusteringBasedEmbedder, torch.nn.Module],
+    random_images: list[np.ndarray],
+    tmp_path: Path,
+) -> None:
+    """The model passed back on load gives the embeddings of the saved embedder."""
+    embedder, model = embedder_on_a_user_supplied_model
+    path = embedder.save_to_disk(tmp_path / "model")
+    loaded = type(embedder).load_from_disk(
+        path, feature_extractor_params={"backbone": model}
+    )
+    np.testing.assert_allclose(
+        loaded.embed(random_images[:1]), embedder.embed(random_images[:1])
+    )
+
+
+def test_a_user_supplied_model_is_required_on_load(
+    embedder_on_a_user_supplied_model: tuple[ClusteringBasedEmbedder, torch.nn.Module],
+    tmp_path: Path,
+) -> None:
+    """Without ``feature_extractor_params`` the user-supplied model cannot be rebuilt."""
+    embedder, _ = embedder_on_a_user_supplied_model
+    path = embedder.save_to_disk(tmp_path / "model")
+    with pytest.raises(ValueError, match="user-supplied model"):
+        type(embedder).load_from_disk(path)
 
 
 def test_load_wrong_class_raises(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:

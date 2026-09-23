@@ -487,12 +487,30 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
 
     @classmethod
     def from_dict(
-        cls: type[_ClusteringEmbedderT], state: dict[str, Any], **kwargs: Any
+        cls: type[_ClusteringEmbedderT],
+        state: dict[str, Any],
+        *,
+        feature_extractor_params: dict[str, Any] | None = None,
+        **kwargs: Any,
     ) -> _ClusteringEmbedderT:
+        """
+        Rebuilds the embedder a state dictionary describes.
+
+        :param state: A JSON-safe embedder description.
+        :param feature_extractor_params: Objects the state of the feature
+            extractor cannot describe, forwarded to
+            :meth:`~pyvisim.base.FeatureExtractorBase.from_dict`.
+        :param kwargs: Not supported, must be empty.
+        :return: The reconstructed embedder.
+        :raises TypeError: If ``kwargs`` is not empty, or the feature extractor
+            does not take one of ``feature_extractor_params``.
+        :raises ValueError: If the feature extractor cannot be rebuilt from its
+            state and ``feature_extractor_params``.
+        """
         cls._reject_unsupported_kwargs(kwargs)
         embedder = cls(
             feature_extractor=FeatureExtractorBase.from_dict(
-                state["feature_extractor"]
+                state["feature_extractor"], **(feature_extractor_params or {})
             ),
             similarity_func=state["similarity_func"],
             power_norm_weight=state["power_norm_weight"],

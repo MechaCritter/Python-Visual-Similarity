@@ -35,7 +35,7 @@ class Lambda(FeatureExtractorBase):
     def output_dim(self) -> int:
         return self._output_dim
 
-    def _serialization_config(self) -> dict[str, Any]:
+    def _state(self) -> dict[str, Any]:
         """
         Lambda extractors wrap an arbitrary user function and cannot be
         serialized.
@@ -49,7 +49,7 @@ class Lambda(FeatureExtractorBase):
         )
 
     @classmethod
-    def _from_config(cls, config: dict[str, Any]) -> "Lambda":
+    def _from_config(cls, config: dict[str, Any], **kwargs: Any) -> "Lambda":
         """Lambda extractors wrap an arbitrary user function and cannot be rebuilt."""
         raise ValueError(
             "Cannot rebuild a Lambda feature extractor, since it wraps a "
