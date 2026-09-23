@@ -15,4 +15,8 @@ enhancements:
   - |
     ``FeatureExtractorBase.from_dict`` forwards its keyword arguments to the
     ``_from_config`` hook, so a custom extractor can take objects its state
-    cannot hold. The shipped extractors take none.
+    cannot hold.
+  - |
+    A ``DeepConvFeature`` built on a user-supplied model or a custom transform
+    can be rebuilt by passing them back as ``backbone=`` and ``transform=``. A
+    ``FutureWarning`` is emitted if the transform differs from the saved one.
