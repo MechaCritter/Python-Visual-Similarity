@@ -29,13 +29,78 @@ class FisherVectorEmbedder(ClusteringBasedEmbedder):
 
     The output when calling `embed` has shape (2 * num_clusters * feature_dim + num_clusters,).
 
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/classic/fisher_vector/fisher_vector.html``.
+
     :param feature_extractor: Feature extractor instance. If ``None``, RootSIFT
         is used.
     :param n_components: Number of Gaussian mixture components (visual words) to use.
-    :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary learning. See
-        ``https://mechacritter.github.io/Python-Visual-Similarity/classic/fisher_vector/fisher_vector.html#gmm-parameters-gmm-params``.
-    :param pca_params: Arguments for the Principal Component Analysis during vocabulary learning. See
-        ``https://mechacritter.github.io/Python-Visual-Similarity/classic/fisher_vector/fisher_vector.html#pca-parameters-pca-params``.
+    :param gmm_params: Arguments for Gaussian Mixture Model during vocabulary
+        learning:
+
+        .. list-table::
+           :header-rows: 1
+           :widths: 20 15 65
+
+           * - Parameter
+             - Default
+             - Meaning
+           * - ``n_init``
+             - ``1``
+             - Number of k-means++ seeded EM runs. The run with the highest final
+               log-likelihood is kept. Raise it for better, more stable vocabularies.
+           * - ``max_iter``
+             - ``100``
+             - Maximum number of EM iterations per run.
+           * - ``tol``
+             - ``1e-3``
+             - Convergence threshold: a run stops when the change of the mean
+               per-sample log-likelihood between iterations falls below it.
+           * - ``reg_covar``
+             - ``1e-6``
+             - Non-negative regularisation added to (and floored on) the per-feature
+               variances, keeping them strictly positive when a component collapses or
+               dies.
+           * - ``rng``
+             - ``None``
+             - Seed (``int``) or :class:`numpy.random.Generator` for reproducible
+               fitting.
+
+    :param pca_params: Arguments for the Principal Component Analysis during
+        vocabulary learning:
+
+        .. list-table::
+           :header-rows: 1
+           :widths: 20 15 65
+
+           * - Parameter
+             - Default
+             - Meaning
+           * - ``n_components``
+             - (required)
+             - Number of components to keep. Must be at most
+               ``min(n_samples, n_features)`` of the training descriptors.
+           * - ``whiten``
+             - ``False``
+             - Scale each projected component to unit variance. Components with
+               near-zero variance (rank-deficient descriptors) are floored at machine
+               epsilon so the output stays finite.
+           * - ``svd_solver``
+             - ``"auto"``
+             - ``"full"`` (economy SVD), ``"covariance_eigh"`` (eigendecomposition of
+               the feature covariance, fastest for many samples with few features),
+               ``"arpack"`` (truncated SVD, computes only ``n_components`` singular
+               triplets), or ``"auto"``, which picks between them based on the training
+               shape.
+           * - ``tol``
+             - ``0.0``
+             - Convergence tolerance of the ``"arpack"`` solver (0 means machine
+               precision). Ignored by the other solvers.
+           * - ``rng``
+             - ``None``
+             - Seed (``int``) or :class:`numpy.random.Generator` for the ``"arpack"``
+               solver's starting vector. Ignored by the other solvers.
+
     :param power_norm_weight: Exponent for power normalization
     :param norm_order: Norm order for normalization.
     :param epsilon: Small constant to avoid division by zero.
