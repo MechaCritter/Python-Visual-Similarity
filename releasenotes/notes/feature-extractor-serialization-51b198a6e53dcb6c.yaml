@@ -1,0 +1,18 @@
+---
+upgrade:
+  - |
+    The first parameter of ``FeatureExtractorBase.from_dict`` was renamed from
+    ``data`` to ``state``. You are affected if you pass it by keyword, and
+    ``from_dict(data=...)`` becomes ``from_dict(state=...)``.
+  - |
+    The mapping returned by a feature extractor's ``to_dict`` now also holds a
+    ``"format_version"`` key. Saved ``.embedder`` files load as before.
+features:
+  - |
+    Feature extractors can be saved on their own with ``save_to_disk`` and
+    loaded back with ``load_from_disk``, as ``.safetensors`` files.
+enhancements:
+  - |
+    ``FeatureExtractorBase.from_dict`` forwards its keyword arguments to the
+    ``_from_config`` hook, so a custom extractor can take objects its state
+    cannot hold. The shipped extractors take none.
