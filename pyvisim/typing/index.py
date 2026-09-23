@@ -9,7 +9,7 @@ from .numeric import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
 
 class SearchIndex(Protocol):
-    """Protocol for indexes that accelerate nearest-neighbour search."""
+    """Protocol for indexes that accelerate nearest-neighbor search."""
 
     @property
     def vectors(self) -> Float32NumpyArray: ...

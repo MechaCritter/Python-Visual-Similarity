@@ -44,7 +44,7 @@ def encode_state_dict(module: "torch.nn.Module") -> dict[str, Any]:
     """
     Embed a module's ``state_dict`` as array nodes for the embedder serializer.
 
-    :param module: The module whose weights are serialised.
+    :param module: The module whose weights are serialized.
     :return: A mapping of parameter name to an embedded array node. The embedder
         serializer extracts these arrays into the ``.embedder`` file's tensors.
     """

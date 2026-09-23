@@ -280,13 +280,13 @@ def test_gmm_score_is_mean_log_likelihood(
     assert fitted_gmm.score(data) > fitted_gmm.score(noise)
 
 
-# Serialisation
+# Serialization
 
 
 def test_gmm_to_dict_from_dict_roundtrip(
     fitted_gmm: DiagCovarGaussianMixture,
 ) -> None:
-    """A serialised model reloads with identical parameters and posteriors."""
+    """A serialized model reloads with identical parameters and posteriors."""
     rng = np.random.default_rng(3)
     samples = rng.random((30, 5))
     restored = DiagCovarGaussianMixture.from_dict(fitted_gmm.to_dict())
@@ -300,13 +300,13 @@ def test_gmm_to_dict_from_dict_roundtrip(
 
 
 def test_gmm_to_dict_before_fit_raises() -> None:
-    """Serialising an unfitted model raises ``NotFittedError``."""
+    """Serializing an unfitted model raises ``NotFittedError``."""
     with pytest.raises(NotFittedError):
         DiagCovarGaussianMixture(4).to_dict()
 
 
 def test_gmm_from_dict_legacy_sklearn_state() -> None:
-    """States serialised from the old sklearn-backed model still load."""
+    """States serialized from the old sklearn-backed model still load."""
     weights = np.full(3, 1.0 / 3.0)
     means = np.arange(15, dtype=np.float64).reshape(3, 5)
     covariances = np.ones((3, 5))
@@ -373,8 +373,8 @@ def test_gmm_from_dict_non_diag_raises() -> None:
 
 
 def test_gmm_from_dict_wrong_class_raises() -> None:
-    """``from_dict`` rejects dictionaries serialised by other model types."""
-    with pytest.raises(ValueError, match="expects a serialised"):
+    """``from_dict`` rejects dictionaries serialized by other model types."""
+    with pytest.raises(ValueError, match="expects a serialized"):
         DiagCovarGaussianMixture.from_dict({"__class__": "KMeans", "state": {}})
 
 

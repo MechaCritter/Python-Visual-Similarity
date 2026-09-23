@@ -107,7 +107,7 @@ def test_repeated_calls_are_bitwise_deterministic() -> None:
 
 
 def test_single_plane_slices_match_batch() -> None:
-    """Each plane is computed independently of its batch neighbours."""
+    """Each plane is computed independently of its batch neighbors."""
     planes1, planes2 = _random_plane_pair(n_planes=4)
     kernel = gaussian_kernel(11, 1.5).astype(np.float32)
     batch = ssim_plane_sums(planes1, planes2, kernel, C1, C2, NUM_THREADS)

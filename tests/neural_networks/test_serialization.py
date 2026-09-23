@@ -230,7 +230,7 @@ def _network_with_custom_transform() -> ContrastiveSiameseNetwork:
     )
 
 
-def test_serialised_state_describes_the_transform() -> None:
+def test_serialized_state_describes_the_transform() -> None:
     """The state carries the ``repr`` of the transform used for preprocessing."""
     network = _network_with_custom_transform()
     config = network.to_dict()["config"]

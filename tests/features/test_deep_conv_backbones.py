@@ -84,7 +84,7 @@ def test_built_in_backbone_builds_from_its_name(backbone: str) -> None:
 
 
 def test_a_backbone_built_by_name_round_trips() -> None:
-    """A serialised extractor rebuilds its backbone by name, and can be saved again."""
+    """A serialized extractor rebuilds its backbone by name, and can be saved again."""
     extractor = DeepConvFeature(backbone="resnet18", layer_index=-2, device="cpu")
     reloaded = FeatureExtractorBase.from_dict(extractor.to_dict())
     assert isinstance(reloaded, DeepConvFeature)
