@@ -50,7 +50,7 @@ class MSSSIM(DenseMetricBase):
     """
     Multi-Scale Structural Similarity index (Wang et al., 2003).
 
-    For more information, see  the documentation:
+    For more information, see the documentation:
     ``https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ms_ssim/ms_ssim.html``.
 
     NOTE

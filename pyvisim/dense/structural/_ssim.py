@@ -51,7 +51,7 @@ class SSIM(DenseMetricBase):
     """
     Structural Similarity index (Wang et al., 2004) between image batches.
 
-    For more information, see  the documentation:
+    For more information, see the documentation:
     ``https://mechacritter.github.io/Python-Visual-Similarity/dense/structural/ssim/ssim.html``.
     
     NOTE
