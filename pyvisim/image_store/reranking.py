@@ -34,16 +34,8 @@ class KReciprocalReranker:
     """
     Re-rank retrieval candidates with k-reciprocal encoding.
 
-    Implements the re-ranking of Zhong et al. [1]. Two images are k-reciprocal
-    neighbours when each ranks among the ``k1`` nearest neighbours of the
-    other, a far stricter relation than plain proximity to the query: a false
-    match may lie close to the query, but the query rarely lies close to the
-    false match's own neighbours. The query and every candidate are encoded
-    into a k-reciprocal feature, a vector over the candidate set that holds a
-    Gaussian weight for each k-reciprocal neighbour and zero elsewhere, and the
-    Jaccard distance between the query's feature and a candidate's says how
-    much their neighbourhoods agree. The final distance the candidates are
-    re-ranked by mixes that Jaccard distance with the original one.
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/reranking.html``.
 
     :param store: The store the candidates were retrieved from.
     :param k1: Size of the neighbourhoods the k-reciprocal sets are built
@@ -59,21 +51,6 @@ class KReciprocalReranker:
     :raises ValueError: If the store searches through an external index,
         ``k1`` or ``k2`` is not a positive integer, ``k2`` exceeds ``k1``, or
         ``lambda_value`` lies outside ``[0, 1]``.
-
-    Example
-    -------
-
-    >>> from pyvisim.image_store import InMemoryImageEmbeddingStore, KReciprocalReranker
-    >>> from pyvisim.neural_networks import ClipEmbedder
-    >>>
-    >>> store = InMemoryImageEmbeddingStore(gallery_paths, ClipEmbedder(), "hnsw")
-    >>> reranker = KReciprocalReranker(store, k1=20, k2=6, lambda_value=0.3)
-    >>>
-    >>> # Retrieve a pool of candidates, then keep the best five after re-ranking
-    >>> # Retrieve more candidates than you finally want with the `InMemoryImageEmbeddingStore`,
-    >>> # at least `k1` and better a few dozen more than `top_k`.
-    >>> candidates = store.retrieve_top_k_similar(query_image, k=100)[0]
-    >>> best = reranker.rerank(candidates, top_k=5)
 
     References:
     ===========
