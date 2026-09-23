@@ -15,10 +15,42 @@ query expansion** (αQE). See :ref:`query-expansion` for more information.
 To refine the final candidates after retrieval, one can use a **reranker**. See
 :doc:`Reranking Documentation <../reranking/reranking>` for more information.
 
-Example walkthrough
--------------------
+Example
+-------
 
-See :doc:`this tutorial </tutorials/notebooks/image_search>`.
+.. tip::
+   See :doc:`this tutorial </tutorials/notebooks/image_search>` for a
+   more detailed walkthrough.
+
+.. code-block:: python
+
+   import numpy as np
+   from PIL import Image
+   from pyvisim.neural_networks import ClipEmbedder
+   from pyvisim.image_store import InMemoryImageEmbeddingStore
+
+   embedder = ClipEmbedder("ViT-B/32")
+   store = InMemoryImageEmbeddingStore(
+       image_paths=["image1.jpg", "image2.jpg", "image3.jpg"],
+       embedder=embedder,
+       search_index="hnsw",
+       space="cosine",
+       index_params={"graph_degree": 32, "search_candidates": 100},
+   )
+   # Save the store to disk and load it back later
+   store.save_to_disk("gallery.safetensors")
+
+   # Retrieve top-k most similar images to a query image
+   query_image = np.array(Image.open("query.jpg"))
+   results = store.retrieve_top_k_similar(query_image, k=5)[0]
+
+   for candidate in results:
+       print(candidate.path, candidate.score)
+
+   # Refine the query with its own neighbourhood first (alpha query expansion)
+   results = store.retrieve_top_k_similar(
+       query_image, k=5, query_expansion=True, expansion_alpha=3.0
+   )[0]
 
 API reference
 -------------
