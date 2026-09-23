@@ -76,6 +76,15 @@ def test_a_user_supplied_model_cannot_be_rebuilt() -> None:
         FeatureExtractorBase.from_dict(state)
 
 
+def test_from_dict_rejects_unsupported_kwargs() -> None:
+    """DeepConvFeature takes no objects besides its state when it is rebuilt."""
+    extractor = DeepConvFeature(
+        build_backbone("resnet18", pretrained=False), device="cpu"
+    )
+    with pytest.raises(TypeError, match="does not take the deserialization"):
+        FeatureExtractorBase.from_dict(extractor.to_dict(), transform=None)
+
+
 @pytest.mark.parametrize("backbone", list_backbones())
 def test_built_in_backbone_builds_from_its_name(backbone: str) -> None:
     """Every registered name builds an extractor with its ImageNet weights."""
