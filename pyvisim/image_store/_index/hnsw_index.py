@@ -1,4 +1,4 @@
-"""Approximate nearest-neighbour search over an HNSW graph."""
+"""Approximate nearest-neighbor search over an HNSW graph."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ class HnswIndex(_hnswlib.Index):
     :param build_candidates: Size of the candidate list used while building the
         graph. Higher values build a better graph, more slowly.
     :param search_candidates: Size of the candidate list used at query time. It
-        is raised to ``k`` whenever a search asks for more neighbours than that.
+        is raised to ``k`` whenever a search asks for more neighbors than that.
     :param random_seed: Seed of the level generator, which decides the layer
         each node is inserted at.
     :param num_threads: Threads used to build the graph and to run batched
@@ -155,7 +155,7 @@ class HnswIndex(_hnswlib.Index):
 
         :param query_vectors: A ``(D,)`` vector or an ``(M, D)`` batch of query
             vectors.
-        :param k: Number of nearest neighbours to return per query.
+        :param k: Number of nearest neighbors to return per query.
         :return: A ``(scores, ids)`` tuple of ``(M, k)`` arrays. ``ids`` are
             gallery row numbers; a gallery holding fewer than ``k`` vectors pads
             the free columns with the id ``-1``.
@@ -164,12 +164,12 @@ class HnswIndex(_hnswlib.Index):
         """
         k = validate_k(k)
         queries = as_query_matrix(query_vectors, self.dim)
-        neighbours = min(k, self._num_vectors)
-        if self.ef < neighbours:
-            # The walk cannot return more neighbours than the candidate list it
+        neighbors = min(k, self._num_vectors)
+        if self.ef < neighbors:
+            # The walk cannot return more neighbors than the candidate list it
             # keeps, so widen it to what this query asks for.
-            self.ef = neighbours
-        labels, distances = self.knn_query(queries, k=neighbours)
+            self.ef = neighbors
+        labels, distances = self.knn_query(queries, k=neighbors)
         return pad_results(cast(IntNumpyArray, labels), distances, k)
 
     def update(self, vectors: FloatNumpyArray) -> None:

@@ -225,7 +225,7 @@ def test_pca_auto_solver_selection() -> None:
 
 
 def test_pca_to_dict_before_fit_raises() -> None:
-    """Serialising an unfitted model raises ``NotFittedError``."""
+    """Serializing an unfitted model raises ``NotFittedError``."""
     with pytest.raises(NotFittedError):
         PCA(4).to_dict()
 
@@ -266,7 +266,7 @@ def test_pca_from_dict_legacy_sklearn_state() -> None:
 
 def test_pca_from_dict_wrong_class_raises() -> None:
     """``from_dict`` rejects dictionaries of a different model type."""
-    with pytest.raises(ValueError, match="expects a serialised"):
+    with pytest.raises(ValueError, match="expects a serialized"):
         PCA.from_dict({"__class__": "KMeans", "state": {}})
 
 

@@ -1,4 +1,4 @@
-"""Exhaustive nearest-neighbour search over a gallery."""
+"""Exhaustive nearest-neighbor search over a gallery."""
 
 from __future__ import annotations
 
@@ -117,7 +117,7 @@ class BruteForceIndex(_hnswlib.BFIndex):
 
         :param query_vectors: A ``(D,)`` vector or an ``(M, D)`` batch of query
             vectors.
-        :param k: Number of nearest neighbours to return per query.
+        :param k: Number of nearest neighbors to return per query.
         :return: A ``(scores, ids)`` tuple of ``(M, k)`` arrays. ``ids`` are
             gallery row numbers; a gallery holding fewer than ``k`` vectors pads
             the free columns with the id ``-1``.

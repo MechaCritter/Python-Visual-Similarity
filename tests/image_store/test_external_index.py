@@ -143,10 +143,10 @@ def test_index_that_cannot_reconstruct_needs_explicit_vectors(
         ntotal = 30
 
         def search(self, queries: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
-            """Return an empty neighbour block for every query.
+            """Return an empty neighbor block for every query.
 
             :param queries: the ``(M, D)`` query batch.
-            :param k: number of neighbours per query.
+            :param k: number of neighbors per query.
             :returns: a ``(scores, ids)`` pair of ``(M, k)`` arrays.
             """
             rows = queries.shape[0]
@@ -200,10 +200,10 @@ def test_wraps_any_object_that_can_search(vectors: np.ndarray) -> None:
         ntotal = 30
 
         def search(self, queries: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
-            """Return a fixed neighbour block for every query.
+            """Return a fixed neighbor block for every query.
 
             :param queries: the ``(M, D)`` query batch.
-            :param k: number of neighbours per query.
+            :param k: number of neighbors per query.
             :returns: a ``(scores, ids)`` pair of ``(M, k)`` arrays.
             """
             rows = queries.shape[0]

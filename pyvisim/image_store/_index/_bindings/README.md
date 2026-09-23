@@ -20,7 +20,7 @@ The extension is compiled from `_hnswlib.cpp` by the repository's
 ## What the classes add
 
 `PyvisimIndex` and `PyvisimBFIndex` inherit the search structures, the
-serialisation and the query paths of the vendored classes unchanged, and add:
+serialization and the query paths of the vendored classes unchanged, and add:
 
 - `reset_index`, which frees the search structure so that `init_index` can
   build a new one over a replaced gallery. Upstream refuses to initialise a
