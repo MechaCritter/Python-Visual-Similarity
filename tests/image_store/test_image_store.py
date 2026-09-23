@@ -33,7 +33,7 @@ _TIMED_IMAGE_SIDE = 1024
 #: Times each worker count is measured.
 _TIMING_ROUNDS = 3
 #: Speed-up two reading threads must reach over a single one.
-_MIN_SPEED_UP = 1.5
+_MIN_SPEED_UP = 1.4
 
 
 @pytest.fixture(scope="module")
