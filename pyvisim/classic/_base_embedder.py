@@ -470,7 +470,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         """
         if self._clustering_model is None or not self._clustering_model.is_fitted:
             raise NotFittedError(
-                "Cannot serialise an embedder whose clustering model is not "
+                "Cannot serialize an embedder whose clustering model is not "
                 "fitted. Call 'learn' first."
             )
         return {

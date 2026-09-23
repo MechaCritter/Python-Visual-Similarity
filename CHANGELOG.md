@@ -40,7 +40,7 @@ information.
   controlling how many batches of images the reading threads may run ahead of
   the embedder.
 - `InMemoryImageEmbeddingStore.retrieve_top_k_similar` takes `query_expansion`,
-  `expansion_alpha` and `expansion_neighbours` to refine every query with the
+  `expansion_alpha` and `expansion_neighbors` to refine every query with the
   alpha query expansion of Radenović et al. (2019) before the final search. It
   is off by default, since it costs one extra search per query.
 - `KReciprocalReranker` (in `pyvisim.image_store`): re-ranks the candidates of a
@@ -199,7 +199,7 @@ image_store = InMemoryImageEmbeddingStore(
   `ContrastiveSiameseNetwork.load_from_disk(path, transform=transform)`
   restores the exact embeddings of a network built with a custom one.
 - The embedders of `pyvisim.neural_networks` (`ClipEmbedder`,
-  `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serialisable to a
+  `ContrastiveSiameseNetwork`, `BCESiameseNetwork`) are now serializable to a
   safetensors `.embedder` file via `save_to_disk`/`load_from_disk`, weights
   included; a reloaded embedder produces identical embeddings without downloading
   any pretrained weights.
@@ -434,7 +434,7 @@ to be as little dependent on OpenCV as possible.
   ```
 
   It saves to a single `.safetensors` file (embeddings, paths, index config and the
-  fully serialised encoder) and `load_from_disk` rebuilds it without re-encoding.
+  fully serialized encoder) and `load_from_disk` rebuilds it without re-encoding.
 - `index_type` strings select the index structure: `"ivf-flat"` and `"ivf-pq"` work
   today; `"hnsw"` and `"int8"` are sketched for a future release and raise
   `NotImplementedError` for now.

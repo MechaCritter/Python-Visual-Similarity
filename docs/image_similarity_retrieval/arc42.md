@@ -39,7 +39,7 @@ previous batch, and `num_prefetch_batches` bounds how far they may run ahead.
 The threads stop at the decoded image, and the copy into an array happens on
 the consuming thread. Decoding releases the GIL and so runs in parallel, while
 the copy holds the GIL for its whole duration, so leaving the copy in the
-threads would serialise the decodes behind it.
+threads would serialize the decodes behind it.
 
 The reads can only overlap with the embedder's own work, so that is the most
 that extra threads can save.

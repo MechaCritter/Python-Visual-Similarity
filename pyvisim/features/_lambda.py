@@ -38,14 +38,14 @@ class Lambda(FeatureExtractorBase):
     def _serialization_config(self) -> dict[str, Any]:
         """
         Lambda extractors wrap an arbitrary user function and cannot be
-        serialised.
+        serialized.
 
         :raises TypeError: Always; pass ``feature_extractor`` explicitly when
             loading an embedder that used a Lambda extractor.
         """
         raise TypeError(
             "Lambda feature extractors wrap a user-defined function and cannot "
-            "be serialised. Provide 'feature_extractor' explicitly when loading."
+            "be serialized. Provide 'feature_extractor' explicitly when loading."
         )
 
     @classmethod

@@ -81,7 +81,7 @@ def test_normalize_on_scales_the_raw_embedding(
 def test_normalize_survives_a_round_trip(
     learned_vlad: VLADEmbedder, tmp_path: Path
 ) -> None:
-    """The normalization setting is part of the serialised embedder state."""
+    """The normalization setting is part of the serialized embedder state."""
     raw = VLADEmbedder.from_dict({**learned_vlad.to_dict(), "normalize": False})
     reloaded = VLADEmbedder.load_from_disk(raw.save_to_disk(tmp_path / "model"))
     assert reloaded.normalize is False

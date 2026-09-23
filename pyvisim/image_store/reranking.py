@@ -2,7 +2,7 @@
 Re-ranking of retrieval results with k-reciprocal encoding.
 
 :class:`KReciprocalReranker` re-orders the candidates a store retrieved for a
-query by how much the candidates' own neighbourhoods agree with the query's,
+query by how much the candidates' own neighborhoods agree with the query's,
 following Zhong et al. (CVPR 2017).
 """
 
@@ -25,8 +25,8 @@ from ._index import ExternalSearchIndex
 from .candidate import Candidate
 from .image_store import InMemoryImageEmbeddingStore
 
-#: Share of a member's own reciprocal neighbourhood that must already lie in the
-#: probe's for the two neighbourhoods to be merged (Eq. 4 of Zhong et al.).
+#: Share of a member's own reciprocal neighborhood that must already lie in the
+#: probe's for the two neighborhoods to be merged (Eq. 4 of Zhong et al.).
 _EXPANSION_OVERLAP = 2.0 / 3.0
 
 
@@ -38,9 +38,9 @@ class KReciprocalReranker:
     ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/reranking.html``.
 
     :param store: The store the candidates were retrieved from.
-    :param k1: Size of the neighbourhoods the k-reciprocal sets are built
+    :param k1: Size of the neighborhoods the k-reciprocal sets are built
         from. [1] uses ``20``.
-    :param k2: Size of the neighbourhood the local query expansion averages
+    :param k2: Size of the neighborhood the local query expansion averages
         the k-reciprocal features over. ``1`` turns the expansion off. [1]
         uses ``6``.
     :param lambda_value: Weight of the original distance in the final
@@ -105,12 +105,12 @@ class KReciprocalReranker:
 
     @property
     def k1(self) -> int:
-        """Size of the neighbourhoods the k-reciprocal sets are built from."""
+        """Size of the neighborhoods the k-reciprocal sets are built from."""
         return self._k1
 
     @property
     def k2(self) -> int:
-        """Size of the neighbourhood of the local query expansion."""
+        """Size of the neighborhood of the local query expansion."""
         return self._k2
 
     @property
@@ -131,9 +131,9 @@ class KReciprocalReranker:
         The candidates are the ranked matches of a single query, as one row of
         :meth:`~pyvisim.image_store.InMemoryImageEmbeddingStore.retrieve_top_k_similar`
         returns them, and their scores are the query's distances to them. The
-        neighbourhoods are built among the candidates themselves, so a pool no
+        neighborhoods are built among the candidates themselves, so a pool no
         larger than the answer leaves them nothing to say: retrieve at least
-        ``k1`` candidates and a few dozen more than ``top_k``. Neighbourhood
+        ``k1`` candidates and a few dozen more than ``top_k``. Neighborhood
         sizes beyond the number of candidates are capped at it.
 
         :param candidates: The ranked matches of one query, at least one, no
@@ -237,41 +237,41 @@ def _pairwise_distances(vectors: FloatNumpyArray, space: str) -> Float64NumpyArr
     return distances
 
 
-def _reciprocal_neighbours(ranking: IntNumpyArray, k: int) -> BoolNumpyArray:
+def _reciprocal_neighbors(ranking: IntNumpyArray, k: int) -> BoolNumpyArray:
     """
-    Mark the k-reciprocal neighbours of every element, Eq. (3) of Zhong et al.
+    Mark the k-reciprocal neighbors of every element, Eq. (3) of Zhong et al.
 
-    The neighbourhood ``N(p, k)`` of Eq. (2) is read off the ranking list of
+    The neighborhood ``N(p, k)`` of Eq. (2) is read off the ranking list of
     the whole set the way the authors' implementation does, the element itself
     included at rank zero, hence ``k + 1`` entries.
 
     :param ranking: Every element's ranking list of the set, itself first.
-    :param k: Neighbourhood size, without the element itself.
+    :param k: Neighborhood size, without the element itself.
     :return: A boolean matrix whose ``[p, g]`` is ``True`` when ``p`` and ``g``
-        rank among each other's ``k`` nearest neighbours.
+        rank among each other's ``k`` nearest neighbors.
     """
     size = ranking.shape[0]
-    neighbours = np.zeros((size, size), dtype=bool)
-    neighbours[np.arange(size)[:, np.newaxis], ranking[:, : k + 1]] = True
-    reciprocal: BoolNumpyArray = neighbours & neighbours.T
+    neighbors = np.zeros((size, size), dtype=bool)
+    neighbors[np.arange(size)[:, np.newaxis], ranking[:, : k + 1]] = True
+    reciprocal: BoolNumpyArray = neighbors & neighbors.T
     return reciprocal
 
 
-def _expanded_reciprocal_neighbours(ranking: IntNumpyArray, k: int) -> BoolNumpyArray:
+def _expanded_reciprocal_neighbors(ranking: IntNumpyArray, k: int) -> BoolNumpyArray:
     """
-    Expand the k-reciprocal neighbourhoods, Eq. (4) of Zhong et al.
+    Expand the k-reciprocal neighborhoods, Eq. (4) of Zhong et al.
 
     A member ``q`` of ``R(p, k)`` brings its own ``R(q, k/2)`` into the
-    neighbourhood of ``p`` when at least two thirds of that set already lie in
+    neighborhood of ``p`` when at least two thirds of that set already lie in
     ``R(p, k)``.
 
     :param ranking: Every element's ranking list of the set, itself first.
-    :param k: Size of the neighbourhoods the reciprocal sets are built from.
+    :param k: Size of the neighborhoods the reciprocal sets are built from.
     :return: A boolean matrix whose ``[p, g]`` is ``True`` when ``g`` belongs to
-        the expanded neighbourhood ``R*(p, k)``.
+        the expanded neighborhood ``R*(p, k)``.
     """
-    reciprocal = _reciprocal_neighbours(ranking, k)
-    half = _reciprocal_neighbours(ranking, int(np.around(k / 2)))
+    reciprocal = _reciprocal_neighbors(ranking, k)
+    half = _reciprocal_neighbors(ranking, int(np.around(k / 2)))
     # overlap[p, q] counts the members of R(q, k/2) that R(p, k) already holds.
     overlap = reciprocal.astype(np.int64) @ half.T.astype(np.int64)
     accepted = reciprocal & (
@@ -296,9 +296,9 @@ def _k_reciprocal_distances(
 
     :param distances: The symmetric ``(n + 1, n + 1)`` matrix of pairwise
         distances, the probe first.
-    :param k1: Size of the neighbourhoods the k-reciprocal sets are built
+    :param k1: Size of the neighborhoods the k-reciprocal sets are built
         from, at most ``n``.
-    :param k2: Size of the neighbourhood of the local query expansion, at most
+    :param k2: Size of the neighborhood of the local query expansion, at most
         ``k1``.
     :param lambda_value: Weight of the original distance in the final one.
     :return: The ``(n,)`` final distances from the probe to the candidates, in
@@ -318,16 +318,16 @@ def _k_reciprocal_distances(
     # Every element's ranking list of the whole set, itself first at distance 0.
     ranking = np.argsort(scaled, axis=1, kind="stable")
     # Eq. (7): the k-reciprocal feature is a Gaussian kernel of the original
-    # distance over the expanded neighbourhood R*(p, k1) and zero elsewhere.
+    # distance over the expanded neighborhood R*(p, k1) and zero elsewhere.
     # Each row is scaled to unit L1 norm as in the authors' implementation, so
-    # that the Jaccard distance below compares the shape of two neighbourhoods
+    # that the Jaccard distance below compares the shape of two neighborhoods
     # rather than their size.
     features = np.where(
-        _expanded_reciprocal_neighbours(ranking, k1), np.exp(-scaled), 0.0
+        _expanded_reciprocal_neighbors(ranking, k1), np.exp(-scaled), 0.0
     )
     features /= features.sum(axis=1, keepdims=True)
     # Eq. (11): local query expansion, the mean feature over the k2 nearest
-    # neighbours, the element itself included as in the authors' implementation.
+    # neighbors, the element itself included as in the authors' implementation.
     if k2 > 1:
         features = features[ranking[:, :k2]].mean(axis=1)
     # Eq. (10): the Jaccard distance between the probe's feature and every

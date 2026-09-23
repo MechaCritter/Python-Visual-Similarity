@@ -46,7 +46,7 @@ def test_not_fitted_error_is_value_and_attribute_error() -> None:
     assert issubclass(NotFittedError, AttributeError)
 
 
-def test_a_serialisable_model_must_declare_its_format_version() -> None:
+def test_a_serializable_model_must_declare_its_format_version() -> None:
     """A model implementing the state contract has to say which layout it writes."""
     with pytest.raises(TypeError, match="__format_version__"):
 
@@ -63,7 +63,7 @@ def test_a_serialisable_model_must_declare_its_format_version() -> None:
 def test_every_model_writes_its_format_version(
     model_cls: type[KMeans | DiagCovarGaussianMixture | PCA],
 ) -> None:
-    """The serialised dictionary carries the version of the class that wrote it."""
+    """The serialized dictionary carries the version of the class that wrote it."""
     assert (
         _fitted(model_cls).to_dict()["format_version"] == model_cls.__format_version__
     )

@@ -27,10 +27,10 @@ from ._retrieval import DEPTH, POOL, Gallery, mean_average_precision
 #: This module embeds a whole dataset split with downloaded CLIP weights.
 pytestmark = pytest.mark.slow
 
-#: Size of the neighbourhoods the k-reciprocal sets are built from, as in Zhong et al.
+#: Size of the neighborhoods the k-reciprocal sets are built from, as in Zhong et al.
 K1 = 20
 
-#: Size of the neighbourhood of the local query expansion, as in Zhong et al.
+#: Size of the neighborhood of the local query expansion, as in Zhong et al.
 K2 = 6
 
 #: Weight of the original distance in the final one, as in Zhong et al.

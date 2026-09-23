@@ -41,8 +41,8 @@ class EmbeddingStore(Protocol):
 
         :param query_vectors: A ``(D,)`` vector or a ``(N, D)`` batch of query
             vectors.
-        :param k: Number of nearest neighbours to return per query.
+        :param k: Number of nearest neighbors to return per query.
         :return: A ``(scores, ids)`` tuple of ``(N, k)`` arrays. ``ids`` index
-            into :attr:`paths`; missing neighbours are reported as ``-1``.
+            into :attr:`paths`; missing neighbors are reported as ``-1``.
         """
         ...

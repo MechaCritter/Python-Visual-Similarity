@@ -20,7 +20,7 @@ def _embed(value: Any) -> Any:
     Handles NumPy arrays, NumPy scalars, plain containers and primitives.
 
     :param value: A value taken from a model's ``__dict__``.
-    :return: A JSON-serialisable representation of ``value``.
+    :return: A JSON-serializable representation of ``value``.
     :raises TypeError: If ``value`` is of a type that cannot be embedded.
     """
     if isinstance(value, np.ndarray):
@@ -48,7 +48,7 @@ def _embed(value: Any) -> Any:
         return [_embed(item) for item in value]
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
-    raise TypeError(f"Cannot serialise attribute of type {type(value)!r}.")
+    raise TypeError(f"Cannot serialize attribute of type {type(value)!r}.")
 
 
 def _decode(value: Any) -> Any:
@@ -71,7 +71,7 @@ class FittedModelBase(SerializerMixin):
     """
     Base class for the models the image embedders fit on local features.
 
-    A model serialises into ``{"format_version": int, "__class__": str,
+    A model serializes into ``{"format_version": int, "__class__": str,
     "__module__": str, "state": dict}``. ``format_version`` is absent from
     dictionaries written before the models carried a version.
     """
@@ -151,7 +151,7 @@ class FittedModelBase(SerializerMixin):
     @classmethod
     def _unwrap_state(cls, data: dict[str, Any], *legacy_names: str) -> dict[str, Any]:
         """
-        Validates a serialised model and decodes its fitted attributes.
+        Validates a serialized model and decodes its fitted attributes.
 
         :param data: A mapping produced by :meth:`to_dict`.
         :param legacy_names: Class names older releases wrote for this model.
@@ -170,7 +170,7 @@ class FittedModelBase(SerializerMixin):
                 raise ValueError(f"Malformed model dict; missing key {key!r}.")
         if data[cls.__class_key__] not in (cls.__name__, *legacy_names):
             raise ValueError(
-                f"{cls.__name__} expects a serialised {cls.__name__!r}, "
+                f"{cls.__name__} expects a serialized {cls.__name__!r}, "
                 f"got {data[cls.__class_key__]!r}."
             )
         state: dict[str, Any] = _decode(data["state"])

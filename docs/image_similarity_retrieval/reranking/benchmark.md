@@ -20,7 +20,7 @@ the GPU.
 | Configuration | Recall@1 | Recall@5 | mAP@100 | MRR | Time per query |
 |---|---|---|---|---|---|
 | Plain retrieval | 90.3% | 97.1% | 55.6% | 93.5% | 4.3 ms |
-| Alpha query expansion (`expansion_alpha=0`, `expansion_neighbours=5`) | 87.8% | 94.7% | 62.4% | 90.6% | 4.3 ms |
+| Alpha query expansion (`expansion_alpha=0`, `expansion_neighbors=5`) | 87.8% | 94.7% | 62.4% | 90.6% | 4.3 ms |
 | Alpha query expansion and k-reciprocal re-ranking (`k1=40`, `k2=6`, `lambda_value=0.1`) | 88.8% | 91.8% | 73.1% | 90.5% | 18.7 ms |
 
 <!-- benchmark:end -->
