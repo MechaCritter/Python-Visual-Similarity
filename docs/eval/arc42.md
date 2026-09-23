@@ -7,7 +7,6 @@ not part of the published documentation.
 
 The module is a flat set of scoring functions with no state and no classes.
 
-It depends on the `EmbeddingStore` protocol rather than on
-`InMemoryImageEmbeddingStore`, so `top_k_map` and `top_k_accuracy` stay
-decoupled from the concrete store. See [the typing arc42](../typing/arc42.md)
-for that contract.
+`top_k_map` and `top_k_accuracy` are written against the `EmbeddingStore`
+protocol, so they do not depend on the concrete `InMemoryImageEmbeddingStore`.
+See [the typing arc42](../typing/arc42.md) for that contract.

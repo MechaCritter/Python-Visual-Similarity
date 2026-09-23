@@ -52,6 +52,9 @@ class PSNR(DenseMetricBase):
     The squared differences are summed by a compiled OpenMP kernel. Set the
     ``PYVISIM_NUM_THREADS`` environment variable to override the team size.
 
+    For more information, see the documentation:
+    ``file:///home/critter_cool_laptop/workspace/Python-Visual-Similarity-parallel/docs/_build/html/pixelwise/psnr/psnr.html``.
+
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``batch_size`` is neither ``-1`` nor a positive

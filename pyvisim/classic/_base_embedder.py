@@ -326,6 +326,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     def _project(self, descriptors: FloatNumpyArray) -> FloatNumpyArray:
         """Reduces descriptors with the configured PCA, if there is one."""
         if self.pca:
+            # The extractors already return float32, so the cast is a no-op
+            # for them. The PCA promotes its input to float64 on entry, so
+            # projected descriptors come back as float64 either way.
             return self.pca.transform(descriptors.astype(np.float32))
         return descriptors
 

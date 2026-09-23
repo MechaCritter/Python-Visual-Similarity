@@ -24,10 +24,15 @@ class ExternalSearchIndex:
     """
     A search index built elsewhere, adapted to the store's interface.
 
-    Whether a score is a distance (lower is better) or a
-    similarity (higher is better) depends on the metric the wrapped
-    index was built for, and normalising the vectors for a cosine ranking is the
-    caller's job, before the index is built.
+    .. important::
+        Whether a score is a distance (lower is better) or a
+        similarity (higher is better) depends on the metric the wrapped
+        index was built for, and any necessary normalization of the vectors
+        (for a cosine ranking) must be done by the caller, before the
+        index is built.
+
+    For more information, see the documentation:
+    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/external_search_index/external_search_index.html``.
 
     :param index: The index to search through. It must expose a
         ``search(queries, k)`` returning a ``(scores, ids)`` pair of ``(M, k)``
