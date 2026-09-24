@@ -18,9 +18,9 @@ class SerializerMixin(abc.ABC):
     Mixin giving a self-describing object a safetensors file format.
 
     A subclass declares the kind of file it reads and writes through
-    :attr:`__file_format__`, :attr:`__metadata_key__`, :attr:`__class_key__`,
-    :attr:`__format_version__` and :attr:`__state_keys__`, and describes itself
-    through :meth:`_state` / :meth:`from_dict`. In exchange it gets
+    :attr:`__file_format__`, :attr:`__metadata_key__`, :attr:`__format_version__`
+    and :attr:`__state_keys__`, and describes itself through :meth:`_state` /
+    :meth:`from_dict`. In exchange it gets
     :meth:`save_to_disk` and :meth:`load_from_disk`, which are always
     `safetensors <https://github.com/huggingface/safetensors>`_ files: every
     NumPy array of the state is written as a binary tensor, the rest as a
@@ -35,8 +35,6 @@ class SerializerMixin(abc.ABC):
     __file_format__: ClassVar[str]
     #: Metadata key under which the state's JSON skeleton is stored in the file.
     __metadata_key__: ClassVar[str]
-    #: State key naming the class that wrote the file.
-    __class_key__: ClassVar[str]
     #: On-disk format version, written into every state this class serializes.
     __format_version__: ClassVar[int]
     #: Keys a serialized state must contain to be a valid file of this kind,
@@ -59,7 +57,6 @@ class SerializerMixin(abc.ABC):
             for name in (
                 "__file_format__",
                 "__metadata_key__",
-                "__class_key__",
                 "__format_version__",
                 "__state_keys__",
             )
@@ -76,9 +73,9 @@ class SerializerMixin(abc.ABC):
         Serializes this object into a JSON-safe state dictionary.
 
         The mapping holds the output of :meth:`_state` plus the format version
-        under ``"format_version"`` and the class name under
-        :attr:`__class_key__`. Arrays may be embedded as ``__ndarray__`` nodes,
-        which the serialization layer stores as binary tensors.
+        under ``"format_version"`` and the class name under ``"__class__"``.
+        Arrays may be embedded as ``__ndarray__`` nodes, which the
+        serialization layer stores as binary tensors.
 
         :return: A JSON-safe description suitable for :meth:`from_dict`.
         """
@@ -98,12 +95,11 @@ class SerializerMixin(abc.ABC):
         Adds the format version and the class name to a state.
 
         :param state: A mapping produced by :meth:`_state`.
-        :return: The state, headed by ``"format_version"`` and
-            :attr:`__class_key__`.
+        :return: The state, headed by ``"format_version"`` and ``"__class__"``.
         """
         return {
             "format_version": self.__format_version__,
-            self.__class_key__: type(self).__name__,
+            "__class__": type(self).__name__,
             **state,
         }
 
@@ -239,13 +235,13 @@ class SerializerMixin(abc.ABC):
             name or one of :attr:`__state_keys__`, or was written by another
             class.
         """
-        required = cls.__state_keys__ | {"format_version", cls.__class_key__}
+        required = cls.__state_keys__ | {"format_version", "__class__"}
         if not required.issubset(state):
             raise ValueError(f"File {path} is not a valid {cls.__file_format__} file.")
         # TODO: in the future, verify the file's format version against
         # :attr:`__compatibility_mapping__` before reconstructing.
-        if state[cls.__class_key__] != cls.__name__:
+        if state["__class__"] != cls.__name__:
             raise ValueError(
-                f"File {path} was saved by {state[cls.__class_key__]}. "
-                f"Load it with {state[cls.__class_key__]}.load_from_disk instead."
+                f"File {path} was saved by {state['__class__']}. "
+                f"Load it with {state['__class__']}.load_from_disk instead."
             )

@@ -78,7 +78,6 @@ class FittedModelBase(SerializerMixin):
 
     __file_format__: ClassVar[str] = ".safetensors"
     __metadata_key__: ClassVar[str] = "pyvisim_model"
-    __class_key__: ClassVar[str] = "__class__"
     __state_keys__: ClassVar[frozenset[str]] = frozenset({"state"})
 
     @property
@@ -165,13 +164,13 @@ class FittedModelBase(SerializerMixin):
             raise TypeError(
                 f"Expected a dict from to_dict(), got {type(data).__name__}."
             )
-        for key in (cls.__class_key__, "state"):
+        for key in ("__class__", "state"):
             if key not in data:
                 raise ValueError(f"Malformed model dict; missing key {key!r}.")
-        if data[cls.__class_key__] not in (cls.__name__, *legacy_names):
+        if data["__class__"] not in (cls.__name__, *legacy_names):
             raise ValueError(
                 f"{cls.__name__} expects a serialized {cls.__name__!r}, "
-                f"got {data[cls.__class_key__]!r}."
+                f"got {data['__class__']!r}."
             )
         state: dict[str, Any] = _decode(data["state"])
         return state
