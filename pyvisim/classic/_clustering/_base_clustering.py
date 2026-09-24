@@ -76,7 +76,6 @@ class FittedModelBase(SerializerMixin):
     dictionaries written before the models carried a version.
     """
 
-    __file_format__: ClassVar[str] = ".safetensors"
     __metadata_key__: ClassVar[str] = "pyvisim_model"
     __state_keys__: ClassVar[frozenset[str]] = frozenset({"state"})
 
