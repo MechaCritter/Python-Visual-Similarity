@@ -1,0 +1,17 @@
+---
+upgrade:
+  - |
+    ``DeepConvFeature`` moved to ``pyvisim.neural_networks.features``, so
+    ``from pyvisim.features import DeepConvFeature`` now raises
+    ``ImportError``. If your code imports the class, change the import:
+
+    .. code:: python
+
+        # before
+        from pyvisim.features import DeepConvFeature
+
+        # after
+        from pyvisim.neural_networks.features import DeepConvFeature
+
+    Files holding a serialized ``DeepConvFeature`` still load, because they
+    store the class name and not its module.
