@@ -1,12 +1,12 @@
 Image Store
 ===========
 
-An image store holds a gallery of images together with their embeddings. Upon
-construction, every gallery image is embedded with the given embedder and the
-embeddings are placed in a search index, which allows fast nearest neighbor
+An image store holds a gallery of images together with their embeddings.
+Calling ``build_store()`` embeds every gallery image with the given embedder
+and places the embeddings in a search index, which allows fast nearest neighbor
 search algorithms instead of brute-force search.
 
-After construction, one can take a query image and retrieve the top-k most 
+Once the store is built, one can take a query image and retrieve the top-k most
 similar images to it from the gallery.
 
 To refine the query itself before retrieval, one can enable **alpha-weighted
@@ -37,6 +37,9 @@ Example
        space="cosine",
        index_params={"graph_degree": 32, "search_candidates": 100},
    )
+   # Embed the gallery and build the index
+   store.build_store()
+
    # Save the store to disk and load it back later
    store.save_to_disk("gallery.safetensors")
 
