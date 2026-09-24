@@ -865,13 +865,13 @@ def test_a_reloaded_store_comes_back_built(
 # Saving and loading
 
 
-def test_save_appends_safetensors_suffix(
+def test_save_writes_to_the_given_path(
     store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
-    """The save path gains a ``.safetensors`` suffix when missing."""
-    target = tmp_path_factory.mktemp("save_suffix") / "mystore"
+    """The store is written under the given name."""
+    target = tmp_path_factory.mktemp("save_path") / "mystore"
     written = store.save_to_disk(target)
-    assert written.suffix == ".safetensors"
+    assert written == target
     assert written.exists()
 
 

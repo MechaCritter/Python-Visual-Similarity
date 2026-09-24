@@ -249,7 +249,7 @@ class KMeans(ClusteringModelBase):
         Describes the fitted model as a JSON-safe mapping.
 
         The state layout keeps the ``cluster_centers_`` / ``n_features_in_``
-        key names used by older releases, so the ``.embedder`` files they
+        key names used by older releases, so the embedder files they
         wrote can still be read; the whitening scale is stored under
         ``scale_``.
 

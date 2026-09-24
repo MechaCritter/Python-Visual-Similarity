@@ -30,7 +30,7 @@ by the dense metrics).
 
 ## Architecture decisions
 
-### Serialization uses the safetensors `.embedder` format
+### Serialization uses the safetensors format
 
 Pickling is avoided on purpose due to the risks of pickled files containing malicious
 objects. Arrays are written as
@@ -46,8 +46,6 @@ classes** in `pyvisim`).
 
 For each class, following class attributes must be defined:
 
-- `__file_format__`: the file suffix, appended to the filename upon saving
-to disk.
 - `__metadata_key__`: upon saving to disk, the `safetensors` file will contain this
 metadata key. If the key is missing (for example, loading an arbitrary `safetensors` file
 that does not belong to this library), the load will be rejected.
@@ -62,7 +60,6 @@ An example is provided below:
 from pyvisim.serialization import SerializerMixin
 
 class Embedder(SerializerMixin):
-    __file_format__ = ".safetensors"
     __metadata_key__ = "pyvisim_metadata"
     __format_version__ = 1
     __state_keys__ = ["similarity_func", "embedding_dim"]
@@ -90,7 +87,7 @@ Now, instantiate the object and save it to disk.
 
 ```python
 embedder = Embedder(similarity_func="cosine", embedding_dim=128)
-embedder.save_to_disk("my_embedder")
+embedder.save_to_disk("my_embedder.safetensors")
 ```
 
 Inspect the dictionary of the object after we have deserialized it:

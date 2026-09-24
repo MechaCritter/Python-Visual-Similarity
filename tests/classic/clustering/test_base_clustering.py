@@ -89,7 +89,7 @@ def test_every_model_round_trips_through_a_file(
     """A model saved on its own loads back with identical fitted arrays."""
     model = _fitted(model_cls)
     path = model.save_to_disk(tmp_path / "model")
-    assert path == tmp_path / "model.safetensors"
+    assert path == tmp_path / "model"
 
     reloaded = model_cls.load_from_disk(path)
 

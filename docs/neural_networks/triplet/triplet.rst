@@ -74,7 +74,7 @@ Save the model to disk:
 
 .. code-block:: python
 
-   path = model.save_to_disk("triplet_resnet18")   # -> triplet_resnet18.embedder
+   path = model.save_to_disk("triplet_resnet18.safetensors")
    model = TripletNeuralNetwork.load_from_disk(path)
 
 Load the model from disk. Note that the ``transform`` has to be passed in again
