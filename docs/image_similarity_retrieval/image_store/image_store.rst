@@ -66,36 +66,6 @@ API reference
 .. autoclass:: pyvisim.image_store.Candidate
    :members:
 
-Building the store
-------------------
-
-Constructing an ``InMemoryImageEmbeddingStore`` only records the gallery paths.
-``build_store()`` embeds the images and builds the index, so call it right
-after the constructor:
-
-.. code-block:: python
-
-   store = InMemoryImageEmbeddingStore(image_paths=paths, embedder=embedder)
-   store.build_store()
-
-An unbuilt store holds no vectors. ``search``, ``retrieve_top_k_similar``,
-``embeddings``, ``embeddings_of``, ``index``, ``dim``, ``to_dict`` and
-``save_to_disk`` raise ``RuntimeError`` until the build has run. ``paths``,
-``len(store)`` and ``in`` answer from the recorded paths and work either way,
-and ``is_built`` tells whether the build has run. A second call to
-``build_store()`` does nothing.
-
-To have the constructor build the store itself, pass ``lazy_build=False``:
-
-.. code-block:: python
-
-   store = InMemoryImageEmbeddingStore(
-       image_paths=paths, embedder=embedder, lazy_build=False
-   )
-
-A store that adopted an ``ExternalSearchIndex`` and a store read back by
-``load_from_disk`` already hold their embeddings, so both come back built.
-
 Retrieval
 ---------
 
