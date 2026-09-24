@@ -350,7 +350,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         """
         if self._index is not None:
             return
-        paths, embeddings = _embed_image_paths(
+        paths, embeddings = _embed_image_paths_and_drop_duplicates(
             self._paths,
             self._embedder,
             self._skip_errors,
@@ -1049,7 +1049,7 @@ def _validated_paths(image_paths: Iterable[str]) -> list[str]:
     return paths
 
 
-def _embed_image_paths(
+def _embed_image_paths_and_drop_duplicates(
     image_paths: Iterable[str],
     embedder: Embedder,
     skip_errors: bool,
