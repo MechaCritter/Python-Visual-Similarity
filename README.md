@@ -42,11 +42,19 @@
 ![Architecture Diagram](https://raw.githubusercontent.com/MechaCritter/Python-Visual-Similarity/assets/docs/architecture/image_embeddings.drawio.png)
 
 The goal of `pyvisim` is to become the largest collection of image similarity metrics, varying from
-traditional methods like `PSNR`, `SSIM`, `Fisher Vectors`, and `VLAD` to deep learning methods like `CLIP` and `Siamese Networks`. Then, one can use these for image retrieval and clustering.
+traditional methods like `PSNR`, `SSIM`, `Fisher Vectors`, and `VLAD` to deep
+learning methods like `CLIP` and `Siamese Networks`. Furthermore, advanced
+**image similarity search** and **reranking** algorithms are provided to allow
+users to refine the search results as desired. For more details, please refer to
+the documentation provided. 
 
-Currently, one would need to install numerous libraries just to get all the metrics mentioned (for example, `scikit-image` + `opencv-python` for `Fisher Vectors` and `SSIM`, `open-clip` for `CLIP Embedder`). `pyvisim`
+Currently, one would need to install numerous libraries just to everything mentioned above (for example, `scikit-image` + `opencv-python` for `Fisher Vectors`, `SSIM`, `open-clip` for `CLIP Embedder`, and `faiss` for **Approximate Nearest Neighbors Search**). `pyvisim`
 attempts to close this gap by implementing as many metrics as possible using only `numpy`, `scipy` (for conventional metrics), and
-`torch` (for deep learning metrics), plus making them more user-friendly with a simple Object-Oriented code design.
+`torch` (for deep learning metrics) as core dependencies, plus making them more user-friendly with a simple Object-Oriented code design.
+
+> [!TIP]
+> `hnsw` is provided as a built-in ANNs algorithm, backed by [hnswlib](https://github.com/nmslib/hnswlib). However, an [interface with external search indexes](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/external_search_index/external_search_index.html) is also provided in case you would like to use other search 
+algorithms with this library. **Just note** that `pyvisim` does not install dependencies like `faiss` or `annoy`.
 
 ### Accelerated Computation
 
@@ -137,7 +145,7 @@ more details on the dataset, please refer to the [documentation](https://mechacr
 See [the contributing guidelines](CONTRIBUTING.md).
 
 ## Get in Touch
-If you have any questions or just want to say hi, feel free to:
+Feel free to:
 - Open an issue on [GitHub](https://github.com/MechaCritter/similarity_metrics_of_images/issues).
 - Write me an email at [vunhathuy234@gmail.com](mailto:vunhathuy234@gmail.com).
 - Connect on [LinkedIn](https://www.linkedin.com/in/nhat-huy-vu-80495111b/) to follow my work and share your thoughts.
