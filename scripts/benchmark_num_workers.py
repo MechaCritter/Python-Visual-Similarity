@@ -30,7 +30,9 @@ from pyvisim.datasets import OxfordFlowerDataset
 # The reading stage is internal to the store, which exposes no way to run it
 # without embedding. Driving it directly is what keeps the embedder out of the
 # measurement.
-from pyvisim.image_store.image_store import _decoded_images
+from pyvisim.retrieval.image_store.in_memory_image_embedding_store import (
+    _decoded_images,
+)
 
 _SCRIPT_REF = "scripts/benchmark_num_workers.py"
 _REPO_ROOT = Path(__file__).resolve().parents[1]

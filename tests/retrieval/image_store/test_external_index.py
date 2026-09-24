@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.image_store.ExternalSearchIndex`."""
+"""Tests for :class:`pyvisim.retrieval.image_store.ExternalSearchIndex`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from pyvisim.image_store import ExternalSearchIndex
+from pyvisim.retrieval.image_store import ExternalSearchIndex
 
 faiss = pytest.importorskip("faiss")
 

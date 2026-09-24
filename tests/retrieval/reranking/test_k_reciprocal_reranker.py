@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.image_store.KReciprocalReranker`."""
+"""Tests for :class:`pyvisim.retrieval.reranking.KReciprocalReranker`."""
 
 from __future__ import annotations
 
@@ -9,16 +9,16 @@ import pytest
 from PIL import Image
 
 from pyvisim.classic import VLADEmbedder
-from pyvisim.image_store import (
-    Candidate,
+from pyvisim.retrieval.data import Candidate
+from pyvisim.retrieval.image_store import (
     ExternalSearchIndex,
     InMemoryImageEmbeddingStore,
-    KReciprocalReranker,
 )
+from pyvisim.retrieval.reranking import KReciprocalReranker
 
 # The distance computation is checked on its own against a literal transcription
 # of the paper: the reranker only ever feeds it matrices it assembled itself.
-from pyvisim.image_store.reranking import _k_reciprocal_distances
+from pyvisim.retrieval.reranking.k_reciprocal_reranker import _k_reciprocal_distances
 
 
 @pytest.fixture(scope="module")

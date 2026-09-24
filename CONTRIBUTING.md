@@ -144,7 +144,7 @@ make build-ext
 ## Working with vendored modules
 
 Vendored files (files placed in folders named `_vendored`) are copied from their original sources. Checklist when vendoring
-third-party repositories (See [hnswlib](pyvisim/image_store/_index/_vendored/README.md) for an example):
+third-party repositories (See [hnswlib](pyvisim/retrieval/image_store/_index/_vendored/README.md) for an example):
 
 - [ ] The files remain unchanged from the original source and for
 the rest of their lifetime inside `pyvisim`. If modifications are necessary, use class inheritance or overwrite methods in separate files.

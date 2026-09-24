@@ -251,7 +251,7 @@ def _build_store(paths: list[str], embedder: Any) -> float:
     :param embedder: Embedder the gallery is embedded with.
     :return: The wall-clock duration of the build, in seconds.
     """
-    from pyvisim.image_store import InMemoryImageEmbeddingStore
+    from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 
     gc.collect()
     start = time.perf_counter()

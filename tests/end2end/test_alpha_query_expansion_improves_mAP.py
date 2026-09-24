@@ -22,7 +22,7 @@ from __future__ import annotations
 import pytest
 
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.image_store import Candidate
+from pyvisim.retrieval.data import Candidate
 from pyvisim.typing import UInt8NumpyArray
 
 from ._retrieval import DEPTH, Gallery, mean_average_precision

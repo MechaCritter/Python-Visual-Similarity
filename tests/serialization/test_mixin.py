@@ -7,8 +7,8 @@ import pytest
 
 from pyvisim.classic import FisherVectorEmbedder, Pipeline, VLADEmbedder
 from pyvisim.features import SIFT, RootSIFT
-from pyvisim.image_store import InMemoryImageEmbeddingStore
 from pyvisim.neural_networks.features import DeepConvFeature
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 from pyvisim.serialization import SerializerMixin, save_state
 
 

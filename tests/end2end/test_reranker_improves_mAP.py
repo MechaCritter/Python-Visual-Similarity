@@ -4,7 +4,7 @@ The whole gallery split of the Oxford Flower dataset is embedded by
 :class:`~pyvisim.neural_networks.ClipEmbedder` into an HNSW-backed store, and
 every image of the query split is searched against it twice: once plainly, and
 once by re-ranking a pool of 200 candidates with
-:class:`~pyvisim.image_store.KReciprocalReranker` at the parameters of Zhong et
+:class:`~pyvisim.retrieval.reranking.KReciprocalReranker` at the parameters of Zhong et
 al. The re-ranking is measured on its own here, without the query expansion, so
 that the lift is attributable to it alone. Both passes are scored by mean
 average precision over the top 100 results, and the re-ranking has to come out
@@ -19,7 +19,8 @@ from __future__ import annotations
 import pytest
 
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.image_store import Candidate, KReciprocalReranker
+from pyvisim.retrieval.data import Candidate
+from pyvisim.retrieval.reranking import KReciprocalReranker
 from pyvisim.typing import UInt8NumpyArray
 
 from ._retrieval import DEPTH, POOL, Gallery, mean_average_precision
