@@ -16,7 +16,6 @@ class _Demo(SerializerMixin):
 
     __file_format__ = ".demo"
     __metadata_key__ = "demo"
-    __class_key__ = "demo_class"
     __format_version__ = 1
     __state_keys__ = frozenset({"value"})
 
@@ -60,7 +59,7 @@ def test_a_declared_contract_reaches_the_subclasses() -> None:
     assert Child.__format_version__ == 2
 
 
-@pytest.mark.parametrize("stamped_key", ["format_version", "demo_class"])
+@pytest.mark.parametrize("stamped_key", ["format_version", "__class__"])
 def test_a_file_without_a_stamped_key_is_not_valid(
     stamped_key: str, tmp_path: Path
 ) -> None:
@@ -98,8 +97,22 @@ def test_every_shipped_class_declares_its_own_file_format(
     contract = (
         "__file_format__",
         "__metadata_key__",
-        "__class_key__",
         "__format_version__",
         "__state_keys__",
     )
     assert all(getattr(serializable, name, None) is not None for name in contract)
+
+
+def test_every_class_in_a_state_is_named_under_the_same_key(
+    learned_vlad_embedder: VLADEmbedder,
+) -> None:
+    """The objects nested in a state name their class the way the outer one does."""
+    state = Pipeline([learned_vlad_embedder]).to_dict()
+    embedder_state = state["classic"][0]
+    assert state["__class__"] == "Pipeline"
+    assert embedder_state["__class__"] == "VLADEmbedder"
+    assert embedder_state["clustering_model"]["__class__"] == "KMeans"
+    assert (
+        embedder_state["feature_extractor"]["__class__"]
+        == type(learned_vlad_embedder.feature_extractor).__name__
+    )

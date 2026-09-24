@@ -126,7 +126,7 @@ class ClipEmbedder(SerializableImageEmbedder):
         Proc. ICML, PMLR 139, pp. 8748-8763, 2021.
     """
 
-    __format_version__: ClassVar[int] = 3
+    __format_version__: ClassVar[int] = 4
     __state_keys__: ClassVar[frozenset[str]] = (
         SerializableImageEmbedder.__state_keys__
         | {
