@@ -242,8 +242,9 @@ class FeatureExtractorBase(SerializerMixin):
         Looks up a concrete extractor class by name.
 
         The shipped extractors register themselves when their package is
-        imported, so that package is imported before a name is reported as
-        unknown.
+        imported, so ``pyvisim.features`` and ``pyvisim.neural_networks`` are
+        imported before a name is reported as unknown. Without the ``nn``
+        extra, ``DeepConvFeature`` cannot be found.
 
         :param name: The class name recorded in a serialized description.
         :return: The extractor class of that name.
@@ -251,6 +252,9 @@ class FeatureExtractorBase(SerializerMixin):
         """
         if name not in cls._subclasses_by_name:
             from .. import features  # noqa: F401
+
+            with contextlib.suppress(ImportError):
+                from .. import neural_networks  # noqa: F401
         extractor_cls = cls._subclasses_by_name.get(name)
         if extractor_cls is None or inspect.isabstract(extractor_cls):
             known = sorted(

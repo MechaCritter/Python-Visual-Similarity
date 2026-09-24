@@ -34,13 +34,14 @@ from pyvisim.classic import FisherVectorEmbedder, Pipeline, VLADEmbedder
 from pyvisim.datasets import OxfordFlowerDataset
 from pyvisim.dense.pixelwise import PSNR
 from pyvisim.dense.structural import MSSSIM, SSIM
-from pyvisim.features import DeepConvFeature, RootSIFT
+from pyvisim.features import RootSIFT
 from pyvisim.neural_networks import (
     BCESiameseNetwork,
     ClipEmbedder,
     ContrastiveSiameseNetwork,
     TripletNeuralNetwork,
 )
+from pyvisim.neural_networks.features import DeepConvFeature
 from pyvisim.typing import FloatNumpyArray, UInt8NumpyArray
 
 _SCRIPT_REF = "scripts/benchmark_batch_size.py"

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -9,7 +11,8 @@ import pytest
 import torch
 import torch.nn as nn
 
-from pyvisim.features import DeepConvFeature, Lambda, RootSIFT
+from pyvisim.features import Lambda, RootSIFT
+from pyvisim.neural_networks.features import DeepConvFeature
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
@@ -239,6 +242,28 @@ def test_deepconv_unexpected_kwarg_raises() -> None:
     """An unexpected keyword argument raises ``TypeError``."""
     with pytest.raises(TypeError, match="unexpected keyword arguments"):
         DeepConvFeature(_tiny_conv_model(), bogus=1, device="cpu")  # type: ignore[call-arg]
+
+
+def test_deepconv_is_found_by_name_in_a_fresh_interpreter() -> None:
+    """``FeatureExtractorBase`` finds ``DeepConvFeature`` when only the base classes are imported.
+
+    A saved description stores the class name and nothing else. The lookup
+    runs in a fresh interpreter, so neither ``pyvisim.features`` nor
+    ``pyvisim.neural_networks`` has been imported yet.
+    """
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from pyvisim.base import FeatureExtractorBase\n"
+            "found = FeatureExtractorBase._subclass_named('DeepConvFeature')\n"
+            "assert found.__name__ == 'DeepConvFeature', found\n",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_deepconv_accepts_tensor() -> None:

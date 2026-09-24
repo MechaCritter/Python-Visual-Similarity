@@ -9,8 +9,8 @@ import pytest
 from torchvision import transforms
 
 from pyvisim.base import FeatureExtractorBase
-from pyvisim.features import DeepConvFeature
 from pyvisim.neural_networks.backbones import build_backbone, list_backbones
+from pyvisim.neural_networks.features import DeepConvFeature
 from pyvisim.typing import UInt8NumpyArray
 
 #: Descriptor shape every built-in backbone produces for a 224x224 input: the
