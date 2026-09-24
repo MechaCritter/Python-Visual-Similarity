@@ -1,12 +1,12 @@
 Image Store
 ===========
 
-An image store holds a gallery of images together with their embeddings. Upon
-construction, every gallery image is embedded with the given embedder and the
-embeddings are placed in a search index, which allows fast nearest neighbor
+An image store holds a gallery of images together with their embeddings.
+Calling ``build_store()`` embeds every gallery image with the given embedder
+and places the embeddings in a search index, which allows fast nearest neighbor
 search algorithms instead of brute-force search.
 
-After construction, one can take a query image and retrieve the top-k most 
+Once the store is built, one can take a query image and retrieve the top-k most
 similar images to it from the gallery.
 
 To refine the query itself before retrieval, one can enable **alpha-weighted
@@ -37,6 +37,9 @@ Example
        space="cosine",
        index_params={"graph_degree": 32, "search_candidates": 100},
    )
+   # Embed the gallery and build the index
+   store.build_store()
+
    # Save the store to disk and load it back later
    store.save_to_disk("gallery.safetensors")
 
@@ -62,6 +65,36 @@ API reference
 
 .. autoclass:: pyvisim.image_store.Candidate
    :members:
+
+Building the store
+------------------
+
+Constructing an ``InMemoryImageEmbeddingStore`` only records the gallery paths.
+``build_store()`` embeds the images and builds the index, so call it right
+after the constructor:
+
+.. code-block:: python
+
+   store = InMemoryImageEmbeddingStore(image_paths=paths, embedder=embedder)
+   store.build_store()
+
+An unbuilt store holds no vectors. ``search``, ``retrieve_top_k_similar``,
+``embeddings``, ``embeddings_of``, ``index``, ``dim``, ``to_dict`` and
+``save_to_disk`` raise ``RuntimeError`` until the build has run. ``paths``,
+``len(store)`` and ``in`` answer from the recorded paths and work either way,
+and ``is_built`` tells whether the build has run. A second call to
+``build_store()`` does nothing.
+
+To have the constructor build the store itself, pass ``lazy_build=False``:
+
+.. code-block:: python
+
+   store = InMemoryImageEmbeddingStore(
+       image_paths=paths, embedder=embedder, lazy_build=False
+   )
+
+A store that adopted an ``ExternalSearchIndex`` and a store read back by
+``load_from_disk`` already hold their embeddings, so both come back built.
 
 Retrieval
 ---------

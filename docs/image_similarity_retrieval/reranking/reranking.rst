@@ -35,6 +35,7 @@ Example
    from pyvisim.neural_networks import ClipEmbedder
 
    store = InMemoryImageEmbeddingStore(gallery_paths, ClipEmbedder(), "hnsw")
+   store.build_store()
    reranker = KReciprocalReranker(store, k1=20, k2=6, lambda_value=0.3)
 
    # Retrieve a pool of candidates, then keep the best five after re-ranking
