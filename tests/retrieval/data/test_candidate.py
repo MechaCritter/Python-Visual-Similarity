@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.image_store.Candidate`."""
+"""Tests for :class:`pyvisim.retrieval.data.Candidate`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pyvisim.image_store import Candidate
+from pyvisim.retrieval.data import Candidate
 
 
 @pytest.fixture(scope="module")

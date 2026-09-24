@@ -26,7 +26,7 @@ def top_k_map(
 
     :param images: Query images.
     :param image_labels: Corresponding labels for the query images.
-    :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
+    :param store: An :class:`~pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore`
         (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
         embeddings and the embedder.
     :param path_labels_dict: dict {img_path: label}, covering every path of
@@ -90,7 +90,7 @@ def top_k_accuracy(
 
     :param images: Query images.
     :param image_labels: List of true labels for each query image.
-    :param store: An :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`
+    :param store: An :class:`~pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore`
         (or any :class:`~pyvisim.typing.EmbeddingStore`) holding the gallery
         embeddings and the embedder.
     :param path_labels_dict: dict {path: label}.

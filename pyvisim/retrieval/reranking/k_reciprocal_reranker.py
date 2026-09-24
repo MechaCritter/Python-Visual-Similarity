@@ -14,16 +14,15 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ..distance import euclidean_distances
-from ..typing import (
+from ...distance import euclidean_distances
+from ...typing import (
     BoolNumpyArray,
     Float64NumpyArray,
     FloatNumpyArray,
     IntNumpyArray,
 )
-from ._index import ExternalSearchIndex
-from .candidate import Candidate
-from .image_store import InMemoryImageEmbeddingStore
+from ..data import Candidate
+from ..image_store import ExternalSearchIndex, InMemoryImageEmbeddingStore
 
 #: Share of a member's own reciprocal neighborhood that must already lie in the
 #: probe's for the two neighborhoods to be merged (Eq. 4 of Zhong et al.).
@@ -47,7 +46,7 @@ class KReciprocalReranker:
         distance, from ``0`` (Jaccard distance only) to ``1`` (original ranking
         kept). [1] uses ``0.3``.
     :raises TypeError: If ``store`` is not an
-        :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`.
+        :class:`~pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore`.
     :raises ValueError: If the store searches through an external index,
         ``k1`` or ``k2`` is not a positive integer, ``k2`` exceeds ``k1``, or
         ``lambda_value`` lies outside ``[0, 1]``.
@@ -129,7 +128,7 @@ class KReciprocalReranker:
         Re-rank the candidates of one query and return the best ``top_k``.
 
         The candidates are the ranked matches of a single query, as one row of
-        :meth:`~pyvisim.image_store.InMemoryImageEmbeddingStore.retrieve_top_k_similar`
+        :meth:`~pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore.retrieve_top_k_similar`
         returns them, and their scores are the query's distances to them. The
         neighborhoods are built among the candidates themselves, so a pool no
         larger than the answer leaves them nothing to say: retrieve at least
@@ -144,7 +143,7 @@ class KReciprocalReranker:
             final distance of Eq. (12) of [1], which lies in ``[0, 1]`` and is
             lower for a better match.
         :raises TypeError: If an element of ``candidates`` is not a
-            :class:`~pyvisim.image_store.Candidate`.
+            :class:`~pyvisim.retrieval.data.Candidate`.
         :raises ValueError: If ``candidates`` is empty, names a path twice or
             one the store does not hold, a score is not finite, or ``top_k``
             is not a positive integer.

@@ -11,14 +11,14 @@ from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
 #: Root of the vendored hnswlib sources.
-_HNSWLIB_ROOT = "pyvisim/image_store/_index/_vendored/hnswlib"
+_HNSWLIB_ROOT = "pyvisim/retrieval/image_store/_index/_vendored/hnswlib"
 
 #: Directory of the sources extending the vendored search structures.
-_HNSWLIB_BINDINGS_ROOT = "pyvisim/image_store/_index/_bindings"
+_HNSWLIB_BINDINGS_ROOT = "pyvisim/retrieval/image_store/_index/_bindings"
 
 #: Name of the C++ extension built from the hnswlib bindings. Only this
 #: extension receives the C++ compile flags probed by :class:`BuildExt`.
-_HNSWLIB_EXT_NAME = "pyvisim.image_store._index._bindings._hnswlib"
+_HNSWLIB_EXT_NAME = "pyvisim.retrieval.image_store._index._bindings._hnswlib"
 
 #: ``-march=native`` tunes the binary for the building machine, which is wrong
 #: for a redistributable wheel. Set this environment variable to drop it.

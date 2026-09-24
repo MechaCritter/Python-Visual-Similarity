@@ -31,8 +31,9 @@ Example
 
 .. code-block:: python
 
-   from pyvisim.image_store import InMemoryImageEmbeddingStore, KReciprocalReranker
    from pyvisim.neural_networks import ClipEmbedder
+   from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
+   from pyvisim.retrieval.reranking import KReciprocalReranker
 
    store = InMemoryImageEmbeddingStore(gallery_paths, ClipEmbedder(), "hnsw")
    store.build_store()
@@ -140,5 +141,5 @@ with k-reciprocal Encoding," in Proc. CVPR, pp. 1318-1327, 2017.
 API reference
 -------------
 
-.. autoclass:: pyvisim.image_store.KReciprocalReranker
+.. autoclass:: pyvisim.retrieval.reranking.KReciprocalReranker
    :members:

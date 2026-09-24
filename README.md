@@ -90,7 +90,7 @@ print(f"Similarity Score: {similarity_score}")
 
 ```python
 from pyvisim.neural_networks import ClipEmbedder
-from pyvisim.image_store import InMemoryImageEmbeddingStore
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 
 embedder = ClipEmbedder()
 
@@ -112,7 +112,7 @@ the retrieval results, improving `mean Average Precision` (see the
 [documentation](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/reranking.html)):
 
 ```python
-from pyvisim.image_store import KReciprocalReranker
+from pyvisim.retrieval.reranking import KReciprocalReranker
 
 pool = image_store.retrieve_top_k_similar(image, k=100, query_expansion=True)[0]
 best = KReciprocalReranker(image_store).rerank(pool, top_k=5)

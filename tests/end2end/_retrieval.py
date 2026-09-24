@@ -9,8 +9,9 @@ from dataclasses import dataclass
 import numpy as np
 
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.image_store import Candidate, InMemoryImageEmbeddingStore
 from pyvisim.neural_networks import ClipEmbedder
+from pyvisim.retrieval.data import Candidate
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 from pyvisim.typing import UInt8NumpyArray
 
 #: CLIP variant and pretrained tag the gallery and the queries are embedded with.

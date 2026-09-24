@@ -18,9 +18,9 @@ from typing import Any, ClassVar, TypeVar, cast
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from ..base import SerializableImageEmbedder
-from ..serialization import SerializerMixin
-from ..typing import (
+from ...base import SerializableImageEmbedder
+from ...serialization import SerializerMixin
+from ...typing import (
     BoolNumpyArray,
     Embedder,
     Float32NumpyArray,
@@ -31,6 +31,7 @@ from ..typing import (
     SearchIndex,
     UInt8NumpyArray,
 )
+from ..data import Candidate
 from ._index import (
     BRUTE_FORCE_TO_HNSWLIB,
     HNSW_TO_HNSWLIB,
@@ -40,7 +41,6 @@ from ._index import (
     Space,
     validate_index_params,
 )
-from .candidate import Candidate
 
 #: Value of ``search_index`` selecting the HNSW graph.
 _HNSW = "hnsw"
@@ -99,7 +99,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         - For **FAISS**-based indexes, the returned embeddings may not be
           exactly the same as the original embeddings due to compression or
           quantization, and for some indexes, reconstruction is impossible.
-        - If you use an :class:`~pyvisim.image_store.ExternalSearchIndex`
+        - If you use an :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex`
           instead, that index must already hold the gallery. ``image_paths``
           then assumes each path matches the corresponding row in the index.
 
@@ -665,11 +665,11 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         embeddings using the saved parameters.
 
         Not everything a store is made of survives serialization. An
-        :class:`~pyvisim.image_store.ExternalSearchIndex` wraps an object this
+        :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex` wraps an object this
         library cannot write to disk, so pass a rebuilt one back as the
         ``search_index`` keyword argument; a name differing from the saved one
         is reported with a warning. Without it the store falls back to an exact
-        :class:`~pyvisim.image_store.BruteForceIndex` over the saved
+        :class:`~pyvisim.retrieval.image_store.BruteForceIndex` over the saved
         embeddings. Any other keyword argument is
         forwarded to the embedder, the way an embedder's own
         :meth:`~pyvisim.serialization.SerializerMixin.load_from_disk`
@@ -680,7 +680,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             objects the embedder's file cannot hold.
         :return: A populated :class:`InMemoryImageEmbeddingStore`.
         :raises TypeError: If ``search_index`` is not an
-            :class:`~pyvisim.image_store.ExternalSearchIndex`, or the embedder
+            :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex`, or the embedder
             does not take one of ``kwargs``.
         """
         search_index = kwargs.pop(_SEARCH_INDEX_KWARG, None)

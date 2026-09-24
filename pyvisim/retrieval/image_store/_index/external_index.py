@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 from ._utils import (
     as_gallery_matrix,
     as_id_array,
