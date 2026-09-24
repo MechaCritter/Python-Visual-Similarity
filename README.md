@@ -145,7 +145,7 @@ more details on the dataset, please refer to the [documentation](https://mechacr
 See [the contributing guidelines](CONTRIBUTING.md).
 
 ## Get in Touch
-If you have any questions or just want to say hi, feel free to:
+Feel free to:
 - Open an issue on [GitHub](https://github.com/MechaCritter/similarity_metrics_of_images/issues).
 - Write me an email at [vunhathuy234@gmail.com](mailto:vunhathuy234@gmail.com).
 - Connect on [LinkedIn](https://www.linkedin.com/in/nhat-huy-vu-80495111b/) to follow my work and share your thoughts.
