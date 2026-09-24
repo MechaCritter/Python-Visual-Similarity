@@ -40,7 +40,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
         Set to ``-1`` to process all images as a single batch.
     """
 
-    __format_version__: ClassVar[int] = 3
+    __format_version__: ClassVar[int] = 4
     __state_keys__: ClassVar[frozenset[str]] = (
         SerializableImageEmbedder.__state_keys__
         | {

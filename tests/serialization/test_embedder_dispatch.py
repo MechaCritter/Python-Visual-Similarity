@@ -61,7 +61,7 @@ def test_a_subclass_registers_itself_on_definition() -> None:
 def test_a_state_naming_no_concrete_class_is_rejected(name: str | None) -> None:
     """Unknown and abstract class names cannot be rebuilt."""
     with pytest.raises(ValueError, match="Cannot reconstruct embedder"):
-        SerializableImageEmbedder.from_dict({"embedder_class": name})
+        SerializableImageEmbedder.from_dict({"__class__": name})
 
 
 def test_a_subclass_without_from_dict_raises() -> None:
