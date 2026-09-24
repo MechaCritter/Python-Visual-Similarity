@@ -302,7 +302,7 @@ def test_file_round_trip_keeps_the_constructor_arguments(
     extractor = extractor_cls(n_scales=4, c_edge=5.0, n_hist=2, n_ori=4)
     path = extractor.save_to_disk(tmp_path / "extractor")
     reloaded = extractor_cls.load_from_disk(path)
-    assert path.suffix == ".safetensors"
+    assert path == tmp_path / "extractor"
     assert type(reloaded) is extractor_cls
     assert reloaded.to_dict() == extractor.to_dict()
 

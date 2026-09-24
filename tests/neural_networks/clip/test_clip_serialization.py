@@ -1,6 +1,6 @@
 """Serialization tests for :class:`pyvisim.neural_networks.ClipEmbedder`.
 
-A CLIP embedder saves into the same ``.embedder`` safetensors file as every
+A CLIP embedder saves into the same safetensors file format as every
 other pyvisim embedder, weights included: a reloaded embedder must produce
 bit-identical embeddings without contacting the Hugging Face Hub. All tests
 run against the tiny variant registered in ``conftest.py``.
@@ -37,7 +37,7 @@ def _forbid_checkpoint_fetch(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_clip_embedder_is_a_serializable_embedder(embedder: ClipEmbedder) -> None:
-    """The CLIP embedder inherits the ``.embedder`` file contract."""
+    """The CLIP embedder inherits the embedder file contract."""
     assert isinstance(embedder, SerializableImageEmbedder)
 
 
@@ -46,7 +46,7 @@ def test_save_to_disk_writes_a_safetensors_file(
 ) -> None:
     """The written file is a safetensors file holding the model's weights."""
     path = embedder.save_to_disk(tmp_path / "clip")
-    assert path == tmp_path / "clip.embedder"
+    assert path == tmp_path / "clip"
 
     image_tower = build_vision_model(CONFIG, quick_gelu=True)
     with safe_open(str(path), framework="numpy") as handle:

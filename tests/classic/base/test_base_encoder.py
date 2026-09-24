@@ -252,17 +252,14 @@ def test_save_unfitted_raises(tmp_path: Path) -> None:
         embedder.save_to_disk(tmp_path / "m")
 
 
-def test_save_appends_suffix(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:
-    """Saving appends the ``.embedder`` suffix and writes the file."""
-    path = learned_vlad.save_to_disk(tmp_path / "model")
-    assert str(path).endswith(".embedder")
+@pytest.mark.parametrize("name", ["model", "model.safetensors", "model.bin"])
+def test_save_writes_to_the_given_path(
+    learned_vlad: VLADEmbedder, tmp_path: Path, name: str
+) -> None:
+    """Saving writes the file under the given name"""
+    path = learned_vlad.save_to_disk(tmp_path / name)
+    assert path == tmp_path / name
     assert path.exists()
-
-
-def test_save_keeps_existing_suffix(learned_vlad: VLADEmbedder, tmp_path: Path) -> None:
-    """Saving with an existing ``.embedder`` suffix does not double it."""
-    path = learned_vlad.save_to_disk(tmp_path / "m.embedder")
-    assert path.name == "m.embedder"
 
 
 def test_load_roundtrip_same_embedding(
@@ -279,9 +276,9 @@ def test_load_roundtrip_same_embedding(
 
 def test_load_invalid_file_raises(tmp_path: Path) -> None:
     """Loading a file that is not a valid embedder raises ``ValueError``."""
-    bad = tmp_path / "bad.embedder"
+    bad = tmp_path / "bad.safetensors"
     bad.write_bytes(b"not a safetensors file")
-    with pytest.raises(ValueError, match="not a valid .embedder file"):
+    with pytest.raises(ValueError, match="not a valid VLADEmbedder file"):
         VLADEmbedder.load_from_disk(bad)
 
 

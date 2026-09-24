@@ -2,7 +2,7 @@
 
 Every neural embedder is a
 :class:`~pyvisim.base.SerializableImageEmbedder`, so it round-trips
-through a ``.embedder`` safetensors file. The central promise checked here is
+through a safetensors file. The central promise checked here is
 exactness: a reloaded embedder must produce bit-identical embeddings (and
 scores) without downloading any pretrained weights.
 """
@@ -64,14 +64,14 @@ def _triplet_network() -> TripletNeuralNetwork:
 def test_neural_embedders_are_serializable_embedders(
     network: Callable[[], BackboneWithHead],
 ) -> None:
-    """Every neural embedder inherits the ``.embedder`` file contract."""
+    """Every neural embedder inherits the embedder file contract."""
     assert isinstance(network(), SerializableImageEmbedder)
 
 
-def test_save_to_disk_appends_the_embedder_suffix(tmp_path: Path) -> None:
-    """A path without a suffix gets the ``.embedder`` one appended."""
+def test_save_to_disk_writes_to_the_given_path(tmp_path: Path) -> None:
+    """A path is written as given."""
     path = _contrastive_network().save_to_disk(tmp_path / "siamese")
-    assert path == tmp_path / "siamese.embedder"
+    assert path == tmp_path / "siamese"
     assert path.is_file()
 
 

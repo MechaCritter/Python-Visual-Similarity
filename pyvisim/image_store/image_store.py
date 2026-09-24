@@ -215,7 +215,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
            core.
     """
 
-    __file_format__: ClassVar[str] = ".safetensors"
     __metadata_key__: ClassVar[str] = "pyvisim_store"
 
     __format_version__: ClassVar[int] = 3
@@ -725,7 +724,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         vectors: FloatNumpyArray | None = None,
     ) -> pathlib.Path:
         """
-        Persist the store to a single ``.safetensors`` file.
+        Persist the store to a single safetensors file.
 
         The embeddings, image paths, index configuration and the fully
         serialized embedder are written together, so the store can later be
@@ -737,8 +736,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         back an approximation of them. Pass ``vectors`` to write the originals
         instead.
 
-        :param path: Destination file path. The ``.safetensors`` suffix is
-            appended if missing. Overwritten if it exists.
+        :param path: Destination file path. Overwritten if it exists.
         :param vectors: Embeddings to write instead of the index's own, shape
             ``(N, D)``, in the order of :attr:`paths`.
         :return: The path of the written file.
