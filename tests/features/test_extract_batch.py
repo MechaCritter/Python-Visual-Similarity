@@ -8,7 +8,8 @@ import numpy as np
 import torch.nn as nn
 from torchvision import transforms
 
-from pyvisim.features import DeepConvFeature, RootSIFT
+from pyvisim.features import RootSIFT
+from pyvisim.neural_networks.features import DeepConvFeature
 
 if TYPE_CHECKING:
     from tests.conftest import ImageObj
