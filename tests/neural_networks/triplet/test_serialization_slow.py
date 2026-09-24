@@ -64,7 +64,7 @@ def test_embedding_is_deterministic(
     assert np.array_equal(triplet_network.embed(flower_images), embeddings)
 
 
-# §2 the round trip through a .embedder file
+# §2 the round trip through a .safetensors file
 
 
 def test_embeddings_are_identical_after_serialization(

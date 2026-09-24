@@ -89,7 +89,7 @@ def test_bce_score_is_deterministic(
     assert np.array_equal(bce_network.similarity_score(image1, image2), scores)
 
 
-# §2 the round trip through a .embedder file
+# §2 the round trip through a .safetensors file
 
 
 def test_contrastive_embeddings_are_identical_after_serialization(
