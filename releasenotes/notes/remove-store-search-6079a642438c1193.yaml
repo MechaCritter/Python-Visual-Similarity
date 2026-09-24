@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    ``InMemoryImageEmbeddingStore.search`` is removed. Code that searched a
+    store by vectors calls ``store.index.search(query_vectors, k)`` instead.
+  - |
+    ``EmbeddingStore`` protocol class declares
+    ``retrieve_top_k_similar(query_images, k)`` in place of
+    ``search(query_vectors, k)``. Custom stores implement the new method.

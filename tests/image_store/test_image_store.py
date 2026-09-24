@@ -216,13 +216,6 @@ def test_l2_store_keeps_the_raw_embeddings(
     assert not np.allclose(norms, 1.0, atol=1e-3)
 
 
-def test_search_returns_expected_shapes(store: InMemoryImageEmbeddingStore) -> None:
-    """``search`` returns ``(M, k)`` score and id arrays."""
-    scores, ids = store.search(store.embeddings[:3], k=4)
-    assert scores.shape == (3, 4)
-    assert ids.shape == (3, 4)
-
-
 def test_embeddings_of_reads_the_given_paths(
     store: InMemoryImageEmbeddingStore,
     hnsw_store: InMemoryImageEmbeddingStore,
@@ -737,7 +730,6 @@ _MEMBERS_NEEDING_A_BUILT_STORE = [
     ("index", lambda store: store.index),
     ("dim", lambda store: store.dim),
     ("embeddings_of", lambda store: store.embeddings_of(store.paths[:1])),
-    ("search", lambda store: store.search(np.zeros(4, dtype=np.float32), 1)),
     ("to_dict", lambda store: store.to_dict()),
 ]
 
@@ -1105,7 +1097,7 @@ def test_external_store_adopts_the_index(
     assert isinstance(store.index, ExternalSearchIndex)
     assert np.allclose(store.embeddings, vectors, atol=1e-6)
     # An inner-product index ranks the query itself highest, not lowest.
-    scores, ids = store.search(vectors[:1], k=3)
+    scores, ids = store.index.search(vectors[:1], k=3)
     assert ids[0, 0] == 0
     assert scores[0, 0] == pytest.approx(1.0, abs=1e-5)
 
