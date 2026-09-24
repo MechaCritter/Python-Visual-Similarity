@@ -474,7 +474,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         normalization hyperparameters, similarity metric and feature
         extractor. Arrays are kept as ``__ndarray__`` nodes so the whole
         dictionary can be embedded inside a larger state (e.g. an
-        :class:`~pyvisim.image_store.InMemoryImageEmbeddingStore`).
+        :class:`~pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore`).
 
         :return: A JSON-safe embedder description.
         :raises NotFittedError: If the clustering model is missing or not fitted.

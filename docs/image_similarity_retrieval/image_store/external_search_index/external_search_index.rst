@@ -24,7 +24,7 @@ Example
 .. code-block:: python
 
    import faiss
-   from pyvisim.image_store import ExternalSearchIndex, InMemoryImageEmbeddingStore
+   from pyvisim.retrieval.image_store import ExternalSearchIndex, InMemoryImageEmbeddingStore
 
    faiss_index = faiss.IndexFlatIP(dim)
    faiss.normalize_L2(vectors)
@@ -61,5 +61,5 @@ Example
 API reference
 -------------
 
-.. autoclass:: pyvisim.image_store.ExternalSearchIndex
+.. autoclass:: pyvisim.retrieval.image_store.ExternalSearchIndex
    :members:

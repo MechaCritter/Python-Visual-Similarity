@@ -1,4 +1,4 @@
-"""Tests for :class:`pyvisim.image_store.InMemoryImageEmbeddingStore`."""
+"""Tests for :class:`pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore`."""
 
 from __future__ import annotations
 
@@ -11,9 +11,10 @@ import pytest
 from PIL import Image
 
 from pyvisim.classic import Pipeline, VLADEmbedder
-from pyvisim.image_store import (
+from pyvisim.neural_networks import ContrastiveSiameseNetwork
+from pyvisim.retrieval.data import Candidate
+from pyvisim.retrieval.image_store import (
     BruteForceIndex,
-    Candidate,
     ExternalSearchIndex,
     HnswIndex,
     InMemoryImageEmbeddingStore,
@@ -23,8 +24,10 @@ from pyvisim.image_store import (
 # without embedding. Driving it directly is what keeps the embedder out of the
 # measurement. The expansion formula is checked on its own for the same reason:
 # the store only ever applies it to embeddings it computed itself.
-from pyvisim.image_store.image_store import _alpha_query_expansion, _decoded_images
-from pyvisim.neural_networks import ContrastiveSiameseNetwork
+from pyvisim.retrieval.image_store.in_memory_image_embedding_store import (
+    _alpha_query_expansion,
+    _decoded_images,
+)
 
 #: Images the reading measurement decodes.
 _TIMED_GALLERY_SIZE = 24

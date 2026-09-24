@@ -9,9 +9,9 @@ for large galleries. The ``C++`` backend further increases the retrieval speed.
 
 Additionally, the :ref:`alpha query expansion <query-expansion>` averages a
 query with its best matches before the final search, and the
-:doc:`k-reciprocal re-ranking <reranking/reranking>` re-orders a pool of
-candidates by how much their neighborhoods agree with the query's, improving
-the ``mean average precision`` of the retrieval.
+:doc:`k-reciprocal re-ranking <reranking/k_reciprocal_reranker/k_reciprocal_reranker>`
+re-orders a pool of candidates by how much their neighborhoods agree with the
+query's, improving the ``mean average precision`` of the retrieval.
 
 Table of Contents
 -----------------
@@ -19,9 +19,8 @@ Table of Contents
 .. toctree::
    :maxdepth: 1
 
-   image_store/image_store
-   external_search_index/external_search_index
-   reranking/reranking
+   image_store/index
+   reranking/index
 
 References
 ----------

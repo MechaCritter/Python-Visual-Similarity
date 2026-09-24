@@ -170,7 +170,8 @@ excavator_dataset_w_masks/
 # Anchored: a local copy of the dataset lands at the repository root, while
 # docs/dataset/oxford_flower_dataset/ is the documentation of the class.
 /oxford_flower_dataset/
-data/
+# Anchored: pyvisim/retrieval/data/ is a subpackage.
+/data/
 logs/
 test_notebooks/
 pyvisim/(deprecated)/
