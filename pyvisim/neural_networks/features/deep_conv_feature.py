@@ -5,17 +5,17 @@ import warnings
 from collections.abc import Sequence
 from typing import Any, cast
 
-from ..base import FeatureExtractorBase
-from ..lazy_import import OptionalImport
-from ..typing import Float32NumpyArray, MatLike
-from ._utils import _check_output_shape, _to_single_image
+from ...base import FeatureExtractorBase
+from ...features._utils import _check_output_shape, _to_single_image
+from ...lazy_import import OptionalImport
+from ...typing import Float32NumpyArray, MatLike
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
     from torchvision import transforms
 
-    from ..neural_networks.backbones import build_backbone
-    from ..utils.torch_utils import resolve_device
+    from ...utils.torch_utils import resolve_device
+    from ..backbones import build_backbone
 
 _LOGGER = logging.getLogger(__name__)
 
