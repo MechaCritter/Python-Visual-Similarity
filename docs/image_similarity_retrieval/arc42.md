@@ -16,9 +16,24 @@ force index, the `hnsw` graph and `ExternalSearchIndex`.
 
 ## Architecture decisions
 
+### The gallery is embedded when the caller asks for it
+
+Constructing a store records its paths and validates everything that can be
+checked without reading an image. `build_store` embeds the gallery and builds
+the index over it. That step is the expensive one, and the only one that needs
+the image files to be present. Keeping it out of the constructor lets a caller
+set up a store and pass it around, then choose when the minutes of embedding
+happen.
+
+Until the build, the store holds no index. A decorator makes every member that
+reads the index raise a `RuntimeError` naming `build_store`. The paths are kept
+from the start, so the members that only need them work either way. A store
+that adopts an `ExternalSearchIndex` and one rebuilt by `from_dict` already
+hold their gallery, so both come back built.
+
 ### The index owns the gallery vectors
 
-The vectors are copied into the index at construction time and read back on
+The vectors are copied into the index when the store is built and read back on
 demand, so no second copy is held and the store itself does not keep the
 original embeddings. `embeddings` therefore returns whatever the index hands
 back, which is not always what it was given: a cosine index stores its vectors
