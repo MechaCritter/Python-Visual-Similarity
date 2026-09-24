@@ -133,7 +133,6 @@ class FeatureExtractorBase(SerializerMixin):
     set of feature vectors (NumPy array).
     """
 
-    __file_format__: ClassVar[str] = ".safetensors"
     __metadata_key__: ClassVar[str] = "pyvisim_feature_extractor"
     __format_version__: ClassVar[int] = 1
     __state_keys__: ClassVar[frozenset[str]] = frozenset({"config"})
@@ -431,7 +430,7 @@ class ImageEmbedderBase(SimilarityMetric):
 
 class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     """
-    Base for embedders that persist to a ``.embedder`` file.
+    Base for embedders that persist to a file.
 
     Adds the serialization contract of
     :class:`~pyvisim.serialization.SerializerMixin` on top of
@@ -439,7 +438,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     state via :meth:`~pyvisim.serialization.SerializerMixin._state` /
     :meth:`~pyvisim.serialization.SerializerMixin.from_dict`, and the mixin
     turns that state into a file and back. Both the classic embedders and the
-    neural ones use this path, so a ``.embedder`` file is always a
+    neural ones use this path, so an embedder file is always a
     `safetensors <https://github.com/huggingface/safetensors>`_ file.
 
     :param similarity_func: Name of the built-in similarity metric to use. One of
@@ -450,8 +449,6 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         Set to ``-1`` to process all images as a single batch.
     """
 
-    #: Suffix of the files written by :meth:`save_to_disk`.
-    __file_format__: ClassVar[str] = ".embedder"
     #: Metadata key under which the embedder JSON skeleton is stored.
     __metadata_key__: ClassVar[str] = "pyvisim_embedder"
 

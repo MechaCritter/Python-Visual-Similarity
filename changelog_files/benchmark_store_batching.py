@@ -77,7 +77,7 @@ _BEFORE = "before"
 _AFTER = "after"
 
 #: Name of the fitted vocabulary file inside the workspace.
-_EMBEDDER_FILE = "vocabulary.embedder"
+_EMBEDDER_FILE = "vocabulary.safetensors"
 #: Name of the gallery path file inside the workspace.
 _PATHS_FILE = "paths.json"
 

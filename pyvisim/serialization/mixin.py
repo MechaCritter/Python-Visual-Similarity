@@ -18,8 +18,8 @@ class SerializerMixin(abc.ABC):
     Mixin giving a self-describing object a safetensors file format.
 
     A subclass declares the kind of file it reads and writes through
-    :attr:`__file_format__`, :attr:`__metadata_key__`, :attr:`__format_version__`
-    and :attr:`__state_keys__`, and describes itself through :meth:`_state` /
+    :attr:`__metadata_key__`, :attr:`__format_version__` and
+    :attr:`__state_keys__`, and describes itself through :meth:`_state` /
     :meth:`from_dict`. In exchange it gets
     :meth:`save_to_disk` and :meth:`load_from_disk`, which are always
     `safetensors <https://github.com/huggingface/safetensors>`_ files: every
@@ -31,8 +31,6 @@ class SerializerMixin(abc.ABC):
     :meth:`_read_state` and :meth:`_validate_state` on the way in.
     """
 
-    #: Suffix of the files this class writes, appended to a save path when missing.
-    __file_format__: ClassVar[str]
     #: Metadata key under which the state's JSON skeleton is stored in the file.
     __metadata_key__: ClassVar[str]
     #: On-disk format version, written into every state this class serializes.
@@ -55,7 +53,6 @@ class SerializerMixin(abc.ABC):
         missing = sorted(
             name
             for name in (
-                "__file_format__",
                 "__metadata_key__",
                 "__format_version__",
                 "__state_keys__",
@@ -133,8 +130,7 @@ class SerializerMixin(abc.ABC):
         """
         Saves the serialized state of this object to a file.
 
-        :param path: Target file path. The suffix of the file kind is appended
-            if missing. Overwritten if it exists.
+        :param path: Target file path. Overwritten if it exists.
         :return: The path of the written file.
         :raises OSError: If the destination directory does not exist.
         """
@@ -176,8 +172,7 @@ class SerializerMixin(abc.ABC):
         """
         Turns a target path into the one :meth:`save_to_disk` writes to.
 
-        :attr:`__file_format__` is appended to a path that does not carry it, and
-        a destination this library cannot write to is rejected here rather than
+        A destination this library cannot write to is rejected here rather than
         by the safetensors writer.
 
         :param path: Target file path as given by the caller.
@@ -185,8 +180,6 @@ class SerializerMixin(abc.ABC):
         :raises OSError: If the destination directory does not exist.
         """
         path = pathlib.Path(path)
-        if path.suffix != cls.__file_format__:
-            path = path.with_name(path.name + cls.__file_format__)
         parent = os.path.dirname(os.path.abspath(path))
         if not os.path.isdir(parent):
             raise OSError(f"Destination directory does not exist: {parent!r}.")
@@ -214,14 +207,12 @@ class SerializerMixin(abc.ABC):
         :raises ValueError: If the file cannot be read as a file of this kind.
         """
         if not path.exists():
-            raise FileNotFoundError(
-                f"No such {cls.__file_format__} file: {str(path)!r}."
-            )
+            raise FileNotFoundError(f"No such file: {str(path)!r}.")
         try:
             return load_state(path, cls.__metadata_key__)
         except ValueError as error:
             raise ValueError(
-                f"File {path} is not a valid {cls.__file_format__} file: {error}"
+                f"File {path} is not a valid {cls.__name__} file: {error}"
             ) from error
 
     @classmethod
@@ -237,7 +228,7 @@ class SerializerMixin(abc.ABC):
         """
         required = cls.__state_keys__ | {"format_version", "__class__"}
         if not required.issubset(state):
-            raise ValueError(f"File {path} is not a valid {cls.__file_format__} file.")
+            raise ValueError(f"File {path} is not a valid {cls.__name__} file.")
         # TODO: in the future, verify the file's format version against
         # :attr:`__compatibility_mapping__` before reconstructing.
         if state["__class__"] != cls.__name__:

@@ -14,7 +14,6 @@ from pyvisim.serialization import SerializerMixin, save_state
 class _Demo(SerializerMixin):
     """Smallest class carrying the full file contract."""
 
-    __file_format__ = ".demo"
     __metadata_key__ = "demo"
     __format_version__ = 1
     __state_keys__ = frozenset({"value"})
@@ -46,7 +45,7 @@ def test_a_class_that_writes_no_file_yet_declares_nothing() -> None:
     class Intermediate(SerializerMixin):
         pass
 
-    assert not hasattr(Intermediate, "__file_format__")
+    assert not hasattr(Intermediate, "__metadata_key__")
 
 
 def test_a_declared_contract_reaches_the_subclasses() -> None:
@@ -55,7 +54,7 @@ def test_a_declared_contract_reaches_the_subclasses() -> None:
     class Child(_Demo):
         __format_version__ = 2
 
-    assert Child.__file_format__ == ".demo"
+    assert Child.__metadata_key__ == "demo"
     assert Child.__format_version__ == 2
 
 
@@ -66,15 +65,15 @@ def test_a_file_without_a_stamped_key_is_not_valid(
     """The keys the mixin writes are required on load, without being listed."""
     state = _Demo().to_dict()
     del state[stamped_key]
-    save_state(state, path := tmp_path / "file.demo", _Demo.__metadata_key__)
-    with pytest.raises(ValueError, match="not a valid .demo file"):
+    save_state(state, path := tmp_path / "file.safetensors", _Demo.__metadata_key__)
+    with pytest.raises(ValueError, match="not a valid _Demo file"):
         _Demo.load_from_disk(path)
 
 
 def test_an_unreadable_file_names_its_kind_and_the_reason(tmp_path: Path) -> None:
     """A file stored under another metadata key is rejected with the cause kept."""
-    save_state(_Demo().to_dict(), path := tmp_path / "file.demo", "other")
-    with pytest.raises(ValueError, match=r"not a valid \.demo file: .*'demo'"):
+    save_state(_Demo().to_dict(), path := tmp_path / "file.safetensors", "other")
+    with pytest.raises(ValueError, match=r"not a valid _Demo file: .*'demo'"):
         _Demo.load_from_disk(path)
 
 
@@ -95,7 +94,6 @@ def test_every_shipped_class_declares_its_own_file_format(
 ) -> None:
     """The classes users save and load describe their files themselves."""
     contract = (
-        "__file_format__",
         "__metadata_key__",
         "__format_version__",
         "__state_keys__",

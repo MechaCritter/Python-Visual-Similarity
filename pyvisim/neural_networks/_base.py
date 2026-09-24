@@ -25,7 +25,7 @@ class NeuralImageEmbedder(SerializableImageEmbedder, torch.nn.Module):
     It combines the two halves every neural embedder in pyvisim needs:
     :class:`~pyvisim.base.SerializableImageEmbedder` contributes the
     ``similarity_func`` handling, the :meth:`similarity_score` built on top of
-    :meth:`embed` and the ``.embedder`` file format, while
+    :meth:`embed` and the embedder file format, while
     :class:`torch.nn.Module` contributes the parameter, device and
     training-mode machinery.
 
