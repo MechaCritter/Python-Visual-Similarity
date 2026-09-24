@@ -898,26 +898,26 @@ def test_save_load_preserves_embeddings(
     assert np.allclose(loaded.embeddings, store.embeddings, atol=1e-6)
 
 
-def test_save_accepts_replacement_vectors(
+def test_save_accepts_replacement_embeddings(
     store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
-    """``vectors`` writes the given embeddings instead of the index's own."""
+    """``embeddings`` writes the given embeddings instead of the index's own."""
     target = tmp_path_factory.mktemp("rt_lossy") / "store.safetensors"
     originals = store.embeddings * 3.0
     loaded = InMemoryImageEmbeddingStore.load_from_disk(
-        store.save_to_disk(target, vectors=originals), search_index=None
+        store.save_to_disk(target, embeddings=originals), search_index=None
     )
     # The reloaded cosine store re-normalises, so the direction is what survives.
     assert np.allclose(loaded.embeddings, store.embeddings, atol=1e-5)
 
 
-def test_save_rejects_mismatched_vectors(
+def test_save_rejects_mismatched_embeddings(
     store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
-    """``vectors`` must hold one row per gallery path."""
+    """``embeddings`` must hold one row per gallery path."""
     target = tmp_path_factory.mktemp("rt_bad_vec") / "store.safetensors"
     with pytest.raises(ValueError, match="one row per"):
-        store.save_to_disk(target, vectors=store.embeddings[:2])
+        store.save_to_disk(target, embeddings=store.embeddings[:2])
 
 
 def test_save_does_not_mutate_store(
