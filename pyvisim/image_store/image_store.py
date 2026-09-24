@@ -13,7 +13,7 @@ import warnings
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeVar, cast
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -63,6 +63,24 @@ _DEFAULT_NUM_WORKERS = 4
 #: Batches the decoding threads may run ahead of the embedder.
 _DEFAULT_NUM_PREFETCH_BATCHES = 4
 
+_GenericMethodT = TypeVar("_GenericMethodT", bound=Callable[..., Any])
+
+
+def _requires_built_store(method: _GenericMethodT) -> _GenericMethodT:
+    """Make a store method raise while the store has not been built yet."""
+
+    @functools.wraps(method)
+    def checked(store: InMemoryImageEmbeddingStore, *args: Any, **kwargs: Any) -> Any:
+        if not store.is_built:
+            raise RuntimeError(
+                "This store holds no gallery yet. Call 'build_store()' on it to "
+                "embed the images and build the index, or construct the store "
+                "with 'lazy_build=False'."
+            )
+        return method(store, *args, **kwargs)
+
+    return cast(_GenericMethodT, checked)
+
 
 class InMemoryImageEmbeddingStore(SerializerMixin):
     """
@@ -70,10 +88,14 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
     .. important::
 
-        - Upon constructing the store, all images are embedded immediately and the
-          index is built. If ``hnsw`` is used, the memory consumption is higher
-          than when only using ``brute-force``, since the ``hnsw`` index builds an
-          additional graph structure based on the embeddings.
+        - The store holds no embeddings until :meth:`build_store` is called
+          once. Call it right after constructing the store, or pass
+          ``lazy_build=False`` and the constructor calls it. Searching an
+          unbuilt store or reading its embeddings or its index raises
+          :class:`RuntimeError`.
+        - If ``hnsw`` is used, the memory consumption is higher than when only
+          using ``brute-force``, since the ``hnsw`` index builds an additional
+          graph structure based on the embeddings.
         - For **FAISS**-based indexes, the returned embeddings may not be
           exactly the same as the original embeddings due to compression or
           quantization, and for some indexes, reconstruction is impossible.
@@ -129,10 +151,15 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         ahead of the embedder. Higher values hide slower file reads at the cost
         of holding more decoded images in memory. Ignored by an external index,
         which embeds nothing.
+    :param lazy_build: If ``True``, the gallery is embedded and indexed by the
+        first call to :meth:`build_store`. If ``False``, the constructor calls
+        :meth:`build_store` itself and the store is ready to search. Ignored by
+        an external index, which already holds its gallery.
     :raises ValueError: If ``search_index`` is unknown, ``num_workers`` or
-        ``num_prefetch_batches`` is not positive, no image could be embedded,
-        an external index does not hold one vector per path, or ``index_params``
-        names a parameter the index does not take.
+        ``num_prefetch_batches`` is not positive, no image path was given, an
+        external index does not hold one vector per path, or ``index_params``
+        names a parameter the index does not take. With ``lazy_build=False``,
+        it is also raised if no image could be embedded.
     :raises TypeError: If any provided path is not a string.
 
     .. _store-index-parameters:
@@ -213,6 +240,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         skip_errors: bool = False,
         num_workers: int = _DEFAULT_NUM_WORKERS,
         num_prefetch_batches: int = _DEFAULT_NUM_PREFETCH_BATCHES,
+        lazy_build: bool = True,
     ) -> None:
         if not isinstance(num_workers, int) or num_workers < 1:
             raise ValueError(
@@ -228,9 +256,15 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         self._space: Space = space
         self._index_params: dict[str, Any] = dict(index_params or {})
 
+        self._skip_errors = skip_errors
+        self._num_workers = num_workers
+        self._num_prefetch_batches = num_prefetch_batches
+
         if isinstance(search_index, ExternalSearchIndex):
             self._paths = _validated_paths(image_paths)
-            self._index: SearchIndex = _adopt_external_index(search_index, self._paths)
+            self._index: SearchIndex | None = _adopt_external_index(
+                search_index, self._paths
+            )
             self._index_name = search_index.name
             return
 
@@ -239,13 +273,14 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         # not cost the caller a full embedding pass first.
         _validate_index_params(self._index_name, self._index_params)
 
-        paths, embeddings = _embed_image_paths(
-            image_paths, embedder, skip_errors, num_workers, num_prefetch_batches
-        )
-        self._paths = paths
-        # Only the index retains the gallery vectors; the local ``embeddings``
-        # matrix is released once the index has copied it in.
-        self._index = self._build_index(embeddings)
+        # Collecting the paths here consumes a generator exactly once and reports
+        # a bad path right away, so the caller never holds a store that cannot
+        # be built.
+        self._paths = _validated_paths(image_paths)
+        self._index = None
+
+        if not lazy_build:
+            self.build_store()
 
     @classmethod
     def _from_components(
@@ -278,6 +313,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         store._space = space
         store._index_params = dict(index_params)
         store._paths = list(paths)
+        store._skip_errors = False
+        store._num_workers = _DEFAULT_NUM_WORKERS
+        store._num_prefetch_batches = _DEFAULT_NUM_PREFETCH_BATCHES
         if search_index is not None:
             store._index = _adopt_external_index(search_index, store._paths)
             store._index_name = search_index.name
@@ -285,32 +323,83 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
         store._index_name = index_name
         _validate_index_params(index_name, store._index_params)
-        store._index = store._build_index(
-            np.ascontiguousarray(embeddings, dtype=np.float32)
+        store._index = _build_index(
+            index_name,
+            np.ascontiguousarray(embeddings, dtype=np.float32),
+            space,
+            store._index_params,
         )
         return store
 
-    def _build_index(self, embeddings: Float32NumpyArray) -> SearchIndex:
-        """Build the configured index over the gallery embeddings."""
-        if self._index_name == _HNSW:
-            return HnswIndex(embeddings, space=self._space, **self._index_params)
-        return BruteForceIndex(embeddings, space=self._space, **self._index_params)
+    def build_store(self) -> None:
+        """
+        Embed the gallery images and build the search index over them.
+
+        A store constructed with ``lazy_build=True`` cannot be searched until
+        this has run, so call it right after the constructor. Calling it on a
+        store that is already built does nothing.
+
+        With ``skip_errors`` on, the paths whose image could not be embedded
+        are dropped, so :attr:`paths` can end up shorter than the list the store
+        was constructed with.
+
+        :raises ValueError: If no image could be embedded.
+        :raises FileNotFoundError: If an image is missing and ``skip_errors``
+            is off.
+        """
+        if self._index is not None:
+            return
+        paths, embeddings = _embed_image_paths_and_drop_duplicates(
+            self._paths,
+            self._embedder,
+            self._skip_errors,
+            self._num_workers,
+            self._num_prefetch_batches,
+        )
+        self._paths = paths
+        # Only the index keeps the gallery vectors. The local ``embeddings``
+        # matrix is freed once the index has copied it in.
+        self._index = _build_index(
+            self._index_name, embeddings, self._space, self._index_params
+        )
+
+    @property
+    def is_built(self) -> bool:
+        """Whether the gallery has been embedded and indexed."""
+        return self._index is not None
+
+    @property
+    def _search_index(self) -> SearchIndex:
+        """The index of a built store, read by the members that require one."""
+        return cast(SearchIndex, self._index)
 
     @property
     def paths(self) -> list[str]:
-        """Gallery image paths, ordered to match the embedding rows."""
+        """
+        Gallery image paths, ordered to match the embedding rows.
+
+        Before :meth:`build_store` has run, these are the paths the store was
+        constructed with, minus duplicates. The build then removes the paths
+        whose image could not be embedded.
+        """
         return list(self._paths)
 
     @property
+    @_requires_built_store
     def embeddings(self) -> Float32NumpyArray:
-        """The ``(N, D)`` gallery embedding matrix, read back from the index."""
-        return self._index.vectors
+        """
+        The ``(N, D)`` gallery embedding matrix, read back from the index.
+
+        :raises RuntimeError: If the store has not been built yet.
+        """
+        return self._search_index.vectors
 
     @functools.cached_property
     def _row_by_path(self) -> dict[str, int]:
         """Gallery row number of every path, built on first use."""
         return {path: row for row, path in enumerate(self._paths)}
 
+    @_requires_built_store
     def embeddings_of(self, paths: Sequence[str]) -> Float32NumpyArray:
         """
         Read the embeddings of the given gallery images back from the index.
@@ -326,6 +415,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             indexed in.
         :raises ValueError: If no path is given or a path is not in the
             gallery.
+        :raises RuntimeError: If the store has not been built yet.
         """
         if len(paths) == 0:
             raise ValueError("'paths' must name at least one gallery image, got none.")
@@ -335,7 +425,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             raise ValueError(
                 f"{len(missing)} path(s) are not in the gallery, e.g. {missing[0]!r}."
             )
-        return self._index.vectors_at(
+        return self._search_index.vectors_at(
             np.asarray([rows[path] for path in paths], dtype=np.intp)
         )
 
@@ -345,9 +435,14 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         return self._embedder
 
     @property
+    @_requires_built_store
     def index(self) -> SearchIndex:
-        """The search index the gallery is searched through."""
-        return self._index
+        """
+        The search index the gallery is searched through.
+
+        :raises RuntimeError: If the store has not been built yet.
+        """
+        return self._search_index
 
     @property
     def index_name(self) -> str:
@@ -365,9 +460,14 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         return dict(self._index_params)
 
     @property
+    @_requires_built_store
     def dim(self) -> int:
-        """Dimensionality of the gallery embeddings."""
-        return self._index.dim
+        """
+        Dimensionality of the gallery embeddings.
+
+        :raises RuntimeError: If the store has not been built yet.
+        """
+        return self._search_index.dim
 
     def __len__(self) -> int:
         return len(self._paths)
@@ -376,11 +476,13 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         return path in self._paths
 
     def __repr__(self) -> str:
+        dim = self._index.dim if self._index is not None else None
         return (
-            f"{self.__class__.__name__}(num_images={len(self)}, dim={self.dim}, "
+            f"{self.__class__.__name__}(num_images={len(self)}, dim={dim}, "
             f"index_name={self._index_name!r}, space={self._space!r})"
         )
 
+    @_requires_built_store
     def search(
         self,
         query_vectors: FloatNumpyArray,
@@ -394,9 +496,11 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :param k: Number of nearest neighbors to return per query.
         :return: A ``(scores, ids)`` tuple of ``(N, k)`` arrays; ``ids`` index
             into :attr:`paths` and missing neighbors are reported as ``-1``.
+        :raises RuntimeError: If the store has not been built yet.
         """
-        return self._index.search(query_vectors, k)
+        return self._search_index.search(query_vectors, k)
 
+    @_requires_built_store
     def retrieve_top_k_similar(
         self,
         query_images: ImageInput,
@@ -449,6 +553,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             in the same order as ``query_images``.
         :raises ValueError: If ``expansion_alpha`` is not a finite non-negative
             number or ``expansion_neighbors`` is not a positive integer.
+        :raises RuntimeError: If the store has not been built yet.
 
         References:
         ===========
@@ -501,7 +606,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         # that query is then averaged with nothing, which leaves it as it is.
         found = ids >= 0
         neighbors = (
-            self._index.vectors_at(ids[found])
+            self._search_index.vectors_at(ids[found])
             if found.any()
             else np.empty((0, queries.shape[1]), dtype=np.float32)
         )
@@ -530,6 +635,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             for row_scores, row_ids in zip(scores, ids, strict=True)
         ]
 
+    @_requires_built_store
     def _state(self, embeddings: Float32NumpyArray | None = None) -> dict[str, Any]:
         """
         Describe the store around a gallery matrix.
@@ -542,6 +648,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             holds, shape ``(N, D)``, in the order of :attr:`paths`.
         :return: A JSON-safe store description.
         :raises TypeError: If the embedder is not serializable.
+        :raises RuntimeError: If the store has not been built yet.
         """
         if not isinstance(self._embedder, SerializableImageEmbedder):
             raise TypeError(
@@ -610,6 +717,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             search_index=search_index,
         )
 
+    @_requires_built_store
     def save_to_disk(
         self,
         path: str | pathlib.Path,
@@ -635,6 +743,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :raises OSError: If the destination directory does not exist.
         :raises TypeError: If the embedder is not serializable.
         :raises ValueError: If ``vectors`` does not hold one row per path.
+        :raises RuntimeError: If the store has not been built yet.
         """
         path = self._resolve_save_path(path)
         embeddings = (
@@ -643,6 +752,26 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             else _validated_vectors(vectors, len(self._paths))
         )
         return self._write_state(self._stamp(self._state(embeddings)), path)
+
+
+def _build_index(
+    index_name: str,
+    embeddings: Float32NumpyArray,
+    space: Space,
+    index_params: dict[str, Any],
+) -> SearchIndex:
+    """
+    Build the configured index over a gallery embedding matrix.
+
+    :param index_name: Name of the index to build.
+    :param embeddings: The ``(N, D)`` gallery embedding matrix.
+    :param space: Metric space the index is built for.
+    :param index_params: Keyword parameters forwarded to the index.
+    :return: The built index.
+    """
+    if index_name == _HNSW:
+        return HnswIndex(embeddings, space=space, **index_params)
+    return BruteForceIndex(embeddings, space=space, **index_params)
 
 
 def _validate_expansion_params(alpha: float, num_neighbors: int) -> None:
@@ -918,7 +1047,7 @@ def _validated_paths(image_paths: Iterable[str]) -> list[str]:
     return paths
 
 
-def _embed_image_paths(
+def _embed_image_paths_and_drop_duplicates(
     image_paths: Iterable[str],
     embedder: Embedder,
     skip_errors: bool,

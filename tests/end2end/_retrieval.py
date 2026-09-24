@@ -63,6 +63,7 @@ def build_gallery(split: str) -> Gallery:
     store = InMemoryImageEmbeddingStore(
         dataset.image_paths, embedder, "hnsw", index_params=INDEX_PARAMS
     )
+    store.build_store()
     path_labels = dict(zip(dataset.image_paths, dataset.labels, strict=True))
     return Gallery(store, path_labels, Counter(path_labels.values()))
 
