@@ -26,8 +26,7 @@ size, so the caller has to supply the value.
 
 `DeepConvFeature` lives in `pyvisim.neural_networks` instead of this package.
 It reads its descriptors off a torchvision backbone, so it sits next to
-`build_backbone`, and this package only holds extractors that work without
-the `nn` extra.
+`build_backbone`.
 
 `FeatureExtractorBase` inherits the file contract of `SerializerMixin`, as the
 embedders and the clustering models do. An extractor is described by its

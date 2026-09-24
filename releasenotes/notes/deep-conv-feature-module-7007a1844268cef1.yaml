@@ -13,5 +13,3 @@ upgrade:
         # after
         from pyvisim.neural_networks.features import DeepConvFeature
 
-    Files holding a serialized ``DeepConvFeature`` still load, because they
-    store the class name and not its module.

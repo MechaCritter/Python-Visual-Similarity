@@ -2,8 +2,7 @@ Deep learning based features
 ============================
 
 Includes extractors that take their descriptors from the feature maps of a
-neural network. They live in ``pyvisim.neural_networks.features`` and need the
-``nn`` extra.
+neural network.
 
 .. list-table::
    :header-rows: 1
