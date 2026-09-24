@@ -110,10 +110,10 @@ Usage
    # Cosine similarity between two images
    similarity = fisher.similarity_score(image1, image2)
 
-   fisher.save_to_disk("fisher.embedder")   # Save the embedder to disk
+   fisher.save_to_disk("fisher.safetensors")   # Save the embedder to disk
 
    # Load the embedder from disk
-   fisher = FisherVectorEmbedder.load_from_disk("fisher.embedder")
+   fisher = FisherVectorEmbedder.load_from_disk("fisher.safetensors")
 
 References
 ----------
