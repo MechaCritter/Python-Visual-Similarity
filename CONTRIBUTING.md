@@ -265,9 +265,3 @@ def add(a: int, b: int) -> int:
     """
     return a + b
 ```
-
-## Get in touch
-
-- Open an issue on [GitHub](https://github.com/MechaCritter/Python-Visual-Similarity/issues).
-- Email: [vunhathuy234@gmail.com](mailto:vunhathuy234@gmail.com)
-- LinkedIn: [Nhat Huy Vu](https://www.linkedin.com/in/nhat-huy-vu-80495111b/)

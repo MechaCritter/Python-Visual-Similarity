@@ -13,15 +13,17 @@ Overview
 The goal of ``pyvisim`` is to become the largest collection of image similarity
 metrics, varying from traditional methods like ``PSNR``, ``SSIM``, ``Fisher
 Vectors``, and ``VLAD`` to deep learning methods like ``CLIP`` and ``Siamese
-Networks``. Then, one can use these for image retrieval and clustering.
+Networks``. Furthermore, advanced **image similarity search** and **reranking**
+algorithms are provided to allow users to refine the search results as desired.
 
-Currently, one would need to install numerous libraries just to get all the
-metrics mentioned (for example, ``scikit-image`` + ``opencv-python`` for
-``Fisher Vectors`` and ``SSIM``, ``open-clip`` for ``CLIP Embedder``).
-``pyvisim`` attempts to close this gap by implementing as many metrics as
-possible using only ``numpy``, ``scipy`` (for conventional metrics), and
-``torch`` (for deep learning metrics), plus making them more user-friendly with
-a simple Object-Oriented code design.
+Currently, one would need to install numerous libraries just to everything
+mentioned above (for example, ``scikit-image`` + ``opencv-python`` for ``Fisher
+Vectors``, ``SSIM``, ``open-clip`` for ``CLIP Embedder``, and ``faiss`` for
+**Approximate Nearest Neighbors Search**). ``pyvisim`` attempts to close this
+gap by implementing as many metrics as possible using only ``numpy``, ``scipy``
+(for conventional metrics), and ``torch`` (for deep learning metrics) as core
+dependencies, plus making them more user-friendly with a simple Object-Oriented
+code design.
 
 Installation
 ------------
