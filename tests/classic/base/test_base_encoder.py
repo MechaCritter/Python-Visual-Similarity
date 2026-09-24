@@ -12,8 +12,9 @@ from pyvisim._errors import NotFittedError
 from pyvisim.classic import FisherVectorEmbedder, VLADEmbedder
 from pyvisim.classic._base_embedder import ClusteringBasedEmbedder
 from pyvisim.classic._clustering import PCA
-from pyvisim.features import DeepConvFeature, Lambda, RootSIFT
+from pyvisim.features import Lambda, RootSIFT
 from pyvisim.neural_networks.backbones import build_backbone
+from pyvisim.neural_networks.features import DeepConvFeature
 
 if TYPE_CHECKING:
     import torch
