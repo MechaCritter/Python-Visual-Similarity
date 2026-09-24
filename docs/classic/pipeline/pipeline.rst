@@ -23,10 +23,10 @@ bird, FGVC-Aircraft, FGVC-Cars and Stanford dogs datasets.
 
    score = pipeline.similarity_score(image1, image2)
 
-   pipeline.save_to_disk("pipeline.embedder")   # Save the pipeline to disk
+   pipeline.save_to_disk("pipeline.safetensors")   # Save the pipeline to disk
 
    # Load the pipeline from disk
-   pipeline = Pipeline.load_from_disk("pipeline.embedder")
+   pipeline = Pipeline.load_from_disk("pipeline.safetensors")
 
 References
 ----------

@@ -60,10 +60,10 @@ Usage
    # Cosine similarity between two images
    similarity = vlad.similarity_score(image1, image2)
 
-   vlad.save_to_disk("vlad.embedder")   # Save the embedder to disk
+   vlad.save_to_disk("vlad.safetensors")   # Save the embedder to disk
 
    # Load the embedder from disk
-   vlad = VLADEmbedder.load_from_disk("vlad.embedder")
+   vlad = VLADEmbedder.load_from_disk("vlad.safetensors")
 
 The resulting vector has shape ``(K * D,)``, where ``K`` is the number of
 clusters and ``D`` is the local descriptor dimension (after optional PCA).

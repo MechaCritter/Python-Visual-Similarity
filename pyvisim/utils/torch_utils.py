@@ -3,8 +3,8 @@ Helpers shared by the torch-backed parts of pyvisim.
 
 The functions here bridge :mod:`torch` and the array-based serialization
 layer (:mod:`pyvisim.serialization`): a model's ``state_dict`` is turned
-into embedded array nodes that are written as binary tensors of a
-``.embedder`` file, and back.
+into embedded array nodes that are written as binary tensors of an
+embedder file, and back.
 
 :mod:`torch` is an optional dependency installed by the ``nn`` extra
 (``pip install "pyvisim[nn]"``); importing this module requires it.
@@ -46,7 +46,7 @@ def encode_state_dict(module: "torch.nn.Module") -> dict[str, Any]:
 
     :param module: The module whose weights are serialized.
     :return: A mapping of parameter name to an embedded array node. The embedder
-        serializer extracts these arrays into the ``.embedder`` file's tensors.
+        serializer extracts these arrays into the embedder file's tensors.
     """
     embedded: dict[str, Any] = {}
     for name, tensor in module.state_dict().items():
@@ -66,7 +66,7 @@ def decode_state_dict(state_dict: dict[str, Any]) -> dict[str, "torch.Tensor"]:
     Rebuild a module ``state_dict`` from arrays restored by the embedder loader.
 
     :param state_dict: Mapping of parameter name to a NumPy array (restored
-        from the ``.embedder`` file's tensors) or to the ``__ndarray__`` node
+        from the embedder file's tensors) or to the ``__ndarray__`` node
         :func:`encode_state_dict` produced.
     :return: A mapping of parameter name to torch tensor.
     """
@@ -83,7 +83,7 @@ def _writable_array(array: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
     Arrays read back from a safetensors file may be backed by read-only
     memory, which :func:`torch.from_numpy` cannot wrap without warning.
 
-    :param array: The array restored from the ``.embedder`` file.
+    :param array: The array restored from the embedder file.
     :return: An equivalent array that torch can wrap safely.
     """
     array = np.ascontiguousarray(array)
