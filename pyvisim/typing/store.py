@@ -8,7 +8,7 @@ from .embedders import Embedder
 from .numeric import Float32NumpyArray, ImageInput
 
 if TYPE_CHECKING:
-    from ..image_store import Candidate
+    from ..retrieval.data import Candidate
 
 
 @runtime_checkable
@@ -47,7 +47,7 @@ class EmbeddingStore(Protocol):
         :param query_images: A single image or a batch/iterable of images to use
             as queries.
         :param k: Number of top similar gallery images to return per query.
-        :return: One ranked list of :class:`~pyvisim.image_store.Candidate`
+        :return: One ranked list of :class:`~pyvisim.retrieval.data.Candidate`
             matches per query image, in the same order as ``query_images``.
         """
         ...

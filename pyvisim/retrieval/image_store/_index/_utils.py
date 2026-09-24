@@ -14,7 +14,7 @@ from typing import Literal
 
 import numpy as np
 
-from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
 #: Metric spaces the compiled indexes can be built for.
 SUPPORTED_SPACES = ("cosine", "l2", "ip")

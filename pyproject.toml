@@ -70,11 +70,11 @@ pyvisim = [
     "dense/pixelwise/_kernel/*.pyi",
     "features/_vendored/sift/*.pyx",
     "features/_vendored/sift/*.pxd",
-    "image_store/_index/_bindings/*.cpp",
-    "image_store/_index/_bindings/*.h",
-    "image_store/_index/_bindings/*.pyi",
-    "image_store/_index/_vendored/hnswlib/hnswlib/*.h",
-    "image_store/_index/_vendored/hnswlib/python-bindings/*.cpp",
+    "retrieval/image_store/_index/_bindings/*.cpp",
+    "retrieval/image_store/_index/_bindings/*.h",
+    "retrieval/image_store/_index/_bindings/*.pyi",
+    "retrieval/image_store/_index/_vendored/hnswlib/hnswlib/*.h",
+    "retrieval/image_store/_index/_vendored/hnswlib/python-bindings/*.cpp",
 ]
 
 # Dependencies groups to isolate test env from production env

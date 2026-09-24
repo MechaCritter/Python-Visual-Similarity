@@ -14,7 +14,7 @@ __all__ = [
     "distance",
     "eval",
     "features",
-    "image_store",
+    "retrieval",
     "serialization",
     "typing",
 ]

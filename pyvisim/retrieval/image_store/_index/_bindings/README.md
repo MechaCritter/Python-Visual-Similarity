@@ -13,8 +13,8 @@ instead of in them.
 | `_hnswlib.pyi` | Type stubs for the classes the module exports. |
 
 The extension is compiled from `_hnswlib.cpp` by the repository's
-[`setup.py`](../../../../setup.py) and imported as
-`pyvisim.image_store._index._bindings._hnswlib`. Rebuild it with
+[`setup.py`](../../../../../setup.py) and imported as
+`pyvisim.retrieval.image_store._index._bindings._hnswlib`. Rebuild it with
 `make build-ext`.
 
 ## What the classes add

@@ -6,8 +6,8 @@ import numbers
 from dataclasses import dataclass
 from functools import cached_property
 
-from .._utils import read_image_rgb
-from ..typing import UInt8NumpyArray
+from ..._utils import read_image_rgb
+from ...typing import UInt8NumpyArray
 
 
 @dataclass(frozen=True)

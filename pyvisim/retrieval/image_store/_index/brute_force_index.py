@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ...typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 from ._bindings import _hnswlib
 from ._params import BRUTE_FORCE_TO_HNSWLIB, as_backend_params
 from ._utils import (
