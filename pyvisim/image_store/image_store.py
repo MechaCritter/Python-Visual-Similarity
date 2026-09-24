@@ -703,7 +703,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     def save_to_disk(
         self,
         path: str | pathlib.Path,
-        vectors: FloatNumpyArray | None = None,
+        embeddings: FloatNumpyArray | None = None,
     ) -> pathlib.Path:
         """
         Persist the store to a single safetensors file.
@@ -715,23 +715,23 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         The embeddings written are the ones the index holds, which are not
         always the ones it was given. A cosine index stores them L2-normalised,
         and a compressed external index (product- or scalar-quantized) hands
-        back an approximation of them. Pass ``vectors`` to write the originals
+        back an approximation of them. Pass ``embeddings`` to write the originals
         instead.
 
         :param path: Destination file path. Overwritten if it exists.
-        :param vectors: Embeddings to write instead of the index's own, shape
+        :param embeddings: Embeddings to write instead of the index's own, shape
             ``(N, D)``, in the order of :attr:`paths`.
         :return: The path of the written file.
         :raises OSError: If the destination directory does not exist.
         :raises TypeError: If the embedder is not serializable.
-        :raises ValueError: If ``vectors`` does not hold one row per path.
+        :raises ValueError: If ``embeddings`` does not hold one row per path.
         :raises RuntimeError: If the store has not been built yet.
         """
         path = self._resolve_save_path(path)
         embeddings = (
             self.embeddings
-            if vectors is None
-            else _validated_vectors(vectors, len(self._paths))
+            if embeddings is None
+            else _validated_embeddings(embeddings, len(self._paths))
         )
         return self._write_state(self._stamp(self._state(embeddings)), path)
 
@@ -992,18 +992,18 @@ def _restored_external_index(
     return search_index
 
 
-def _validated_vectors(
-    vectors: FloatNumpyArray,
+def _validated_embeddings(
+    embeddings: FloatNumpyArray,
     num_paths: int,
 ) -> Float32NumpyArray:
     """
     Raises `ValueError` if the provided gallery matrix does not hold
     one row per path.
     """
-    matrix = np.ascontiguousarray(vectors, dtype=np.float32)
+    matrix = np.ascontiguousarray(embeddings, dtype=np.float32)
     if matrix.ndim != 2 or matrix.shape[0] != num_paths:
         raise ValueError(
-            f"'vectors' must be a ({num_paths}, dim) matrix holding one row per "
+            f"'embeddings' must be a ({num_paths}, dim) matrix holding one row per "
             f"gallery path, got shape {matrix.shape}."
         )
     return matrix

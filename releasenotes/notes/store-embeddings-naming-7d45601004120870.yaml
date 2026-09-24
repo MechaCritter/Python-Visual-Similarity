@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The ``vectors`` parameter of ``InMemoryImageEmbeddingStore.save_to_disk`` is
+    renamed to ``embeddings``. Code that passes ``vectors=...`` passes
+    ``embeddings=...`` instead.
