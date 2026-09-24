@@ -34,7 +34,7 @@ class KReciprocalReranker:
     Re-rank retrieval candidates with k-reciprocal encoding.
 
     For more information, see the documentation:
-    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/reranking.html``.
+    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/k_reciprocal_reranker/k_reciprocal_reranker.html``.
 
     :param store: The store the candidates were retrieved from.
     :param k1: Size of the neighborhoods the k-reciprocal sets are built

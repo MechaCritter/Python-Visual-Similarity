@@ -53,7 +53,7 @@ attempts to close this gap by implementing as many metrics as possible using onl
 `torch` (for deep learning metrics) as core dependencies, plus making them more user-friendly with a simple Object-Oriented code design.
 
 > [!TIP]
-> `hnsw` is provided as a built-in ANNs algorithm, backed by [hnswlib](https://github.com/nmslib/hnswlib). However, an [interface with external search indexes](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/external_search_index/external_search_index.html) is also provided in case you would like to use other search 
+> `hnsw` is provided as a built-in ANNs algorithm, backed by [hnswlib](https://github.com/nmslib/hnswlib). However, an [interface with external search indexes](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/external_search_index/external_search_index.html) is also provided in case you would like to use other search 
 algorithms with this library. **Just note** that `pyvisim` does not install dependencies like `faiss` or `annoy`.
 
 ### Accelerated Computation
@@ -86,7 +86,7 @@ similarity_score = embedder.similarity_score(image1, image2)
 print(f"Similarity Score: {similarity_score}")
 ```
 
-#### `Image retrieval` (see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/image_store.html)):
+#### `Image retrieval` (see documentation [here](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/in_memory_image_embedding_store/in_memory_image_embedding_store.html)):
 
 ```python
 from pyvisim.neural_networks import ClipEmbedder
@@ -109,7 +109,7 @@ for candidate in candidates:
 
 The `alpha query expansion` and the `k-reciprocal re-ranking`can additionally be used to refine
 the retrieval results, improving `mean Average Precision` (see the
-[documentation](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/reranking.html)):
+[documentation](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/reranking/k_reciprocal_reranker/k_reciprocal_reranker.html)):
 
 ```python
 from pyvisim.retrieval.reranking import KReciprocalReranker

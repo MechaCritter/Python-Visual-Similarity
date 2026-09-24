@@ -104,7 +104,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
           then assumes each path matches the corresponding row in the index.
 
     For more information, see the documentation:
-    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/image_store.html``.
+    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/in_memory_image_embedding_store/in_memory_image_embedding_store.html``.
 
     :param image_paths: Iterable of image file paths to embed. Duplicates are
         dropped, keeping the first occurrence.

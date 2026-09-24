@@ -32,7 +32,7 @@ class ExternalSearchIndex:
         index is built.
 
     For more information, see the documentation:
-    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/external_search_index/external_search_index.html``.
+    ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/external_search_index/external_search_index.html``.
 
     :param index: The index to search through. It must expose a
         ``search(queries, k)`` returning a ``(scores, ids)`` pair of ``(M, k)``
