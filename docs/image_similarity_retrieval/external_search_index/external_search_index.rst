@@ -52,7 +52,7 @@ Example
 
      .. code-block:: python
 
-        store.save_to_disk("gallery.safetensors", vectors=original_embeddings)
+        store.save_to_disk("gallery.safetensors", embeddings=original_embeddings)
         restored = InMemoryImageEmbeddingStore.load_from_disk(
             "gallery.safetensors",
             search_index=ExternalSearchIndex.from_faiss_index(faiss_index, name="flat-ip"),
