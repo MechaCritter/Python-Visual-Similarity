@@ -92,6 +92,7 @@ image_store = InMemoryImageEmbeddingStore(
     search_index="hnsw",
     index_params={"graph_degree": 16, "build_candidates": 200},
 )
+image_store.build_store()  # embeds the gallery and builds the index
 
 candidates = image_store.retrieve_top_k_similar(image, k=5)[0]  # one Candidate per match
 for candidate in candidates:

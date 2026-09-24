@@ -56,7 +56,9 @@ def store(
     :returns: a store backed by an exact index.
     """
     paths, _ = gallery
-    return InMemoryImageEmbeddingStore(paths, learned_vlad_embedder)
+    store = InMemoryImageEmbeddingStore(paths, learned_vlad_embedder)
+    store.build_store()
+    return store
 
 
 @pytest.fixture(scope="module")

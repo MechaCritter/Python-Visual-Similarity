@@ -212,6 +212,7 @@ def _build_store(
     store = InMemoryImageEmbeddingStore(
         dataset.image_paths, embedder, "hnsw", index_params=_INDEX_PARAMS
     )
+    store.build_store()
     _log(f"Built the store in {time.perf_counter() - start:.0f} s.")
     return store, dict(zip(dataset.image_paths, dataset.labels, strict=True))
 
