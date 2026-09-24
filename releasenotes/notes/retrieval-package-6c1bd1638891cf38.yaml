@@ -1,0 +1,23 @@
+---
+upgrade:
+  - |
+    ``pyvisim.image_store`` is now ``pyvisim.retrieval``, split into the
+    subpackages ``image_store`` (``InMemoryImageEmbeddingStore``,
+    ``BruteForceIndex``, ``HnswIndex``, ``ExternalSearchIndex``), ``reranking``
+    (``KReciprocalReranker``) and ``data`` (``Candidate``), so
+    ``from pyvisim.image_store import ...`` now raises ``ModuleNotFoundError``.
+    If your code imports from ``pyvisim.image_store``, change the import:
+
+    .. code:: python
+
+        # before
+        from pyvisim.image_store import (
+            Candidate,
+            InMemoryImageEmbeddingStore,
+            KReciprocalReranker,
+        )
+
+        # after
+        from pyvisim.retrieval.data import Candidate
+        from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
+        from pyvisim.retrieval.reranking import KReciprocalReranker

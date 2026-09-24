@@ -31,12 +31,10 @@ import matplotlib
 import numpy as np
 
 from pyvisim.datasets import OxfordFlowerDataset
-from pyvisim.image_store import (
-    Candidate,
-    InMemoryImageEmbeddingStore,
-    KReciprocalReranker,
-)
 from pyvisim.neural_networks import ClipEmbedder
+from pyvisim.retrieval.data import Candidate
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
+from pyvisim.retrieval.reranking import KReciprocalReranker
 from pyvisim.typing import FloatNumpyArray, UInt8NumpyArray
 
 matplotlib.use("Agg")

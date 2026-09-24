@@ -8,7 +8,7 @@ from PIL import Image
 
 from pyvisim.classic import VLADEmbedder
 from pyvisim.eval import top_k_accuracy, top_k_map
-from pyvisim.image_store import InMemoryImageEmbeddingStore
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 
 
 def _to_rgb(image: np.ndarray) -> np.ndarray:

@@ -1,6 +1,6 @@
 # arc42: Image Similarity Retrieval
 
-Software architecture of `pyvisim.image_store`. This document is for
+Software architecture of `pyvisim.retrieval`. This document is for
 developers and is not part of the published documentation.
 
 ## Building block view
