@@ -1,5 +1,5 @@
-Image Store
-===========
+In Memory Image Embedding Store
+===============================
 
 An image store holds a gallery of images together with their embeddings.
 Calling ``build_store()`` embeds every gallery image with the given embedder
@@ -13,7 +13,7 @@ To refine the query itself before retrieval, one can enable **alpha-weighted
 query expansion** (αQE). See :ref:`query-expansion` for more information.
 
 To refine the final candidates after retrieval, one can use a **reranker**. See
-:doc:`Reranking Documentation <../reranking/reranking>` for more information.
+:doc:`Reranking Documentation <../../reranking/index>` for more information.
 
 Example
 -------
@@ -27,7 +27,7 @@ Example
    import numpy as np
    from PIL import Image
    from pyvisim.neural_networks import ClipEmbedder
-   from pyvisim.image_store import InMemoryImageEmbeddingStore
+   from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 
    embedder = ClipEmbedder("ViT-B/32")
    store = InMemoryImageEmbeddingStore(
@@ -58,12 +58,12 @@ Example
 API reference
 -------------
 
-.. autoclass:: pyvisim.image_store.InMemoryImageEmbeddingStore
+.. autoclass:: pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore
    :members:
    :inherited-members:
    :show-inheritance:
 
-.. autoclass:: pyvisim.image_store.Candidate
+.. autoclass:: pyvisim.retrieval.data.Candidate
    :members:
 
 Retrieval
