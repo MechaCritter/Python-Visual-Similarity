@@ -59,7 +59,7 @@ An extractor can also be saved to a ``.safetensors`` file and loaded with the
 
    from pyvisim.features import RootSIFT
 
-   path = RootSIFT(n_hist=2, n_ori=4).save_to_disk("root_sift")
+   path = RootSIFT(n_hist=2, n_ori=4).save_to_disk("root_sift.safetensors")
    reloaded = RootSIFT.load_from_disk(path)
 
 Table of Contents

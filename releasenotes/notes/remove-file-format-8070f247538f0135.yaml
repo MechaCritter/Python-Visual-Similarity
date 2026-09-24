@@ -1,0 +1,11 @@
+---
+upgrade:
+  - |
+    ``save_to_disk`` writes to the given path as is, and ``.embedder`` or
+    ``.safetensors`` is no longer appended to it. Code that saves under a name
+    without a suffix and loads the file with the suffix added passes the same
+    full file name to both calls.
+  - |
+    The ``__file_format__`` class attribute is removed from ``SerializerMixin``
+    and every serializable class. Subclasses outside the library drop their
+    ``__file_format__``.
