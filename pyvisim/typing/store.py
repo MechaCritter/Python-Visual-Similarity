@@ -1,9 +1,14 @@
 """Structural type describing the embedding-store interface used by retrieval."""
 
-from typing import Protocol, runtime_checkable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from .embedders import Embedder
-from .numeric import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from .numeric import Float32NumpyArray, ImageInput
+
+if TYPE_CHECKING:
+    from ..image_store import Candidate
 
 
 @runtime_checkable
@@ -31,18 +36,18 @@ class EmbeddingStore(Protocol):
         """The embedder that produced the gallery and embeds queries."""
         ...
 
-    def search(
+    def retrieve_top_k_similar(
         self,
-        query_vectors: FloatNumpyArray,
-        k: int,
-    ) -> tuple[Float32NumpyArray, IntNumpyArray]:
+        query_images: ImageInput,
+        k: int = 5,
+    ) -> list[list[Candidate]]:
         """
-        Return the ``k`` nearest gallery vectors for each query vector.
+        Return the top-k most similar gallery images for each query image.
 
-        :param query_vectors: A ``(D,)`` vector or a ``(N, D)`` batch of query
-            vectors.
-        :param k: Number of nearest neighbors to return per query.
-        :return: A ``(scores, ids)`` tuple of ``(N, k)`` arrays. ``ids`` index
-            into :attr:`paths`; missing neighbors are reported as ``-1``.
+        :param query_images: A single image or a batch/iterable of images to use
+            as queries.
+        :param k: Number of top similar gallery images to return per query.
+        :return: One ranked list of :class:`~pyvisim.image_store.Candidate`
+            matches per query image, in the same order as ``query_images``.
         """
         ...
