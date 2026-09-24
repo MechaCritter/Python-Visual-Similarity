@@ -1,0 +1,25 @@
+---
+upgrade:
+  - |
+    ``InMemoryImageEmbeddingStore`` no longer embeds its gallery in the
+    constructor, which affects every store built through it. Call
+    ``build_store()`` right after the constructor, or pass ``lazy_build=False``
+    to have the constructor build the store.
+  - |
+    Until ``build_store()`` has run, ``search``, ``retrieve_top_k_similar``,
+    ``embeddings``, ``embeddings_of``, ``index``, ``dim``, ``to_dict`` and
+    ``save_to_disk`` raise ``RuntimeError``. A store that adopts an
+    ``ExternalSearchIndex`` or is rebuilt by ``load_from_disk`` or
+    ``from_dict`` comes back built.
+  - |
+    ``build_store()`` now raises for an unreadable image file and for a gallery
+    none of whose images could be embedded, which the constructor used to
+    report. An unknown ``search_index``, a rejected ``index_params`` entry, a
+    non-string path and an empty gallery still raise in the constructor.
+features:
+  - |
+    ``InMemoryImageEmbeddingStore.build_store`` embeds the gallery and builds
+    the search index. It does nothing on a store that is already built.
+  - |
+    ``InMemoryImageEmbeddingStore.is_built`` reports whether the store has been
+    built.
