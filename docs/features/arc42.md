@@ -24,6 +24,10 @@ subclassing `FeatureExtractorBase`. It is also the reason `output_dim` is a
 constructor argument there: an arbitrary function has no inspectable descriptor
 size, so the caller has to supply the value.
 
+`DeepConvFeature` lives in `pyvisim.neural_networks` instead of this package.
+It reads its descriptors off a torchvision backbone, so it sits next to
+`build_backbone`.
+
 `FeatureExtractorBase` inherits the file contract of `SerializerMixin`, as the
 embedders and the clustering models do. An extractor is described by its
 constructor arguments under `"config"`, and `FeatureExtractorBase.from_dict`
