@@ -254,7 +254,7 @@ class FeatureExtractorBase(SerializerMixin):
             from .. import features  # noqa: F401
 
             with contextlib.suppress(ImportError):
-                from .. import neural_networks  # noqa: F401
+                from ..neural_networks import features  # noqa: F401
         extractor_cls = cls._subclasses_by_name.get(name)
         if extractor_cls is None or inspect.isabstract(extractor_cls):
             known = sorted(
