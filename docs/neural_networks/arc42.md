@@ -20,6 +20,11 @@ share.
 of using a torchvision backbone, and it is an embedder, since it is not trained
 inside this library.
 
+`DeepConvFeature` has a backbone but no head. It is a feature extractor, so it
+follows the contract of `pyvisim.features` and returns the local descriptors
+of one image. It lives in this module because it reads those descriptors off
+a backbone.
+
 ## Architecture decisions
 
 ### A serialized model stores its architecture and its weights separately
