@@ -483,24 +483,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         )
 
     @_requires_built_store
-    def search(
-        self,
-        query_vectors: FloatNumpyArray,
-        k: int,
-    ) -> tuple[Float32NumpyArray, IntNumpyArray]:
-        """
-        Return the ``k`` nearest gallery vectors for each query vector.
-
-        :param query_vectors: A ``(D,)`` vector or a ``(N, D)`` batch of query
-            feature vectors.
-        :param k: Number of nearest neighbors to return per query.
-        :return: A ``(scores, ids)`` tuple of ``(N, k)`` arrays; ``ids`` index
-            into :attr:`paths` and missing neighbors are reported as ``-1``.
-        :raises RuntimeError: If the store has not been built yet.
-        """
-        return self._search_index.search(query_vectors, k)
-
-    @_requires_built_store
     def retrieve_top_k_similar(
         self,
         query_images: ImageInput,
@@ -576,7 +558,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
                 query_matrix, expansion_alpha, expansion_neighbors
             )
 
-        scores, ids = self.search(query_matrix, k)
+        scores, ids = self._search_index.search(query_matrix, k)
         return self._ranked_candidates(scores, ids)
 
     def _expanded_queries(
@@ -599,7 +581,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             query.
         :return: The ``(M, D)`` expanded queries, each L2-normalised.
         """
-        _, ids = self.search(queries, num_neighbors)
+        _, ids = self._search_index.search(queries, num_neighbors)
         # A gallery smaller than ``num_neighbors`` pads the free columns with
         # the id -1, which names no vector and is left out of the average. An
         # external index may even report no neighbor at all for a query, and
