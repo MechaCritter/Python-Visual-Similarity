@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    Every ``.embedder`` file and image store file now names its class under
+    ``"__class__"``, and their format versions go up by one. Files saved by
+    0.9.5 or earlier no longer load, so rebuild the embedder or store and save
+    it again with ``save_to_disk``.
+  - |
+    The ``__class_key__`` class attribute is removed from ``SerializerMixin``
+    and every serializable class. Subclasses outside the library drop their
+    ``__class_key__``, since the class name is always stored under
+    ``"__class__"``.

@@ -135,7 +135,6 @@ class FeatureExtractorBase(SerializerMixin):
 
     __file_format__: ClassVar[str] = ".safetensors"
     __metadata_key__: ClassVar[str] = "pyvisim_feature_extractor"
-    __class_key__: ClassVar[str] = "__class__"
     __format_version__: ClassVar[int] = 1
     __state_keys__: ClassVar[frozenset[str]] = frozenset({"config"})
 
@@ -217,20 +216,8 @@ class FeatureExtractorBase(SerializerMixin):
 
     @classmethod
     def from_dict(cls, state: dict[str, Any], **kwargs: Any) -> "FeatureExtractorBase":
-        """
-        Rebuilds the feature extractor from a dict produced by :meth:`to_dict`.
-
-        :param state: A mapping produced by :meth:`to_dict`.
-        :param kwargs: Objects the state cannot describe.
-        :return: The reconstructed feature extractor.
-        :raises TypeError: If ``state`` is not a mapping produced by
-            :meth:`to_dict`, or the named class does not take one of
-            ``kwargs``.
-        :raises ValueError: If ``state`` names no known extractor class, or names
-            one that cannot be rebuilt automatically (e.g. a Lambda extractor).
-        """
         config = cls._validated_config(state)
-        extractor_cls = cls._subclass_named(state[cls.__class_key__])
+        extractor_cls = cls._subclass_named(state["__class__"])
         return extractor_cls._from_config(config, **kwargs)
 
     @classmethod
@@ -246,7 +233,7 @@ class FeatureExtractorBase(SerializerMixin):
         :raises TypeError: If ``state`` is not a mapping produced by
             :meth:`to_dict`.
         """
-        if not isinstance(state, dict) or cls.__class_key__ not in state:
+        if not isinstance(state, dict) or "__class__" not in state:
             raise TypeError("Expected a feature-extractor dict from to_dict().")
         return cast(dict[str, Any], state.get("config", {}))
 
@@ -467,7 +454,6 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
     __file_format__: ClassVar[str] = ".embedder"
     #: Metadata key under which the embedder JSON skeleton is stored.
     __metadata_key__: ClassVar[str] = "pyvisim_embedder"
-    __class_key__: ClassVar[str] = "embedder_class"
 
     #: Keys a serialized state must contain to be a valid embedder file.
     #: Subclasses extend this with their own required keys.
@@ -491,8 +477,8 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         Rebuilds the embedder a state dictionary describes.
 
         Called on :class:`SerializableImageEmbedder` itself, it hands the state
-        to the ``from_dict`` of the class named under :attr:`__class_key__`, so
-        a state can be rebuilt without knowing which embedder wrote it.
+        to the ``from_dict`` of the class named under ``"__class__"``, so a
+        state can be rebuilt without knowing which embedder wrote it.
 
         :param state: A JSON-safe embedder description.
         :param kwargs: Objects the state cannot describe, forwarded to the
@@ -504,7 +490,7 @@ class SerializableImageEmbedder(ImageEmbedderBase, SerializerMixin):
         """
         if cls is not SerializableImageEmbedder:
             raise NotImplementedError(f"{cls.__name__} does not implement from_dict.")
-        embedder_cls = cls._subclass_named(state.get(cls.__class_key__))
+        embedder_cls = cls._subclass_named(state.get("__class__"))
         return embedder_cls.from_dict(state, **kwargs)
 
     @classmethod

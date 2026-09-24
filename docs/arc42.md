@@ -51,7 +51,6 @@ to disk.
 - `__metadata_key__`: upon saving to disk, the `safetensors` file will contain this
 metadata key. If the key is missing (for example, loading an arbitrary `safetensors` file
 that does not belong to this library), the load will be rejected.
-- `__class_key__`: the key that maps to the class name in the `safetensors` file metadata.
 - `__format_version__`: whenever the serialization interface is updated, this version
 number is incremented by 1.
 - `__state_keys__`: keys that describe which attributes of the class will flow into
@@ -65,7 +64,6 @@ from pyvisim.serialization import SerializerMixin
 class Embedder(SerializerMixin):
     __file_format__ = ".safetensors"
     __metadata_key__ = "pyvisim_metadata"
-    __class_key__ = "pyvisim_class"
     __format_version__ = 1
     __state_keys__ = ["similarity_func", "embedding_dim"]
 
@@ -109,13 +107,12 @@ with safe_open("my_embedder.safetensors", framework="numpy") as f:
     print(json.dumps(parsed, indent=4))
 ```
 
-Expected output. **Note** that the key `pyvisim_class` matches what is
-defined in `__class_key__` of the class.
+Expected output:
 
 ```json
 {
     "format_version": 1,
-    "pyvisim_class": "Embedder",
+    "__class__": "Embedder",
     "similarity_func": "cosine",
     "embedding_dim": 128
 }
