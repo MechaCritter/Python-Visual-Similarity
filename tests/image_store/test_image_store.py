@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 
 import numpy as np
 import pytest
@@ -68,7 +69,9 @@ def store(
     :param learned_vlad_embedder: a fitted VLAD embedder (PCA and non-PCA variants).
     :returns: a store backed by an exact brute-force index.
     """
-    return InMemoryImageEmbeddingStore(gallery_paths, learned_vlad_embedder)
+    store = InMemoryImageEmbeddingStore(gallery_paths, learned_vlad_embedder)
+    store.build_store()
+    return store
 
 
 @pytest.fixture(scope="module")
@@ -82,9 +85,11 @@ def hnsw_store(
     :param learned_vlad_embedder: a fitted VLAD embedder.
     :returns: a store backed by an approximate HNSW index.
     """
-    return InMemoryImageEmbeddingStore(
+    store = InMemoryImageEmbeddingStore(
         gallery_paths, learned_vlad_embedder, "hnsw", index_params={"graph_degree": 8}
     )
+    store.build_store()
+    return store
 
 
 @pytest.fixture(scope="module")
@@ -204,7 +209,9 @@ def test_l2_store_keeps_the_raw_embeddings(
     embedder = VLADEmbedder.from_dict(
         {**learned_vlad_embedder.to_dict(), "normalize": False}
     )
-    store = InMemoryImageEmbeddingStore(gallery_paths[:6], embedder, space="l2")
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:6], embedder, space="l2", lazy_build=False
+    )
     norms = np.linalg.norm(store.embeddings, axis=1)
     assert not np.allclose(norms, 1.0, atol=1e-3)
 
@@ -287,7 +294,9 @@ def test_retrieve_drops_the_missing_neighbors(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """Asking for more matches than the gallery holds returns what there is."""
-    store = InMemoryImageEmbeddingStore(gallery_paths[:3], learned_vlad_embedder)
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:3], learned_vlad_embedder, lazy_build=False
+    )
     gray = category_train_images_flat[0]
     probe = np.stack([gray, gray, gray], axis=-1)
     assert len(store.retrieve_top_k_similar(probe, k=10)[0]) == 3
@@ -362,7 +371,9 @@ def test_query_expansion_handles_a_gallery_smaller_than_its_neighborhood(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """Fewer gallery images than ``expansion_neighbors`` are averaged as they are."""
-    store = InMemoryImageEmbeddingStore(gallery_paths[:3], learned_vlad_embedder)
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:3], learned_vlad_embedder, lazy_build=False
+    )
     gray = category_train_images_flat[0]
     probe = np.stack([gray, gray, gray], axis=-1)
     ranked = store.retrieve_top_k_similar(
@@ -610,7 +621,10 @@ def test_prefetch_batches_do_not_change_the_gallery(
 ) -> None:
     """Reading further ahead is a performance knob, not a result change."""
     prefetching = InMemoryImageEmbeddingStore(
-        gallery_paths, learned_vlad_embedder, num_prefetch_batches=num_prefetch_batches
+        gallery_paths,
+        learned_vlad_embedder,
+        num_prefetch_batches=num_prefetch_batches,
+        lazy_build=False,
     )
     assert prefetching.paths == store.paths
     np.testing.assert_allclose(prefetching.embeddings, store.embeddings)
@@ -625,7 +639,7 @@ def test_num_workers_no_not_change_gallery(
 ) -> None:
     """Reading on more threads is a performance knob, not a result change."""
     threaded = InMemoryImageEmbeddingStore(
-        gallery_paths, learned_vlad_embedder, num_workers=num_workers
+        gallery_paths, learned_vlad_embedder, num_workers=num_workers, lazy_build=False
     )
     assert threaded.paths == store.paths
     np.testing.assert_allclose(threaded.embeddings, store.embeddings)
@@ -667,10 +681,10 @@ def test_non_string_path_raises(learned_vlad_embedder: VLADEmbedder) -> None:
 def test_missing_file_raises(
     learned_vlad_embedder: VLADEmbedder, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
-    """A missing image file aborts construction by default."""
+    """A missing image file aborts the build unless ``skip_errors`` is on."""
     missing = str(tmp_path_factory.mktemp("missing") / "gone.png")
     with pytest.raises(FileNotFoundError):
-        InMemoryImageEmbeddingStore([missing], learned_vlad_embedder)
+        InMemoryImageEmbeddingStore([missing], learned_vlad_embedder, lazy_build=False)
 
 
 def test_skip_errors_warns_and_keeps_good_images(
@@ -685,6 +699,7 @@ def test_skip_errors_warns_and_keeps_good_images(
             [*gallery_paths[:5], missing],
             learned_vlad_embedder,
             skip_errors=True,
+            lazy_build=False,
         )
     assert store.paths == gallery_paths[:5]
 
@@ -697,7 +712,7 @@ def test_all_images_unreadable_raises(
     with pytest.warns(FutureWarning):
         with pytest.raises(ValueError, match="No images could be embedded"):
             InMemoryImageEmbeddingStore(
-                [missing], learned_vlad_embedder, skip_errors=True
+                [missing], learned_vlad_embedder, skip_errors=True, lazy_build=False
             )
 
 
@@ -706,9 +721,145 @@ def test_duplicate_paths_are_dropped(
 ) -> None:
     """A path given twice is embedded and indexed once."""
     store = InMemoryImageEmbeddingStore(
-        [gallery_paths[0], gallery_paths[0], gallery_paths[1]], learned_vlad_embedder
+        [gallery_paths[0], gallery_paths[0], gallery_paths[1]],
+        learned_vlad_embedder,
+        lazy_build=False,
     )
     assert store.paths == gallery_paths[:2]
+
+
+# Lazy building
+
+
+#: Members that read the index, each paired with a call that reads it.
+_MEMBERS_NEEDING_A_BUILT_STORE = [
+    ("embeddings", lambda store: store.embeddings),
+    ("index", lambda store: store.index),
+    ("dim", lambda store: store.dim),
+    ("embeddings_of", lambda store: store.embeddings_of(store.paths[:1])),
+    ("search", lambda store: store.search(np.zeros(4, dtype=np.float32), 1)),
+    ("to_dict", lambda store: store.to_dict()),
+]
+
+
+@pytest.fixture
+def unbuilt_store(
+    gallery_paths: list[str], learned_vlad_embedder: VLADEmbedder
+) -> InMemoryImageEmbeddingStore:
+    """A store fresh from the default constructor.
+
+    :param gallery_paths: the gallery image paths.
+    :param learned_vlad_embedder: a fitted VLAD embedder.
+    :returns: a store whose gallery has not been embedded yet.
+    """
+    return InMemoryImageEmbeddingStore(gallery_paths[:4], learned_vlad_embedder)
+
+
+def test_a_new_store_is_not_built(
+    unbuilt_store: InMemoryImageEmbeddingStore,
+) -> None:
+    """The default constructor embeds nothing."""
+    assert not unbuilt_store.is_built
+
+
+def test_build_store_builds_the_gallery(
+    unbuilt_store: InMemoryImageEmbeddingStore,
+) -> None:
+    """``build_store`` embeds the images and indexes them."""
+    unbuilt_store.build_store()
+    assert unbuilt_store.is_built
+    assert isinstance(unbuilt_store.index, BruteForceIndex)
+    assert unbuilt_store.embeddings.shape[0] == 4
+
+
+def test_eager_store_is_built_by_the_constructor(
+    gallery_paths: list[str], learned_vlad_embedder: VLADEmbedder
+) -> None:
+    """With ``lazy_build=False`` the constructor builds the store itself."""
+    store = InMemoryImageEmbeddingStore(
+        gallery_paths[:4], learned_vlad_embedder, lazy_build=False
+    )
+    assert store.is_built
+    assert store.embeddings.shape[0] == 4
+
+
+@pytest.mark.parametrize(
+    "member", _MEMBERS_NEEDING_A_BUILT_STORE, ids=lambda pair: str(pair[0])
+)
+def test_reading_an_unbuilt_store_raises(
+    unbuilt_store: InMemoryImageEmbeddingStore,
+    member: tuple[str, Callable[[InMemoryImageEmbeddingStore], object]],
+) -> None:
+    """Each member that reads the index raises an error naming ``build_store``."""
+    with pytest.raises(RuntimeError, match="build_store"):
+        member[1](unbuilt_store)
+
+
+def test_retrieving_from_an_unbuilt_store_raises(
+    unbuilt_store: InMemoryImageEmbeddingStore,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """Retrieval raises on an unbuilt store before it embeds the query."""
+    gray = category_train_images_flat[0]
+    probe = np.stack([gray, gray, gray], axis=-1)
+    with pytest.raises(RuntimeError, match="build_store"):
+        unbuilt_store.retrieve_top_k_similar(probe, k=2)
+
+
+def test_saving_an_unbuilt_store_raises(
+    unbuilt_store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Saving an unbuilt store raises, since it holds no embeddings to write."""
+    target = tmp_path_factory.mktemp("unbuilt_save") / "store.safetensors"
+    with pytest.raises(RuntimeError, match="build_store"):
+        unbuilt_store.save_to_disk(target)
+
+
+def test_an_unbuilt_store_still_knows_its_paths(
+    unbuilt_store: InMemoryImageEmbeddingStore, gallery_paths: list[str]
+) -> None:
+    """The paths, ``len``, ``in`` and ``repr`` work before the build."""
+    assert unbuilt_store.paths == gallery_paths[:4]
+    assert len(unbuilt_store) == 4
+    assert gallery_paths[0] in unbuilt_store
+    assert "dim=None" in repr(unbuilt_store)
+
+
+def test_building_twice_keeps_the_first_gallery(
+    unbuilt_store: InMemoryImageEmbeddingStore,
+) -> None:
+    """A second ``build_store`` call keeps the index from the first."""
+    unbuilt_store.build_store()
+    index = unbuilt_store.index
+    unbuilt_store.build_store()
+    assert unbuilt_store.index is index
+
+
+def test_build_store_drops_the_images_it_could_not_embed(
+    gallery_paths: list[str],
+    learned_vlad_embedder: VLADEmbedder,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """The constructor keeps every path, and the build drops the unembeddable ones."""
+    missing = str(tmp_path_factory.mktemp("lazy_partial") / "gone.png")
+    store = InMemoryImageEmbeddingStore(
+        [*gallery_paths[:5], missing], learned_vlad_embedder, skip_errors=True
+    )
+    assert store.paths == [*gallery_paths[:5], missing]
+    with pytest.warns(FutureWarning, match="Skipped 1 image"):
+        store.build_store()
+    assert store.paths == gallery_paths[:5]
+
+
+def test_a_reloaded_store_comes_back_built(
+    store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """A store loaded from disk is already built."""
+    target = tmp_path_factory.mktemp("reloaded_built") / "store.safetensors"
+    loaded = InMemoryImageEmbeddingStore.load_from_disk(store.save_to_disk(target))
+    assert loaded.is_built
+    assert np.allclose(loaded.embeddings, store.embeddings, atol=1e-6)
 
 
 # Saving and loading
@@ -796,7 +947,7 @@ def test_store_with_pipeline_embedder_round_trips(
 ) -> None:
     """A store built on a Pipeline serializes and reconstructs the Pipeline."""
     pipeline = Pipeline([learned_vlad_embedder])
-    store = InMemoryImageEmbeddingStore(gallery_paths[:8], pipeline)
+    store = InMemoryImageEmbeddingStore(gallery_paths[:8], pipeline, lazy_build=False)
     target = tmp_path_factory.mktemp("pipeline_store") / "store.safetensors"
     loaded = InMemoryImageEmbeddingStore.load_from_disk(store.save_to_disk(target))
 
@@ -852,7 +1003,7 @@ def test_save_load_preserves_a_neural_embedder(
     embedder = ContrastiveSiameseNetwork(
         embedding_dim=8, pretrained_backbone=False, similarity_func="cosine"
     )
-    store = InMemoryImageEmbeddingStore(gallery_paths[:4], embedder)
+    store = InMemoryImageEmbeddingStore(gallery_paths[:4], embedder, lazy_build=False)
     target = tmp_path_factory.mktemp("rt_neural_embedder")
     loaded = InMemoryImageEmbeddingStore.load_from_disk(
         store.save_to_disk(target / "store.safetensors")
@@ -937,7 +1088,9 @@ def test_external_store_adopts_the_index(
 ) -> None:
     """An external index is searched as-is, and nothing is embedded."""
     faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(gallery_paths[:6], learned_vlad_embedder)
+    source = InMemoryImageEmbeddingStore(
+        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
+    )
     vectors = np.ascontiguousarray(source.embeddings)
 
     flat = faiss.IndexFlatIP(vectors.shape[1])
@@ -962,7 +1115,9 @@ def test_external_store_rejects_a_path_count_mismatch(
 ) -> None:
     """The index must hold exactly one vector per gallery path."""
     faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(gallery_paths[:6], learned_vlad_embedder)
+    source = InMemoryImageEmbeddingStore(
+        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
+    )
     flat = faiss.IndexFlatIP(source.dim)
     flat.add(np.ascontiguousarray(source.embeddings))
 
@@ -981,7 +1136,9 @@ def test_external_store_round_trips_on_a_rebuilt_index(
 ) -> None:
     """A store on an external index reloads onto a rebuilt one."""
     faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(gallery_paths[:6], learned_vlad_embedder)
+    source = InMemoryImageEmbeddingStore(
+        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
+    )
     vectors = np.ascontiguousarray(source.embeddings)
     flat = faiss.IndexFlatIP(vectors.shape[1])
     flat.add(vectors)
@@ -1010,7 +1167,9 @@ def test_load_warns_when_the_index_name_differs(
 ) -> None:
     """Reloading onto a differently named index is reported."""
     faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(gallery_paths[:6], learned_vlad_embedder)
+    source = InMemoryImageEmbeddingStore(
+        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
+    )
     vectors = np.ascontiguousarray(source.embeddings)
     flat = faiss.IndexFlatIP(vectors.shape[1])
     flat.add(vectors)
@@ -1037,7 +1196,9 @@ def test_load_without_an_index_falls_back_to_brute_force(
 ) -> None:
     """A store saved on an external index reloads onto an exact scan."""
     faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(gallery_paths[:6], learned_vlad_embedder)
+    source = InMemoryImageEmbeddingStore(
+        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
+    )
     vectors = np.ascontiguousarray(source.embeddings)
     flat = faiss.IndexFlatIP(vectors.shape[1])
     flat.add(vectors)
