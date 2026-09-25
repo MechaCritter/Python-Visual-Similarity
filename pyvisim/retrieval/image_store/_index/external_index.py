@@ -80,7 +80,8 @@ class ExternalSearchIndex:
         .. important::
            To read from an `IVF <https://github.com/facebookresearch/faiss/wiki/Faiss-indexes>`_
            index, call ``faiss.extract_index_ivf(faiss_index).make_direct_map()`` first.
-           Otherwise, reconstruction will fail.
+           Otherwise, reconstruction will fail. If the index cannot reconstruct its vectors
+           and you need exact reconstruction, pass them to the constructor instead.
 
         Normalization, if any, must be done by the caller. An index built for
         ``METRIC_INNER_PRODUCT`` only ranks by cosine similarity if the vectors
