@@ -43,28 +43,28 @@ from ._index import (
     validate_index_params,
 )
 
-#: Value of ``search_index`` selecting the HNSW graph.
+# Value of ``search_index`` selecting the HNSW graph.
 _HNSW = "hnsw"
-#: Name under which a brute-force store records its index.
+# Name under which a brute-force store records its index.
 _BRUTE_FORCE = "brute-force"
 
-#: Parameter table of each index the store can build, keyed by index name. It
-#: names the parameters the index takes and maps them onto the backend's own.
+# Parameter table of each index the store can build, keyed by index name. It
+# names the parameters the index takes and maps them onto the backend's own.
 _INDEX_PARAM_TABLES: dict[str, dict[str, str]] = {
     _HNSW: HNSW_TO_HNSWLIB,
     _BRUTE_FORCE: BRUTE_FORCE_TO_HNSWLIB,
 }
 
-#: Keyword argument of :meth:`InMemoryImageEmbeddingStore.load_from_disk` that
-#: carries a rebuilt index instead of being forwarded to the embedder.
+# Keyword argument of :meth:`InMemoryImageEmbeddingStore.load_from_disk` that
+# carries a rebuilt index instead of being forwarded to the embedder.
 _SEARCH_INDEX_KWARG = "search_index"
 
-#: An index that reports how many vectors it holds.
+# An index that reports how many vectors it holds.
 _GalleryIndex = ExternalSearchIndex | HnswIndex | BruteForceIndex
 
-#: Threads decoding image files while the embedder works on the previous batch.
+# Threads decoding image files while the embedder works on the previous batch.
 _DEFAULT_NUM_WORKERS = 4
-#: Batches the decoding threads may run ahead of the embedder.
+# Batches the decoding threads may run ahead of the embedder.
 _DEFAULT_NUM_PREFETCH_BATCHES = 4
 
 _GenericMethodT = TypeVar("_GenericMethodT", bound=Callable[..., Any])
@@ -693,6 +693,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             index = _restored_index(state, index_name)
         return cls._from_components(
             paths=list(state["paths"]),
+            embeddings=np.asarray(
+                decode_array_node(state["embeddings"]), dtype=np.float32
+            ),
             embedder=embedder,
             index=index,
             index_name=index_name,
