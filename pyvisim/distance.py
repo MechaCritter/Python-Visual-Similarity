@@ -1,15 +1,4 @@
-"""
-Pairwise distance and similarity metrics implemented in pure NumPy.
-
-This module hosts pyvisim's own implementations of the vector metrics used to
-compare image embeddings: :func:`cosine_similarity`, :func:`euclidean_distances`
-and :func:`manhattan_distances`. All three operate on 2-D ``(N, D)`` matrices
-and return a full ``(N, M)`` pairwise result computed with vectorized NumPy
-operations only.
-
-The higher-level, name-based metric registry lives in ``pyvisim._utils`` and
-is exposed through the ``similarity_func`` argument of the embedders.
-"""
+"""Pairwise distance and similarity metrics implemented in pure NumPy."""
 
 from __future__ import annotations
 
@@ -20,12 +9,12 @@ from .utils.validation import Param, validate_params
 
 __all__ = ["cosine_similarity", "euclidean_distances", "manhattan_distances"]
 
-#: Upper bound on the size of the broadcast temporary used by
-#: :func:`manhattan_distances`, mirroring scikit-learn's chunked
-#: working-memory strategy for pairwise distances. Manhattan is the only
-#: metric that materializes an ``(N, M, D)`` intermediate; cosine and
-#: Euclidean reduce to matrix products whose temporaries never exceed the
-#: inputs and the ``(N, M)`` result itself.
+# Upper bound on the size of the broadcast temporary used by
+# :func:`manhattan_distances`, mirroring scikit-learn's chunked
+# working-memory strategy for pairwise distances. Manhattan is the only
+# metric that materializes an ``(N, M, D)`` intermediate; cosine and
+# Euclidean reduce to matrix products whose temporaries never exceed the
+# inputs and the ``(N, M)`` result itself.
 _WORKING_MEMORY_BYTES = 256 * 1024**2
 
 
