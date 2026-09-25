@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import os
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 import numpy as np
@@ -195,3 +196,86 @@ class HnswIndex(_hnswlib.Index):
         self.init_index(**as_backend_params(self._build_params, HNSW_TO_HNSWLIB))
         self.ef = search_candidates
         self.add_items(gallery, np.arange(self._num_vectors))
+
+    def _graph(self) -> dict[str, Any]:
+        """
+        Export the graph as the parameters and flat arrays that describe it.
+
+        :return: Everything :meth:`_from_graph` restores the index from. The
+            thread count is left out, since it belongs to the machine the graph
+            is searched on.
+        """
+        (graph,) = self.__getstate__()
+        del graph["num_threads"]
+        return graph
+
+    @classmethod
+    def _from_graph(
+        cls, graph: Mapping[str, Any], *, num_threads: int = -1
+    ) -> HnswIndex:
+        """
+        Restore an index from the graph :meth:`_graph` exported, without
+        rebuilding it.
+
+        :param graph: The graph's parameters and arrays.
+        :param num_threads: Threads used to run batched queries and to rebuild
+            the graph in :meth:`update`. ``-1`` uses every available core.
+        :return: An index that searches exactly as the exported one did.
+        :raises ValueError: If the graph has room for more vectors than it
+            holds, or one of its arrays does not have the size its parameters
+            imply.
+        """
+        _validate_graph_sizes(graph)
+        if not is_explicit_thread_count(num_threads):
+            # The backend reads a non-positive count as unset in only some of
+            # its entry points, so the core count is filled in here.
+            num_threads = os.cpu_count() or 1
+        index = cls.__new__(cls)
+        _hnswlib.Index.__init__(index, {**graph, "num_threads": int(num_threads)})
+        index._num_vectors = int(graph["cur_element_count"])
+        index._build_params = {
+            "capacity": index._num_vectors,
+            "graph_degree": int(graph["M"]),
+            "build_candidates": int(graph["ef_construction"]),
+            "random_seed": int(graph["seed"]),
+        }
+        return index
+
+
+def _validate_graph_sizes(graph: Mapping[str, Any]) -> None:
+    """
+    Reject a graph whose arrays do not have the sizes its parameters imply.
+
+    The backend copies each array into buffers sized from the parameters, so a
+    mismatch would overrun them instead of raising.
+
+    :param graph: The graph's parameters and arrays.
+    :raises ValueError: If the graph has room for more vectors than it holds,
+        or one of its arrays has the wrong size.
+    """
+    num_vectors = int(graph["cur_element_count"])
+    capacity = int(graph["max_elements"])
+    if capacity != num_vectors:
+        raise ValueError(
+            f"The HNSW graph holds {num_vectors} vectors but has room for "
+            f"{capacity}, while an HnswIndex always fills its graph."
+        )
+    levels = np.asarray(graph["element_levels"], dtype=np.intc)
+    expected_sizes = {
+        "label_lookup_external": num_vectors,
+        "label_lookup_internal": num_vectors,
+        "element_levels": num_vectors,
+        "data_level0": num_vectors * int(graph["size_data_per_element"]),
+        "link_lists": int(graph["size_links_per_element"])
+        * int(np.clip(levels, 0, None).sum()),
+    }
+    wrong = sorted(
+        name
+        for name, size in expected_sizes.items()
+        if np.asarray(graph[name]).size != size
+    )
+    if wrong:
+        raise ValueError(
+            f"The HNSW graph's arrays {wrong} do not have the sizes its "
+            f"parameters imply."
+        )

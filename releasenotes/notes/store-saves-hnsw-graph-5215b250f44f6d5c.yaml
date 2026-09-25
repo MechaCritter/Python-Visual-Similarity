@@ -1,0 +1,22 @@
+---
+upgrade:
+  - |
+    Loading an ``InMemoryImageEmbeddingStore`` file saved by an earlier version
+    raises ``ValueError``. Build the store from its images again and save it.
+  - |
+    ``InMemoryImageEmbeddingStore.save_to_disk`` ignores ``embeddings`` on a
+    store on an HNSW graph and emits a ``FutureWarning``, since the file holds
+    the graph with the embeddings in it.
+performance:
+  - |
+    A store on an HNSW graph saves the graph and loads it back without building
+    it again. Loading a store of 100 000 embeddings of dimension 512 went from
+    22.7 s to 0.2 s, and saving it from 2.4 s to 0.2 s.
+
+    Specs: 16 threads, 30 GB RAM, Python 3.14.3,
+    NumPy 2.4.6, safetensors 0.8.0.
+fixes:
+  - |
+    A loaded HNSW store returns the same neighbors as the store that was saved.
+    Before, the graph was built again on load, which with several threads could
+    return different neighbors.
