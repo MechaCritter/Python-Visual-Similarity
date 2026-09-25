@@ -2,7 +2,9 @@
 upgrade:
   - |
     ``ExternalSearchIndex.from_faiss_index`` no longer takes ``vectors``, so
-    passing them raises ``TypeError``.
+    passing them raises ``TypeError``. For indexes that need the exact 
+    vectors for reconstruction, pass them to the constructor instead: 
+    ``ExternalSearchIndex(index, vectors)``.
   - |
     ``ExternalSearchIndex.from_faiss_index`` now raises ``ValueError`` for an
     IVF index that has no direct map. Call
