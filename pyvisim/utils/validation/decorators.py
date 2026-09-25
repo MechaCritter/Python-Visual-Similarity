@@ -21,6 +21,9 @@ def validate_params(
     """
     Check the arguments of the decorated function before it runs.
 
+    For more information and examples, see the documentation:
+    ``https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/validation/parameters_validation.md``.
+
     Each keyword names a parameter of the decorated function and maps it to a
     :class:`Param`, or to a bare type as a shorthand for ``Param(type)``. The
     arguments a caller passes are checked on every call. The defaults are
