@@ -8,9 +8,11 @@ from typing import Any, cast
 import numpy as np
 
 from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ....utils.validation import Param, validate_params
 from ._bindings import _hnswlib
 from ._params import HNSW_TO_HNSWLIB, as_backend_params
 from ._utils import (
+    SUPPORTED_SPACES,
     Space,
     as_decoded_gallery,
     as_gallery_matrix,
@@ -18,8 +20,6 @@ from ._utils import (
     as_query_matrix,
     is_explicit_thread_count,
     pad_results,
-    validate_k,
-    validate_space,
 )
 
 
@@ -50,6 +50,7 @@ class HnswIndex(_hnswlib.Index):
         non-empty 2-D matrix.
     """
 
+    @validate_params(space=Param(str, choices=SUPPORTED_SPACES))
     def __init__(
         self,
         vectors: FloatNumpyArray,
@@ -61,7 +62,6 @@ class HnswIndex(_hnswlib.Index):
         random_seed: int = 100,
         num_threads: int = -1,
     ) -> None:
-        validate_space(space)
         gallery = as_gallery_matrix(vectors)
         super().__init__(space, gallery.shape[1])
 
@@ -140,6 +140,7 @@ class HnswIndex(_hnswlib.Index):
             f"search_candidates={self.search_candidates})"
         )
 
+    @validate_params(k=Param(int, ge=1))
     def search(
         self,
         query_vectors: FloatNumpyArray,
@@ -159,10 +160,10 @@ class HnswIndex(_hnswlib.Index):
         :return: A ``(scores, ids)`` tuple of ``(M, k)`` arrays. ``ids`` are
             gallery row numbers; a gallery holding fewer than ``k`` vectors pads
             the free columns with the id ``-1``.
-        :raises ValueError: If ``k`` is not positive or the queries do not match
-            the indexed dimensionality.
+        :raises ValueError: If ``k`` is not a positive integer or the queries do
+            not match the indexed dimensionality.
         """
-        k = validate_k(k)
+        k = int(k)
         queries = as_query_matrix(query_vectors, self.dim)
         neighbors = min(k, self._num_vectors)
         if self.ef < neighbors:

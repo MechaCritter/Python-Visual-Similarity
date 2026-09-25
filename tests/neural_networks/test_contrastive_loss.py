@@ -39,14 +39,14 @@ def test_is_torch_module() -> None:
 @pytest.mark.parametrize("margin", [0.0, -0.5, -1.0])
 def test_non_positive_margin_raises(margin: float) -> None:
     """A zero or negative margin raises ``ValueError``."""
-    with pytest.raises(ValueError, match="margin must be > 0"):
+    with pytest.raises(ValueError, match="'margin' must be > 0"):
         ContrastiveLoss(margin=margin)
 
 
 @pytest.mark.parametrize("margin", [2.0001, 2.5, 100.0])
 def test_margin_above_two_raises(margin: float) -> None:
     """A margin above 2 is impossible for L2-normalized embeddings."""
-    with pytest.raises(ValueError, match="margin should be <= 2"):
+    with pytest.raises(ValueError, match="'margin' must be <= 2"):
         ContrastiveLoss(margin=margin)
 
 

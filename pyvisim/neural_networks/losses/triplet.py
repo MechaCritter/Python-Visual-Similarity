@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 from ...lazy_import import OptionalImport
+from ...utils.validation import Param, validate_params
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
@@ -135,6 +136,10 @@ class TripletLoss(torch.nn.Module):
         is not a supported strategy.
     """
 
+    @validate_params(
+        margin=Param(float, gt=0),
+        mining=Param(str, choices=_MINING_STRATEGIES),
+    )
     def __init__(
         self,
         margin: float = 0.2,
@@ -143,13 +148,6 @@ class TripletLoss(torch.nn.Module):
     ) -> None:
         _torch_import.check()
         super().__init__()
-        if margin <= 0:
-            raise ValueError(f"margin must be > 0, got {margin}.")
-        if mining not in _MINING_STRATEGIES:
-            raise ValueError(
-                f"Unsupported mining strategy: {mining!r}. "
-                f"Supported strategies: {', '.join(map(repr, _MINING_STRATEGIES))}."
-            )
         self.margin = margin
         self.mining = mining
         self.squared = squared

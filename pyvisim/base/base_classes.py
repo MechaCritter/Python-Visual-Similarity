@@ -20,6 +20,7 @@ from ..typing import (
     UInt8NumpyArray,
 )
 from ..utils.image_utils import grayscale_dims, iter_image_batches, iter_images
+from ..utils.validation import validate_params
 
 
 def _l2_normalize(vectors: FloatNumpyArray) -> FloatNumpyArray:
@@ -329,12 +330,9 @@ class ImageEmbedderBase(SimilarityMetric):
         return self._normalize
 
     @normalize.setter
+    @validate_params(normalize=bool)
     def normalize(self, normalize: bool) -> None:
         """Sets whether :meth:`embed` L2-normalizes the embeddings it returns."""
-        if not isinstance(normalize, bool):
-            raise ValueError(
-                f"normalize must be a boolean, got {type(normalize).__name__}."
-            )
         self._normalize = normalize
 
     @property

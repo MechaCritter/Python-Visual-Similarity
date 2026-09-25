@@ -8,12 +8,12 @@ from typing import Any, cast
 import numpy as np
 
 from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+from ....utils.validation import Param, validate_params
 from ._utils import (
     as_gallery_matrix,
     as_id_array,
     as_query_matrix,
     as_read_only,
-    validate_k,
 )
 
 #: Name reported by an index the caller did not name.
@@ -153,6 +153,7 @@ class ExternalSearchIndex:
             f"dim={self.dim})"
         )
 
+    @validate_params(k=Param(int, ge=1))
     def search(
         self,
         query_vectors: FloatNumpyArray,
@@ -168,10 +169,10 @@ class ExternalSearchIndex:
         :param k: Number of nearest neighbors to return per query.
         :return: A ``(scores, ids)`` tuple of ``(M, k)`` arrays. ``ids`` are
             gallery row numbers, and missing neighbors are reported as ``-1``.
-        :raises ValueError: If ``k`` is not positive or the queries do not match
-            the indexed dimensionality.
+        :raises ValueError: If ``k`` is not a positive integer or the queries do
+            not match the indexed dimensionality.
         """
-        k = validate_k(k)
+        k = int(k)
         queries = as_query_matrix(query_vectors, self.dim)
         scores, ids = self._index.search(queries, k)
         return (

@@ -14,37 +14,22 @@ import numpy as np
 from ...base import CANONICAL_DATA_RANGE, DenseMetricBase
 from ...typing import Float64NumpyArray
 from ...utils.cython_utils import get_kernel_threads
+from ...utils.validation import Param, validate_params
 from ._filters import _as_planes, gaussian_kernel
 from ._kernel._ssim_kernels import ssim_plane_sums
 
 __all__ = ["SSIM"]
 
 
-def _validate_window(window_size: int, sigma: float) -> None:
+def _validate_window(window_size: int) -> None:
     """
-    Validate the Gaussian window configuration.
+    Validate the Gaussian window size.
 
     :param window_size: Side length of the window, in pixels.
-    :param sigma: Standard deviation of the Gaussian window.
-    :raises ValueError: If ``window_size`` is not an odd integer >= 3 or
-        ``sigma`` is not positive.
+    :raises ValueError: If ``window_size`` is not an odd integer >= 3.
     """
     if window_size < 3 or window_size % 2 == 0:
         raise ValueError(f"window_size must be an odd integer >= 3, got {window_size}.")
-    if sigma <= 0:
-        raise ValueError(f"sigma must be > 0, got {sigma}.")
-
-
-def _validate_stabilizers(k1: float, k2: float) -> None:
-    """
-    Validate the SSIM stabilization constants.
-
-    :param k1: Luminance stabilization constant.
-    :param k2: Contrast stabilization constant.
-    :raises ValueError: If either constant is not positive.
-    """
-    if k1 <= 0 or k2 <= 0:
-        raise ValueError(f"k1 and k2 must be > 0, got k1={k1} and k2={k2}.")
 
 
 class SSIM(DenseMetricBase):
@@ -73,6 +58,12 @@ class SSIM(DenseMetricBase):
     :raises ValueError: If any parameter is outside its valid range.
     """
 
+    @validate_params(
+        window_size=int,
+        sigma=Param(float, gt=0),
+        k1=Param(float, gt=0),
+        k2=Param(float, gt=0),
+    )
     def __init__(
         self,
         window_size: int = 11,
@@ -83,8 +74,7 @@ class SSIM(DenseMetricBase):
         num_workers: int | None = None,
     ):
         super().__init__(batch_size=batch_size)
-        _validate_window(window_size, sigma)
-        _validate_stabilizers(k1, k2)
+        _validate_window(window_size)
         self._window_size = window_size
         self._sigma = sigma
         self._k1 = k1

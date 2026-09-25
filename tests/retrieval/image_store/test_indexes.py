@@ -265,7 +265,7 @@ def test_scores_rank_the_closest_first(vectors: np.ndarray) -> None:
 @pytest.mark.parametrize("index_cls", [HnswIndex, BruteForceIndex])
 def test_unknown_space_raises(vectors: np.ndarray, index_cls: type) -> None:
     """An unsupported metric space is rejected."""
-    with pytest.raises(ValueError, match="Unsupported space"):
+    with pytest.raises(ValueError, match="'space' must be one of"):
         index_cls(vectors, space="manhattan")
 
 
@@ -287,7 +287,7 @@ def test_non_matrix_gallery_raises(index_cls: type) -> None:
 def test_non_positive_k_raises(vectors: np.ndarray, index_cls: type) -> None:
     """``k`` must be a positive integer."""
     index = index_cls(vectors)
-    with pytest.raises(ValueError, match="positive integer"):
+    with pytest.raises(ValueError, match="'k' must be >= 1"):
         index.search(vectors[:1], k=0)
 
 
