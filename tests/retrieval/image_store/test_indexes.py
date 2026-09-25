@@ -149,6 +149,31 @@ def test_construction_leaves_the_callers_array_alone(vectors: np.ndarray) -> Non
     assert np.array_equal(vectors, original)
 
 
+@pytest.mark.parametrize("index_cls", [HnswIndex, BruteForceIndex])
+def test_later_changes_to_the_callers_array_do_not_reach_the_index(
+    vectors: np.ndarray, index_cls: type
+) -> None:
+    """Writing to the indexed array afterwards leaves the index unchanged."""
+    gallery = vectors.copy()
+    built = index_cls(gallery, space="l2")
+    updated = index_cls(vectors[:1], space="l2")
+    updated.update(gallery)
+    gallery[:] = 0.0
+    for index in (built, updated):
+        assert np.allclose(index.vectors, vectors, atol=1e-6)
+
+
+@pytest.mark.parametrize("index_cls", [HnswIndex, BruteForceIndex])
+def test_indexes_accept_a_read_only_gallery(
+    vectors: np.ndarray, index_cls: type
+) -> None:
+    """A read-only gallery, such as the one an index hands out, can be indexed."""
+    gallery = index_cls(vectors, space="l2").vectors
+    index = index_cls(gallery, space="l2")
+    index.update(gallery[:10])
+    assert np.allclose(index.vectors, vectors[:10], atol=1e-6)
+
+
 def test_cosine_index_stores_normalized_vectors(vectors: np.ndarray) -> None:
     """In cosine space the stored gallery is L2-normalised."""
     for index in (HnswIndex(vectors), BruteForceIndex(vectors)):
