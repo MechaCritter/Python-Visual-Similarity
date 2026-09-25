@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 
 import numpy as np
 import pytest
@@ -334,3 +335,85 @@ def test_update_keeps_the_hnsw_parameters(vectors: np.ndarray) -> None:
     assert index.build_candidates == 64
     assert index.search_candidates == 17
     assert index.max_elements == 10
+
+
+# Exporting and restoring the graph
+
+# Arrays of an exported graph whose size the restore checks.
+_GRAPH_ARRAYS = (
+    "label_lookup_external",
+    "label_lookup_internal",
+    "element_levels",
+    "data_level0",
+    "link_lists",
+)
+
+
+def test_restored_graph_searches_as_the_exported_one(vectors: np.ndarray) -> None:
+    """A graph restored from its export returns the same neighbors and vectors."""
+    index = HnswIndex(vectors, graph_degree=4, build_candidates=32)
+    restored = HnswIndex._from_graph(index._graph())
+    scores, ids = index.search(vectors, k=5)
+    restored_scores, restored_ids = restored.search(vectors, k=5)
+    assert np.array_equal(restored_ids, ids)
+    assert np.array_equal(restored_scores, scores)
+    assert np.array_equal(restored.vectors, index.vectors)
+
+
+def test_restored_graph_keeps_its_parameters(vectors: np.ndarray) -> None:
+    """The restored index reports the parameters the graph was built with."""
+    index = HnswIndex(
+        vectors, space="l2", graph_degree=8, build_candidates=64, random_seed=7
+    )
+    restored = HnswIndex._from_graph(index._graph())
+    assert len(restored) == len(index)
+    assert restored.dim == index.dim
+    assert restored.space == "l2"
+    assert restored.graph_degree == 8
+    assert restored.build_candidates == 64
+    assert restored.random_seed == 7
+
+
+def test_restored_graph_keeps_a_widened_search_width(vectors: np.ndarray) -> None:
+    """A search width widened by a large ``k`` survives the restore."""
+    index = HnswIndex(vectors, search_candidates=2)
+    index.search(vectors[:1], k=20)
+    restored = HnswIndex._from_graph(index._graph())
+    assert restored.search_candidates == index.search_candidates
+
+
+def test_exported_graph_leaves_the_thread_count_out(vectors: np.ndarray) -> None:
+    """The thread count is set by the restore, never read from the export."""
+    graph = HnswIndex(vectors, num_threads=3)._graph()
+    assert "num_threads" not in graph
+    assert HnswIndex._from_graph(graph).num_threads == os.cpu_count()
+    assert HnswIndex._from_graph(graph, num_threads=2).num_threads == 2
+
+
+def test_restored_graph_can_be_updated(vectors: np.ndarray) -> None:
+    """``update`` rebuilds a restored graph with its saved parameters."""
+    index = HnswIndex(vectors, graph_degree=8, build_candidates=64)
+    restored = HnswIndex._from_graph(index._graph())
+    restored.update(vectors[:10])
+    assert len(restored) == 10
+    assert restored.graph_degree == 8
+    assert restored.build_candidates == 64
+
+
+@pytest.mark.parametrize("name", _GRAPH_ARRAYS)
+def test_restore_rejects_an_array_of_the_wrong_size(
+    vectors: np.ndarray, name: str
+) -> None:
+    """An array one element too long is rejected before it reaches the backend."""
+    graph = HnswIndex(vectors)._graph()
+    graph[name] = np.concatenate([graph[name], np.zeros(1, dtype=graph[name].dtype)])
+    with pytest.raises(ValueError, match=name):
+        HnswIndex._from_graph(graph)
+
+
+def test_restore_rejects_spare_capacity(vectors: np.ndarray) -> None:
+    """A graph with room for more vectors than it holds is rejected."""
+    graph = HnswIndex(vectors)._graph()
+    graph["max_elements"] += 1
+    with pytest.raises(ValueError, match="room for"):
+        HnswIndex._from_graph(graph)
