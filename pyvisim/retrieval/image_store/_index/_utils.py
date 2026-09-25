@@ -1,11 +1,4 @@
-"""
-Shared array plumbing for the search indexes.
-
-The helpers here validate and shape the matrices that go into an index and come
-back out of it: the gallery matrix an index takes ownership of, the query batch
-handed to a nearest-neighbor search, and the fixed-width result arrays a search
-returns.
-"""
+"""Shared array plumbing for the search indexes."""
 
 from __future__ import annotations
 
@@ -16,10 +9,10 @@ import numpy as np
 
 from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
-#: Metric spaces the compiled indexes can be built for.
+# Metric spaces the compiled indexes can be built for.
 SUPPORTED_SPACES = ("cosine", "l2", "ip")
 
-#: Literal alias for the accepted ``space`` argument.
+# Literal alias for the accepted ``space`` argument.
 Space = Literal["cosine", "l2", "ip"]
 
 
@@ -34,10 +27,33 @@ def as_gallery_matrix(vectors: FloatNumpyArray) -> Float32NumpyArray:
     :return: A fresh contiguous ``(N, D)`` float32 matrix.
     :raises ValueError: If the vectors are not a non-empty 2-D matrix.
     """
-    # An unconditional copy: 'ascontiguousarray' would hand back the caller's
-    # own array whenever it already is a C-contiguous float32 matrix, and the
-    # index would then lock and normalise it in place.
-    gallery = np.array(vectors, dtype=np.float32, order="C", copy=True)
+    # An unconditional copy: 'asarray' would hand back the caller's own array
+    # whenever it already is a C-contiguous float32 matrix, and an index keeping
+    # the matrix would then lock the caller's array.
+    return _checked_gallery(np.array(vectors, dtype=np.float32, order="C", copy=True))
+
+
+def as_contiguous_gallery(vectors: FloatNumpyArray) -> Float32NumpyArray:
+    """
+    Shape the gallery vectors into a contiguous float32 matrix without copying
+    them when they already are one.
+
+    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
+    :return: The vectors as a contiguous ``(N, D)`` float32 matrix, which is the
+        caller's own array when no conversion was needed.
+    :raises ValueError: If the vectors are not a non-empty 2-D matrix.
+    """
+    return _checked_gallery(np.asarray(vectors, dtype=np.float32, order="C"))
+
+
+def _checked_gallery(gallery: Float32NumpyArray) -> Float32NumpyArray:
+    """
+    Check that a gallery matrix can be indexed.
+
+    :param gallery: The gallery matrix to check.
+    :return: The same matrix.
+    :raises ValueError: If the gallery is not a non-empty 2-D matrix.
+    """
     if gallery.ndim != 2:
         raise ValueError(
             "Gallery embeddings must form a 2-D (num_vectors, dim) matrix, got "
