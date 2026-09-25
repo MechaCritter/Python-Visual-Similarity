@@ -218,7 +218,7 @@ def test_mismatched_shapes_between_batches_raise(
         ({"weights": (0.5, float("inf"))}, "finite and > 0"),
         ({"window_size": 8}, "odd integer"),
         ({"sigma": -1.0}, "sigma"),
-        ({"k1": -0.01}, "k1 and k2"),
+        ({"k1": -0.01}, "'k1' must be > 0"),
     ],
 )
 def test_invalid_parameters_raise(kwargs: dict[str, object], match: str) -> None:

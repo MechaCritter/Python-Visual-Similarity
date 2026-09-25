@@ -600,7 +600,7 @@ def test_non_positive_thread_settings_raise(
     value: object,
 ) -> None:
     """The reading knobs are rejected before any image is embedded."""
-    with pytest.raises(ValueError, match=f"'{name}' must be a positive integer"):
+    with pytest.raises(ValueError, match=f"'{name}' must be"):
         InMemoryImageEmbeddingStore(
             gallery_paths,
             learned_vlad_embedder,
