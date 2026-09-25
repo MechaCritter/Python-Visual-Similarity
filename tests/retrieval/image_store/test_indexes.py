@@ -339,7 +339,7 @@ def test_update_keeps_the_hnsw_parameters(vectors: np.ndarray) -> None:
 
 # Exporting and restoring the graph
 
-#: Arrays of an exported graph whose size the restore checks.
+# Arrays of an exported graph whose size the restore checks.
 _GRAPH_ARRAYS = (
     "label_lookup_external",
     "label_lookup_internal",
