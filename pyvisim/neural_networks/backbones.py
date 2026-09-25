@@ -14,6 +14,7 @@ from PIL import Image
 from ..lazy_import import OptionalImport
 from ..typing import FloatNumpyArray, ImageInput, MatLike, UInt8NumpyArray
 from ..utils.image_utils import iter_image_batches
+from ..utils.validation import Param, validate_params
 from ._base import NeuralImageEmbedder
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
@@ -195,6 +196,7 @@ class BackboneWithHead(NeuralImageEmbedder):
         is not a supported similarity metric.
     """
 
+    @validate_params(embedding_dim=Param(int, gt=0))
     def __init__(
         self,
         backbone: str = "resnet18",
@@ -211,10 +213,6 @@ class BackboneWithHead(NeuralImageEmbedder):
             normalize=normalize,
             batch_size=batch_size,
         )
-        if embedding_dim <= 0:
-            raise ValueError(
-                f"embedding_dim must be a positive integer, got {embedding_dim}."
-            )
         self._backbone_name = backbone
         self._embedding_dim = embedding_dim
         self._backbone = self._get_backbone(backbone, pretrained=pretrained_backbone)

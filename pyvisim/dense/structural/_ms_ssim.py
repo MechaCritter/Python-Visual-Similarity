@@ -16,9 +16,10 @@ import numpy as np
 from ...base import CANONICAL_DATA_RANGE, DenseMetricBase
 from ...typing import Float64NumpyArray
 from ...utils.cython_utils import get_kernel_threads
+from ...utils.validation import Param, validate_params
 from ._filters import _as_planes, _downsample_planes, gaussian_kernel
 from ._kernel._ssim_kernels import ssim_plane_sums
-from ._ssim import _validate_stabilizers, _validate_window
+from ._ssim import _validate_window
 
 __all__ = ["MSSSIM"]
 
@@ -75,6 +76,12 @@ class MSSSIM(DenseMetricBase):
     :raises ValueError: If any parameter is outside its valid range.
     """
 
+    @validate_params(
+        window_size=int,
+        sigma=Param(float, gt=0),
+        k1=Param(float, gt=0),
+        k2=Param(float, gt=0),
+    )
     def __init__(
         self,
         weights: Sequence[float] = WANG_WEIGHTS,
@@ -86,8 +93,7 @@ class MSSSIM(DenseMetricBase):
         num_workers: int | None = None,
     ):
         super().__init__(batch_size=batch_size)
-        _validate_window(window_size, sigma)
-        _validate_stabilizers(k1, k2)
+        _validate_window(window_size)
         self._weights = _validate_weights(weights)
         self._window_size = window_size
         self._sigma = sigma

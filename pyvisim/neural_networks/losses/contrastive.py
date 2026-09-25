@@ -1,4 +1,5 @@
 from ...lazy_import import OptionalImport
+from ...utils.validation import Param, validate_params
 
 with OptionalImport(package="torch", extra="nn") as _torch_import:
     import torch
@@ -50,15 +51,10 @@ class ContrastiveLoss(torch.nn.Module):
     :raises ValueError: If ``margin`` is not strictly positive or is greater than 2.
     """
 
+    @validate_params(margin=Param(float, gt=0, le=2))
     def __init__(self, margin: float = 1.0) -> None:
         _torch_import.check()
         super().__init__()
-        if margin <= 0:
-            raise ValueError(f"margin must be > 0, got {margin}.")
-        if margin > 2:
-            raise ValueError(
-                f"margin should be <= 2 for L2-normalized embeddings, got {margin}."
-            )
         self.margin = margin
 
     def forward(
