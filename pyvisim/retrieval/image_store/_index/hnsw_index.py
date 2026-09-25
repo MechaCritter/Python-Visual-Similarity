@@ -15,8 +15,8 @@ from ._params import HNSW_TO_HNSWLIB, as_backend_params
 from ._utils import (
     SUPPORTED_SPACES,
     Space,
+    as_contiguous_gallery,
     as_decoded_gallery,
-    as_gallery_matrix,
     as_id_array,
     as_query_matrix,
     is_explicit_thread_count,
@@ -63,7 +63,7 @@ class HnswIndex(_hnswlib.Index):
         random_seed: int = 100,
         num_threads: int = -1,
     ) -> None:
-        gallery = as_gallery_matrix(vectors)
+        gallery = as_contiguous_gallery(vectors)
         super().__init__(space, gallery.shape[1])
 
         self._num_vectors = int(gallery.shape[0])
@@ -183,7 +183,7 @@ class HnswIndex(_hnswlib.Index):
         :raises ValueError: If the new gallery is not a non-empty 2-D matrix or
             its dimensionality differs from the indexed one.
         """
-        gallery = as_gallery_matrix(vectors)
+        gallery = as_contiguous_gallery(vectors)
         if gallery.shape[1] != self.dim:
             raise ValueError(
                 f"New vectors have dimensionality {gallery.shape[1]}, but the "
