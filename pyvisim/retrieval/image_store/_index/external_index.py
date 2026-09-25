@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import abc
 from collections.abc import Sequence
 from typing import Any, cast
 
@@ -62,12 +63,12 @@ class ExternalSearchIndex:
 
         self._index = index
         self._name = DEFAULT_EXTERNAL_NAME if name is None else str(name)
-        self._vectors = as_read_only(as_gallery_matrix(vectors))
+        self._gallery: _Gallery = _StoredGallery(vectors)
 
         indexed = getattr(index, "ntotal", None)
-        if indexed is not None and int(indexed) != self._vectors.shape[0]:
+        if indexed is not None and int(indexed) != len(self._gallery):
             raise ValueError(
-                f"The index holds {int(indexed)} vectors, but {self._vectors.shape[0]} "
+                f"The index holds {int(indexed)} vectors, but {len(self._gallery)} "
                 f"were passed alongside it."
             )
 
@@ -123,7 +124,7 @@ class ExternalSearchIndex:
     @property
     def vectors(self) -> Float32NumpyArray:
         """The ``(N, D)`` gallery matrix the index was built over, read-only."""
-        return self._vectors
+        return self._gallery.read_all()
 
     def vectors_at(self, ids: Sequence[int] | IntNumpyArray) -> Float32NumpyArray:
         """
@@ -136,15 +137,15 @@ class ExternalSearchIndex:
             non-integers, or names a row outside the gallery.
         """
         rows = as_id_array(ids, len(self))
-        return as_read_only(np.ascontiguousarray(self._vectors[rows]))
+        return self._gallery.read_rows(rows)
 
     @property
     def dim(self) -> int:
         """Dimensionality of the indexed vectors."""
-        return int(self._vectors.shape[1])
+        return self._gallery.dim
 
     def __len__(self) -> int:
-        return int(self._vectors.shape[0])
+        return len(self._gallery)
 
     def __repr__(self) -> str:
         return (
@@ -179,6 +180,60 @@ class ExternalSearchIndex:
             cast(Float32NumpyArray, np.asarray(scores, dtype=np.float32)),
             cast(IntNumpyArray, np.asarray(ids, dtype=np.intp)),
         )
+
+
+class _Gallery(abc.ABC):
+    """Source an :class:`ExternalSearchIndex` reads its gallery vectors from."""
+
+    @abc.abstractmethod
+    def __len__(self) -> int: ...
+
+    @property
+    @abc.abstractmethod
+    def dim(self) -> int:
+        """Dimensionality of the vectors."""
+
+    @abc.abstractmethod
+    def read_all(self) -> Float32NumpyArray:
+        """
+        Read the whole gallery.
+
+        :return: The ``(N, D)`` matrix, read-only.
+        """
+
+    @abc.abstractmethod
+    def read_rows(self, rows: IntNumpyArray) -> Float32NumpyArray:
+        """
+        Read the vectors under the given row numbers.
+
+        :param rows: Validated gallery row numbers, shape ``(n,)``.
+        :return: The ``(n, D)`` block of the requested vectors, read-only.
+        """
+
+
+class _StoredGallery(_Gallery):
+    """
+    Gallery vectors the adapter keeps a copy of.
+
+    :param vectors: The gallery vectors, shape ``(N, D)``.
+    :raises ValueError: If ``vectors`` is not a non-empty 2-D matrix.
+    """
+
+    def __init__(self, vectors: FloatNumpyArray) -> None:
+        self._matrix = as_read_only(as_gallery_matrix(vectors))
+
+    def __len__(self) -> int:
+        return int(self._matrix.shape[0])
+
+    @property
+    def dim(self) -> int:
+        return int(self._matrix.shape[1])
+
+    def read_all(self) -> Float32NumpyArray:
+        return self._matrix
+
+    def read_rows(self, rows: IntNumpyArray) -> Float32NumpyArray:
+        return as_read_only(np.ascontiguousarray(self._matrix[rows]))
 
 
 def _reconstruct_faiss_vectors(index: Any) -> Float32NumpyArray | None:
