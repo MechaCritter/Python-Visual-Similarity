@@ -13,15 +13,15 @@ from typing import Any, TypeAlias, get_args
 
 from ..._errors import InvalidParameterError
 
-#: A class, a tuple of classes or a union such as ``int | None``.
+# A class, a tuple of classes or a union such as ``int | None``.
 TypeSpec: TypeAlias = type | UnionType | tuple[type, ...]
 
-#: Abstract base classes checked in place of the built-in numeric types, so
-#: NumPy scalars pass as well. ``bool`` is still rejected for both.
+# Abstract base classes checked in place of the built-in numeric types, so
+# NumPy scalars pass as well. ``bool`` is still rejected for both.
 _NUMERIC_TOWER: dict[type, type] = {int: numbers.Integral, float: numbers.Real}
 
-#: Bound field, the operator shown in error messages and the comparison the
-#: argument has to satisfy against the bound.
+# Bound field, the operator shown in error messages and the comparison the
+# argument has to satisfy against the bound.
 _COMPARISONS: tuple[tuple[str, str, Callable[[Any, Any], Any]], ...] = (
     ("gt", ">", operator.gt),
     ("ge", ">=", operator.ge),
