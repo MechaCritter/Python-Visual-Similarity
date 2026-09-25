@@ -693,9 +693,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             index = _restored_index(state, index_name)
         return cls._from_components(
             paths=list(state["paths"]),
-            embeddings=np.asarray(
-                decode_array_node(state["embeddings"]), dtype=np.float32
-            ),
             embedder=embedder,
             index=index,
             index_name=index_name,
