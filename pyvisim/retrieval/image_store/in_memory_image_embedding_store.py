@@ -59,7 +59,7 @@ _INDEX_PARAM_TABLES: dict[str, dict[str, str]] = {
 # carries a rebuilt index instead of being forwarded to the embedder.
 _SEARCH_INDEX_KWARG = "search_index"
 
-# An index that reports how many vectors it holds.
+# All index classes the store uses
 _GalleryIndex = ExternalSearchIndex | HnswIndex | BruteForceIndex
 
 # Threads decoding image files while the embedder works on the previous batch.
