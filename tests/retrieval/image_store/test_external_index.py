@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tracemalloc
 from typing import Any
 
 import numpy as np
@@ -121,15 +122,72 @@ def test_search_rejects_a_non_positive_k(flat_index: Any, vectors: np.ndarray) -
         index.search(vectors[:1], k=0)
 
 
-def test_reconstructs_the_vectors_of_an_ivf_index(vectors: np.ndarray) -> None:
-    """An IVF-Flat index hands its vectors back as they were added."""
+def _ivf_index(vectors: np.ndarray) -> Any:
+    """An IVF-Flat index over the gallery, without a direct map.
+
+    :param vectors: the gallery matrix.
+    :returns: a trained and populated ``faiss.IndexIVFFlat``.
+    """
     quantizer = faiss.IndexFlatL2(vectors.shape[1])
     ivf = faiss.IndexIVFFlat(quantizer, vectors.shape[1], 4)
     ivf.train(vectors)
     ivf.add(vectors)
+    return ivf
+
+
+def test_ivf_index_without_a_direct_map_needs_explicit_vectors(
+    vectors: np.ndarray,
+) -> None:
+    """An IVF index that cannot look a row up asks for a direct map or vectors."""
+    ivf = _ivf_index(vectors)
+    with pytest.raises(ValueError, match="make_direct_map"):
+        ExternalSearchIndex.from_faiss_index(ivf)
+
+    index = ExternalSearchIndex.from_faiss_index(ivf, vectors)
+    assert np.allclose(index.vectors, vectors, atol=1e-6)
+
+
+def test_ivf_index_reads_its_vectors_after_a_direct_map(vectors: np.ndarray) -> None:
+    """An IVF-Flat index with a direct map hands its vectors back as added."""
+    ivf = _ivf_index(vectors)
+    faiss.extract_index_ivf(ivf).make_direct_map()
 
     index = ExternalSearchIndex.from_faiss_index(ivf)
     assert np.allclose(index.vectors, vectors, atol=1e-6)
+    assert np.allclose(index.vectors_at([7, 2]), vectors[[7, 2]], atol=1e-6)
+
+
+def test_reads_the_vectors_back_without_keeping_a_copy() -> None:
+    """Without explicit vectors, the adapter allocates no gallery of its own."""
+    gallery = np.random.default_rng(1).random((4000, 64), dtype=np.float32)
+    flat = faiss.IndexFlatIP(gallery.shape[1])
+    flat.add(gallery)
+
+    tracemalloc.start()
+    try:
+        before, _ = tracemalloc.get_traced_memory()
+        index = ExternalSearchIndex.from_faiss_index(flat)
+        after, _ = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert after - before < gallery.nbytes // 100
+    assert np.array_equal(index.vectors, gallery)
+
+
+def test_id_map_index_needs_explicit_vectors(vectors: np.ndarray) -> None:
+    """An ID-mapped index cannot look a row up, so it asks for its vectors."""
+    id_map = faiss.IndexIDMap(faiss.IndexFlatIP(vectors.shape[1]))
+    id_map.add_with_ids(vectors, np.arange(vectors.shape[0]))
+
+    with pytest.raises(ValueError, match="must be passed explicitly"):
+        ExternalSearchIndex.from_faiss_index(id_map)
+
+
+def test_rejects_an_empty_index() -> None:
+    """An index without vectors has no gallery to adapt."""
+    with pytest.raises(ValueError, match="empty gallery"):
+        ExternalSearchIndex.from_faiss_index(faiss.IndexFlatIP(8))
 
 
 def test_index_that_cannot_reconstruct_needs_explicit_vectors(

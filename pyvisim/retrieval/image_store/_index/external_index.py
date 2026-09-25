@@ -11,6 +11,7 @@ import numpy as np
 from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 from ....utils.validation import Param, validate_params
 from ._utils import (
+    as_decoded_gallery,
     as_gallery_matrix,
     as_id_array,
     as_query_matrix,
@@ -39,7 +40,8 @@ class ExternalSearchIndex:
         ``search(queries, k)`` returning a ``(scores, ids)`` pair of ``(M, k)``
         arrays whose ids are row numbers into ``vectors``.
     :param vectors: The gallery vectors the index was built over, shape
-        ``(N, D)``, in the order its ids refer to.
+        ``(N, D)``, in the order its ids refer to. The adapter keeps a copy of
+        them.
     :param name: Name identifying the index, kept across a save/load round trip
         so a store can be rebuilt on a matching one. If ``None``,
         :data:`DEFAULT_EXTERNAL_NAME` is used.
@@ -55,14 +57,7 @@ class ExternalSearchIndex:
         *,
         name: str | None = None,
     ) -> None:
-        if not callable(getattr(index, "search", None)):
-            raise AttributeError(
-                f"{type(index).__name__} has no 'search' method, so it cannot be "
-                f"used as a search index."
-            )
-
-        self._index = index
-        self._name = DEFAULT_EXTERNAL_NAME if name is None else str(name)
+        self._adopt(index, name)
         self._gallery: _Gallery = _StoredGallery(vectors)
 
         indexed = getattr(index, "ntotal", None)
@@ -81,11 +76,14 @@ class ExternalSearchIndex:
         name: str | None = None,
     ) -> ExternalSearchIndex:
         """
-        Adapt a FAISS index, reading its vectors back when it can produce them.
+        Adapt a FAISS index, reading its vectors back from it unless they are
+        passed.
 
-        An index that cannot reconstruct needs its vectors passed explicitly; so
-        does one whose reconstruction this cannot catch, since a few index
-        types abort the process instead of raising an error.
+        Without ``vectors``, the adapter keeps no copy of the gallery and reads
+        the vectors from the index whenever they are needed. This needs an
+        index that can look a vector up by its row, which an IVF index can only
+        do after ``faiss.extract_index_ivf(index).make_direct_map()``. Any other
+        index that cannot needs its vectors passed explicitly.
 
         Normalization, if any, must be done by the caller. An index built for
         ``METRIC_INNER_PRODUCT`` only ranks by cosine similarity if the vectors
@@ -94,22 +92,38 @@ class ExternalSearchIndex:
 
         :param index: The FAISS index to search through.
         :param vectors: The gallery vectors the index was built over, shape
-            ``(N, D)``. Reconstructed from the index when omitted.
+            ``(N, D)``. If ``None``, they are read back from the index whenever
+            they are needed.
         :param name: Name identifying the index. If ``None``,
             :data:`DEFAULT_EXTERNAL_NAME` is used.
         :return: An :class:`ExternalSearchIndex` around ``index``.
-        :raises ValueError: If ``vectors`` is omitted and the index cannot
-            reconstruct them, or the index reports a different size.
+        :raises ValueError: If ``vectors`` is omitted and the index is empty or
+            cannot look its vectors up by row, or the index reports a different
+            size.
         """
-        if vectors is None:
-            vectors = _reconstruct_faiss_vectors(index)
-        if vectors is None:
-            raise ValueError(
-                f"{type(index).__name__} cannot reconstruct its vectors, so they "
-                f"must be passed explicitly: "
-                f"ExternalSearchIndex.from_faiss_index(index, vectors)."
+        if vectors is not None:
+            return cls(index, vectors, name=name)
+        adapter = cls.__new__(cls)
+        adapter._adopt(index, name)
+        adapter._gallery = _FaissGallery(index)
+        return adapter
+
+    def _adopt(self, index: Any, name: str | None) -> None:
+        """
+        Take over the index to search through and the name identifying it.
+
+        :param index: The index to search through.
+        :param name: Name identifying the index. If ``None``,
+            :data:`DEFAULT_EXTERNAL_NAME` is used.
+        :raises AttributeError: If ``index`` has no ``search`` method.
+        """
+        if not callable(getattr(index, "search", None)):
+            raise AttributeError(
+                f"{type(index).__name__} has no 'search' method, so it cannot be "
+                f"used as a search index."
             )
-        return cls(index, vectors, name=name)
+        self._index = index
+        self._name = DEFAULT_EXTERNAL_NAME if name is None else str(name)
 
     @property
     def index(self) -> Any:
@@ -123,7 +137,12 @@ class ExternalSearchIndex:
 
     @property
     def vectors(self) -> Float32NumpyArray:
-        """The ``(N, D)`` gallery matrix the index was built over, read-only."""
+        """
+        The ``(N, D)`` gallery matrix the index was built over, read-only.
+
+        An adapter that :meth:`from_faiss_index` created without ``vectors``
+        decodes it from the index on every access.
+        """
         return self._gallery.read_all()
 
     def vectors_at(self, ids: Sequence[int] | IntNumpyArray) -> Float32NumpyArray:
@@ -236,15 +255,67 @@ class _StoredGallery(_Gallery):
         return as_read_only(np.ascontiguousarray(self._matrix[rows]))
 
 
-def _reconstruct_faiss_vectors(index: Any) -> Float32NumpyArray | None:
-    """Read a FAISS index's vectors back, if it is able to produce them."""
-    ntotal = getattr(index, "ntotal", None)
-    if ntotal is None:
-        return None
+class _FaissGallery(_Gallery):
+    """
+    Gallery vectors a FAISS index decodes from its own storage on every read.
+
+    :param index: The FAISS index holding the gallery.
+    :raises ValueError: If the index is empty or cannot look its vectors up
+        by row.
+    """
+
+    def __init__(self, index: Any) -> None:
+        self._index = index
+        self._num_vectors = _faiss_gallery_size(index)
+        self._dim = int(index.d)
+
+    def __len__(self) -> int:
+        return self._num_vectors
+
+    @property
+    def dim(self) -> int:
+        return self._dim
+
+    def read_all(self) -> Float32NumpyArray:
+        return as_decoded_gallery(self._index.reconstruct_n(0, self._num_vectors))
+
+    def read_rows(self, rows: IntNumpyArray) -> Float32NumpyArray:
+        return as_decoded_gallery(self._index.reconstruct_batch(rows))
+
+
+def _faiss_gallery_size(index: Any) -> int:
+    """
+    Count the vectors of a FAISS index after checking it can look them up by row.
+
+    :param index: The FAISS index.
+    :return: Number of vectors the index holds.
+    :raises ValueError: If the index is empty or cannot look its vectors up by
+        row.
+    """
+    num_vectors = getattr(index, "ntotal", None)
+    if num_vectors is not None and int(num_vectors) == 0:
+        raise ValueError("Cannot build an index from an empty gallery.")
+    if num_vectors is None or not _looks_up_rows(index):
+        raise ValueError(
+            f"{type(index).__name__} cannot look its vectors up by row, so they "
+            f"must be passed explicitly: "
+            f"ExternalSearchIndex.from_faiss_index(index, vectors). An IVF index "
+            f"can do so after faiss.extract_index_ivf(index).make_direct_map()."
+        )
+    return int(num_vectors)
+
+
+def _looks_up_rows(index: Any) -> bool:
+    """
+    Check whether a FAISS index can decode a stored vector from its row.
+
+    :param index: The FAISS index, holding at least one vector.
+    :return: ``True`` if the vector in row ``0`` could be decoded.
+    """
     try:
-        vectors = index.reconstruct_n(0, int(ntotal))
+        index.reconstruct_batch(np.zeros(1, dtype=np.int64))
     except (AttributeError, RuntimeError, TypeError):
         # Not every index keeps its vectors around: a purely compressed index
         # has none to give back, and an IVF index needs a direct map first.
-        return None
-    return cast(Float32NumpyArray, np.asarray(vectors, dtype=np.float32))
+        return False
+    return True

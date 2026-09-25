@@ -1,0 +1,15 @@
+---
+upgrade:
+  - |
+    ``ExternalSearchIndex.from_faiss_index`` without ``vectors`` now raises
+    ``ValueError`` for an IVF index that has no direct map. Call
+    ``faiss.extract_index_ivf(index).make_direct_map()`` first, or pass the
+    vectors explicitly.
+performance:
+  - |
+    ``ExternalSearchIndex.from_faiss_index`` without ``vectors`` no longer
+    keeps a copy of the gallery and reads the vectors from the FAISS index
+    instead. For 500 000 vectors of dimension 512 the adapter's peak memory
+    went from 1952 MB to 0 MB and its steady memory from 977 MB to 0 MB.
+
+    Specs: 16 threads, 30 GB RAM, Python 3.14.3, NumPy 2.5.3, faiss-cpu 1.15.0.
