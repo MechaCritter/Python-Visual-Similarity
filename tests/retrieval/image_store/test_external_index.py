@@ -143,7 +143,7 @@ def test_ivf_index_without_a_direct_map_needs_explicit_vectors(
     with pytest.raises(ValueError, match="make_direct_map"):
         ExternalSearchIndex.from_faiss_index(ivf)
 
-    index = ExternalSearchIndex.from_faiss_index(ivf, vectors)
+    index = ExternalSearchIndex(ivf, vectors)
     assert np.allclose(index.vectors, vectors, atol=1e-6)
 
 
@@ -158,7 +158,7 @@ def test_ivf_index_reads_its_vectors_after_a_direct_map(vectors: np.ndarray) -> 
 
 
 def test_reads_the_vectors_back_without_keeping_a_copy() -> None:
-    """Without explicit vectors, the adapter allocates no gallery of its own."""
+    """The adapter of a FAISS index allocates no gallery of its own."""
     gallery = np.random.default_rng(1).random((4000, 64), dtype=np.float32)
     flat = faiss.IndexFlatIP(gallery.shape[1])
     flat.add(gallery)
@@ -213,7 +213,7 @@ def test_index_that_cannot_reconstruct_needs_explicit_vectors(
     with pytest.raises(ValueError, match="must be passed explicitly"):
         ExternalSearchIndex.from_faiss_index(_NoReconstruct())
 
-    index = ExternalSearchIndex.from_faiss_index(_NoReconstruct(), vectors)
+    index = ExternalSearchIndex(_NoReconstruct(), vectors)
     assert np.allclose(index.vectors, vectors, atol=1e-6)
 
 
@@ -233,14 +233,14 @@ def test_explicit_vectors_win_over_reconstruction(
 ) -> None:
     """Passed vectors are kept as they are, without a reconstruction."""
     passed = vectors * 2.0
-    index = ExternalSearchIndex.from_faiss_index(flat_index, passed)
+    index = ExternalSearchIndex(flat_index, passed)
     assert np.allclose(index.vectors, passed, atol=1e-6)
 
 
 def test_rejects_a_size_mismatch(flat_index: Any, vectors: np.ndarray) -> None:
     """Vectors that do not cover the whole index are rejected."""
     with pytest.raises(ValueError, match="vectors, but"):
-        ExternalSearchIndex.from_faiss_index(flat_index, vectors[:5])
+        ExternalSearchIndex(flat_index, vectors[:5])
 
 
 def test_rejects_an_index_without_search(vectors: np.ndarray) -> None:
