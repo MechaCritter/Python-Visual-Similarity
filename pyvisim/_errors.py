@@ -13,6 +13,15 @@ class NotFittedError(ValueError, AttributeError):
     """
 
 
+class InvalidParameterError(ValueError, TypeError):
+    """
+    Raised when an argument has the wrong type or lies outside its valid range.
+
+    Inherits from both :class:`ValueError` and :class:`TypeError`, so an
+    ``except`` clause written for either one keeps catching it.
+    """
+
+
 class InvalidImageError(Exception):
     """
     Raised when an image is not provided.
