@@ -1,0 +1,8 @@
+---
+performance:
+  - |
+    Building or updating an ``HnswIndex`` no longer copies the gallery first,
+    which saves one gallery of peak memory. For 500 000 vectors of dimension
+    512 the extra peak went from 2097 MB to 1120 MB.
+
+    Specs: 16 threads, 30 GB RAM, Python 3.14.3, NumPy 2.5.3.
