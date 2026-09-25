@@ -7,7 +7,6 @@ from __future__ import annotations
 import functools
 import itertools
 import math
-import numbers
 import pathlib
 import warnings
 from collections import deque
@@ -31,6 +30,7 @@ from ...typing import (
     SearchIndex,
     UInt8NumpyArray,
 )
+from ...utils.validation import Param, validate_params
 from ..data import Candidate
 from ._index import (
     BRUTE_FORCE_TO_HNSWLIB,
@@ -229,6 +229,10 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         }
     )
 
+    @validate_params(
+        num_workers=Param(int, ge=1),
+        num_prefetch_batches=Param(int, ge=1),
+    )
     def __init__(
         self,
         image_paths: Iterable[str],
@@ -242,14 +246,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         num_prefetch_batches: int = _DEFAULT_NUM_PREFETCH_BATCHES,
         lazy_build: bool = True,
     ) -> None:
-        if not isinstance(num_workers, int) or num_workers < 1:
-            raise ValueError(
-                f"'num_workers' must be a positive integer, got {num_workers!r}."
-            )
-        if not isinstance(num_prefetch_batches, int) or num_prefetch_batches < 1:
-            raise ValueError(
-                f"'num_prefetch_batches' must be a positive integer, got {num_prefetch_batches!r}."
-            )
         _validate_search_index(search_index)
 
         self._embedder = embedder
@@ -483,6 +479,10 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         )
 
     @_requires_built_store
+    @validate_params(
+        expansion_alpha=Param(float, ge=0, lt=math.inf),
+        expansion_neighbors=Param(int, ge=1),
+    )
     def retrieve_top_k_similar(
         self,
         query_images: ImageInput,
@@ -544,7 +544,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             Analysis and Machine Intelligence, vol. 41, no. 7, pp. 1655-1668,
             2019.
         """
-        _validate_expansion_params(expansion_alpha, expansion_neighbors)
         # ``embedder.embed`` returns one row per query image, in input order, so
         # the whole batch is searched at once: an index answers one ``(M, D)``
         # matrix far faster than a per-query loop.
@@ -754,34 +753,6 @@ def _build_index(
     if index_name == _HNSW:
         return HnswIndex(embeddings, space=space, **index_params)
     return BruteForceIndex(embeddings, space=space, **index_params)
-
-
-def _validate_expansion_params(alpha: float, num_neighbors: int) -> None:
-    """
-    Reject query expansion parameters the expansion cannot run with.
-
-    :param alpha: Exponent of the similarity weights.
-    :param num_neighbors: Top-ranked gallery images averaged into a query.
-    :raises ValueError: If ``alpha`` is not a finite non-negative number or
-        ``num_neighbors`` is not a positive integer.
-    """
-    if (
-        isinstance(alpha, bool)
-        or not isinstance(alpha, numbers.Real)
-        or not math.isfinite(alpha)
-        or alpha < 0
-    ):
-        raise ValueError(
-            f"'expansion_alpha' must be a finite non-negative number, got {alpha!r}."
-        )
-    if (
-        isinstance(num_neighbors, bool)
-        or not isinstance(num_neighbors, numbers.Integral)
-        or num_neighbors < 1
-    ):
-        raise ValueError(
-            f"'expansion_neighbors' must be a positive integer, got {num_neighbors!r}."
-        )
 
 
 def _unit_rows(matrix: FloatNumpyArray) -> Float64NumpyArray:

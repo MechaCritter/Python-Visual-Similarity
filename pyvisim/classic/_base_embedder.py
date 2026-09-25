@@ -15,6 +15,7 @@ from ..typing import (
     UInt8NumpyArray,
 )
 from ..utils.image_utils import iter_image_batches
+from ..utils.validation import Param, validate_params
 from ._clustering import PCA, ClusteringModelBase
 
 _ClusteringEmbedderT = TypeVar("_ClusteringEmbedderT", bound="ClusteringBasedEmbedder")
@@ -260,6 +261,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
     def pca(self) -> PCA | None:
         return self._pca
 
+    @validate_params(pca=PCA)
     def _set_pca(self, pca: PCA) -> None:
         """
         Validates and stores the given PCA model.
@@ -268,10 +270,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :raises ValueError: If ``pca`` is not a ``PCA`` instance or its dimensions are
             incompatible with the feature extractor or clustering model.
         """
-        if not isinstance(pca, PCA):
-            raise ValueError(
-                f"The PCA model must be an instance of pyvisim.classic._clustering.PCA, not {type(pca)}"
-            )
         if not pca.is_fitted:
             self._pca = pca
             return
@@ -368,6 +366,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         """
         raise NotImplementedError
 
+    @validate_params(dim_reduction_factor=Param(int | None, ge=1))
     def learn(
         self,
         images: ImageInput,
@@ -400,10 +399,6 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :raises RuntimeError: If the embedder has no clustering model configured.
         :raises ValueError: If dim_reduction_factor is provided but is not a positive integer.
         """
-        if dim_reduction_factor is not None and (
-            dim_reduction_factor <= 0 or not isinstance(dim_reduction_factor, int)
-        ):
-            raise ValueError("dim_reduction_factor must be a positive integer.")
         if self._clustering_model is None:
             raise RuntimeError(
                 "This embedder has no clustering model to fit. "

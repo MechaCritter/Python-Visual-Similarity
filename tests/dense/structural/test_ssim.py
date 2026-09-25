@@ -221,8 +221,8 @@ def test_mixed_shapes_within_batch_raise(
         ({"window_size": 4}, "odd integer"),
         ({"window_size": 1}, "odd integer"),
         ({"sigma": 0.0}, "sigma"),
-        ({"k1": 0.0}, "k1 and k2"),
-        ({"k2": -0.03}, "k1 and k2"),
+        ({"k1": 0.0}, "'k1' must be > 0"),
+        ({"k2": -0.03}, "'k2' must be > 0"),
     ],
 )
 def test_invalid_parameters_raise(kwargs: dict[str, float], match: str) -> None:
