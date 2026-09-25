@@ -117,7 +117,7 @@ def test_search_rejects_a_wrong_dimensionality(
 def test_search_rejects_a_non_positive_k(flat_index: Any, vectors: np.ndarray) -> None:
     """``k`` must be a positive integer."""
     index = ExternalSearchIndex.from_faiss_index(flat_index)
-    with pytest.raises(ValueError, match="positive integer"):
+    with pytest.raises(ValueError, match="'k' must be >= 1"):
         index.search(vectors[:1], k=0)
 
 

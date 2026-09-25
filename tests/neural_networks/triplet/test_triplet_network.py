@@ -67,7 +67,7 @@ def test_head_input_matches_backbone_output_dim() -> None:
 
 def test_non_positive_embedding_dim_raises() -> None:
     """A zero or negative embedding dimensionality raises ``ValueError``."""
-    with pytest.raises(ValueError, match="embedding_dim must be a positive integer"):
+    with pytest.raises(ValueError, match="'embedding_dim' must be > 0"):
         build_stub_triplet_model(MeanBackbone(), embedding_dim=0)
 
 
