@@ -29,14 +29,14 @@ from pyvisim.retrieval.image_store.in_memory_image_embedding_store import (
     _decoded_images,
 )
 
-#: Images the reading measurement decodes.
+# Images the reading measurement decodes.
 _TIMED_GALLERY_SIZE = 24
-#: Side length of those images, sized so that decoding one costs far more than
-#: the thread hand-off around it.
+# Side length of those images, sized so that decoding one costs far more than
+# the thread hand-off around it.
 _TIMED_IMAGE_SIDE = 1024
-#: Times each worker count is measured.
+# Times each worker count is measured.
 _TIMING_ROUNDS = 3
-#: Speed-up two reading threads must reach over a single one.
+# Speed-up two reading threads must reach over a single one.
 _MIN_SPEED_UP = 1.4
 
 
@@ -727,7 +727,7 @@ def test_duplicate_paths_are_dropped(
 # Lazy building
 
 
-#: Members that read the index, each paired with a call that reads it.
+# Members that read the index, each paired with a call that reads it.
 _MEMBERS_NEEDING_A_BUILT_STORE = [
     ("embeddings", lambda store: store.embeddings),
     ("index", lambda store: store.index),
@@ -899,6 +899,17 @@ def test_save_load_preserves_embeddings(
     loaded = InMemoryImageEmbeddingStore.load_from_disk(store.save_to_disk(target))
     assert loaded.embeddings.shape == store.embeddings.shape
     assert np.allclose(loaded.embeddings, store.embeddings, atol=1e-6)
+
+
+def test_from_dict_rebuilds_the_store_to_dict_describes(
+    store: InMemoryImageEmbeddingStore, hnsw_store: InMemoryImageEmbeddingStore
+) -> None:
+    """A state from ``to_dict`` rebuilds the store without going through a file."""
+    for original in (store, hnsw_store):
+        rebuilt = InMemoryImageEmbeddingStore.from_dict(original.to_dict())
+        assert rebuilt.paths == original.paths
+        assert type(rebuilt.index) is type(original.index)
+        assert np.allclose(rebuilt.embeddings, original.embeddings, atol=1e-6)
 
 
 def test_save_accepts_replacement_embeddings(
