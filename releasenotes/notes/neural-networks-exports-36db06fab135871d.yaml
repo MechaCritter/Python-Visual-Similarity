@@ -1,0 +1,15 @@
+---
+upgrade:
+  - |
+    ``pyvisim.neural_networks`` no longer re-exports ``DeepConvFeature``, so
+    ``from pyvisim.neural_networks import DeepConvFeature`` now raises
+    ``ImportError``. Import the class from ``pyvisim.neural_networks.features``
+    instead:
+
+    .. code:: python
+
+        # before
+        from pyvisim.neural_networks import DeepConvFeature
+
+        # after
+        from pyvisim.neural_networks.features import DeepConvFeature
