@@ -1,11 +1,4 @@
-"""
-Shared array plumbing for the search indexes.
-
-The helpers here validate and shape the matrices that go into an index and come
-back out of it: the gallery matrix an index is built from, the query batch
-handed to a nearest-neighbor search, and the fixed-width result arrays a search
-returns.
-"""
+"""Shared array plumbing for the search indexes."""
 
 from __future__ import annotations
 
@@ -16,10 +9,10 @@ import numpy as np
 
 from ....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 
-#: Metric spaces the compiled indexes can be built for.
+# Metric spaces the compiled indexes can be built for.
 SUPPORTED_SPACES = ("cosine", "l2", "ip")
 
-#: Literal alias for the accepted ``space`` argument.
+# Literal alias for the accepted ``space`` argument.
 Space = Literal["cosine", "l2", "ip"]
 
 
