@@ -21,9 +21,9 @@ mentioned above (for example, ``scikit-image`` + ``opencv-python`` for ``Fisher
 Vectors``, ``SSIM``, ``open-clip`` for ``CLIP Embedder``, and ``faiss`` for
 **Approximate Nearest Neighbors Search**). ``pyvisim`` attempts to close this
 gap by implementing as many metrics as possible using only ``numpy``, ``scipy``
-(for conventional metrics), and ``torch`` (for deep learning metrics) as core
-dependencies, plus making them more user-friendly with a simple Object-Oriented
-code design.
+(for conventional metrics), and optionally ``torch`` (for deep learning metrics)
+as core dependencies, plus making them more user-friendly with a simple
+Object-Oriented code design.
 
 Installation
 ------------
