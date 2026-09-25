@@ -45,9 +45,8 @@ Example
    - **The scores stay the index's own.** An L2 index returns distances (lower
      is better), an inner-product index returns similarities (higher is
      better).
-   - **An IVF index needs a direct map.** Without explicit vectors,
-     ``from_faiss_index`` reads them back from the index by row, which an IVF
-     index can only do after
+   - **An IVF index needs a direct map.** ``from_faiss_index`` reads the
+     vectors back from the index by row, which an IVF index can only do after
      ``faiss.extract_index_ivf(faiss_index).make_direct_map()``.
    - **Since some external indexes are lossy, reconstruction is not always
      possible.** In such cases, the original vectors must be passed explicitly

@@ -71,19 +71,16 @@ class ExternalSearchIndex:
     def from_faiss_index(
         cls,
         index: Any,
-        vectors: FloatNumpyArray | None = None,
         *,
         name: str | None = None,
     ) -> ExternalSearchIndex:
         """
-        Adapt a FAISS index, reading its vectors back from it unless they are
-        passed.
+        Adapt a FAISS index, reading its vectors back from it.
 
-        Without ``vectors``, the adapter keeps no copy of the gallery and reads
-        the vectors from the index whenever they are needed. This needs an
-        index that can look a vector up by its row, which an IVF index can only
-        do after ``faiss.extract_index_ivf(index).make_direct_map()``. Any other
-        index that cannot needs its vectors passed explicitly.
+        .. important::
+           To read from an `IVF <https://github.com/facebookresearch/faiss/wiki/Faiss-indexes>`_
+           index, call ``faiss.extract_index_ivf(faiss_index).make_direct_map()`` first.
+           Otherwise, reconstruction will fail.
 
         Normalization, if any, must be done by the caller. An index built for
         ``METRIC_INNER_PRODUCT`` only ranks by cosine similarity if the vectors
@@ -91,18 +88,12 @@ class ExternalSearchIndex:
         :meth:`search` must be normalised the same way.
 
         :param index: The FAISS index to search through.
-        :param vectors: The gallery vectors the index was built over, shape
-            ``(N, D)``. If ``None``, they are read back from the index whenever
-            they are needed.
         :param name: Name identifying the index. If ``None``,
             :data:`DEFAULT_EXTERNAL_NAME` is used.
         :return: An :class:`ExternalSearchIndex` around ``index``.
-        :raises ValueError: If ``vectors`` is omitted and the index is empty or
-            cannot look its vectors up by row, or the index reports a different
-            size.
+        :raises ValueError: If the index is empty or cannot look its vectors up
+            by row.
         """
-        if vectors is not None:
-            return cls(index, vectors, name=name)
         adapter = cls.__new__(cls)
         adapter._adopt(index, name)
         adapter._gallery = _FaissGallery(index)
@@ -140,8 +131,8 @@ class ExternalSearchIndex:
         """
         The ``(N, D)`` gallery matrix the index was built over, read-only.
 
-        An adapter that :meth:`from_faiss_index` created without ``vectors``
-        decodes it from the index on every access.
+        An adapter that :meth:`from_faiss_index` created decodes it from the
+        index on every access.
         """
         return self._gallery.read_all()
 
@@ -299,7 +290,7 @@ def _faiss_gallery_size(index: Any) -> int:
         raise ValueError(
             f"{type(index).__name__} cannot look its vectors up by row, so they "
             f"must be passed explicitly: "
-            f"ExternalSearchIndex.from_faiss_index(index, vectors). An IVF index "
+            f"ExternalSearchIndex(index, vectors). An IVF index "
             f"can do so after faiss.extract_index_ivf(index).make_direct_map()."
         )
     return int(num_vectors)
