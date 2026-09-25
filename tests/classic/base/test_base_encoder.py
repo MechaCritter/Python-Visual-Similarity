@@ -56,7 +56,7 @@ def test_similarity_func_rejects_unknown_name() -> None:
 
 def test_normalize_rejects_non_boolean() -> None:
     """A non-boolean ``normalize`` raises ``ValueError``."""
-    with pytest.raises(ValueError, match="normalize must be a boolean"):
+    with pytest.raises(ValueError, match="'normalize' must be of type bool"):
         VLADEmbedder(n_clusters=8, normalize=1)  # type: ignore[arg-type]
 
 
@@ -210,7 +210,7 @@ def test_learn_bad_dim_reduction_factor_zero(
 ) -> None:
     """A zero ``dim_reduction_factor`` raises ``ValueError``."""
     embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
-    with pytest.raises(ValueError, match="must be a positive integer"):
+    with pytest.raises(ValueError, match="'dim_reduction_factor' must be >= 1"):
         embedder.learn(category_train_images_flat, dim_reduction_factor=0)
 
 
@@ -219,7 +219,7 @@ def test_learn_bad_dim_reduction_factor_negative(
 ) -> None:
     """A negative ``dim_reduction_factor`` raises ``ValueError``."""
     embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
-    with pytest.raises(ValueError, match="must be a positive integer"):
+    with pytest.raises(ValueError, match="'dim_reduction_factor' must be >= 1"):
         embedder.learn(category_train_images_flat, dim_reduction_factor=-2)
 
 

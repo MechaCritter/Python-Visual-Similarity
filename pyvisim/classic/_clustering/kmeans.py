@@ -8,6 +8,7 @@ import numpy as np
 from scipy.cluster.vq import kmeans, vq
 
 from ...typing import FloatNumpyArray, IntNumpyArray
+from ...utils.validation import Param, validate_params
 from ._base_clustering import ClusteringModelBase
 
 _KMeansT = TypeVar("_KMeansT", bound="KMeans")
@@ -110,11 +111,13 @@ class KMeans(ClusteringModelBase):
         finite numbers. Disabling may give a performance gain.
     :param rng: Seed (int) or :class:`numpy.random.Generator` for
         reproducible fitting.
-    :raises ValueError: If ``n_clusters`` or ``n_init`` is not positive.
+    :raises ValueError: If ``n_clusters`` or ``n_init`` is not a positive
+        integer.
     """
 
     __format_version__: ClassVar[int] = 1
 
+    @validate_params(n_clusters=Param(int, ge=1), n_init=Param(int, ge=1))
     def __init__(
         self,
         n_clusters: int = 256,
@@ -124,10 +127,6 @@ class KMeans(ClusteringModelBase):
         check_finite: bool = True,
         rng: int | np.random.Generator | None = None,
     ) -> None:
-        if n_clusters < 1:
-            raise ValueError(f"n_clusters must be positive, got {n_clusters}.")
-        if n_init < 1:
-            raise ValueError(f"n_init must be positive, got {n_init}.")
         self._n_clusters = int(n_clusters)
         self._n_init = int(n_init)
         self._thresh = thresh

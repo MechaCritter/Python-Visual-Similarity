@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from .typing import Float64NumpyArray, FloatNumpyArray
+from .utils.validation import Param, validate_params
 
 __all__ = ["cosine_similarity", "euclidean_distances", "manhattan_distances"]
 
@@ -137,6 +138,7 @@ def euclidean_distances(x: FloatNumpyArray, y: FloatNumpyArray) -> Float64NumpyA
     return result
 
 
+@validate_params(working_memory_bytes=Param(int | None, gt=0))
 def manhattan_distances(
     x: FloatNumpyArray,
     y: FloatNumpyArray,
@@ -160,10 +162,6 @@ def manhattan_distances(
     """
     if working_memory_bytes is None:
         working_memory_bytes = _WORKING_MEMORY_BYTES
-    elif working_memory_bytes <= 0:
-        raise ValueError(
-            f"working_memory_bytes must be positive. Got {working_memory_bytes}."
-        )
     x, y = _validate_pairwise_inputs(x, y)
     n_rows = x.shape[0]
     bytes_per_row = y.size * np.float64().itemsize

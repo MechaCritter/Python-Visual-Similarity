@@ -7,6 +7,7 @@ from ..typing import (
     Float32NumpyArray,
     IntNumpyArray,
 )
+from ..utils.validation import validate_params
 from ._base_embedder import ClusteringBasedEmbedder
 from ._clustering import PCA, ClusteringModelBase, KMeans
 
@@ -178,11 +179,8 @@ class VLADEmbedder(ClusteringBasedEmbedder):
     def clustering_model(self) -> KMeans:
         return cast(KMeans, self._clustering_model)
 
+    @validate_params(clustering_model=KMeans)
     def _set_clustering_model(self, clustering_model: ClusteringModelBase) -> None:
-        if not isinstance(clustering_model, KMeans):
-            raise ValueError(
-                f"The clustering model must be an instance of pyvisim.classic._clustering.KMeans, not {type(clustering_model)}"
-            )
         super()._set_clustering_model(clustering_model)
 
     def _encode_batch(

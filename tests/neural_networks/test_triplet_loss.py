@@ -50,13 +50,13 @@ def test_is_torch_module() -> None:
 @pytest.mark.parametrize("margin", [0.0, -0.5, -1.0])
 def test_non_positive_margin_raises(margin: float) -> None:
     """A zero or negative margin raises ``ValueError``."""
-    with pytest.raises(ValueError, match="margin must be > 0"):
+    with pytest.raises(ValueError, match="'margin' must be > 0"):
         TripletLoss(margin=margin)
 
 
 def test_unsupported_mining_strategy_raises() -> None:
     """An unrecognised mining strategy raises ``ValueError``."""
-    with pytest.raises(ValueError, match="Unsupported mining strategy"):
+    with pytest.raises(ValueError, match="'mining' must be one of"):
         TripletLoss(mining="offline")
 
 
