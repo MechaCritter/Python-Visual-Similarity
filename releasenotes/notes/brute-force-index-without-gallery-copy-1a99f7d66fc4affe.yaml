@@ -1,0 +1,9 @@
+---
+performance:
+  - |
+    Building or updating a ``BruteForceIndex`` no longer copies the gallery
+    first, which halves the extra peak memory and saves 14 to 17 % of the
+    time. For 500 000 vectors of dimension 512 the peak went from 1985 MB to
+    1008 MB, and the build from 726 ms to 605 ms.
+
+    Specs: 16 threads, 30 GB RAM, Python 3.14.3, NumPy 2.5.3.
