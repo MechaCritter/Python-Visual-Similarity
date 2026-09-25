@@ -29,14 +29,14 @@ from pyvisim.retrieval.image_store.in_memory_image_embedding_store import (
     _decoded_images,
 )
 
-#: Images the reading measurement decodes.
+# Images the reading measurement decodes.
 _TIMED_GALLERY_SIZE = 24
-#: Side length of those images, sized so that decoding one costs far more than
-#: the thread hand-off around it.
+# Side length of those images, sized so that decoding one costs far more than
+# the thread hand-off around it.
 _TIMED_IMAGE_SIDE = 1024
-#: Times each worker count is measured.
+# Times each worker count is measured.
 _TIMING_ROUNDS = 3
-#: Speed-up two reading threads must reach over a single one.
+# Speed-up two reading threads must reach over a single one.
 _MIN_SPEED_UP = 1.4
 
 
@@ -727,7 +727,7 @@ def test_duplicate_paths_are_dropped(
 # Lazy building
 
 
-#: Members that read the index, each paired with a call that reads it.
+# Members that read the index, each paired with a call that reads it.
 _MEMBERS_NEEDING_A_BUILT_STORE = [
     ("embeddings", lambda store: store.embeddings),
     ("index", lambda store: store.index),
