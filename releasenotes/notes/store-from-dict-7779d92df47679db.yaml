@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    ``InMemoryImageEmbeddingStore.from_dict`` accepts the state returned by
+    ``to_dict``. Before, it only accepted a state read from a file and raised
+    ``TypeError`` otherwise.
