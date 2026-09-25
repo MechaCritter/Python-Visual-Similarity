@@ -27,6 +27,7 @@ from ...typing import (
     FloatNumpyArray,
     ImageInput,
     IntNumpyArray,
+    NumpyArray,
     SearchIndex,
     UInt8NumpyArray,
 )
@@ -57,6 +58,9 @@ _INDEX_PARAM_TABLES: dict[str, dict[str, str]] = {
 #: Keyword argument of :meth:`InMemoryImageEmbeddingStore.load_from_disk` that
 #: carries a rebuilt index instead of being forwarded to the embedder.
 _SEARCH_INDEX_KWARG = "search_index"
+
+#: An index that reports how many vectors it holds.
+_GalleryIndex = ExternalSearchIndex | HnswIndex | BruteForceIndex
 
 #: Threads decoding image files while the embedder works on the previous batch.
 _DEFAULT_NUM_WORKERS = 4
@@ -217,7 +221,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
     __metadata_key__: ClassVar[str] = "pyvisim_store"
 
-    __format_version__: ClassVar[int] = 3
+    __format_version__: ClassVar[int] = 4
     __state_keys__: ClassVar[frozenset[str]] = frozenset(
         {
             "index_name",
@@ -225,6 +229,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
             "index_params",
             "paths",
             "embeddings",
+            "graph",
             "embedder",
         }
     )
@@ -258,9 +263,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
         if isinstance(search_index, ExternalSearchIndex):
             self._paths = _validated_paths(image_paths)
-            self._index: SearchIndex | None = _adopt_external_index(
-                search_index, self._paths
-            )
+            self._index: SearchIndex | None = _aligned_index(search_index, self._paths)
             self._index_name = search_index.name
             return
 
@@ -282,27 +285,23 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     def _from_components(
         cls,
         paths: list[str],
-        embeddings: Float32NumpyArray,
         embedder: Embedder,
+        index: _GalleryIndex,
         index_name: str,
         space: Space,
         index_params: dict[str, Any],
-        search_index: ExternalSearchIndex | None = None,
     ) -> InMemoryImageEmbeddingStore:
         """
-        Rebuild a store from already-computed components without re-embedding.
+        Assemble a built store around an index that already holds its gallery.
 
-        :param paths: Gallery image paths, ordered to match ``embeddings``.
-        :param embeddings: Gallery embedding matrix, shape ``(N, D)``.
+        :param paths: Gallery image paths, ordered to match the index's rows.
         :param embedder: The reconstructed embedder.
-        :param index_name: Name of the index the store was saved with.
+        :param index: The index holding the gallery.
+        :param index_name: Name of the index.
         :param space: Metric space the index is built for.
-        :param index_params: Keyword parameters forwarded to the index.
-        :param search_index: A ready-made index to adopt instead of building
-            one over ``embeddings``.
+        :param index_params: Keyword parameters the index was built with.
         :return: A populated :class:`InMemoryImageEmbeddingStore`.
-        :raises ValueError: If ``search_index`` does not hold one vector per
-            path, or ``index_params`` names a parameter the index does not take.
+        :raises ValueError: If ``index`` does not hold one vector per path.
         """
         store = cls.__new__(cls)
         store._embedder = embedder
@@ -312,19 +311,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         store._skip_errors = False
         store._num_workers = _DEFAULT_NUM_WORKERS
         store._num_prefetch_batches = _DEFAULT_NUM_PREFETCH_BATCHES
-        if search_index is not None:
-            store._index = _adopt_external_index(search_index, store._paths)
-            store._index_name = search_index.name
-            return store
-
+        store._index = _aligned_index(index, store._paths)
         store._index_name = index_name
-        _validate_index_params(index_name, store._index_params)
-        store._index = _build_index(
-            index_name,
-            np.ascontiguousarray(embeddings, dtype=np.float32),
-            space,
-            store._index_params,
-        )
         return store
 
     def build_store(self) -> None:
@@ -619,14 +607,15 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
     @_requires_built_store
     def _state(self, embeddings: Float32NumpyArray | None = None) -> dict[str, Any]:
         """
-        Describe the store around a gallery matrix.
+        Describe the store around its gallery.
 
         The image paths, index configuration and the fully serialized embedder
-        are described alongside the embeddings, so the store can later be
-        rebuilt without access to the original images.
+        are described alongside the gallery, so the store can later be rebuilt
+        without access to the original images.
 
         :param embeddings: Embeddings to write instead of the ones the index
-            holds, shape ``(N, D)``, in the order of :attr:`paths`.
+            holds, shape ``(N, D)``, in the order of :attr:`paths`. Ignored by
+            a store on an HNSW graph.
         :return: A JSON-safe store description.
         :raises TypeError: If the embedder is not serializable.
         :raises RuntimeError: If the store has not been built yet.
@@ -636,22 +625,29 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
                 f"Embedder of type {type(self._embedder).__name__!r} is not "
                 "serializable, it must be a SerializableImageEmbedder."
             )
-        if embeddings is None:
-            embeddings = self.embeddings
         return {
             "index_name": self._index_name,
             "space": self._space,
             "index_params": self._index_params,
             "paths": list(self._paths),
-            "embeddings": {
-                "__ndarray__": True,
-                "data": embeddings,
-                "dtype": str(embeddings.dtype),
-                "shape": list(embeddings.shape),
-                "order": "C",
-            },
+            **self._gallery_state(embeddings),
             "embedder": self._embedder.to_dict(),
         }
+
+    def _gallery_state(self, embeddings: Float32NumpyArray | None) -> dict[str, Any]:
+        """
+        Describe the gallery the index holds.
+
+        :param embeddings: Embeddings to write instead of the ones the index
+            holds. Ignored by a store on an HNSW graph, whose graph holds them.
+        :return: The HNSW graph under ``"graph"``, or else the embeddings under
+            ``"embeddings"``, with the other key set to ``None``.
+        """
+        if isinstance(self._index, HnswIndex):
+            return {"embeddings": None, "graph": _encoded_graph(self._index._graph())}
+        if embeddings is None:
+            embeddings = self.embeddings
+        return {"embeddings": _array_node(embeddings), "graph": None}
 
     @classmethod
     def from_dict(
@@ -660,8 +656,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         """
         Rebuild a store from a dictionary produced by :meth:`to_dict`.
 
-        The embedder is reconstructed and the index is rebuilt from the saved
-        embeddings using the saved parameters.
+        The embedder is reconstructed. A saved HNSW graph is restored as it was
+        saved, and any other index is rebuilt from the saved embeddings using
+        the saved parameters.
 
         Not everything a store is made of survives serialization. An
         :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex` wraps an object this
@@ -681,23 +678,26 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :raises TypeError: If ``search_index`` is not an
             :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex`, or the embedder
             does not take one of ``kwargs``.
+        :raises ValueError: If the index does not hold one vector per saved
+            path, or an array of the saved HNSW graph has the wrong size.
         """
         search_index = kwargs.pop(_SEARCH_INDEX_KWARG, None)
-        index_name = str(state["index_name"])
-        search_index = _restored_external_index(search_index, index_name)
+        saved_name = str(state["index_name"])
+        search_index = _restored_external_index(search_index, saved_name)
         embedder = SerializableImageEmbedder.from_dict(state["embedder"], **kwargs)
+        index: _GalleryIndex
+        if search_index is not None:
+            index, index_name = search_index, search_index.name
+        else:
+            index_name = _BRUTE_FORCE if _is_external(saved_name) else saved_name
+            index = _restored_index(state, index_name)
         return cls._from_components(
             paths=list(state["paths"]),
-            embeddings=np.asarray(
-                decode_array_node(state["embeddings"]), dtype=np.float32
-            ),
             embedder=embedder,
-            index_name=_BRUTE_FORCE
-            if search_index is None and _is_external(index_name)
-            else index_name,
+            index=index,
+            index_name=index_name,
             space=state["space"],
             index_params=state["index_params"],
-            search_index=search_index,
         )
 
     @_requires_built_store
@@ -709,9 +709,11 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         """
         Persist the store to a single safetensors file.
 
-        The embeddings, image paths, index configuration and the fully
-        serialized embedder are written together, so the store can later be
-        rebuilt without access to the original images.
+        The image paths, index configuration and the fully serialized embedder
+        are written together with the gallery, so the store can later be
+        rebuilt without access to the original images. A store on an HNSW
+        graph writes the graph itself, which holds the embeddings, so loading
+        it does not build the graph again.
 
         The embeddings written are the ones the index holds, which are not
         always the ones it was given. A cosine index stores them L2-normalised,
@@ -721,7 +723,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
         :param path: Destination file path. Overwritten if it exists.
         :param embeddings: Embeddings to write instead of the index's own, shape
-            ``(N, D)``, in the order of :attr:`paths`.
+            ``(N, D)``, in the order of :attr:`paths`. A store on an HNSW graph
+            ignores them with a :class:`FutureWarning`.
         :return: The path of the written file.
         :raises OSError: If the destination directory does not exist.
         :raises TypeError: If the embedder is not serializable.
@@ -729,11 +732,18 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         :raises RuntimeError: If the store has not been built yet.
         """
         path = self._resolve_save_path(path)
-        embeddings = (
-            self.embeddings
-            if embeddings is None
-            else _validated_embeddings(embeddings, len(self._paths))
-        )
+        if embeddings is not None and isinstance(self._index, HnswIndex):
+            # 'stacklevel=3' points past this method and the decorator that
+            # wraps it, at the caller of 'save_to_disk'.
+            warnings.warn(
+                "'embeddings' has no effect on a store on an HNSW graph, whose "
+                "file holds the graph with the embeddings in it.",
+                FutureWarning,
+                stacklevel=3,
+            )
+            embeddings = None
+        if embeddings is not None:
+            embeddings = _validated_embeddings(embeddings, len(self._paths))
         return self._write_state(self._stamp(self._state(embeddings)), path)
 
 
@@ -742,7 +752,7 @@ def _build_index(
     embeddings: Float32NumpyArray,
     space: Space,
     index_params: dict[str, Any],
-) -> SearchIndex:
+) -> HnswIndex | BruteForceIndex:
     """
     Build the configured index over a gallery embedding matrix.
 
@@ -911,18 +921,66 @@ def _validate_index_params(index_name: str, index_params: dict[str, Any]) -> Non
     validate_index_params(index_params, table, index_name)
 
 
-def _adopt_external_index(
-    search_index: ExternalSearchIndex,
-    paths: list[str],
-) -> ExternalSearchIndex:
-    """Check that an external index lines up with the gallery paths."""
-    indexed = getattr(search_index, "ntotal", len(search_index))
+def _aligned_index(index: _GalleryIndex, paths: list[str]) -> _GalleryIndex:
+    """Check that an index lines up with the gallery paths."""
+    indexed = getattr(index, "ntotal", len(index))
     if int(indexed) != len(paths):
         raise ValueError(
             f"The index holds {int(indexed)} vectors, but {len(paths)} image "
             f"paths were given. They must line up one to one, in the same order."
         )
-    return search_index
+    return index
+
+
+def _restored_index(
+    state: dict[str, Any], index_name: str
+) -> HnswIndex | BruteForceIndex:
+    """
+    Restore the built-in index a saved store searched through.
+
+    :param state: A JSON-safe store description.
+    :param index_name: Name of the index to restore.
+    :return: The saved HNSW graph as it was saved, or else an index built over
+        the saved embeddings.
+    :raises ValueError: If the saved parameters name one the index does not
+        take, or an array of the saved graph has the wrong size.
+    """
+    index_params = state["index_params"]
+    _validate_index_params(index_name, index_params)
+    if state["graph"] is not None:
+        return HnswIndex._from_graph(
+            _decoded_graph(state["graph"]),
+            num_threads=index_params.get("num_threads", -1),
+        )
+    embeddings = np.asarray(decode_array_node(state["embeddings"]), dtype=np.float32)
+    return _build_index(index_name, embeddings, state["space"], index_params)
+
+
+def _array_node(array: NumpyArray) -> dict[str, Any]:
+    """Wrap an array into the node the serialization layer stores as a tensor."""
+    return {
+        "__ndarray__": True,
+        "data": array,
+        "dtype": str(array.dtype),
+        "shape": list(array.shape),
+        "order": "C",
+    }
+
+
+def _encoded_graph(graph: dict[str, Any]) -> dict[str, Any]:
+    """Wrap every array of an exported HNSW graph into an array node."""
+    return {
+        name: _array_node(value) if isinstance(value, np.ndarray) else value
+        for name, value in graph.items()
+    }
+
+
+def _decoded_graph(graph: dict[str, Any]) -> dict[str, Any]:
+    """Restore the arrays of a saved HNSW graph, as nodes or as file tensors."""
+    return {
+        name: decode_array_node(value) if isinstance(value, dict) else value
+        for name, value in graph.items()
+    }
 
 
 def _is_external(index_name: str) -> bool:

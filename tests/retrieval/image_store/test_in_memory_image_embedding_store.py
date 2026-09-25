@@ -28,6 +28,7 @@ from pyvisim.retrieval.image_store.in_memory_image_embedding_store import (
     _alpha_query_expansion,
     _decoded_images,
 )
+from pyvisim.serialization import load_state, save_state
 
 #: Images the reading measurement decodes.
 _TIMED_GALLERY_SIZE = 24
@@ -912,6 +913,87 @@ def test_from_dict_rebuilds_the_store_to_dict_describes(
         assert np.allclose(rebuilt.embeddings, original.embeddings, atol=1e-6)
 
 
+def test_an_hnsw_store_file_holds_the_graph_in_place_of_the_embeddings(
+    hnsw_store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """An HNSW store writes its graph and no second copy of the embeddings."""
+    target = tmp_path_factory.mktemp("rt_graph_file") / "store.safetensors"
+    state = load_state(hnsw_store.save_to_disk(target), "pyvisim_store")
+    assert state["embeddings"] is None
+    assert state["graph"]["cur_element_count"] == len(hnsw_store)
+
+
+def test_a_brute_force_store_file_holds_the_embeddings(
+    store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """A brute-force store writes its embeddings and no graph."""
+    target = tmp_path_factory.mktemp("rt_embeddings_file") / "store.safetensors"
+    state = load_state(store.save_to_disk(target), "pyvisim_store")
+    assert state["graph"] is None
+    assert np.array_equal(state["embeddings"], store.embeddings)
+
+
+def test_loading_an_hnsw_store_restores_its_graph(
+    hnsw_store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A loaded HNSW store searches as the saved one, without building a graph."""
+    target = tmp_path_factory.mktemp("rt_graph_restore") / "store.safetensors"
+    written = hnsw_store.save_to_disk(target)
+
+    def fail(*args: object, **kwargs: object) -> None:
+        raise AssertionError("The graph was built again.")
+
+    monkeypatch.setattr(
+        "pyvisim.retrieval.image_store.in_memory_image_embedding_store._build_index",
+        fail,
+    )
+    loaded = InMemoryImageEmbeddingStore.load_from_disk(written)
+    queries = hnsw_store.embeddings
+    assert np.array_equal(
+        loaded.index.search(queries, k=5)[1], hnsw_store.index.search(queries, k=5)[1]
+    )
+    assert np.array_equal(loaded.embeddings, hnsw_store.embeddings)
+
+
+def test_save_ignores_replacement_embeddings_on_an_hnsw_store(
+    hnsw_store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """``embeddings`` has no effect on an HNSW store, which warns its caller."""
+    target = tmp_path_factory.mktemp("rt_graph_replacement") / "store.safetensors"
+    with pytest.warns(FutureWarning, match="no effect") as record:
+        written = hnsw_store.save_to_disk(
+            target, embeddings=hnsw_store.embeddings * 3.0
+        )
+    assert record[0].filename == __file__
+    loaded = InMemoryImageEmbeddingStore.load_from_disk(written)
+    assert np.array_equal(loaded.embeddings, hnsw_store.embeddings)
+
+
+def test_load_rejects_a_version_3_store_file(
+    store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """A file of the previous format, which holds no ``graph`` key, is rejected."""
+    state = store.to_dict()
+    del state["graph"]
+    state["format_version"] = 3
+    target = tmp_path_factory.mktemp("rt_version_3") / "store.safetensors"
+    save_state(state, target, "pyvisim_store")
+    with pytest.raises(ValueError, match="not a valid"):
+        InMemoryImageEmbeddingStore.load_from_disk(target)
+
+
+def test_from_dict_rejects_a_graph_that_does_not_match_the_paths(
+    hnsw_store: InMemoryImageEmbeddingStore,
+) -> None:
+    """A saved graph must hold one vector per saved path."""
+    state = hnsw_store.to_dict()
+    state["paths"] = state["paths"][:-1]
+    with pytest.raises(ValueError, match="line up"):
+        InMemoryImageEmbeddingStore.from_dict(state)
+
+
 def test_save_accepts_replacement_embeddings(
     store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
@@ -1046,8 +1128,8 @@ def test_save_with_an_unserializable_embedder_raises(
     """A store can only be saved with an embedder it can rebuild on load."""
     store = InMemoryImageEmbeddingStore._from_components(
         paths=["image.jpg"],
-        embeddings=np.ones((1, 4), dtype=np.float32),
         embedder=_UnserializableEmbedder(),
+        index=BruteForceIndex(np.ones((1, 4), dtype=np.float32)),
         index_name="brute-force",
         space="cosine",
         index_params={},
