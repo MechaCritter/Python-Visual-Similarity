@@ -23,20 +23,6 @@ SUPPORTED_SPACES = ("cosine", "l2", "ip")
 Space = Literal["cosine", "l2", "ip"]
 
 
-def validate_space(space: str) -> None:
-    """
-    Reject a metric space the compiled indexes cannot be built for.
-
-    :param space: The requested metric space.
-    :raises ValueError: If ``space`` is not one of :data:`SUPPORTED_SPACES`.
-    """
-    if space not in SUPPORTED_SPACES:
-        raise ValueError(
-            f"Unsupported space {space!r}. Supported spaces are: "
-            f"{sorted(SUPPORTED_SPACES)}."
-        )
-
-
 def as_gallery_matrix(vectors: FloatNumpyArray) -> Float32NumpyArray:
     """
     Copy the gallery vectors into a contiguous float32 matrix.
@@ -153,19 +139,6 @@ def is_explicit_thread_count(num_threads: int) -> bool:
     :return: ``True`` if the count should be pushed into the index.
     """
     return num_threads > 0
-
-
-def validate_k(k: int) -> int:
-    """
-    Reject a non-positive neighbor count.
-
-    :param k: Number of nearest neighbors requested per query.
-    :return: ``k`` as an integer.
-    :raises ValueError: If ``k`` is not a positive integer.
-    """
-    if k < 1:
-        raise ValueError(f"'k' must be a positive integer, got {k}.")
-    return int(k)
 
 
 def pad_results(

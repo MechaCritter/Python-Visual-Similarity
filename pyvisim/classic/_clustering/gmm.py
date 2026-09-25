@@ -11,6 +11,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 from ...typing import Float64NumpyArray, FloatNumpyArray, IntNumpyArray
+from ...utils.validation import Param, validate_params
 from ._base_clustering import ClusteringModelBase
 from .kmeans import _kmeans_plusplus, _rng_from_sklearn
 
@@ -68,12 +69,20 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
     :param rng: Seed (int) or :class:`numpy.random.Generator` for
         reproducible fitting.
     :raises ValueError: If ``n_components``, ``n_init`` or ``max_iter``
-        is not positive, ``tol`` or ``reg_covar`` is negative, or a
-        ``covariance_type`` other than ``"diag"`` is requested.
+        is not a positive integer, ``tol`` or ``reg_covar`` is not a
+        non-negative number, or a ``covariance_type`` other than ``"diag"``
+        is requested.
     """
 
     __format_version__: ClassVar[int] = 1
 
+    @validate_params(
+        n_components=Param(int, ge=1),
+        n_init=Param(int, ge=1),
+        max_iter=Param(int, ge=1),
+        tol=Param(float, ge=0),
+        reg_covar=Param(float, ge=0),
+    )
     def __init__(
         self,
         n_components: int = 256,
@@ -90,16 +99,6 @@ class DiagCovarGaussianMixture(ClusteringModelBase):
                 f"{type(self).__name__} only supports covariance_type='diag', "
                 f"got {covariance_type!r}."
             )
-        if n_components < 1:
-            raise ValueError(f"n_components must be positive, got {n_components}.")
-        if n_init < 1:
-            raise ValueError(f"n_init must be positive, got {n_init}.")
-        if max_iter < 1:
-            raise ValueError(f"max_iter must be positive, got {max_iter}.")
-        if tol < 0:
-            raise ValueError(f"tol must be non-negative, got {tol}.")
-        if reg_covar < 0:
-            raise ValueError(f"reg_covar must be non-negative, got {reg_covar}.")
         self._n_components = int(n_components)
         self._n_init = int(n_init)
         self._max_iter = int(max_iter)

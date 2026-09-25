@@ -9,7 +9,6 @@ following Zhong et al. (CVPR 2017).
 from __future__ import annotations
 
 import math
-import numbers
 from collections.abc import Sequence
 
 import numpy as np
@@ -21,6 +20,7 @@ from ...typing import (
     FloatNumpyArray,
     IntNumpyArray,
 )
+from ...utils.validation import Param, validate_params
 from ..data import Candidate
 from ..image_store import ExternalSearchIndex, InMemoryImageEmbeddingStore
 
@@ -58,6 +58,12 @@ class KReciprocalReranker:
         pp. 1318-1327, 2017.
     """
 
+    @validate_params(
+        store=InMemoryImageEmbeddingStore,
+        k1=Param(int, ge=1),
+        k2=Param(int, ge=1),
+        lambda_value=Param(float, ge=0, le=1),
+    )
     def __init__(
         self,
         store: InMemoryImageEmbeddingStore,
@@ -66,11 +72,6 @@ class KReciprocalReranker:
         k2: int = 6,
         lambda_value: float = 0.3,
     ) -> None:
-        if not isinstance(store, InMemoryImageEmbeddingStore):
-            raise TypeError(
-                f"'store' must be an InMemoryImageEmbeddingStore, got "
-                f"{type(store).__name__}."
-            )
         if isinstance(store.index, ExternalSearchIndex):
             raise ValueError(
                 "The store searches through an external index, whose scores may "
@@ -78,20 +79,8 @@ class KReciprocalReranker:
                 "re-ranking needs the distances of the store's space, which only "
                 "the built-in indexes report."
             )
-        if not isinstance(k1, int) or k1 < 1:
-            raise ValueError(f"'k1' must be a positive integer, got {k1!r}.")
-        if not isinstance(k2, int) or k2 < 1:
-            raise ValueError(f"'k2' must be a positive integer, got {k2!r}.")
         if k2 > k1:
             raise ValueError(f"'k2' must not exceed 'k1', got k2={k2} and k1={k1}.")
-        if (
-            isinstance(lambda_value, bool)
-            or not isinstance(lambda_value, numbers.Real)
-            or not 0.0 <= float(lambda_value) <= 1.0
-        ):
-            raise ValueError(
-                f"'lambda_value' must be a number in [0, 1], got {lambda_value!r}."
-            )
         self._store: InMemoryImageEmbeddingStore = store
         self._k1: int = int(k1)
         self._k2: int = int(k2)
@@ -123,6 +112,7 @@ class KReciprocalReranker:
             f"lambda_value={self._lambda_value})"
         )
 
+    @validate_params(top_k=Param(int, ge=1))
     def rerank(self, candidates: Sequence[Candidate], top_k: int) -> list[Candidate]:
         """
         Re-rank the candidates of one query and return the best ``top_k``.
@@ -149,10 +139,6 @@ class KReciprocalReranker:
             is not a positive integer.
         """
         _validate_candidates(candidates)
-        if isinstance(top_k, bool) or not isinstance(top_k, numbers.Integral):
-            raise ValueError(f"'top_k' must be a positive integer, got {top_k!r}.")
-        if top_k < 1:
-            raise ValueError(f"'top_k' must be a positive integer, got {top_k!r}.")
         pool = len(candidates)
         k1 = min(self._k1, pool)
         final = _k_reciprocal_distances(

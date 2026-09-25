@@ -8,6 +8,7 @@ from scipy.linalg import eigh, svd
 from scipy.sparse.linalg import svds
 
 from ...typing import Float64NumpyArray, FloatNumpyArray
+from ...utils.validation import Param, validate_params
 from ._base_clustering import FittedModelBase
 from .kmeans import _rng_from_sklearn
 
@@ -124,12 +125,18 @@ class PCA(FittedModelBase):
     :param rng: Seed (int) or :class:`numpy.random.Generator` for the
         ``"arpack"`` solver's starting vector, making its iteration
         deterministic. Ignored by the other solvers.
-    :raises ValueError: If ``n_components`` is not positive, ``tol`` is
-        negative, or ``svd_solver`` is not one of the supported names.
+    :raises ValueError: If ``n_components`` is not a positive integer,
+        ``tol`` is not a non-negative number, or ``svd_solver`` is not one of
+        the supported names.
     """
 
     __format_version__: ClassVar[int] = 1
 
+    @validate_params(
+        n_components=Param(int, ge=1),
+        svd_solver=Param(str, choices=_SUPPORTED_SOLVERS),
+        tol=Param(float, ge=0),
+    )
     def __init__(
         self,
         n_components: int,
@@ -139,14 +146,6 @@ class PCA(FittedModelBase):
         tol: float = 0.0,
         rng: int | np.random.Generator | None = None,
     ) -> None:
-        if n_components < 1:
-            raise ValueError(f"n_components must be positive, got {n_components}.")
-        if svd_solver not in _SUPPORTED_SOLVERS:
-            raise ValueError(
-                f"svd_solver must be one of {_SUPPORTED_SOLVERS}, got {svd_solver!r}."
-            )
-        if tol < 0:
-            raise ValueError(f"tol must be non-negative, got {tol}.")
         self._n_components = int(n_components)
         self._whiten = bool(whiten)
         self._svd_solver = str(svd_solver)
