@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image, UnidentifiedImageError
 
 from ...base import SerializableImageEmbedder
-from ...serialization import SerializerMixin
+from ...serialization import SerializerMixin, decode_array_node
 from ...typing import (
     BoolNumpyArray,
     Embedder,
@@ -688,7 +688,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         embedder = SerializableImageEmbedder.from_dict(state["embedder"], **kwargs)
         return cls._from_components(
             paths=list(state["paths"]),
-            embeddings=np.asarray(state["embeddings"], dtype=np.float32),
+            embeddings=np.asarray(
+                decode_array_node(state["embeddings"]), dtype=np.float32
+            ),
             embedder=embedder,
             index_name=_BRUTE_FORCE
             if search_index is None and _is_external(index_name)

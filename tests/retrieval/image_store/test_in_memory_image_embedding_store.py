@@ -901,6 +901,17 @@ def test_save_load_preserves_embeddings(
     assert np.allclose(loaded.embeddings, store.embeddings, atol=1e-6)
 
 
+def test_from_dict_rebuilds_the_store_to_dict_describes(
+    store: InMemoryImageEmbeddingStore, hnsw_store: InMemoryImageEmbeddingStore
+) -> None:
+    """A state from ``to_dict`` rebuilds the store without going through a file."""
+    for original in (store, hnsw_store):
+        rebuilt = InMemoryImageEmbeddingStore.from_dict(original.to_dict())
+        assert rebuilt.paths == original.paths
+        assert type(rebuilt.index) is type(original.index)
+        assert np.allclose(rebuilt.embeddings, original.embeddings, atol=1e-6)
+
+
 def test_save_accepts_replacement_embeddings(
     store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
