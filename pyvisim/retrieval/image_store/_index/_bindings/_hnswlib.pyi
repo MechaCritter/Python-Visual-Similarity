@@ -1,7 +1,7 @@
 """Type stubs for the compiled search structures (see _hnswlib.cpp)."""
 
-from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Literal, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -16,7 +16,11 @@ class Index:
     ef_construction: int
     M: int
 
+    @overload
     def __init__(self, space: Literal["l2", "ip", "cosine"], dim: int) -> None: ...
+    @overload
+    def __init__(self, params: Mapping[str, Any]) -> None: ...
+    def __getstate__(self) -> tuple[dict[str, Any]]: ...
     def init_index(
         self,
         max_elements: int,
