@@ -8,9 +8,12 @@ the standard Hugging Face cache (``~/.cache/huggingface/hub`` unless
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...lazy_import import OptionalImport
 
-with OptionalImport(package="huggingface_hub", extra="nn") as _hf_hub_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="huggingface_hub", extra="nn"))
+) as _hf_hub_import:
     from huggingface_hub import hf_hub_download
 
 #: Channel statistics of the dataset CLIP was trained on, as published by
