@@ -17,10 +17,13 @@ from typing import cast
 
 from safetensors import safe_open
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...lazy_import import OptionalImport
 from ._registry import VisionConfig
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
     from torch import nn
     from torch.nn import functional as F

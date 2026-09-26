@@ -5,10 +5,13 @@ Shared base for the neural image embedders.
 import abc
 from typing import Any, ClassVar, TypeVar, cast
 
+from .._errors import MissingModuleFromExtraMessage
 from ..base import SerializableImageEmbedder
 from ..lazy_import import OptionalImport
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
 
     from ..utils.torch_utils import decode_state_dict, encode_state_dict

@@ -5,12 +5,15 @@ import warnings
 from collections.abc import Sequence
 from typing import Any, cast
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...base import FeatureExtractorBase
 from ...features._utils import _check_output_shape, _to_single_image
 from ...lazy_import import OptionalImport
 from ...typing import Float32NumpyArray, MatLike
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
     from torchvision import transforms
 
