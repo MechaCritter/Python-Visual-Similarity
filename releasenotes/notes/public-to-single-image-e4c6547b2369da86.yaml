@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Added ``to_single_image`` helper in ``pyvisim.utils.image_utils``, which
+    converts one image into the canonical ``uint8`` array described by ``dims``
+    and ``value_range``.
