@@ -1,8 +1,8 @@
 Typing
 ======
 
-``pyvisim.typing`` is the contains public types for annotation as well as
-normalization helpers that are used across this library.
+``pyvisim.typing`` contains the public types for annotation that are used
+across this library.
 
 Types
 -----
