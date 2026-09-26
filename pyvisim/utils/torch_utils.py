@@ -17,7 +17,10 @@ import numpy as np
 from ..lazy_import import OptionalImport
 from ..serialization import decode_array_node
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
+    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+) as _torch_import:
     import torch
 
 _torch_import.check()

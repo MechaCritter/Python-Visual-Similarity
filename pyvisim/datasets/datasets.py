@@ -13,7 +13,10 @@ from pyvisim._utils import read_image_rgb
 from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
+    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+) as _torch_import:
     from torch.utils.data import Dataset
 
 _torch_import.check()

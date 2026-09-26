@@ -10,7 +10,10 @@ from pathlib import Path
 
 from ...lazy_import import OptionalImport
 
-with OptionalImport(package="huggingface_hub", extra="nn") as _hf_hub_import:
+with OptionalImport(
+    err_msg="To use this feature, you need to install the optional dependency 'huggingface_hub'. "
+    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+) as _hf_hub_import:
     from huggingface_hub import hf_hub_download
 
 #: Channel statistics of the dataset CLIP was trained on, as published by

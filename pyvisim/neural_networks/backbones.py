@@ -17,7 +17,10 @@ from ..utils.image_utils import iter_image_batches
 from ..utils.validation import Param, validate_params
 from ._base import NeuralImageEmbedder
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
+    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+) as _torch_import:
     import torch
     import torch.nn as nn
     from torchvision import models, transforms
