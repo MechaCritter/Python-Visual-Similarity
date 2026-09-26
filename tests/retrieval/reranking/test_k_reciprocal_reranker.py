@@ -372,6 +372,33 @@ def test_original_scores_are_left_untouched(
     assert [(c.path, c.score) for c in candidates] == before
 
 
+def test_reranks_a_store_on_a_faiss_index_like_the_built_in_one(
+    store: InMemoryImageEmbeddingStore,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """A store on a FAISS index is re-ranked in its own metric.
+
+    The FAISS index holds the L2-normalised embeddings of the cosine store, so
+    its ``1 - inner_product`` scores are the cosine distances of the store.
+    """
+    faiss = pytest.importorskip("faiss")
+    flat = faiss.IndexFlatIP(store.dim)
+    flat.add(np.ascontiguousarray(store.embeddings))
+    faiss_store = InMemoryImageEmbeddingStore(store.paths, store.embedder, flat)
+
+    probe = _probe(category_train_images_flat[0])
+    built_in, on_faiss = (
+        KReciprocalReranker(source, k1=6, k2=3).rerank(
+            source.retrieve_top_k_similar(probe, k=len(source))[0], top_k=5
+        )
+        for source in (store, faiss_store)
+    )
+    assert [c.path for c in on_faiss] == [c.path for c in built_in]
+    assert np.allclose(
+        [c.score for c in on_faiss], [c.score for c in built_in], atol=1e-5
+    )
+
+
 # The distance computation against the paper
 
 
