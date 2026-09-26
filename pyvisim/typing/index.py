@@ -1,11 +1,17 @@
 """
-Structural type describing the search-index interface used by an image store.
+Types describing the search indexes used by an image store.
 """
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol, TypeAlias
 
 from .numeric import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
+
+if TYPE_CHECKING:
+    import faiss
+
+    # FAISS is an optional dependency, so only type checkers know its index type.
+    FaissIndex: TypeAlias = faiss.Index
 
 
 class SearchIndex(Protocol):
