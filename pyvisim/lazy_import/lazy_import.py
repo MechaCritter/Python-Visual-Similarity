@@ -10,17 +10,19 @@ class OptionalImport:
 
     Use as a context manager around the imports of an optional dependency. If
     the dependency is installed, the imports run normally. If it is missing,
-    the error is swallowed and stored, then re-raised with an actionable
-    message the first time :meth:`check` is called.
+    the error is swallowed and stored, then re-raised with ``err_msg`` the
+    first time :meth:`check` is called.
 
-    :param package: Import name of the optional dependency, e.g. ``"transformers"``.
-    :param extra: Name of the pip/uv extra that installs it, e.g. ``"neural"``.
+    :param err_msg: Message of the :class:`ImportError` raised by :meth:`check`
+        when the dependency is missing.
 
     :Example:
 
     .. code-block:: python
 
-        with OptionalImport(package="transformers", extra="neural") as _import:
+        with OptionalImport(
+            err_msg="To use this feature, you need to install the optional dependency 'transformers'."
+        ) as _import:
             from transformers import AutoModel
 
         class Embedder:
@@ -28,9 +30,8 @@ class OptionalImport:
                 _import.check()  # raises here if transformers is missing
     """
 
-    def __init__(self, *, package: str, extra: str) -> None:
-        self._package = package
-        self._extra = extra
+    def __init__(self, *, err_msg: str) -> None:
+        self._err_msg = err_msg
         self._error: ImportError | None = None
 
     def __enter__(self) -> OptionalImport:
@@ -68,12 +69,9 @@ class OptionalImport:
         return self._error is None
 
     def check(self) -> None:
-        """Re-raise the deferred import error with an actionable message.
+        """Re-raise the deferred import error with ``err_msg``.
 
         :raises ImportError: If the optional dependency failed to import.
         """
         if self._error is not None:
-            raise ImportError(
-                f"To use this feature, you need to install the optional dependency '{self._package}'. "
-                f"Install it with: 'uv pip install \"pyvisim[{self._extra}]\"' or 'pip install \"pyvisim[{self._extra}]\"'"
-            ) from self._error
+            raise ImportError(self._err_msg) from self._error

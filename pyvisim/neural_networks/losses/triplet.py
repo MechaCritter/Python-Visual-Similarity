@@ -7,7 +7,10 @@ from typing import Any
 from ...lazy_import import OptionalImport
 from ...utils.validation import Param, validate_params
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
+    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+) as _torch_import:
     import torch
 
 _MINING_STRATEGIES = ("batch_all", "batch_hard", "semi_hard")

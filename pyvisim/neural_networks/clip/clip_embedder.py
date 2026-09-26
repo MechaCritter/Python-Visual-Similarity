@@ -28,7 +28,10 @@ from ._registry import (
     get_model_config,
 )
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
+    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+) as _torch_import:
     import torch
     from torchvision import transforms
 
