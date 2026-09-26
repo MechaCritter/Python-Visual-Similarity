@@ -3,7 +3,8 @@ from typing import Any
 
 from ..base import FeatureExtractorBase
 from ..typing import Float32NumpyArray, MatLike, UInt8NumpyArray
-from ._utils import _check_output_shape, _to_single_image
+from ..utils.image_utils import to_single_image
+from ._utils import _check_output_shape
 
 
 class Lambda(FeatureExtractorBase):
@@ -66,5 +67,5 @@ class Lambda(FeatureExtractorBase):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        image = _to_single_image(image, dims=dims, value_range=value_range)
+        image = to_single_image(image, dims=dims, value_range=value_range)
         return self.func(image)

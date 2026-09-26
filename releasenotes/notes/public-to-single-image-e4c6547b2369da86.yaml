@@ -1,0 +1,29 @@
+---
+features:
+  - |
+    Added ``to_single_image`` helper in ``pyvisim.utils.image_utils``, which
+    converts one image into the canonical ``uint8`` array described by ``dims``
+    and ``value_range``. An example is shown below.
+
+    .. code:: python
+
+        import numpy as np
+
+        from pyvisim.utils.image_utils import to_single_image
+
+        rng = np.random.default_rng(0)
+
+        # A uint8 image in the NumPy layout (height, width, channels), values in [0, 255]
+        image_hwc = rng.integers(0, 256, size=(64, 80, 3), dtype=np.uint8)
+
+        # The same pixels as a float image in the PyTorch layout
+        # (channels, height, width), values in [0, 1]
+        image_chw = image_hwc.transpose(2, 0, 1) / 255.0
+
+        # dims and value_range describe each input, and both come back as a
+        # uint8 array of shape (64, 80, 3) with values in [0, 255]
+        canonical_hwc = to_single_image(image_hwc, dims="HWC")
+        canonical_chw = to_single_image(image_chw, dims="CHW", value_range=(0.0, 1.0))
+
+        print(canonical_chw.shape, canonical_chw.dtype)  # (64, 80, 3) uint8
+        print(np.array_equal(canonical_hwc, canonical_chw))  # True

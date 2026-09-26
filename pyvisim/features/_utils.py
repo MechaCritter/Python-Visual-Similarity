@@ -5,46 +5,9 @@ from typing import Any, TypeVar, cast
 import numpy as np
 
 from ..base import FeatureExtractorBase
-from ..typing import (
-    Float32NumpyArray,
-    MatLike,
-    UInt8NumpyArray,
-    _to_image_list,
-)
-from ..utils.image_utils import grayscale_dims
+from ..typing import Float32NumpyArray, MatLike
 
 ExtractorCallT = TypeVar("ExtractorCallT", bound=Callable[..., Any])
-
-
-def _to_single_image(
-    image: MatLike,
-    dims: str = "HWC",
-    value_range: tuple[float, float] = (0.0, 255.0),
-) -> UInt8NumpyArray:
-    """
-    Normalize a single ``MatLike`` image into one canonical array.
-
-    :param image: A NumPy array, a PyTorch tensor, or any array-like object.
-    :param dims: Axis-label string, one character per array axis in order:
-        ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
-        (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
-        width × channels (NumPy/OpenCV single-image layout);
-        ``"CHW"`` is channels × height × width (PyTorch single-image layout);
-        ``"BCHW"`` is batch × channels × height × width (PyTorch batched layout).
-        A single-channel (grayscale) image may be passed as a 2-D array with
-        ``dims="HWC"``, and the channel label is dropped automatically.
-    :param value_range: The ``(low, high)`` range the input values live in.
-    :return: A ``uint8`` image of shape ``(H, W[, C])`` in ``[0, 255]``.
-    :raises ValueError: If the input expands to anything other than one image.
-    """
-    images = _to_image_list(image, grayscale_dims(image, dims), value_range)
-    if len(images) != 1:
-        raise ValueError(
-            f"Expected a single image, but the input expands to {len(images)} images. "
-            "Feature extractors operate on one image at a time; use an embedder for "
-            "batches."
-        )
-    return images[0]
 
 
 def _check_output_shape(  # noqa: UP047

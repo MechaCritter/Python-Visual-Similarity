@@ -7,9 +7,10 @@ from typing import Any, cast
 
 from ..._errors import MissingModuleFromExtraMessage
 from ...base import FeatureExtractorBase
-from ...features._utils import _check_output_shape, _to_single_image
+from ...features._utils import _check_output_shape
 from ...lazy_import import OptionalImport
 from ...typing import Float32NumpyArray, MatLike
+from ...utils.image_utils import to_single_image
 
 with OptionalImport(
     err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
@@ -22,7 +23,7 @@ with OptionalImport(
 
 _LOGGER = logging.getLogger(__name__)
 
-#: Backbone built when none is given.
+# Backbone built when none is given.
 _DEFAULT_BACKBONE = "vgg16"
 
 
@@ -389,7 +390,7 @@ class DeepConvFeature(FeatureExtractorBase):
         :return: N x D NumPy array, where N = (H_conv x W_conv) and
                  D = number_of_channels.
         """
-        image = _to_single_image(image, dims=dims, value_range=value_range)
+        image = to_single_image(image, dims=dims, value_range=value_range)
         input_tensor = self.transform(image).unsqueeze(0)
         return cast(
             Float32NumpyArray, self._to_descriptors(self._feature_maps(input_tensor))[0]
@@ -420,7 +421,7 @@ class DeepConvFeature(FeatureExtractorBase):
         """
         tensors, tensor_shapes = [], set()
         for image in images:
-            single_image = _to_single_image(image, dims=dims, value_range=value_range)
+            single_image = to_single_image(image, dims=dims, value_range=value_range)
             transformed_image = self.transform(single_image)
             tensors.append(transformed_image)
             tensor_shapes.add(transformed_image.shape)

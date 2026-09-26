@@ -13,7 +13,6 @@ from .numeric import (
     NumpyArray,
     SimilarityFunc,
     UInt8NumpyArray,
-    _to_image_list,
 )
 from .store import EmbeddingStore
 
@@ -31,5 +30,4 @@ __all__ = [
     "Embedder",
     "SearchIndex",
     "EmbeddingStore",
-    "_to_image_list",
 ]
