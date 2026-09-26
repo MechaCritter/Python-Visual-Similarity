@@ -12,7 +12,7 @@ import warnings
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -37,11 +37,15 @@ from ._index import (
     BRUTE_FORCE_TO_HNSWLIB,
     HNSW_TO_HNSWLIB,
     BruteForceIndex,
-    ExternalSearchIndex,
     HnswIndex,
     Space,
     validate_index_params,
 )
+from ._index._adapter import FaissIndexAdapter as _FaissIndexAdapter
+from ._index._adapter import is_faiss_index as _is_faiss_index
+
+if TYPE_CHECKING:
+    from ...typing.index import FaissIndex
 
 # Value of ``search_index`` selecting the HNSW graph.
 _HNSW = "hnsw"
@@ -60,7 +64,7 @@ _INDEX_PARAM_TABLES: dict[str, dict[str, str]] = {
 _SEARCH_INDEX_KWARG = "search_index"
 
 # All index classes the store uses
-_GalleryIndex = ExternalSearchIndex | HnswIndex | BruteForceIndex
+_GalleryIndex = _FaissIndexAdapter | HnswIndex | BruteForceIndex
 
 # Threads decoding image files while the embedder works on the previous batch.
 _DEFAULT_NUM_WORKERS = 4
@@ -102,10 +106,10 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
           graph structure based on the embeddings.
         - For **FAISS**-based indexes, the returned embeddings may not be
           exactly the same as the original embeddings due to compression or
-          quantization, and for some indexes, reconstruction is impossible.
-        - If you use an :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex`
-          instead, that index must already hold the gallery. ``image_paths``
-          then assumes each path matches the corresponding row in the index.
+          quantization.
+        - If you pass a FAISS index instead, that index must already hold the
+          gallery. ``image_paths`` then assumes each path matches the
+          corresponding row in the index.
 
     For more information, see the documentation:
     ``https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/in_memory_image_embedding_store/in_memory_image_embedding_store.html``.
@@ -117,10 +121,12 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         ``Siamese`` and ``Triplet`` networks, the ``ClipEmbedder`` and the
         ``VLAD``/``Fisher Vector`` embedders.
     :param search_index: The index to search the gallery through. Pass
-        ``"hnsw"`` for the HNSW graph algorithm, ``None`` for brute-force
+        ``"hnsw"`` for the HNSW graph algorithm, ``None`` for brute-force, or a
+        FAISS index.
     :param space: Metric space the index is built for, ``"cosine"``,
-        ``"l2"`` or ``"ip"``. Ignored by an external index, which
-        brings its own metric. An overview below:
+        ``"l2"`` or ``"ip"``. Ignored by a FAISS index, whose metric decides
+        the space: ``"l2"`` for ``METRIC_L2`` and ``"ip"`` for
+        ``METRIC_INNER_PRODUCT``. An overview below:
 
         .. list-table::
            :header-rows: 1
@@ -143,28 +149,33 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
     :param index_params: Optional keyword parameters forwarded to the index
         constructor. The accepted parameters per index are listed under
-        :ref:`Index parameters <store-index-parameters>`; anything else is
-        rejected. ``space`` belongs to the store itself and is not accepted
-        here.
+        :ref:`Index parameters <store-index-parameters>`, and anything else is
+        rejected. A FAISS index takes none. ``space`` belongs to the store
+        itself and is not accepted here.
     :param skip_errors: If ``True``, images that cannot be read or embedded are
         skipped with a warning instead of aborting.
     :param num_workers: Threads reading the gallery image files while the
         embedder works on the previous batch. ``1`` reads them on the calling
-        thread. Ignored by an external index, which embeds nothing.
+        thread. Ignored by a FAISS index, which embeds nothing.
     :param num_prefetch_batches: Batches of images the reading threads may run
         ahead of the embedder. Higher values hide slower file reads at the cost
-        of holding more decoded images in memory. Ignored by an external index,
+        of holding more decoded images in memory. Ignored by a FAISS index,
         which embeds nothing.
     :param lazy_build: If ``True``, the gallery is embedded and indexed by the
         first call to :meth:`build_store`. If ``False``, the constructor calls
         :meth:`build_store` itself and the store is ready to search. Ignored by
-        an external index, which already holds its gallery.
+        a FAISS index, which already holds its gallery.
     :raises ValueError: If ``search_index`` is unknown, ``num_workers`` or
-        ``num_prefetch_batches`` is not positive, no image path was given, an
-        external index does not hold one vector per path, or ``index_params``
-        names a parameter the index does not take. With ``lazy_build=False``,
-        it is also raised if no image could be embedded.
-    :raises TypeError: If any provided path is not a string.
+        ``num_prefetch_batches`` is not positive, no image path was given, a
+        FAISS index does not hold one vector per path, cannot look its vectors
+        up by row or was built for a metric other than ``METRIC_L2`` or
+        ``METRIC_INNER_PRODUCT``, or ``index_params`` names a parameter the
+        index does not take. With ``lazy_build=False``, it is also raised if no
+        image could be embedded.
+    :raises TypeError: If any provided path is not a string, or
+        ``search_index`` is an object other than a FAISS index.
+    :raises ImportError: If ``search_index`` is an index object and FAISS is
+        not installed.
 
     .. _store-index-parameters:
 
@@ -242,7 +253,7 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         self,
         image_paths: Iterable[str],
         embedder: Embedder,
-        search_index: str | ExternalSearchIndex | None = None,
+        search_index: str | FaissIndex | None = None,
         *,
         space: Space = "cosine",
         index_params: dict[str, Any] | None = None,
@@ -251,8 +262,6 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         num_prefetch_batches: int = _DEFAULT_NUM_PREFETCH_BATCHES,
         lazy_build: bool = True,
     ) -> None:
-        _validate_search_index(search_index)
-
         self._embedder = embedder
         self._space: Space = space
         self._index_params: dict[str, Any] = dict(index_params or {})
@@ -261,12 +270,19 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         self._num_workers = num_workers
         self._num_prefetch_batches = num_prefetch_batches
 
-        if isinstance(search_index, ExternalSearchIndex):
+        if search_index is not None and not isinstance(search_index, str):
+            # TODO: 'space' is ignored and 'index_params' is rejected for a FAISS
+            #  index, since both only configure the built-in indexes. This should
+            #  be resolved in the future.
+            adapter = _make_faiss_index_adapter(search_index)
+            _validate_index_params(adapter.name, self._index_params)
+            self._space = adapter.space
             self._paths = _validated_paths(image_paths)
-            self._index: SearchIndex | None = _aligned_index(search_index, self._paths)
-            self._index_name = search_index.name
+            self._index: SearchIndex | None = _aligned_index(adapter, self._paths)
+            self._index_name = adapter.name
             return
 
+        _validate_search_index(search_index)
         self._index_name = _HNSW if search_index == _HNSW else _BRUTE_FORCE
         # Checked before a single image is read: a misspelled parameter should
         # not cost the caller a full embedding pass first.
@@ -424,6 +440,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         """
         The search index the gallery is searched through.
 
+        For a FAISS index, returns the adapter. To access the real
+        :class:`faiss.Index`, use ``store.index.faiss_index``.
+
         :raises RuntimeError: If the store has not been built yet.
         """
         return self._search_index
@@ -570,9 +589,9 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         """
         _, ids = self._search_index.search(queries, num_neighbors)
         # A gallery smaller than ``num_neighbors`` pads the free columns with
-        # the id -1, which names no vector and is left out of the average. An
-        # external index may even report no neighbor at all for a query, and
-        # that query is then averaged with nothing, which leaves it as it is.
+        # the id -1, which names no vector and is left out of the average. A
+        # FAISS index may even report no neighbor at all for a query, and that
+        # query is then averaged with nothing, which leaves it as it is.
         found = ids >= 0
         neighbors = (
             self._search_index.vectors_at(ids[found])
@@ -660,41 +679,48 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
         saved, and any other index is rebuilt from the saved embeddings using
         the saved parameters.
 
-        Not everything a store is made of survives serialization. An
-        :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex` wraps an object this
-        library cannot write to disk, so pass a rebuilt one back as the
-        ``search_index`` keyword argument; a name differing from the saved one
-        is reported with a warning. Without it the store falls back to an exact
-        :class:`~pyvisim.retrieval.image_store.BruteForceIndex` over the saved
-        embeddings. Any other keyword argument is
-        forwarded to the embedder, the way an embedder's own
+        Not everything a store is made of survives serialization. A FAISS index
+        is an object this library cannot write to disk, so pass it back as the
+        ``search_index`` keyword argument. An index of another type than the
+        saved one is reported with a warning. Without it the store falls back
+        to an exact :class:`~pyvisim.retrieval.image_store.BruteForceIndex`
+        over the saved embeddings, in the metric space of the saved index. Any
+        other keyword argument is forwarded to the embedder, the way an
+        embedder's own
         :meth:`~pyvisim.serialization.SerializerMixin.load_from_disk`
         forwards it.
 
         :param state: A JSON-safe store description.
-        :param kwargs: ``search_index`` for a rebuilt external index, plus the
-            objects the embedder's file cannot hold.
+        :param kwargs: ``search_index`` for a FAISS index holding the saved
+            gallery, plus the objects the embedder's file cannot hold.
         :return: A populated :class:`InMemoryImageEmbeddingStore`.
-        :raises TypeError: If ``search_index`` is not an
-            :class:`~pyvisim.retrieval.image_store.ExternalSearchIndex`, or the embedder
-            does not take one of ``kwargs``.
+        :raises ImportError: If ``search_index`` is given and FAISS is not
+            installed.
+        :raises TypeError: If ``search_index`` is not a FAISS index, or the
+            embedder does not take one of ``kwargs``.
         :raises ValueError: If the index does not hold one vector per saved
-            path, or an array of the saved HNSW graph has the wrong size.
+            path, the FAISS index cannot look its vectors up by row or was built
+            for an unsupported metric, or an array of the saved HNSW graph has
+            the wrong size.
         """
         search_index = kwargs.pop(_SEARCH_INDEX_KWARG, None)
         saved_name = str(state["index_name"])
-        search_index = _restored_external_index(search_index, saved_name)
+        adapter = _restored_faiss_index(search_index, saved_name)
         embedder = SerializableImageEmbedder.from_dict(state["embedder"], **kwargs)
-        index: _GalleryIndex
-        if search_index is not None:
-            index, index_name = search_index, search_index.name
-        else:
-            index_name = _BRUTE_FORCE if _is_external(saved_name) else saved_name
-            index = _restored_index(state, index_name)
+        if adapter is not None:
+            return cls._from_components(
+                paths=list(state["paths"]),
+                embedder=embedder,
+                index=adapter,
+                index_name=adapter.name,
+                space=adapter.space,
+                index_params={},
+            )
+        index_name = saved_name if _is_built_in(saved_name) else _BRUTE_FORCE
         return cls._from_components(
             paths=list(state["paths"]),
             embedder=embedder,
-            index=index,
+            index=_restored_index(state, index_name),
             index_name=index_name,
             space=state["space"],
             index_params=state["index_params"],
@@ -717,8 +743,8 @@ class InMemoryImageEmbeddingStore(SerializerMixin):
 
         The embeddings written are the ones the index holds, which are not
         always the ones it was given. A cosine index stores them L2-normalised,
-        and a compressed external index (product- or scalar-quantized) hands
-        back an approximation of them. Pass ``embeddings`` to write the originals
+        and a compressed FAISS index (product- or scalar-quantized) hands back
+        an approximation of them. Pass ``embeddings`` to write the originals
         instead.
 
         :param path: Destination file path. Overwritten if it exists.
@@ -895,38 +921,51 @@ def _block_row_norms(blocks: FloatNumpyArray) -> Float64NumpyArray:
     return norms
 
 
-def _validate_search_index(search_index: str | ExternalSearchIndex | None) -> None:
-    """Reject an index selector the store cannot build."""
-    if search_index is None or isinstance(search_index, ExternalSearchIndex):
-        return
-    if search_index == _HNSW:
+def _validate_search_index(search_index: str | None) -> None:
+    """Reject an index name the store cannot build."""
+    if search_index is None or search_index == _HNSW:
         return
     raise ValueError(
         f"Unknown search_index {search_index!r}. Pass {_HNSW!r} for an HNSW "
-        f"graph, None for an exact brute-force scan, or an ExternalSearchIndex."
+        f"graph, None for an exact brute-force scan, or a FAISS index."
     )
+
+
+def _make_faiss_index_adapter(search_index: object) -> _FaissIndexAdapter:
+    """Adapt an index object handed to the store, which must be a FAISS index."""
+    if not _is_faiss_index(search_index):
+        raise TypeError(
+            f"'{_SEARCH_INDEX_KWARG}' must be a FAISS index, got "
+            f"{type(search_index).__name__}. Indexes of other libraries are not "
+            f"supported."
+        )
+    return _FaissIndexAdapter(search_index)
 
 
 def _validate_index_params(index_name: str, index_params: dict[str, Any]) -> None:
     """
     Reject parameters the selected index does not take.
 
-    :param index_name: Name of the index the store builds.
+    :param index_name: Name of the index the store searches through.
     :param index_params: The parameters the caller asked it to be built with.
-    :raises ValueError: If a parameter is not one the index accepts.
+    :raises ValueError: If a parameter is not one the index accepts. A FAISS
+        index accepts none.
     """
     table = _INDEX_PARAM_TABLES.get(index_name)
-    if table is None:  # an external index brings its own parameters
-        return
-    validate_index_params(index_params, table, index_name)
+    if table is not None:
+        validate_index_params(index_params, table, index_name)
+    elif index_params:
+        raise ValueError(
+            f"'index_params' only configure the built-in indexes, so the FAISS "
+            f"index {index_name!r} takes none, got {sorted(index_params)}."
+        )
 
 
 def _aligned_index(index: _GalleryIndex, paths: list[str]) -> _GalleryIndex:
     """Check that an index lines up with the gallery paths."""
-    indexed = getattr(index, "ntotal", len(index))
-    if int(indexed) != len(paths):
+    if len(index) != len(paths):
         raise ValueError(
-            f"The index holds {int(indexed)} vectors, but {len(paths)} image "
+            f"The index holds {len(index)} vectors, but {len(paths)} image "
             f"paths were given. They must line up one to one, in the same order."
         )
     return index
@@ -983,44 +1022,40 @@ def _decoded_graph(graph: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _is_external(index_name: str) -> bool:
-    """Returns `True` if a saved index name refers to an external index, `False` otherwise."""
-    return index_name not in (_HNSW, _BRUTE_FORCE)
+def _is_built_in(index_name: str) -> bool:
+    """Returns `True` if a saved index name refers to a built-in index, `False` otherwise."""
+    return index_name in (_HNSW, _BRUTE_FORCE)
 
 
-def _restored_external_index(
-    search_index: Any,
+def _restored_faiss_index(
+    search_index: object,
     saved_name: str,
-) -> ExternalSearchIndex | None:
-    """Validate the index handed to :meth:`load_from_disk` against the saved one."""
+) -> _FaissIndexAdapter | None:
+    """Adapt the FAISS index handed to :meth:`load_from_disk`, checked against the saved one."""
     # The warnings are reported at 'stacklevel=4' so that they point at the
     # caller of 'load_from_disk', three frames up: this function, 'from_dict'
     # and 'load_from_disk' itself.
     if search_index is None:
-        if _is_external(saved_name):
+        if not _is_built_in(saved_name):
             warnings.warn(
-                f"This store was saved on the external index {saved_name!r}, which "
-                f"its file cannot hold. Pass a rebuilt one as "
-                f"'{_SEARCH_INDEX_KWARG}=...' to search through it again; falling "
-                f"back to an exact brute-force scan of the saved embeddings.",
+                f"This store was saved on the index {saved_name!r}, which its file "
+                f"cannot hold. Pass it as '{_SEARCH_INDEX_KWARG}=...' to search "
+                f"through it again. Falling back to an exact brute-force scan of "
+                f"the saved embeddings.",
                 FutureWarning,
                 stacklevel=4,
             )
         return None
-    if not isinstance(search_index, ExternalSearchIndex):
-        raise TypeError(
-            f"'{_SEARCH_INDEX_KWARG}' must be an ExternalSearchIndex, got "
-            f"{type(search_index).__name__}."
-        )
-    if search_index.name != saved_name:
+    adapter = _make_faiss_index_adapter(search_index)
+    if adapter.name != saved_name:
         warnings.warn(
             f"This store was saved on the index {saved_name!r}, but the one passed "
-            f"as '{_SEARCH_INDEX_KWARG}' is named {search_index.name!r}. Its "
-            f"results may not match the ones the saved store returned.",
+            f"as '{_SEARCH_INDEX_KWARG}' is a {adapter.name!r}. Its results may "
+            f"not match the ones the saved store returned.",
             FutureWarning,
             stacklevel=4,
         )
-    return search_index
+    return adapter
 
 
 def _validated_embeddings(

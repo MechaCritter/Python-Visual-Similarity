@@ -16,23 +16,6 @@ SUPPORTED_SPACES = ("cosine", "l2", "ip")
 Space = Literal["cosine", "l2", "ip"]
 
 
-def as_gallery_matrix(vectors: FloatNumpyArray) -> Float32NumpyArray:
-    """
-    Copy the gallery vectors into a contiguous float32 matrix.
-
-    The copy is what the index takes ownership of, so a later mutation of the
-    caller's array cannot desynchronise the index from its vectors.
-
-    :param vectors: Gallery embedding vectors, shape ``(N, D)``.
-    :return: A fresh contiguous ``(N, D)`` float32 matrix.
-    :raises ValueError: If the vectors are not a non-empty 2-D matrix.
-    """
-    # An unconditional copy: 'asarray' would hand back the caller's own array
-    # whenever it already is a C-contiguous float32 matrix, and an index keeping
-    # the matrix would then lock the caller's array.
-    return _checked_gallery(np.array(vectors, dtype=np.float32, order="C", copy=True))
-
-
 def as_contiguous_gallery(vectors: FloatNumpyArray) -> Float32NumpyArray:
     """
     Shape the gallery vectors into a contiguous float32 matrix without copying

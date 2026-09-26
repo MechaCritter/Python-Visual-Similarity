@@ -1,0 +1,28 @@
+---
+upgrade:
+  - |
+    ``ExternalSearchIndex`` is removed, and with it the support for indexes of
+    libraries other than FAISS. Pass the FAISS index itself as
+    ``search_index`` to ``InMemoryImageEmbeddingStore`` and to its
+    ``load_from_disk``.
+  - |
+    A store on a FAISS index is named after the index type, such as
+    ``faiss.IndexHNSWFlat``, and takes its ``space`` from the index metric.
+    ``index_params`` and FAISS metrics other than ``METRIC_L2`` and
+    ``METRIC_INNER_PRODUCT`` raise ``ValueError``.
+  - |
+    A store on a FAISS inner-product index now scores by ``1 - inner_product``
+    like the built-in ``"ip"`` space, so lower is more similar.
+    ``1 - candidate.score`` gives the inner product back.
+features:
+  - |
+    ``KReciprocalReranker`` accepts a store on a FAISS index.
+fixes:
+  - |
+    A store saved on an ``ExternalSearchIndex`` named ``"hnsw"`` was loaded
+    onto a newly built HNSW graph without a warning. Index names now come from
+    the index type, so they cannot collide with a built-in index.
+  - |
+    A store saved on a FAISS index and loaded without it falls back to a
+    brute-force scan in the metric of that index, and no longer in
+    ``"cosine"``.

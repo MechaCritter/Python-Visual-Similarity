@@ -99,7 +99,7 @@ test = [
     "scikit-learn",
     # for tests/features/test_sift.py to download its reference image.
     "requests",
-    # Reference external index of the ExternalSearchIndex tests
+    # FAISS indexes the image store tests search through
     "faiss-cpu",
 ]
 docs = [
