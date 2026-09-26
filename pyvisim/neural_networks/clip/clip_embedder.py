@@ -14,6 +14,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from PIL import Image
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...base import SerializableImageEmbedder
 from ...lazy_import import OptionalImport
 from ...typing import (
@@ -28,7 +29,9 @@ from ._registry import (
     get_model_config,
 )
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
     from torchvision import transforms
 

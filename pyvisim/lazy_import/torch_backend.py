@@ -10,9 +10,12 @@ from __future__ import annotations
 
 from typing import Any, TypeGuard
 
+from .._errors import MissingModuleFromExtraMessage
 from .lazy_import import OptionalImport
 
-with OptionalImport(package="torch", extra="nn") as torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as torch_import:
     import torch
 
 

@@ -1,10 +1,13 @@
 from typing import cast
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput
 from ..backbones import BackboneWithHead
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
     from torchvision import transforms
 
