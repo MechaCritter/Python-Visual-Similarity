@@ -14,10 +14,13 @@ from typing import Any
 
 import numpy as np
 
+from .._errors import MissingModuleFromExtraMessage
 from ..lazy_import import OptionalImport
 from ..serialization import decode_array_node
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
 
 _torch_import.check()

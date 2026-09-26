@@ -2,6 +2,32 @@
 Includes exceptions for the package.
 """
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class MissingModuleFromExtraMessage:
+    """
+    Message telling the user to install the extra that provides a missing module.
+
+    :param module: Import name of the missing module, e.g. ``"torch"``.
+    :param extra: Name of the pip/uv extra that installs it, e.g. ``"nn"``.
+    """
+
+    module: str
+    extra: str
+
+    def __str__(self) -> str:
+        """
+        Render the install instructions.
+
+        :returns: The message naming the missing module and the install commands.
+        """
+        return (
+            f"To use this feature, you need to install the optional dependency '{self.module}'. "
+            f"Install it with: 'uv pip install \"pyvisim[{self.extra}]\"' or 'pip install \"pyvisim[{self.extra}]\"'"
+        )
+
 
 class NotFittedError(ValueError, AttributeError):
     """

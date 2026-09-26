@@ -1,7 +1,10 @@
+from ..._errors import MissingModuleFromExtraMessage
 from ...lazy_import import OptionalImport
 from ...utils.validation import Param, validate_params
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     import torch
 
 

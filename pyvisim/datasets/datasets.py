@@ -9,11 +9,14 @@ from platformdirs import user_cache_dir
 from scipy.io import loadmat
 from tqdm import tqdm
 
+from pyvisim._errors import MissingModuleFromExtraMessage
 from pyvisim._utils import read_image_rgb
 from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
 
-with OptionalImport(package="torch", extra="nn") as _torch_import:
+with OptionalImport(
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
+) as _torch_import:
     from torch.utils.data import Dataset
 
 _torch_import.check()
