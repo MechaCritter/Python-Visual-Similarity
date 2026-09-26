@@ -5,7 +5,8 @@ from PIL import Image
 
 from ..base import FeatureExtractorBase
 from ..typing import Float32NumpyArray, MatLike, UInt8NumpyArray
-from ._utils import _check_output_shape, _to_single_image
+from ..utils.image_utils import to_single_image
+from ._utils import _check_output_shape
 from ._vendored.sift.sift import SIFT as _SIFT
 
 __all__ = ["SIFT"]
@@ -83,7 +84,7 @@ class SIFT(FeatureExtractorBase, _SIFT):
         dims: str = "HWC",
         value_range: tuple[float, float] = (0.0, 255.0),
     ) -> Float32NumpyArray:
-        canonical = _to_single_image(image, dims=dims, value_range=value_range)
+        canonical = to_single_image(image, dims=dims, value_range=value_range)
         grayscale = self._to_grayscale(canonical)
         try:
             self.detect_and_extract(grayscale)  # type: ignore[no-untyped-call]
