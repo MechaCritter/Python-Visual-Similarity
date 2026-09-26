@@ -11,6 +11,7 @@ from typing import Any, cast
 import numpy as np
 from PIL import Image
 
+from .._errors import MissingModuleFromExtraMessage
 from ..lazy_import import OptionalImport
 from ..typing import FloatNumpyArray, ImageInput, MatLike, UInt8NumpyArray
 from ..utils.image_utils import iter_image_batches
@@ -18,8 +19,7 @@ from ..utils.validation import Param, validate_params
 from ._base import NeuralImageEmbedder
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
 ) as _torch_import:
     import torch
     import torch.nn as nn

@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from typing import Any, TypeGuard
 
+from .._errors import MissingModuleFromExtraMessage
 from .lazy_import import OptionalImport
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
 ) as torch_import:
     import torch
 

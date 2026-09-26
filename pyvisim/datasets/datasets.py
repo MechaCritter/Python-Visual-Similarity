@@ -9,13 +9,13 @@ from platformdirs import user_cache_dir
 from scipy.io import loadmat
 from tqdm import tqdm
 
+from pyvisim._errors import MissingModuleFromExtraMessage
 from pyvisim._utils import read_image_rgb
 from pyvisim.lazy_import import OptionalImport
 from pyvisim.typing import UInt8NumpyArray
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
 ) as _torch_import:
     from torch.utils.data import Dataset
 

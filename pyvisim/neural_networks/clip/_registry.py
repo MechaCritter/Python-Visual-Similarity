@@ -8,11 +8,11 @@ the standard Hugging Face cache (``~/.cache/huggingface/hub`` unless
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...lazy_import import OptionalImport
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'huggingface_hub'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="huggingface_hub", extra="nn"))
 ) as _hf_hub_import:
     from huggingface_hub import hf_hub_download
 

@@ -14,6 +14,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from PIL import Image
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...base import SerializableImageEmbedder
 from ...lazy_import import OptionalImport
 from ...typing import (
@@ -29,8 +30,7 @@ from ._registry import (
 )
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
 ) as _torch_import:
     import torch
     from torchvision import transforms
