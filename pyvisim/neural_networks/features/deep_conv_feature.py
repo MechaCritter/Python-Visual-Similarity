@@ -23,7 +23,7 @@ with OptionalImport(
 
 _LOGGER = logging.getLogger(__name__)
 
-#: Backbone built when none is given.
+# Backbone built when none is given.
 _DEFAULT_BACKBONE = "vgg16"
 
 
