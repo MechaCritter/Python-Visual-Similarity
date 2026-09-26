@@ -5,11 +5,18 @@ is not part of the published documentation.
 
 ## Building block view
 
-The module holds the input types and the normalization helpers that every
-public method accepts, plus the protocols the library's own components are
-written against. The implementation is split in two: numeric types and image
-normalization live in `pyvisim/typing/numeric.py`, the embedder protocol in
-`pyvisim/typing/embedders.py`.
+The module holds the input types that every public method accepts, plus the
+protocols the library's own components are written against. The 
+main goal is to decouple the components from each other and to 
+avoid circular imports sometimes. Implemented components are:
+
+- [Numeric types](../../pyvisim/typing/numeric.py)
+- [Embedder protocol](../../pyvisim/typing/embedders.py)
+- [Search index protocol](../../pyvisim/typing/index.py)
+- [Embedding store protocol](../../pyvisim/typing/store.py)
+
+The image normalization behind `dims` and `value_range` is implemented in
+`pyvisim/utils/image_utils.py`.
 
 ## Architecture decisions
 
