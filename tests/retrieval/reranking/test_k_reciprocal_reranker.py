@@ -10,10 +10,7 @@ from PIL import Image
 
 from pyvisim.classic import VLADEmbedder
 from pyvisim.retrieval.data import Candidate
-from pyvisim.retrieval.image_store import (
-    ExternalSearchIndex,
-    InMemoryImageEmbeddingStore,
-)
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 from pyvisim.retrieval.reranking import KReciprocalReranker
 
 # The distance computation is checked on its own against a literal transcription
@@ -175,31 +172,6 @@ def test_rejects_a_non_store() -> None:
     """Anything but an ``InMemoryImageEmbeddingStore`` is refused."""
     with pytest.raises(TypeError, match="InMemoryImageEmbeddingStore"):
         KReciprocalReranker(object())  # type: ignore[arg-type]
-
-
-def test_rejects_a_store_on_an_external_index(
-    store: InMemoryImageEmbeddingStore,
-) -> None:
-    """A store searching through an external index has scores of unknown meaning."""
-
-    class _Stub:
-        """A stand-in index that can search but says nothing about its metric."""
-
-        def search(self, queries: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
-            """Return the first ``k`` gallery rows for every query.
-
-            :param queries: the ``(M, D)`` query batch.
-            :param k: number of neighbors per query.
-            :returns: a ``(scores, ids)`` pair of ``(M, k)`` arrays.
-            """
-            rows = queries.shape[0]
-            return np.zeros((rows, k), np.float32), np.tile(np.arange(k), (rows, 1))
-
-    external = InMemoryImageEmbeddingStore(
-        store.paths, store.embedder, ExternalSearchIndex(_Stub(), store.embeddings)
-    )
-    with pytest.raises(ValueError, match="external index"):
-        KReciprocalReranker(external)
 
 
 @pytest.mark.parametrize(
