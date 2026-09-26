@@ -5,12 +5,12 @@ Shared base for the neural image embedders.
 import abc
 from typing import Any, ClassVar, TypeVar, cast
 
+from .._errors import MissingModuleFromExtraMessage
 from ..base import SerializableImageEmbedder
 from ..lazy_import import OptionalImport
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
 ) as _torch_import:
     import torch
 

@@ -1,12 +1,12 @@
 from typing import cast
 
+from ..._errors import MissingModuleFromExtraMessage
 from ...lazy_import import OptionalImport
 from ...typing import FloatNumpyArray, ImageInput
 from ..backbones import BackboneWithHead
 
 with OptionalImport(
-    err_msg="To use this feature, you need to install the optional dependency 'torch'. "
-    "Install it with: 'uv pip install \"pyvisim[nn]\"' or 'pip install \"pyvisim[nn]\"'"
+    err_msg=str(MissingModuleFromExtraMessage(module="torch", extra="nn"))
 ) as _torch_import:
     import torch
     from torchvision import transforms
