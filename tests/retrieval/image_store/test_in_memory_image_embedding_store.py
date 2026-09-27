@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 import time
 from collections.abc import Callable
 from typing import Any
@@ -1312,13 +1311,56 @@ def test_an_index_of_another_library_is_rejected(
         )
 
 
-def test_an_index_object_needs_faiss(
-    store: InMemoryImageEmbeddingStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_an_index_object_needs_faiss(run_python: Callable[[str], None]) -> None:
     """Without FAISS installed, an index object asks for it to be installed."""
-    monkeypatch.setitem(sys.modules, "faiss", None)
-    with pytest.raises(ImportError, match="FAISS is not installed"):
-        InMemoryImageEmbeddingStore(store.paths, store.embedder, object())  # type: ignore[arg-type]
+    run_python(
+        """
+        import sys
+
+        sys.modules["faiss"] = None
+
+        from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
+
+        try:
+            InMemoryImageEmbeddingStore(["image.png"], None, object())
+        except ImportError as error:
+            assert "FAISS is not installed" in str(error), error
+        else:
+            raise AssertionError("No ImportError was raised.")
+        """
+    )
+
+
+def test_a_store_on_a_built_in_index_never_loads_faiss(
+    run_python: Callable[[str], None],
+) -> None:
+    """FAISS is imported only once an index object is passed to the store."""
+    run_python(
+        """
+        import sys
+
+        import numpy as np
+
+        from pyvisim.retrieval.image_store import (
+            BruteForceIndex,
+            InMemoryImageEmbeddingStore,
+        )
+        from pyvisim.retrieval.reranking import KReciprocalReranker
+
+        InMemoryImageEmbeddingStore(["image.png"], None, "hnsw")
+        store = InMemoryImageEmbeddingStore._from_components(
+            paths=["image.png"],
+            embedder=None,
+            index=BruteForceIndex(np.ones((1, 4), dtype=np.float32)),
+            index_name="brute-force",
+            space="cosine",
+            index_params={},
+        )
+        store.index.search(np.ones(4, dtype=np.float32), k=1)
+        KReciprocalReranker(store)
+        assert "faiss" not in sys.modules, "FAISS was imported."
+        """
+    )
 
 
 def test_faiss_store_round_trips_on_its_index(

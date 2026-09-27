@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 import tracemalloc
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -65,11 +65,24 @@ def test_recognizes_a_faiss_index(flat_index: Any, vectors: np.ndarray) -> None:
     assert not is_faiss_index(vectors)
 
 
-def test_recognizing_an_index_needs_faiss(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_recognizing_an_index_needs_faiss(run_python: Callable[[str], None]) -> None:
     """Without FAISS installed, the check asks for it to be installed."""
-    monkeypatch.setitem(sys.modules, "faiss", None)
-    with pytest.raises(ImportError, match="FAISS is not installed"):
-        is_faiss_index(object())
+    run_python(
+        """
+        import sys
+
+        sys.modules["faiss"] = None
+
+        from pyvisim.retrieval.image_store._index._adapter import is_faiss_index
+
+        try:
+            is_faiss_index(object())
+        except ImportError as error:
+            assert "FAISS is not installed" in str(error), error
+        else:
+            raise AssertionError("No ImportError was raised.")
+        """
+    )
 
 
 # Construction and exposed state
