@@ -14,9 +14,8 @@ their neighborhoods agree. The candidates are finally re-ranked by
 ``(1 - lambda_value) * jaccard + lambda_value * original``, where ``original``
 is the distance the store ranked them by.
 
-The candidates must come from the store that is passed to the reranker, and a
-store on an ``ExternalSearchIndex`` is rejected. For more technical
-information, visit
+The candidates must come from the store that is passed to the reranker. For
+more technical information, visit
 https://github.com/MechaCritter/Python-Visual-Similarity/blob/main/docs/image_similarity_retrieval/arc42.md.
 
 Example
