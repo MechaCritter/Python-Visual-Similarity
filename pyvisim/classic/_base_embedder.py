@@ -267,14 +267,15 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         Validates and stores the given PCA model.
 
         :param pca: PCA model to validate and store.
-        :raises ValueError: If ``pca`` is not a ``PCA`` instance or its dimensions are
-            incompatible with the feature extractor or clustering model.
+        :raises ValueError: If ``pca`` is not a ``PCA`` instance.
+        :raises RuntimeError: If its dimensions are incompatible with the
+            feature extractor or the fitted clustering model.
         """
         if not pca.is_fitted:
             self._pca = pca
             return
         if pca.n_features_in != self._feature_extractor.output_dim:
-            raise ValueError(
+            raise RuntimeError(
                 "PCA input size has to match the feature extractor output size. "
                 f"PCA model has input size {pca.n_features_in}, "
                 f"while feature extractor has output size {self._feature_extractor.output_dim}"
@@ -282,7 +283,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
 
         if self._clustering_model is not None and self._clustering_model.is_fitted:
             if pca.n_components != self._clustering_model.n_features_in:
-                raise ValueError(
+                raise RuntimeError(
                     "PCA input size has to match the clustering model input size."
                     f"PCA model has input size {pca.n_components}, "
                     f"while clustering model has input size {self._clustering_model.n_features_in}"
@@ -475,9 +476,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :raises TypeError: If ``model`` is not a
             :class:`sklearn.decomposition.PCA` instance, or its
             ``n_components`` or ``random_state`` cannot be translated.
-        :raises ValueError: If the fitted estimator's input size does not match
-            the feature extractor output size, or its output size does not
-            match the input size of the fitted clustering model.
+        :raises RuntimeError: If the fitted estimator's input size does not
+            match the feature extractor output size, or its output size does
+            not match the input size of the fitted clustering model.
         """
         self._set_pca(PCA.from_sklearn(model))
 

@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    ``VLADEmbedder`` and ``FisherVectorEmbedder`` now raise ``RuntimeError``
+    for a fitted PCA whose dimensions do not match the feature extractor or
+    the clustering model, like their other dimension checks.

@@ -217,7 +217,7 @@ def test_set_pca_from_sklearn_feature_dim_mismatch_raises() -> None:
     rng = np.random.default_rng(0)
     sklearn_model = SklearnPCA(n_components=8).fit(rng.random((300, 16)))
     embedder = VLADEmbedder(n_clusters=8)
-    with pytest.raises(ValueError, match="feature extractor output size"):
+    with pytest.raises(RuntimeError, match="feature extractor output size"):
         embedder.set_pca_from_sklearn(sklearn_model)
     assert embedder.pca is None
 
@@ -233,7 +233,7 @@ def test_set_pca_from_sklearn_clustering_dim_mismatch_raises() -> None:
         SklearnKMeans(n_clusters=8, random_state=0).fit(rng.random((300, 128)))
     )
     sklearn_model = SklearnPCA(n_components=32).fit(rng.random((300, 128)))
-    with pytest.raises(ValueError, match="clustering model input size"):
+    with pytest.raises(RuntimeError, match="clustering model input size"):
         embedder.set_pca_from_sklearn(sklearn_model)
     assert embedder.pca is None
 
