@@ -11,7 +11,7 @@ Classical methods
    * - Introduction: VLAD and Fisher Vectors
      - Train classical embedders ``VLAD`` and ``Fisher Vector`` on ``RootSIFT``
        features, previously state-of-the-art methods for image retrieval.
-     - :doc:`VLAD and Fisher Vectors with RootSIFT <notebooks/vlad_and_fisher_vector_introduction>`
+     - :doc:`VLAD and Fisher Vectors <notebooks/vlad_and_fisher_vector_introduction>`
    * - VLAD and Fisher Vector with Deep CNN features
      - Train classical embedders ``VLAD`` and ``Fisher Vector`` on deep features extracted
        from activation maps of a pretrained CNN.
