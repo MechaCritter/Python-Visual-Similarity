@@ -16,6 +16,11 @@ Classical methods
      - Combine a ``VLAD`` and a ``Fisher Vector`` embedder on deep features into a
        ``Pipeline`` and compare images with the concatenated vectors.
      - :doc:`Pipeline <notebooks/pipeline>`
+   * - Custom RootSIFT feature extractor
+     - Implement ``RootSIFT`` on top of the ``SIFT`` of ``OpenCV``, the
+       recommended way to use ``RootSIFT`` with this library, and train a
+       ``VLAD`` embedder with it.
+     - :doc:`Custom Feature Extractor with RootSIFT <notebooks/custom_feature_extractor_with_rootsift>`
    * - Custom feature extractor
      - Write your own feature extractor by inheriting from
        ``FeatureExtractorBase``, train a ``VLAD`` embedder with it and compare
@@ -27,4 +32,5 @@ Classical methods
 
    notebooks/vlad_and_fisher_with_resnet18_deep_features
    notebooks/pipeline
+   notebooks/custom_feature_extractor_with_rootsift
    notebooks/custom_feature_extractor_with_orb
