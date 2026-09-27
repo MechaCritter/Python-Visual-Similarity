@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Added ``set_pca_from_sklearn`` to ``VLADEmbedder`` and
+    ``FisherVectorEmbedder``. It replaces the embedder's PCA with one created
+    from a ``sklearn.decomposition.PCA`` estimator, fitted or not.
