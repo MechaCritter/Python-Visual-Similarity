@@ -1,0 +1,7 @@
+---
+enhancements:
+  - |
+    The new tutorial ``Introduction to VLAD and Fisher Vectors`` under the
+    classical methods trains both embedders on ``RootSIFT`` features, once with
+    ``learn`` and once from fitted ``scikit-learn`` estimators, which have more
+    training options.
