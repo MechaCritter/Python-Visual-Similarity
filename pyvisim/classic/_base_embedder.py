@@ -1,4 +1,5 @@
 import abc
+import warnings
 from collections.abc import Iterator, Mapping
 from typing import Any, ClassVar, TypeVar
 
@@ -387,7 +388,10 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images. Each image is normalized to a canonical
             ``uint8`` ``(H, W, C)`` array before feature extraction.
-        :param dim_reduction_factor: If a value is provided, a new PCA model will be used to reduce the dimensionality of the feature space
+        :param dim_reduction_factor: If a value is provided, a new PCA model
+            will be used to reduce the dimensionality of the feature space. It
+            replaces a PCA the embedder already has and emits a
+            ``FutureWarning``.
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
@@ -404,6 +408,13 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             raise RuntimeError(
                 "This embedder has no clustering model to fit. "
                 "Configure one via the constructor parameters."
+            )
+        if dim_reduction_factor is not None and self._pca is not None:
+            warnings.warn(
+                "dim_reduction_factor replaces the PCA this embedder already has "
+                "with a new one. Leave it out to keep the configured PCA.",
+                FutureWarning,
+                stacklevel=3,
             )
         features: FloatNumpyArray = np.vstack(
             [
