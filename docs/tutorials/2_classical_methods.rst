@@ -8,6 +8,11 @@ Classical methods
    * - Tutorial
      - Description
      - Link
+   * - Introduction to VLAD and Fisher Vectors
+     - Train ``VLAD`` and ``Fisher Vector`` embedders on ``RootSIFT`` features,
+       once with ``learn`` and once from ``scikit-learn`` estimators, which have
+       more training options.
+     - :doc:`Introduction to VLAD and Fisher Vectors <notebooks/vlad_and_fisher_vector_introduction>`
    * - VLAD and Fisher Vector
      - Learn how ``VLAD`` and ``Fisher Vector``, previously state-of-the-art methods for
        image retrieval, work.
@@ -30,6 +35,7 @@ Classical methods
 .. toctree::
    :hidden:
 
+   notebooks/vlad_and_fisher_vector_introduction
    notebooks/vlad_and_fisher_with_resnet18_deep_features
    notebooks/pipeline
    notebooks/custom_feature_extractor_with_rootsift
