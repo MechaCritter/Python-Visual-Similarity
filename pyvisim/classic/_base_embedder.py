@@ -473,7 +473,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             )
         self._set_clustering_model(from_sklearn(model))
 
-    def set_pca_from_sklearn(self, model: Any) -> None:
+    def load_pca_model_from_sklearn(self, model: Any) -> None:
         """
         Replaces this embedder's PCA with one created from a scikit-learn
         estimator.

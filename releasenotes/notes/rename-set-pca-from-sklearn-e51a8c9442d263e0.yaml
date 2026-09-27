@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    Renamed ``set_pca_from_sklearn`` of ``VLADEmbedder`` and
+    ``FisherVectorEmbedder`` to ``load_pca_model_from_sklearn``. The arguments
+    stay the same.
