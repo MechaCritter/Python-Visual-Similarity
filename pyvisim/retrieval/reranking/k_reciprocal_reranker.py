@@ -22,7 +22,7 @@ from ...typing import (
 )
 from ...utils.validation import Param, validate_params
 from ..data import Candidate
-from ..image_store import ExternalSearchIndex, InMemoryImageEmbeddingStore
+from ..image_store import InMemoryImageEmbeddingStore
 
 #: Share of a member's own reciprocal neighborhood that must already lie in the
 #: probe's for the two neighborhoods to be merged (Eq. 4 of Zhong et al.).
@@ -47,9 +47,8 @@ class KReciprocalReranker:
         kept). [1] uses ``0.3``.
     :raises TypeError: If ``store`` is not an
         :class:`~pyvisim.retrieval.image_store.InMemoryImageEmbeddingStore`.
-    :raises ValueError: If the store searches through an external index,
-        ``k1`` or ``k2`` is not a positive integer, ``k2`` exceeds ``k1``, or
-        ``lambda_value`` lies outside ``[0, 1]``.
+    :raises ValueError: If ``k1`` or ``k2`` is not a positive integer, ``k2``
+        exceeds ``k1``, or ``lambda_value`` lies outside ``[0, 1]``.
 
     References:
     ===========
@@ -72,13 +71,6 @@ class KReciprocalReranker:
         k2: int = 6,
         lambda_value: float = 0.3,
     ) -> None:
-        if isinstance(store.index, ExternalSearchIndex):
-            raise ValueError(
-                "The store searches through an external index, whose scores may "
-                "be similarities or distances of an unknown metric. K-reciprocal "
-                "re-ranking needs the distances of the store's space, which only "
-                "the built-in indexes report."
-            )
         if k2 > k1:
             raise ValueError(f"'k2' must not exceed 'k1', got k2={k2} and k1={k1}.")
         self._store: InMemoryImageEmbeddingStore = store

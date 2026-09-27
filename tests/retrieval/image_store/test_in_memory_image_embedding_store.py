@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pytest
@@ -15,7 +16,6 @@ from pyvisim.neural_networks import ContrastiveSiameseNetwork
 from pyvisim.retrieval.data import Candidate
 from pyvisim.retrieval.image_store import (
     BruteForceIndex,
-    ExternalSearchIndex,
     HnswIndex,
     InMemoryImageEmbeddingStore,
 )
@@ -1158,148 +1158,316 @@ def test_load_rejects_a_foreign_file(
         InMemoryImageEmbeddingStore.load_from_disk(embedder_file)
 
 
-def test_load_rejects_a_non_index_search_index(
-    store: InMemoryImageEmbeddingStore, tmp_path_factory: pytest.TempPathFactory
+# Stores on a FAISS index
+
+
+@pytest.fixture(scope="module")
+def faiss() -> Any:
+    """The FAISS module, skipping the tests that need it where it is missing.
+
+    :returns: the imported ``faiss`` module.
+    """
+    return pytest.importorskip("faiss")
+
+
+def _indexed(index: Any, source: InMemoryImageEmbeddingStore) -> Any:
+    """Add the embeddings of a store to an empty FAISS index.
+
+    :param index: the empty FAISS index.
+    :param source: the store whose embeddings are added, row by row.
+    :returns: the same index, now holding the gallery.
+    """
+    index.add(np.ascontiguousarray(source.embeddings))
+    return index
+
+
+@pytest.fixture
+def faiss_store(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> InMemoryImageEmbeddingStore:
+    """A store on a flat inner-product FAISS index over the gallery.
+
+    The embeddings of the cosine ``store`` are L2-normalised, so the inner
+    product ranks them by cosine similarity.
+
+    :param faiss: the FAISS module.
+    :param store: the brute-force store whose embeddings are indexed.
+    :returns: a store on a ``faiss.IndexFlatIP``.
+    """
+    flat = _indexed(faiss.IndexFlatIP(store.dim), store)
+    return InMemoryImageEmbeddingStore(store.paths, store.embedder, flat)
+
+
+def test_faiss_store_adopts_the_index(
+    faiss_store: InMemoryImageEmbeddingStore, store: InMemoryImageEmbeddingStore
 ) -> None:
-    """``search_index`` must be an :class:`ExternalSearchIndex`."""
+    """A FAISS index is searched as it is, named after its type, and nothing is embedded."""
+    assert faiss_store.is_built
+    assert faiss_store.index_name == "faiss.IndexFlatIP"
+    assert faiss_store.space == "ip"
+    assert faiss_store.index_params == {}
+    assert np.allclose(faiss_store.embeddings, store.embeddings, atol=1e-6)
+
+
+def test_faiss_store_keeps_the_faiss_index(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> None:
+    """The store's index exposes the FAISS index it was given."""
+    flat = _indexed(faiss.IndexFlatIP(store.dim), store)
+    faiss_store = InMemoryImageEmbeddingStore(store.paths, store.embedder, flat)
+    assert faiss_store.index.faiss_index is flat
+
+
+def test_faiss_store_ranks_like_the_cosine_store(
+    faiss_store: InMemoryImageEmbeddingStore,
+    store: InMemoryImageEmbeddingStore,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """On normalised embeddings, ``1 - inner_product`` is the cosine distance."""
+    gray = category_train_images_flat[2]
+    probe = np.stack([gray, gray, gray], axis=-1)
+    on_faiss = faiss_store.retrieve_top_k_similar(probe, k=5)[0]
+    built_in = store.retrieve_top_k_similar(probe, k=5)[0]
+    assert [c.path for c in on_faiss] == [c.path for c in built_in]
+    assert np.allclose(
+        [c.score for c in on_faiss], [c.score for c in built_in], atol=1e-5
+    )
+
+
+def test_faiss_store_expands_queries(
+    faiss_store: InMemoryImageEmbeddingStore,
+    gallery_paths: list[str],
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """The query expansion reads the neighbors back from the FAISS index."""
+    gray = category_train_images_flat[2]
+    probe = np.stack([gray, gray, gray], axis=-1)
+    ranked = faiss_store.retrieve_top_k_similar(
+        probe, k=3, query_expansion=True, expansion_neighbors=5
+    )[0]
+    assert len(ranked) == 3
+    assert ranked[0].path == gallery_paths[2]
+
+
+def test_faiss_store_takes_its_space_from_the_metric(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> None:
+    """The metric of the index decides the space, whatever ``space`` says."""
+    faiss_store = InMemoryImageEmbeddingStore(
+        store.paths,
+        store.embedder,
+        _indexed(faiss.IndexFlatL2(store.dim), store),
+        space="cosine",
+    )
+    assert faiss_store.space == "l2"
+
+
+def test_faiss_store_rejects_index_params(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> None:
+    """``index_params`` configure the built-in indexes only."""
+    with pytest.raises(ValueError, match="only configure the built-in indexes"):
+        InMemoryImageEmbeddingStore(
+            store.paths,
+            store.embedder,
+            _indexed(faiss.IndexFlatIP(store.dim), store),
+            index_params={"graph_degree": 8},
+        )
+
+
+def test_faiss_store_rejects_an_unsupported_metric(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> None:
+    """A FAISS metric without a matching space is rejected."""
+    with pytest.raises(ValueError, match="METRIC_L2 and METRIC_INNER_PRODUCT"):
+        InMemoryImageEmbeddingStore(
+            store.paths,
+            store.embedder,
+            _indexed(faiss.IndexFlat(store.dim, faiss.METRIC_L1), store),
+        )
+
+
+def test_faiss_store_rejects_a_path_count_mismatch(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> None:
+    """The index must hold exactly one vector per gallery path."""
+    with pytest.raises(ValueError, match="image paths were given"):
+        InMemoryImageEmbeddingStore(
+            store.paths[:4],
+            store.embedder,
+            _indexed(faiss.IndexFlatIP(store.dim), store),
+        )
+
+
+def test_an_index_of_another_library_is_rejected(
+    faiss: Any, store: InMemoryImageEmbeddingStore
+) -> None:
+    """Only a FAISS index is accepted as an index object."""
+    with pytest.raises(TypeError, match="must be a FAISS index"):
+        InMemoryImageEmbeddingStore(
+            store.paths,
+            store.embedder,
+            BruteForceIndex(store.embeddings),  # type: ignore[arg-type]
+        )
+
+
+def test_an_index_object_needs_faiss(run_python: Callable[[str], None]) -> None:
+    """Without FAISS installed, an index object asks for it to be installed."""
+    run_python(
+        """
+        import sys
+
+        sys.modules["faiss"] = None
+
+        from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
+
+        try:
+            InMemoryImageEmbeddingStore(["image.png"], None, object())
+        except ImportError as error:
+            assert "FAISS is not installed" in str(error), error
+        else:
+            raise AssertionError("No ImportError was raised.")
+        """
+    )
+
+
+def test_a_store_on_a_built_in_index_never_loads_faiss(
+    run_python: Callable[[str], None],
+) -> None:
+    """FAISS is imported only once an index object is passed to the store."""
+    run_python(
+        """
+        import sys
+
+        import numpy as np
+
+        from pyvisim.retrieval.image_store import (
+            BruteForceIndex,
+            InMemoryImageEmbeddingStore,
+        )
+        from pyvisim.retrieval.reranking import KReciprocalReranker
+
+        InMemoryImageEmbeddingStore(["image.png"], None, "hnsw")
+        store = InMemoryImageEmbeddingStore._from_components(
+            paths=["image.png"],
+            embedder=None,
+            index=BruteForceIndex(np.ones((1, 4), dtype=np.float32)),
+            index_name="brute-force",
+            space="cosine",
+            index_params={},
+        )
+        store.index.search(np.ones(4, dtype=np.float32), k=1)
+        KReciprocalReranker(store)
+        assert "faiss" not in sys.modules, "FAISS was imported."
+        """
+    )
+
+
+def test_faiss_store_round_trips_on_its_index(
+    faiss_store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """A store saved on a FAISS index reloads onto it."""
+    target = tmp_path_factory.mktemp("rt_faiss") / "store.safetensors"
+    written = faiss_store.save_to_disk(target)
+    loaded = InMemoryImageEmbeddingStore.load_from_disk(
+        written, search_index=faiss_store.index.faiss_index
+    )
+    assert loaded.index_name == "faiss.IndexFlatIP"
+    assert loaded.space == "ip"
+    assert loaded.paths == faiss_store.paths
+    assert np.allclose(loaded.embeddings, faiss_store.embeddings, atol=1e-6)
+
+
+def test_load_warns_when_the_index_type_differs(
+    faiss: Any,
+    faiss_store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Reloading onto a FAISS index of another type is reported."""
+    target = tmp_path_factory.mktemp("rt_faiss_other") / "store.safetensors"
+    written = faiss_store.save_to_disk(target)
+    other = _indexed(faiss.IndexFlatL2(faiss_store.dim), faiss_store)
+    with pytest.warns(FutureWarning, match="is a 'faiss.IndexFlatL2'") as record:
+        loaded = InMemoryImageEmbeddingStore.load_from_disk(written, search_index=other)
+    assert record[0].filename == __file__
+    assert loaded.index_name == "faiss.IndexFlatL2"
+    assert loaded.space == "l2"
+
+
+def test_load_without_the_faiss_index_falls_back_to_brute_force(
+    faiss: Any,
+    store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """A store saved on a FAISS index reloads onto an exact scan in its metric."""
+    faiss_store = InMemoryImageEmbeddingStore(
+        store.paths, store.embedder, _indexed(faiss.IndexFlatL2(store.dim), store)
+    )
+    target = tmp_path_factory.mktemp("rt_faiss_fallback") / "store.safetensors"
+    written = faiss_store.save_to_disk(target)
+
+    with pytest.warns(FutureWarning, match="Falling back") as record:
+        loaded = InMemoryImageEmbeddingStore.load_from_disk(written)
+    assert record[0].filename == __file__
+    assert isinstance(loaded.index, BruteForceIndex)
+    assert loaded.index_name == "brute-force"
+    assert loaded.space == "l2"
+    queries = store.embeddings[:3]
+    fallback_scores, fallback_ids = loaded.index.search(queries, k=4)
+    faiss_scores, faiss_ids = faiss_store.index.search(queries, k=4)
+    assert np.array_equal(fallback_ids, faiss_ids)
+    assert np.allclose(fallback_scores, faiss_scores, atol=1e-5)
+
+
+def test_a_faiss_hnsw_store_never_reloads_as_a_built_in_graph(
+    faiss: Any,
+    store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """The name of a FAISS HNSW index cannot be taken for the built-in ``"hnsw"``."""
+    faiss_store = InMemoryImageEmbeddingStore(
+        store.paths, store.embedder, _indexed(faiss.IndexHNSWFlat(store.dim, 8), store)
+    )
+    target = tmp_path_factory.mktemp("rt_faiss_hnsw") / "store.safetensors"
+    written = faiss_store.save_to_disk(target)
+    assert load_state(written, "pyvisim_store")["index_name"] == "faiss.IndexHNSWFlat"
+
+    with pytest.warns(FutureWarning, match="Falling back"):
+        loaded = InMemoryImageEmbeddingStore.load_from_disk(written)
+    assert isinstance(loaded.index, BruteForceIndex)
+
+
+def test_load_rejects_a_search_index_other_than_faiss(
+    faiss: Any,
+    store: InMemoryImageEmbeddingStore,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """``search_index`` of ``load_from_disk`` must be a FAISS index."""
     target = tmp_path_factory.mktemp("rt_bad_index") / "store.safetensors"
     written = store.save_to_disk(target)
-    with pytest.raises(TypeError, match="must be an ExternalSearchIndex"):
+    with pytest.raises(TypeError, match="must be a FAISS index"):
         InMemoryImageEmbeddingStore.load_from_disk(written, search_index="hnsw")
 
 
-# Stores on an index built elsewhere
-
-
-def test_external_store_adopts_the_index(
-    gallery_paths: list[str], learned_vlad_embedder: VLADEmbedder
-) -> None:
-    """An external index is searched as-is, and nothing is embedded."""
-    faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(
-        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
-    )
-    vectors = np.ascontiguousarray(source.embeddings)
-
-    flat = faiss.IndexFlatIP(vectors.shape[1])
-    flat.add(vectors)
-    store = InMemoryImageEmbeddingStore(
-        gallery_paths[:6],
-        learned_vlad_embedder,
-        ExternalSearchIndex.from_faiss_index(flat, name="flat-ip"),
-    )
-
-    assert store.index_name == "flat-ip"
-    assert isinstance(store.index, ExternalSearchIndex)
-    assert np.allclose(store.embeddings, vectors, atol=1e-6)
-    # An inner-product index ranks the query itself highest, not lowest.
-    scores, ids = store.index.search(vectors[:1], k=3)
-    assert ids[0, 0] == 0
-    assert scores[0, 0] == pytest.approx(1.0, abs=1e-5)
-
-
-def test_external_store_rejects_a_path_count_mismatch(
-    gallery_paths: list[str], learned_vlad_embedder: VLADEmbedder
-) -> None:
-    """The index must hold exactly one vector per gallery path."""
-    faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(
-        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
-    )
-    flat = faiss.IndexFlatIP(source.dim)
-    flat.add(np.ascontiguousarray(source.embeddings))
-
-    with pytest.raises(ValueError, match="image paths were given"):
-        InMemoryImageEmbeddingStore(
-            gallery_paths[:4],
-            learned_vlad_embedder,
-            ExternalSearchIndex.from_faiss_index(flat),
-        )
-
-
-def test_external_store_round_trips_on_a_rebuilt_index(
-    gallery_paths: list[str],
-    learned_vlad_embedder: VLADEmbedder,
+def test_loading_onto_a_faiss_index_drops_the_built_in_params(
+    faiss: Any,
+    hnsw_store: InMemoryImageEmbeddingStore,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    """A store on an external index reloads onto a rebuilt one."""
-    faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(
-        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
-    )
-    vectors = np.ascontiguousarray(source.embeddings)
-    flat = faiss.IndexFlatIP(vectors.shape[1])
-    flat.add(vectors)
-    store = InMemoryImageEmbeddingStore(
-        gallery_paths[:6],
-        learned_vlad_embedder,
-        ExternalSearchIndex.from_faiss_index(flat, name="flat-ip"),
-    )
-
-    target = tmp_path_factory.mktemp("rt_external") / "store.safetensors"
-    rebuilt = faiss.IndexFlatIP(vectors.shape[1])
-    rebuilt.add(vectors)
-    loaded = InMemoryImageEmbeddingStore.load_from_disk(
-        store.save_to_disk(target),
-        search_index=ExternalSearchIndex.from_faiss_index(rebuilt, name="flat-ip"),
-    )
-
-    assert loaded.index_name == "flat-ip"
-    assert np.allclose(loaded.embeddings, store.embeddings, atol=1e-6)
-
-
-def test_load_warns_when_the_index_name_differs(
-    gallery_paths: list[str],
-    learned_vlad_embedder: VLADEmbedder,
-    tmp_path_factory: pytest.TempPathFactory,
-) -> None:
-    """Reloading onto a differently named index is reported."""
-    faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(
-        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
-    )
-    vectors = np.ascontiguousarray(source.embeddings)
-    flat = faiss.IndexFlatIP(vectors.shape[1])
-    flat.add(vectors)
-    store = InMemoryImageEmbeddingStore(
-        gallery_paths[:6],
-        learned_vlad_embedder,
-        ExternalSearchIndex.from_faiss_index(flat, name="flat-ip"),
-    )
-    target = tmp_path_factory.mktemp("rt_renamed") / "store.safetensors"
-    written = store.save_to_disk(target)
-
-    with pytest.warns(FutureWarning, match="named 'other'"):
-        loaded = InMemoryImageEmbeddingStore.load_from_disk(
+    """A store moved onto a FAISS index keeps no parameters of its former index."""
+    target = tmp_path_factory.mktemp("rt_hnsw_onto_faiss")
+    written = hnsw_store.save_to_disk(target / "hnsw.safetensors")
+    with pytest.warns(FutureWarning, match="saved on the index 'hnsw'"):
+        moved = InMemoryImageEmbeddingStore.load_from_disk(
             written,
-            search_index=ExternalSearchIndex.from_faiss_index(flat, name="other"),
+            search_index=_indexed(faiss.IndexFlatIP(hnsw_store.dim), hnsw_store),
         )
-    assert loaded.index_name == "other"
+    assert moved.index_params == {}
+    assert moved.space == "ip"
 
-
-def test_load_without_an_index_falls_back_to_brute_force(
-    gallery_paths: list[str],
-    learned_vlad_embedder: VLADEmbedder,
-    tmp_path_factory: pytest.TempPathFactory,
-) -> None:
-    """A store saved on an external index reloads onto an exact scan."""
-    faiss = pytest.importorskip("faiss")
-    source = InMemoryImageEmbeddingStore(
-        gallery_paths[:6], learned_vlad_embedder, lazy_build=False
-    )
-    vectors = np.ascontiguousarray(source.embeddings)
-    flat = faiss.IndexFlatIP(vectors.shape[1])
-    flat.add(vectors)
-    store = InMemoryImageEmbeddingStore(
-        gallery_paths[:6],
-        learned_vlad_embedder,
-        ExternalSearchIndex.from_faiss_index(flat, name="flat-ip"),
-    )
-    target = tmp_path_factory.mktemp("rt_fallback") / "store.safetensors"
-    written = store.save_to_disk(target)
-
-    with pytest.warns(FutureWarning, match="falling back"):
-        loaded = InMemoryImageEmbeddingStore.load_from_disk(written)
-    assert isinstance(loaded.index, BruteForceIndex)
-    assert loaded.index_name == "brute-force"
-    assert loaded.paths == store.paths
+    with pytest.warns(FutureWarning, match="Falling back"):
+        reloaded = InMemoryImageEmbeddingStore.load_from_disk(
+            moved.save_to_disk(target / "faiss.safetensors")
+        )
+    assert isinstance(reloaded.index, BruteForceIndex)
