@@ -9,16 +9,13 @@ from ._params import (
 )
 from ._utils import SUPPORTED_SPACES, Space
 from .brute_force_index import BruteForceIndex
-from .external_index import DEFAULT_EXTERNAL_NAME, ExternalSearchIndex
 from .hnsw_index import HnswIndex
 
 __all__ = [
     "BRUTE_FORCE_TO_HNSWLIB",
-    "DEFAULT_EXTERNAL_NAME",
     "HNSW_TO_HNSWLIB",
     "SUPPORTED_SPACES",
     "BruteForceIndex",
-    "ExternalSearchIndex",
     "HnswIndex",
     "Space",
     "accepted_index_params",

@@ -73,7 +73,7 @@ After having built the image store, ``retrieve_top_k_similar`` embeds the query
 images with the store's embedder and ranks the gallery through the index. One
 ranked list of ``Candidate`` matches comes back per query image. Each candidate
 carries the ``path`` of the gallery image, the ``score`` it was ranked by, which
-is a distance for the built-in indexes, so lower means more similar, and
+is a distance, so lower means more similar, and
 ``array``, the matched image itself as an RGB ``uint8`` array. The image is read
 from ``path`` the first time ``array`` is accessed and kept from then on, which
 saves memory. ``clear_buffer()`` drops the kept image again.
@@ -135,6 +135,63 @@ To save the store to disk:
 .. code-block:: python
 
    store.save_to_disk("gallery.safetensors")
+
+.. _faiss-index:
+
+Use FAISS Index with ``InMemoryImageEmbeddingStore``
+----------------------------------------------------
+
+On big galleries, an index built with `FAISS
+<https://github.com/facebookresearch/faiss>`_ can speed up the search and scales
+much better than the built-in indexes, and the store accepts one in place of its
+built-in indexes.
+
+Pass the FAISS index as ``search_index``. **Note** that it must already hold the
+gallery, with one vector per image path, in the same order as the paths:
+
+.. code-block:: python
+
+   import faiss
+   from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
+
+   faiss_index = faiss.IndexFlatIP(dim)
+   faiss.normalize_L2(vectors)
+   faiss_index.add(vectors)
+
+   store = InMemoryImageEmbeddingStore(
+       gallery_paths,              # one path per indexed vector, same order
+       embedder,                   # still needed, to embed the queries
+       faiss_index,
+   )
+   store.index.faiss_index         # the FAISS index itself
+
+.. important::
+
+   - The metric of the index sets the space of the store: ``METRIC_L2`` gives
+     ``"l2"`` and ``METRIC_INNER_PRODUCT`` gives ``"ip"``. Other ``METRIC_*``
+     values are not yet supported.
+   - Vector normalization, if any, must be done by the user before the index is
+     passed to the store. An index built for ``METRIC_INNER_PRODUCT`` ranks by
+     cosine similarity only if the vectors were normalised before they were
+     added, and the query embeddings must be normalised the same way.
+   - The store reads the vectors back from the index by row. So if you use
+     an ``IVF`` index, call this before passing it to the store:
+     ``faiss.extract_index_ivf(faiss_index).make_direct_map()``.
+   - A product- or scalar-quantized index returns only an approximation of its
+     vectors. Upon calling ``save_to_disk``, if ``vectors`` is not passed,
+     the quantized approximation is saved instead of the original vectors.
+     If this is not desired, pass the original vectors to ``save_to_disk``.
+
+The store file cannot hold the FAISS index, so pass the index to
+``load_from_disk`` again. If you leave the index out, the store falls back to an
+exact brute-force scan of the saved embeddings:
+
+.. code-block:: python
+
+   store.save_to_disk("gallery.safetensors", embeddings=original_embeddings)
+   restored = InMemoryImageEmbeddingStore.load_from_disk(
+       "gallery.safetensors", search_index=faiss_index
+   )
 
 References
 ----------
