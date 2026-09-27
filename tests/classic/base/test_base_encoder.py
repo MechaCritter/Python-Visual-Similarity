@@ -337,6 +337,19 @@ def test_learn_with_dim_reduction_factor_builds_pca(
     assert embedder.pca.n_components == 64  # RootSIFT dim 128 // 2
 
 
+def test_learn_with_dim_reduction_factor_replaces_configured_pca_with_warning(
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """A ``dim_reduction_factor`` replaces an already configured PCA and warns."""
+    embedder = VLADEmbedder(
+        n_clusters=8, kmeans_params={"rng": 0}, pca_params={"n_components": 32}
+    )
+    with pytest.warns(FutureWarning, match="replaces the PCA"):
+        embedder.learn(category_train_images_flat, dim_reduction_factor=2)
+    assert embedder.pca is not None
+    assert embedder.pca.n_components == 64  # RootSIFT dim 128 // 2
+
+
 def test_feature_extractor_pca_dim_mismatch_raises(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
