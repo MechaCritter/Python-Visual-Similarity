@@ -1,4 +1,5 @@
 import abc
+import warnings
 from collections.abc import Iterator, Mapping
 from typing import Any, ClassVar, TypeVar
 
@@ -267,14 +268,15 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         Validates and stores the given PCA model.
 
         :param pca: PCA model to validate and store.
-        :raises ValueError: If ``pca`` is not a ``PCA`` instance or its dimensions are
-            incompatible with the feature extractor or clustering model.
+        :raises ValueError: If ``pca`` is not a ``PCA`` instance.
+        :raises RuntimeError: If its dimensions are incompatible with the
+            feature extractor or the fitted clustering model.
         """
         if not pca.is_fitted:
             self._pca = pca
             return
         if pca.n_features_in != self._feature_extractor.output_dim:
-            raise ValueError(
+            raise RuntimeError(
                 "PCA input size has to match the feature extractor output size. "
                 f"PCA model has input size {pca.n_features_in}, "
                 f"while feature extractor has output size {self._feature_extractor.output_dim}"
@@ -282,7 +284,7 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
 
         if self._clustering_model is not None and self._clustering_model.is_fitted:
             if pca.n_components != self._clustering_model.n_features_in:
-                raise ValueError(
+                raise RuntimeError(
                     "PCA input size has to match the clustering model input size."
                     f"PCA model has input size {pca.n_components}, "
                     f"while clustering model has input size {self._clustering_model.n_features_in}"
@@ -386,7 +388,10 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :param images: A single ``MatLike`` image, a batched array, or an
             iterable of images. Each image is normalized to a canonical
             ``uint8`` ``(H, W, C)`` array before feature extraction.
-        :param dim_reduction_factor: If a value is provided, a new PCA model will be used to reduce the dimensionality of the feature space
+        :param dim_reduction_factor: If a value is provided, a new PCA model
+            will be used to reduce the dimensionality of the feature space. It
+            replaces a PCA the embedder already has and emits a
+            ``FutureWarning``.
         :param dims: Axis-label string, one character per array axis in order:
             ``"H"`` = height (rows), ``"W"`` = width (columns), ``"C"`` = channels
             (e.g. RGB), ``"B"`` = batch size. For example, ``"HWC"`` is height ×
@@ -403,6 +408,13 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             raise RuntimeError(
                 "This embedder has no clustering model to fit. "
                 "Configure one via the constructor parameters."
+            )
+        if dim_reduction_factor is not None and self._pca is not None:
+            warnings.warn(
+                "dim_reduction_factor replaces the PCA this embedder already has "
+                "with a new one. Leave it out to keep the configured PCA.",
+                FutureWarning,
+                stacklevel=3,
             )
         features: FloatNumpyArray = np.vstack(
             [
@@ -475,9 +487,9 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
         :raises TypeError: If ``model`` is not a
             :class:`sklearn.decomposition.PCA` instance, or its
             ``n_components`` or ``random_state`` cannot be translated.
-        :raises ValueError: If the fitted estimator's input size does not match
-            the feature extractor output size, or its output size does not
-            match the input size of the fitted clustering model.
+        :raises RuntimeError: If the fitted estimator's input size does not
+            match the feature extractor output size, or its output size does
+            not match the input size of the fitted clustering model.
         """
         self._set_pca(PCA.from_sklearn(model))
 
