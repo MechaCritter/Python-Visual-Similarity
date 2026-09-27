@@ -157,7 +157,7 @@ def test_incompatible_pca_raises(
 # §3.1c setting the PCA from a scikit-learn estimator
 
 
-def test_set_pca_from_sklearn_adopts_fitted_estimator() -> None:
+def test_load_pca_model_from_sklearn_adopts_fitted_estimator() -> None:
     """A fitted ``sklearn.decomposition.PCA`` becomes the embedder's PCA."""
     from sklearn.decomposition import PCA as SklearnPCA
 
@@ -165,7 +165,7 @@ def test_set_pca_from_sklearn_adopts_fitted_estimator() -> None:
     features = rng.random((300, 128))  # RootSIFT output dimension
     sklearn_model = SklearnPCA(n_components=32).fit(features)
     embedder = VLADEmbedder(n_clusters=8)
-    embedder.set_pca_from_sklearn(sklearn_model)
+    embedder.load_pca_model_from_sklearn(sklearn_model)
     assert isinstance(embedder.pca, PCA)
     assert embedder.pca.is_fitted
     assert embedder.pca.n_components == 32
@@ -174,33 +174,33 @@ def test_set_pca_from_sklearn_adopts_fitted_estimator() -> None:
     )
 
 
-def test_set_pca_from_sklearn_replaces_existing_pca() -> None:
+def test_load_pca_model_from_sklearn_replaces_existing_pca() -> None:
     """A PCA matching the fitted clustering model replaces the current one."""
     from sklearn.cluster import KMeans as SklearnKMeans
     from sklearn.decomposition import PCA as SklearnPCA
 
     rng = np.random.default_rng(0)
     embedder = VLADEmbedder(n_clusters=8)
-    embedder.set_pca_from_sklearn(
+    embedder.load_pca_model_from_sklearn(
         SklearnPCA(n_components=32).fit(rng.random((300, 128)))
     )
     embedder.load_clustering_model_from_sklearn(
         SklearnKMeans(n_clusters=8, random_state=0).fit(rng.random((300, 32)))
     )
     replacement = SklearnPCA(n_components=32).fit(rng.random((300, 128)))
-    embedder.set_pca_from_sklearn(replacement)
+    embedder.load_pca_model_from_sklearn(replacement)
     assert embedder.pca is not None
     assert np.array_equal(embedder.pca.components, replacement.components_)
 
 
-def test_set_pca_from_sklearn_unfitted_estimator_is_fitted_by_learn(
+def test_load_pca_model_from_sklearn_unfitted_estimator_is_fitted_by_learn(
     category_train_images_flat: list[np.ndarray],
 ) -> None:
     """An unfitted estimator is stored as is and fitted by ``learn``."""
     from sklearn.decomposition import PCA as SklearnPCA
 
     embedder = VLADEmbedder(n_clusters=8, kmeans_params={"rng": 0})
-    embedder.set_pca_from_sklearn(SklearnPCA(n_components=32))
+    embedder.load_pca_model_from_sklearn(SklearnPCA(n_components=32))
     assert embedder.pca is not None
     assert embedder.pca.is_fitted is False
     embedder.learn(category_train_images_flat)
@@ -210,7 +210,7 @@ def test_set_pca_from_sklearn_unfitted_estimator_is_fitted_by_learn(
     assert embedder.clustering_model.n_features_in == 32
 
 
-def test_set_pca_from_sklearn_feature_dim_mismatch_raises() -> None:
+def test_load_pca_model_from_sklearn_feature_dim_mismatch_raises() -> None:
     """An estimator fitted on the wrong feature size is rejected."""
     from sklearn.decomposition import PCA as SklearnPCA
 
@@ -218,11 +218,11 @@ def test_set_pca_from_sklearn_feature_dim_mismatch_raises() -> None:
     sklearn_model = SklearnPCA(n_components=8).fit(rng.random((300, 16)))
     embedder = VLADEmbedder(n_clusters=8)
     with pytest.raises(RuntimeError, match="feature extractor output size"):
-        embedder.set_pca_from_sklearn(sklearn_model)
+        embedder.load_pca_model_from_sklearn(sklearn_model)
     assert embedder.pca is None
 
 
-def test_set_pca_from_sklearn_clustering_dim_mismatch_raises() -> None:
+def test_load_pca_model_from_sklearn_clustering_dim_mismatch_raises() -> None:
     """An estimator whose output cannot feed the fitted clustering model is rejected."""
     from sklearn.cluster import KMeans as SklearnKMeans
     from sklearn.decomposition import PCA as SklearnPCA
@@ -234,25 +234,25 @@ def test_set_pca_from_sklearn_clustering_dim_mismatch_raises() -> None:
     )
     sklearn_model = SklearnPCA(n_components=32).fit(rng.random((300, 128)))
     with pytest.raises(RuntimeError, match="clustering model input size"):
-        embedder.set_pca_from_sklearn(sklearn_model)
+        embedder.load_pca_model_from_sklearn(sklearn_model)
     assert embedder.pca is None
 
 
-def test_set_pca_from_sklearn_wrong_type_raises() -> None:
+def test_load_pca_model_from_sklearn_wrong_type_raises() -> None:
     """An object that is not a scikit-learn PCA raises ``TypeError``."""
     embedder = VLADEmbedder(n_clusters=8)
     with pytest.raises(TypeError, match="sklearn.decomposition.PCA"):
-        embedder.set_pca_from_sklearn(object())
+        embedder.load_pca_model_from_sklearn(object())
 
 
-def test_set_pca_from_sklearn_fisher() -> None:
+def test_load_pca_model_from_sklearn_fisher() -> None:
     """Fisher Vector takes a PCA from a scikit-learn estimator as well."""
     from sklearn.decomposition import PCA as SklearnPCA
 
     rng = np.random.default_rng(0)
     sklearn_model = SklearnPCA(n_components=32).fit(rng.random((300, 128)))
     embedder = FisherVectorEmbedder(n_components=8)
-    embedder.set_pca_from_sklearn(sklearn_model)
+    embedder.load_pca_model_from_sklearn(sklearn_model)
     assert embedder.pca is not None
     assert np.array_equal(embedder.pca.components, sklearn_model.components_)
 
