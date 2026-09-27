@@ -461,6 +461,26 @@ class ClusteringBasedEmbedder(FeatureBasedEmbedder):
             )
         self._set_clustering_model(from_sklearn(model))
 
+    def set_pca_from_sklearn(self, model: Any) -> None:
+        """
+        Replaces this embedder's PCA with one created from a scikit-learn
+        estimator.
+
+        If the estimator is fitted, its learned state is adopted and validated
+        against the configured feature extractor and clustering model.
+        Otherwise, :meth:`learn` fits it.
+
+        :param model: A :class:`sklearn.decomposition.PCA` estimator, fitted
+            or not.
+        :raises TypeError: If ``model`` is not a
+            :class:`sklearn.decomposition.PCA` instance, or its
+            ``n_components`` or ``random_state`` cannot be translated.
+        :raises ValueError: If the fitted estimator's input size does not match
+            the feature extractor output size, or its output size does not
+            match the input size of the fitted clustering model.
+        """
+        self._set_pca(PCA.from_sklearn(model))
+
     def _state(self) -> dict[str, Any]:
         """
         Describes the learned embedder as a JSON-safe mapping.
