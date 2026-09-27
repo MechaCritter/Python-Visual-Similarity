@@ -41,11 +41,12 @@ from ._index import (
     Space,
     validate_index_params,
 )
-from ._index._adapter import FaissIndexAdapter as _FaissIndexAdapter
-from ._index._adapter import is_faiss_index as _is_faiss_index
 
 if TYPE_CHECKING:
     from ...typing.index import FaissIndex
+    from ._index._adapter import FaissIndexAdapter as _FaissIndexAdapter
+
+    _GalleryIndex = _FaissIndexAdapter | HnswIndex | BruteForceIndex
 
 # Value of ``search_index`` selecting the HNSW graph.
 _HNSW = "hnsw"
@@ -62,9 +63,6 @@ _INDEX_PARAM_TABLES: dict[str, dict[str, str]] = {
 # Keyword argument of :meth:`InMemoryImageEmbeddingStore.load_from_disk` that
 # carries a rebuilt index instead of being forwarded to the embedder.
 _SEARCH_INDEX_KWARG = "search_index"
-
-# All index classes the store uses
-_GalleryIndex = _FaissIndexAdapter | HnswIndex | BruteForceIndex
 
 # Threads decoding image files while the embedder works on the previous batch.
 _DEFAULT_NUM_WORKERS = 4
@@ -933,13 +931,16 @@ def _validate_search_index(search_index: str | None) -> None:
 
 def _make_faiss_index_adapter(search_index: object) -> _FaissIndexAdapter:
     """Adapt an index object handed to the store, which must be a FAISS index."""
-    if not _is_faiss_index(search_index):
+    # Imported here, so that a store on a built-in index never loads FAISS.
+    from ._index._adapter import FaissIndexAdapter, is_faiss_index
+
+    if not is_faiss_index(search_index):
         raise TypeError(
             f"'{_SEARCH_INDEX_KWARG}' must be a FAISS index, got "
             f"{type(search_index).__name__}. Indexes of other libraries are not "
             f"supported."
         )
-    return _FaissIndexAdapter(search_index)
+    return FaissIndexAdapter(search_index)
 
 
 def _validate_index_params(index_name: str, index_params: dict[str, Any]) -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, TypeGuard
+from typing import TypeGuard
 
 import numpy as np
 
@@ -12,8 +12,14 @@ from .....typing import Float32NumpyArray, FloatNumpyArray, IntNumpyArray
 from .....utils.validation import Param, validate_params
 from .._utils import Space, as_decoded_gallery, as_id_array, as_query_matrix
 
-if TYPE_CHECKING:
-    from .....typing.index import FaissIndex
+with OptionalImport(
+    err_msg=(
+        "FAISS is not installed. Please install it with: "
+        "'uv pip install faiss-cpu' or 'pip install faiss-cpu'"
+    )
+) as _faiss_import:
+    import faiss
+    from faiss import Index as FaissIndex
 
 
 def is_faiss_index(obj: object) -> TypeGuard[FaissIndex]:
@@ -24,16 +30,8 @@ def is_faiss_index(obj: object) -> TypeGuard[FaissIndex]:
     :return: ``True`` if ``obj`` is a ``faiss.Index``.
     :raises ImportError: If FAISS is not installed.
     """
-    # Imported here, so that a store on a built-in index never loads FAISS.
-    with OptionalImport(
-        err_msg=(
-            "FAISS is not installed. Please install it with: "
-            "'uv pip install faiss-cpu' or 'pip install faiss-cpu'"
-        )
-    ) as faiss_import:
-        import faiss
-    faiss_import.check()
-    return isinstance(obj, faiss.Index)
+    _faiss_import.check()
+    return isinstance(obj, FaissIndex)
 
 
 class FaissIndexAdapter:
@@ -148,9 +146,6 @@ def _space_of(index: FaissIndex) -> Space:
     :return: ``"l2"`` for ``METRIC_L2``, ``"ip"`` for ``METRIC_INNER_PRODUCT``.
     :raises ValueError: If the index was built for any other metric.
     """
-    # Already loaded at this point, since the index came from it.
-    import faiss
-
     spaces: dict[int, Space] = {
         faiss.METRIC_L2: "l2",
         faiss.METRIC_INNER_PRODUCT: "ip",
