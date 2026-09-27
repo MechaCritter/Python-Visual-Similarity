@@ -170,15 +170,17 @@ gallery, with one vector per image path, in the same order as the paths:
    - The metric of the index sets the space of the store: ``METRIC_L2`` gives
      ``"l2"`` and ``METRIC_INNER_PRODUCT`` gives ``"ip"``. Other ``METRIC_*``
      values are not yet supported.
-   - You have to normalise the vectors yourself. An index built for
-     ``METRIC_INNER_PRODUCT`` ranks by cosine similarity only if the vectors
-     were normalised before they were added, and the query embeddings must be
-     normalised the same way.
+   - Vector normalization, if any, must be done by the user before the index is
+     passed to the store. An index built for ``METRIC_INNER_PRODUCT`` ranks by
+     cosine similarity only if the vectors were normalised before they were
+     added, and the query embeddings must be normalised the same way.
    - The store reads the vectors back from the index by row. So if you use
      an ``IVF`` index, call this before passing it to the store:
      ``faiss.extract_index_ivf(faiss_index).make_direct_map()``.
    - A product- or scalar-quantized index returns only an approximation of its
-     vectors. To save the original vectors, pass them to ``save_to_disk``.
+     vectors. Upon calling ``save_to_disk``, if ``vectors`` is not passed,
+     the quantized approximation is saved instead of the original vectors.
+     If this is not desired, pass the original vectors to ``save_to_disk``.
 
 The store file cannot hold the FAISS index, so pass the index to
 ``load_from_disk`` again. If you leave the index out, the store falls back to an

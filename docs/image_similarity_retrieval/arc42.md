@@ -73,5 +73,4 @@ The reranker reads the candidates' embeddings back from the store's index to
 compute the distances among them in the store's `space`, while the query's
 distances to the candidates are the scores the store ranked them by. Both are
 then measured in the same metric. This is why the candidates must come from
-the given store. A store on a FAISS index qualifies, since its scores are the
-distances of the space its index metric decides.
+the given store.
