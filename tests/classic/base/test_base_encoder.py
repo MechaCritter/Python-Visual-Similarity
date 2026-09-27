@@ -217,7 +217,7 @@ def test_set_pca_from_sklearn_feature_dim_mismatch_raises() -> None:
     rng = np.random.default_rng(0)
     sklearn_model = SklearnPCA(n_components=8).fit(rng.random((300, 16)))
     embedder = VLADEmbedder(n_clusters=8)
-    with pytest.raises(ValueError, match="feature extractor output size"):
+    with pytest.raises(RuntimeError, match="feature extractor output size"):
         embedder.set_pca_from_sklearn(sklearn_model)
     assert embedder.pca is None
 
@@ -233,7 +233,7 @@ def test_set_pca_from_sklearn_clustering_dim_mismatch_raises() -> None:
         SklearnKMeans(n_clusters=8, random_state=0).fit(rng.random((300, 128)))
     )
     sklearn_model = SklearnPCA(n_components=32).fit(rng.random((300, 128)))
-    with pytest.raises(ValueError, match="clustering model input size"):
+    with pytest.raises(RuntimeError, match="clustering model input size"):
         embedder.set_pca_from_sklearn(sklearn_model)
     assert embedder.pca is None
 
@@ -334,6 +334,19 @@ def test_learn_with_dim_reduction_factor_builds_pca(
     embedder.learn(category_train_images_flat, dim_reduction_factor=2)
     assert isinstance(embedder.pca, PCA)
     assert embedder.pca.is_fitted is True
+    assert embedder.pca.n_components == 64  # RootSIFT dim 128 // 2
+
+
+def test_learn_with_dim_reduction_factor_replaces_configured_pca_with_warning(
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """A ``dim_reduction_factor`` replaces an already configured PCA and warns."""
+    embedder = VLADEmbedder(
+        n_clusters=8, kmeans_params={"rng": 0}, pca_params={"n_components": 32}
+    )
+    with pytest.warns(FutureWarning, match="replaces the PCA"):
+        embedder.learn(category_train_images_flat, dim_reduction_factor=2)
+    assert embedder.pca is not None
     assert embedder.pca.n_components == 64  # RootSIFT dim 128 // 2
 
 
