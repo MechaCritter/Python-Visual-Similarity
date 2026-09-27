@@ -1,0 +1,4 @@
+---
+enhancements:
+  - |
+    Truncated an unnecessary markdown cell in notebook ``vlad_and_fisher_with_resnet18_deep_features.ipynb``.
