@@ -10,10 +10,7 @@ from PIL import Image
 
 from pyvisim.classic import VLADEmbedder
 from pyvisim.retrieval.data import Candidate
-from pyvisim.retrieval.image_store import (
-    ExternalSearchIndex,
-    InMemoryImageEmbeddingStore,
-)
+from pyvisim.retrieval.image_store import InMemoryImageEmbeddingStore
 from pyvisim.retrieval.reranking import KReciprocalReranker
 
 # The distance computation is checked on its own against a literal transcription
@@ -175,31 +172,6 @@ def test_rejects_a_non_store() -> None:
     """Anything but an ``InMemoryImageEmbeddingStore`` is refused."""
     with pytest.raises(TypeError, match="InMemoryImageEmbeddingStore"):
         KReciprocalReranker(object())  # type: ignore[arg-type]
-
-
-def test_rejects_a_store_on_an_external_index(
-    store: InMemoryImageEmbeddingStore,
-) -> None:
-    """A store searching through an external index has scores of unknown meaning."""
-
-    class _Stub:
-        """A stand-in index that can search but says nothing about its metric."""
-
-        def search(self, queries: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
-            """Return the first ``k`` gallery rows for every query.
-
-            :param queries: the ``(M, D)`` query batch.
-            :param k: number of neighbors per query.
-            :returns: a ``(scores, ids)`` pair of ``(M, k)`` arrays.
-            """
-            rows = queries.shape[0]
-            return np.zeros((rows, k), np.float32), np.tile(np.arange(k), (rows, 1))
-
-    external = InMemoryImageEmbeddingStore(
-        store.paths, store.embedder, ExternalSearchIndex(_Stub(), store.embeddings)
-    )
-    with pytest.raises(ValueError, match="external index"):
-        KReciprocalReranker(external)
 
 
 @pytest.mark.parametrize(
@@ -398,6 +370,33 @@ def test_original_scores_are_left_untouched(
     before = [(c.path, c.score) for c in candidates]
     reranker.rerank(candidates, top_k=3)
     assert [(c.path, c.score) for c in candidates] == before
+
+
+def test_reranks_a_store_on_a_faiss_index_like_the_built_in_one(
+    store: InMemoryImageEmbeddingStore,
+    category_train_images_flat: list[np.ndarray],
+) -> None:
+    """A store on a FAISS index is re-ranked in its own metric.
+
+    The FAISS index holds the L2-normalised embeddings of the cosine store, so
+    its ``1 - inner_product`` scores are the cosine distances of the store.
+    """
+    faiss = pytest.importorskip("faiss")
+    flat = faiss.IndexFlatIP(store.dim)
+    flat.add(np.ascontiguousarray(store.embeddings))
+    faiss_store = InMemoryImageEmbeddingStore(store.paths, store.embedder, flat)
+
+    probe = _probe(category_train_images_flat[0])
+    built_in, on_faiss = (
+        KReciprocalReranker(source, k1=6, k2=3).rerank(
+            source.retrieve_top_k_similar(probe, k=len(source))[0], top_k=5
+        )
+        for source in (store, faiss_store)
+    )
+    assert [c.path for c in on_faiss] == [c.path for c in built_in]
+    assert np.allclose(
+        [c.score for c in on_faiss], [c.score for c in built_in], atol=1e-5
+    )
 
 
 # The distance computation against the paper
