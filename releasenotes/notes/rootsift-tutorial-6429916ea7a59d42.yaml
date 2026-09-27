@@ -1,0 +1,7 @@
+---
+enhancements:
+  - |
+    The new tutorial ``Custom Feature Extractor with RootSIFT`` under the
+    classical methods implements ``RootSIFT`` on top of the ``SIFT`` of
+    ``OpenCV``, which is the recommended way to use ``RootSIFT`` since it is much
+    faster than the built-in ``RootSIFT``.
