@@ -46,15 +46,15 @@ traditional methods like `PSNR`, `SSIM`, `Fisher Vectors`, and `VLAD` to deep
 learning methods like `CLIP` and `Siamese Networks`. Furthermore, advanced
 **image similarity search** and **reranking** algorithms are provided to allow
 users to refine the search results as desired. For more details, please refer to
-the documentation provided. 
+the documentation provided.
 
 Currently, one would need to install numerous libraries just to everything mentioned above (for example, `scikit-image` + `opencv-python` for `Fisher Vectors`, `SSIM`, `open-clip` for `CLIP Embedder`, and `faiss` for **Approximate Nearest Neighbors Search**). `pyvisim`
 attempts to close this gap by implementing as many metrics as possible using only `numpy`, `scipy` (for conventional metrics), and optionally
 `torch` (for deep learning metrics) as core dependencies, plus making them more user-friendly with a simple Object-Oriented code design.
 
 > [!TIP]
-> `hnsw` is provided as a built-in ANNs algorithm, backed by [hnswlib](https://github.com/nmslib/hnswlib). However, an [interface with external search indexes](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/external_search_index/external_search_index.html) is also provided in case you would like to use other search 
-algorithms with this library. **Just note** that `pyvisim` does not install dependencies like `faiss` or `annoy`.
+> `hnsw` is provided as a built-in ANNs algorithm, backed by [hnswlib](https://github.com/nmslib/hnswlib). However, a [FAISS index can also be passed to the image store](https://mechacritter.github.io/Python-Visual-Similarity/image_similarity_retrieval/image_store/in_memory_image_embedding_store/in_memory_image_embedding_store.html#faiss-index) in case you would like to use other search
+algorithms with this library. **Just note** that `pyvisim` does not install `faiss`.
 
 ### Accelerated Computation
 
