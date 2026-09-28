@@ -29,13 +29,7 @@
 
 ## Status
 
-> [!WARNING]
-> This project is still in early development, so the API might change anytime (with deprecation,
-> but the change will come soon afterwards). Feel free to use it in development environments, but I
-> would recommend against using it in production.
->
-> The first stable release will have the version tag `v1.0.0` and will come approximately by the
-> end of `August 2026`.
+🚀 The first stable release `v1.0.0` is out!
 
 ## Overview
 
