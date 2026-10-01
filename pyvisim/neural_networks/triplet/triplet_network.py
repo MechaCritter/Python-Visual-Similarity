@@ -8,8 +8,6 @@ with OptionalImport(
     import torch
     from torchvision import transforms
 
-_torch_import.check()
-
 
 class TripletNeuralNetwork(BackboneWithHead):
     """
@@ -69,6 +67,7 @@ class TripletNeuralNetwork(BackboneWithHead):
         normalize: bool = True,
         batch_size: int = 16,
     ):
+        _torch_import.check()
         super().__init__(
             backbone=backbone,
             embedding_dim=embedding_dim,
