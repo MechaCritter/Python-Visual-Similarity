@@ -1,12 +1,4 @@
-"""CLIP image embedder built on pyvisim's own CLIP implementation.
-
-The embedder pairs the image towers implemented in :mod:`._model` with
-pretrained safetensors weights downloaded from the Hugging Face Hub (see
-:mod:`._registry`), so no third-party CLIP library is needed. Every variant
-of open_clip's registry whose image tower is a standard CLIP Vision
-Transformer or modified ResNet, including all original OpenAI models, is
-supported.
-"""
+"""CLIP image embedder built on pyvisim's own CLIP implementation."""
 
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -51,9 +43,8 @@ def _build_preprocess(
     """
     Build the CLIP inference preprocessing pipeline of a checkpoint.
 
-    Matches the transform open_clip builds for the checkpoint: a bicubic
-    resize (of the shortest side plus a center crop, or of both sides for
-    ``"squash"`` checkpoints), conversion to a ``[0, 1]`` tensor and
+    Steps include: A bicubic resize (of the shortest side plus a center crop, or of both sides
+    for ``"squash"`` checkpoints), conversion to a ``[0, 1]`` tensor and
     normalization with the checkpoint's channel statistics.
 
     :param config: Architecture description carrying the input size.
@@ -84,18 +75,18 @@ class ClipEmbedder(SerializableImageEmbedder):
 
     The safetensors checkpoint of the requested ``variant`` and
     ``pretrained`` tag is downloaded from the Hugging Face Hub on first use
-    and cached (see :func:`pyvisim.neural_networks.clip.fetch_checkpoint`);
-    only the image tower is loaded, and it always runs in ``float32``.
-    :meth:`embed` returns one embedding per image, L2-normalized when
-    ``normalize`` is on, so they can be compared directly with a dot
-    product or the cosine similarity metric.
+    and cached.
 
-    Variant names and pretrained tags follow open_clip, e.g.
-    ``ClipEmbedder("ViT-B-32", pretrained="laion2b_s34b_b79k")``. OpenAI-style
-    variant spellings (``"ViT-B/32"``) are accepted as aliases. See
-    :func:`pyvisim.neural_networks.clip.available_variants` and
-    :func:`pyvisim.neural_networks.clip.available_pretrained` for the
-    supported combinations.
+    To view all supported combinations of variant names and pretrained tags,
+    run:
+
+    .. code-block:: python
+
+        from pyvisim.neural_networks.clip import available_variants, available_pretrained
+
+        for variant in available_variants():
+            for pretrained in available_pretrained(variant):
+                print(f"{variant} / {pretrained}")
 
     :param variant: CLIP variant name.
     :param pretrained: Pretrained tag naming the weights, e.g. ``"openai"``
@@ -109,8 +100,7 @@ class ClipEmbedder(SerializableImageEmbedder):
         ``"l1"`` or ``"manhattan"``.
     :param cache_dir: Directory of the Hugging Face Hub cache the checkpoint
         is stored in. If ``None``, the standard Hub cache
-        (``~/.cache/huggingface/hub``) is used, so weights already downloaded via
-        open_clip's Hub downloads are reused.
+        (``~/.cache/huggingface/hub``) is used.
     :param batch_size: Maximum number of images processed in a single batch.
         Set to ``-1`` to process all images as a single batch.
     :raises ValueError: If ``variant``, ``pretrained`` or
