@@ -42,7 +42,7 @@ learning methods like `CLIP` and `Siamese Networks`. Furthermore, advanced
 users to refine the search results as desired. For more details, please refer to
 the documentation provided.
 
-Currently, one would need to install numerous libraries just to everything mentioned above (for example, `scikit-image` + `opencv-python` for `Fisher Vectors`, `SSIM`, `open-clip` for `CLIP Embedder`, and `faiss` for **Approximate Nearest Neighbors Search**). `pyvisim`
+Currently, one would need to install numerous libraries to use all features mentioned above (for example, `scikit-image` + `opencv-python` for `Fisher Vectors`, `SSIM`, `open-clip` for `CLIP Embedder`, and `faiss` for **Approximate Nearest Neighbors Search**). `pyvisim`
 attempts to close this gap by implementing as many metrics as possible using only `numpy`, `scipy` (for conventional metrics), and optionally
 `torch` (for deep learning metrics) as core dependencies, plus making them more user-friendly with a simple Object-Oriented code design.
 
@@ -130,7 +130,7 @@ Additional features include (note: these pull in heavy dependencies like `torch`
 pip install "pyvisim[nn]"
 ```
 
-All experiments in this project was made on the Oxford Flower Dataset
+All experiments in this project were made on the Oxford Flower Dataset
 <ref>[7]</ref>, for which I have created a custom dataset class. For
 more details on the dataset, please refer to the [documentation](https://mechacritter.github.io/Python-Visual-Similarity/dataset/oxford_flower_dataset/oxford_flower_dataset.html).
 
@@ -140,7 +140,7 @@ See [the contributing guidelines](CONTRIBUTING.md).
 
 ## Get in Touch
 Feel free to:
-- Open an issue on [GitHub](https://github.com/MechaCritter/similarity_metrics_of_images/issues).
+- Open an issue on [GitHub](https://github.com/MechaCritter/Python-Visual-Similarity/issues).
 - Write me an email at [mechacritter@outlook.com](mailto:mechacritter@outlook.com).
 - Connect on [LinkedIn](https://www.linkedin.com/in/nhat-huy-vu-80495111b/) to follow my work and share your thoughts.
 
